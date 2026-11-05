@@ -25,6 +25,7 @@ var placed: Array[Box] = []
 var holding: Box = null
 
 var hud := Label.new()
+var combo_label := Label.new()
 var tray := HBoxContainer.new()
 var place_btn := Button.new()
 var view := Tuning.VIEW
@@ -52,13 +53,20 @@ func _ready() -> void:
 
 	hud.position = Vector2(12, 10)
 	add_child(hud)
+	combo_label.size = Vector2(400, 60)
+	combo_label.position = Vector2(view.x / 2 - 200, Tuning.PLACE_MAX_Y - 120)
+	combo_label.pivot_offset = combo_label.size / 2
+	combo_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	combo_label.add_theme_font_size_override("font_size", 40)
+	combo_label.modulate = Tuning.COLORS.combo
+	add_child(combo_label)
 	tray.position = Vector2(12, Tuning.PLACE_MAX_Y + 16)
 	tray.add_theme_constant_override("separation", 16)
 	var start := Button.new()
 	start.text = "Start round (Space)"
 	start.pressed.connect(_start)
 	var hint := Label.new()
-	hint.text = "Click to pick up / drop.  R rotates.  Right-click removes."
+	hint.text = "Click to pick up / drop.  R rotates.  Right-click removes.  Esc quits."
 	for b in [place_btn, start]:
 		b.focus_mode = Control.FOCUS_NONE  # else Space re-presses the last clicked button
 	place_btn.pressed.connect(_take_bumper)
@@ -173,8 +181,13 @@ func _unhandled_input(e: InputEvent) -> void:
 			elif not launched:
 				_launch()
 		elif e.keycode == KEY_R and holding:
-			holding.resize(Vector2(holding.size.y, holding.size.x))
+			holding.rotation += deg_to_rad(Tuning.BUMPER_ROTATE_DEG)
 			_drag()
+		elif e.keycode == KEY_ESCAPE:
+			if placing:
+				done.emit()
+			else:
+				_end("Abandoned")
 
 
 func _launch() -> void:
@@ -250,6 +263,8 @@ func _break(b: Box) -> void:
 	var pay := Game.payout(level, combo)
 	earned += pay
 	Game.currency += pay
+	_float_text(b.position, "+$%d" % pay)
+	create_tween().tween_property(combo_label, "scale", Vector2.ONE, 0.25).from(Vector2.ONE * 1.5)
 	breakable -= 1
 	if breakable == 0:
 		_end("Cleared!", true)
@@ -276,7 +291,20 @@ func _end(msg: String, cleared := false) -> void:
 	add_child(panel)
 
 
+func _float_text(pos: Vector2, text: String) -> void:
+	var l := Label.new()
+	l.text = text
+	l.position = pos
+	l.add_theme_font_size_override("font_size", 22)
+	add_child(l)
+	var t := create_tween()
+	t.tween_property(l, "position:y", pos.y - 50, 0.7)
+	t.parallel().tween_property(l, "modulate:a", 0.0, 0.7)
+	t.tween_callback(l.queue_free)
+
+
 func _process(_delta: float) -> void:
+	combo_label.text = "COMBO %d   x%.2f" % [combo, Game.combo_mult(combo)] if combo > 1 else ""
 	hud.text = "Level %d    Time %.1f    $%d (+%d)    Combo %d  x%.2f" % [
 		level + 1, maxf(time_left, 0), Game.currency, earned, combo, Game.combo_mult(combo)]
 	queue_redraw()

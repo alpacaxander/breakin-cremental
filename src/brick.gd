@@ -16,14 +16,9 @@ func _ready() -> void:
 	add_child(c)
 
 
-func resize(s: Vector2) -> void:
-	size = s
-	_shape.size = s
-	queue_redraw()
-
-
+## Axis-aligned bounds. ponytail: a rotated bumper's box is its AABB, so overlap checks are conservative.
 func rect() -> Rect2:
-	return Rect2(position - size / 2, size)
+	return Transform2D(rotation, position) * Rect2(-size / 2, size)
 
 
 func _draw() -> void:

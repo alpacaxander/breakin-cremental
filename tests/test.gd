@@ -49,6 +49,13 @@ func _init() -> void:
 	g.clear_level(Tuning.LEVELS.size() - 1)
 	check(g.won and g.unlocked == Tuning.LEVELS.size() - 1, "clearing last level wins")
 
+	var b = load("res://src/brick.gd").new()
+	b.size = Vector2(90, 14)
+	b.position = Vector2(100, 100)
+	b.rotation = deg_to_rad(90)
+	check(b.rect().is_equal_approx(Rect2(93, 55, 14, 90)), "rotated brick rect is its bounding box")
+	b.free()
+
 	g.free()
 	print("FAILED %d" % failed if failed else "ok")
 	quit(1 if failed else 0)

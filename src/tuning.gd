@@ -36,6 +36,7 @@ const LEVELS := [
 const PLACE_MAX_Y := 560.0  # placed bricks must sit above this line
 const PLACE_MARGIN := 2.0  # min gap between a placed brick and anything else
 const BUMPER_SIZE := Vector2(90, 14)
+const BUMPER_ROTATE_DEG := 15.0  # per R press
 const BUMPER_COST := 2  # capacity used per bumper
 const CAPACITY_BASE := 2
 const START_BUMPERS := 1
