@@ -81,4 +81,4 @@ func _ready() -> void:
 	else:
 		DirAccess.remove_absolute(Game.SAVE_PATH)
 	Game.load_save()
-	get_tree().quit()
+	load("res://src/sfx.gd").quit()  # not get_tree().quit(): a cue still mixing at exit logs a leak

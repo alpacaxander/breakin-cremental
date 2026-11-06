@@ -7,6 +7,7 @@ const Tuning = preload("res://src/tuning.gd")
 const Box = preload("res://src/brick.gd")
 const Fx = preload("res://src/fx.gd")
 const Ui = preload("res://src/ui.gd")
+const Sfx = preload("res://src/sfx.gd")
 const BALL_TEX := preload("res://assets/pixel/png/ball.png")
 const TRAIL_TEX := preload("res://assets/pixel/png/anim_ball_trail.png")
 const HAZARD_TEX := preload("res://assets/pixel/png/anim_hazard_strip.png")
@@ -72,6 +73,7 @@ func _ready() -> void:
 	_box("wall", Vector2(100, view.y * 3), Vector2(field.position.x - 50, view.y / 2))
 	_box("wall", Vector2(100, view.y * 3), Vector2(field.end.x + 50, view.y / 2))
 	_box("wall", Vector2(view.x, 100), Vector2(view.x / 2, -50))
+	var rows := {}
 	for b in Game.generate(level, randi()):
 		var box := _box(b.kind, Tuning.BRICK_SIZE, b.pos)
 		if box.hp > 0:
@@ -79,6 +81,9 @@ func _ready() -> void:
 		# Spawn-in, one row after another. The brick shows once its spawn strip ends.
 		box.hide()
 		var row := int((b.pos.y - Tuning.BOARD_TOP) / (Tuning.BRICK_SIZE.y + Tuning.BRICK_GAP))
+		if not row in rows:  # one tick per row as it lands
+			rows[row] = true
+			Sfx.play("count_tick", 1.0 + 0.06 * row, 0.08 * row)
 		var id := box.get_instance_id()  # not the box itself: a lambda holding a freed object logs an engine error
 		create_tween().tween_callback(func():
 			if instance_from_id(id):
@@ -180,13 +185,14 @@ func _refresh_tray() -> void:
 	var hints := ["LMB PICK/DROP", "R ROTATE", "RMB REMOVE", "ESC PAUSE"]
 	for i in hints.size():
 		Ui.label(tray, hints[i], 6, y + 24 + i * 8, C.rivet)
-	Ui.button(tray, "START", 6, 300, 66, 24, _start, true)
+	Ui.button(tray, "START", 6, 300, 66, 24, _start, true, 2, "")
 	Ui.label(tray, "SPACE", 0, 328, C.rivet, 1, 78, HORIZONTAL_ALIGNMENT_CENTER)
 
 
 func _take(kind: String) -> void:
 	if not _can_take(kind):
 		return
+	Sfx.play("ui_pickup")
 	_hover(null)
 	holding = _box(kind, Tuning.PLACEABLES[kind].size, get_global_mouse_position())
 	placed.append(holding)
@@ -232,6 +238,7 @@ func _place_click(button: int) -> void:
 	var m := get_global_mouse_position()
 	if button == MOUSE_BUTTON_LEFT:
 		if holding and _valid(holding):
+			Sfx.play("ui_drop")
 			holding.overlay(null)
 			holding = null
 			_hover(_placed_at(m))
@@ -239,10 +246,14 @@ func _place_click(button: int) -> void:
 			_hover(null)
 			holding = _placed_at(m)
 			if holding:
+				Sfx.play("ui_pickup")
 				_drag()
+		else:
+			Sfx.play("ui_invalid")
 	elif button == MOUSE_BUTTON_RIGHT:
 		var b := holding if holding else _placed_at(m)
 		if b:
+			Sfx.play("ui_back")
 			_hover(null)
 			placed.erase(b)
 			b.queue_free()
@@ -261,6 +272,10 @@ func _start() -> void:
 	_hover(null)
 	holding = null
 	placing = false
+	Sfx.play("ui_start")
+	for p in placed:
+		if p.kind == "magnet":
+			Sfx.loop(p, "magnet_hum")
 	_refresh_tray()
 
 
@@ -292,6 +307,7 @@ func _unhandled_input(e: InputEvent) -> void:
 			elif not launched:
 				_launch()
 		elif e.keycode == KEY_R and holding:
+			Sfx.play("ui_rotate")
 			holding.rotation += deg_to_rad(Tuning.ROTATE_DEG)
 			_drag()
 		elif e.keycode == KEY_ESCAPE:
@@ -301,6 +317,8 @@ func _unhandled_input(e: InputEvent) -> void:
 # --- Pause ---
 
 func _pause(on: bool) -> void:
+	if on != get_tree().paused:
+		Sfx.play("ui_pause" if on else "ui_unpause")
 	get_tree().paused = on
 	if pause:
 		pause.queue_free()
@@ -313,6 +331,7 @@ func _pause(on: bool) -> void:
 
 
 func _pause_settings() -> void:
+	Sfx.play("ui_click")
 	pause.queue_free()
 	pause = Ui.settings(_pause.bind(true))  # Back rebuilds the pause menu
 	add_child(pause)
@@ -328,6 +347,7 @@ func _quit() -> void:
 
 func _launch() -> void:
 	launched = true
+	Sfx.play("ball_launch")
 	balls[0].vel = Vector2.UP.rotated(randf_range(-0.3, 0.3)) * Tuning.BALL_SPEED
 
 
@@ -343,8 +363,12 @@ func _physics_process(delta: float) -> void:
 		_rest_ball()
 		return
 	time_left -= delta
+	if time_left < 5 and time_left + delta >= 5:  # ponytail: same 5 s the clock turns red at in _process
+		Sfx.play("time_low")
 	combo_timer -= delta
 	if combo_timer <= 0:
+		if combo > 1:
+			Sfx.play("combo_drop")
 		combo = 0
 	for p in placed:
 		if p.kind == "spawner":
@@ -355,12 +379,18 @@ func _physics_process(delta: float) -> void:
 			return
 		if b.position.y > view.y + Tuning.BALL_RADIUS:
 			Fx.play(self, "ball_lost", 12, 12, Vector2(b.position.x, view.y - 12))
+			Sfx.play("ball_lost")
 			balls.erase(b)
 			b.queue_free()
 	var fast := balls.any(func(b): return b.speed >= Tuning.FAST_SPEED)
 	if fast != was_fast:
 		was_fast = fast
-		for b in _bricks("cond"):
+		var conds := _bricks("cond")
+		if fast:
+			Sfx.play("fast_whoosh")
+			if conds:
+				Sfx.play("cond_primed", 1.0, 0.15)
+		for b in conds:
 			b.face("brick_cond_speed_primed" if fast else "brick_cond_speed_idle")
 			if fast:
 				b.flash("cond_prime", 30, 8)
@@ -378,6 +408,7 @@ func _charge(p: Box, delta: float) -> void:
 	p.charge = 0
 	p.face(["spawner_charge", 30, 0])
 	Fx.play(self, "spawner_charge", 30, 12, p.position + Box.FACE_OFFSET.spawner)
+	Sfx.play("spawner_charge")
 	var b := _add_ball(p.position + Vector2(0, -p.size.y / 2 - Tuning.BALL_RADIUS - 2))
 	b.vel = Vector2.UP.rotated(randf_range(-0.6, 0.6)) * Tuning.BALL_SPEED
 
@@ -397,6 +428,7 @@ func _move_ball(ball: Ball, delta: float) -> void:
 		if ball.hold <= 0:
 			ball.vel = Vector2.UP * Tuning.BALL_SPEED * ball.speed
 			ball.grace = Tuning.PASS_GRACE
+			Sfx.play("sticky_fire")
 		return
 	ball.grace -= delta
 	for m in placed:
@@ -416,6 +448,7 @@ func _move_ball(ball: Ball, delta: float) -> void:
 			ball.vel = Vector2.UP.rotated(off * deg_to_rad(Tuning.MAX_BOUNCE_DEG)) * Tuning.BALL_SPEED * ball.speed
 			# Child of the paddle so the flash rides along instead of ghosting where the hit happened.
 			Fx.play(paddle, "paddle_hit", 60, 12, Vector2.ZERO).scale = paddle.size / Vector2(60, 8)
+			Sfx.play("paddle_hit", clampf(ball.speed, 0.85, 1.3))
 		else:
 			ball.vel = ball.vel.bounce(n)
 		if hit is Box:
@@ -438,15 +471,18 @@ func _pass(p: Box, ball: Ball) -> void:
 		"accel":
 			if ball.speed < Tuning.ACCEL_SPEED:
 				ball.set_speed(Tuning.ACCEL_SPEED)
+				Sfx.play("accel_zip")
 				Fx.play(self, "spark_burst_mint", 16, 12, ball.position)
 		"oneway":
 			if ball.vel.y > 0:
 				ball.vel.y = -ball.vel.y
+				Sfx.play("gate_pass")
 				Fx.play(self, "spark_burst_mint", 16, 12, ball.position)
 		"sticky":
 			ball.hold = Tuning.STICKY_HOLD
 			ball.position = p.position + Vector2(0, -p.size.y / 2 - Tuning.BALL_RADIUS)
 			Fx.play(self, "sticky_hold", 30, 8, p.position + Vector2(0, -10))
+			Sfx.play("sticky_catch")
 		"tele":
 			var teles := placed.filter(func(b): return b.kind == "tele")
 			if teles.size() < 2:
@@ -454,6 +490,8 @@ func _pass(p: Box, ball: Ball) -> void:
 			var out: Box = teles[(teles.find(p) + 1) % teles.size()]
 			Fx.play(self, "teleport_in", 16, 12, p.position)
 			Fx.play(self, "teleport_out", 16, 12, out.position)
+			Sfx.play("teleport_in")
+			Sfx.play("teleport_out", 1.0, 0.1)
 			ball.position = out.position + ball.vel.normalized() * (out.size.x / 2 + Tuning.BALL_RADIUS)
 		_:
 			return
@@ -462,10 +500,16 @@ func _pass(p: Box, ball: Ball) -> void:
 
 func _hit(b: Box, ball: Ball) -> void:
 	match b.kind:
-		"solid": Fx.play(self, "solid_bounce", 44, 12, b.position)
-		"bumper": Fx.play(self, "bumper_hit", 45, 12, b.position, b.rotation)
+		"wall": Sfx.play("ball_bounce")
+		"solid":
+			Fx.play(self, "solid_bounce", 44, 12, b.position)
+			Sfx.play("solid_bounce")
+		"bumper":
+			Fx.play(self, "bumper_hit", 45, 12, b.position, b.rotation)
+			Sfx.play("bumper_hit")
 		"pop":
 			Fx.play(self, "pop_bumper_hit", 24, 12, b.position)
+			Sfx.play("pop_bumper_hit")
 			ball.set_speed(ball.speed + Tuning.POP_SPEED)
 		_:
 			if b.hp > 0:
@@ -483,7 +527,10 @@ func _damage(b: Box, ball: Ball) -> void:
 		"seq1", "seq2", "seq3": refused = b.kind != _seq_next()
 	if refused:
 		b.flash("cond_too_slow", 30)  # the "why didn't it break" signal
+		Sfx.play("hit_refused")
 		return
+	if b.kind.begins_with("seq"):
+		Sfx.play("seq_step", [1.0, 1.26, 1.5][int(b.kind[-1]) - 1])
 	b.hp -= 1
 	if b.hp <= 0:
 		_break(b)
@@ -492,14 +539,18 @@ func _damage(b: Box, ball: Ball) -> void:
 		"multi":
 			b.face("brick_multi_cracked")
 			b.flash("mag_hit", 30)
+			Sfx.play("multi_crack")
 		"multi3":
 			b.face(["multi3_crack", 30, 4 if b.hp == 2 else 8])
 			b.flash("pips_shrink" if b.hp == 2 else "mag_hit", 30)
+			Sfx.play("multi_crack", 0.8 + 0.1 * b.hp)  # lower each crack
 		"shield":
 			b.face("brick_plain_lit")
 			b.flash("shield_pop", 44)
+			Sfx.play("shield_pop")
 		_:
 			b.flash("mag_hit", 30)
+			Sfx.play("brick_hit")
 
 
 ## The lowest-numbered sequence brick still standing is the one that may break.
@@ -523,11 +574,19 @@ func _break(b: Box) -> void:
 	Fx.play(self, "spark_burst_sky" if sky else "spark_burst", 16, 12, b.position)
 	combo = combo + 1 if combo > 0 else 1
 	combo_timer = Game.combo_window(combo)
+	Sfx.play("brick_break")
+	if combo > 1:
+		Sfx.play("combo_tick", Sfx.st(mini(combo - 2, 7)))
+	if combo == Tuning.GATE_COMBO or combo % 5 == 0:
+		Sfx.play("combo_up")
+	elif combo < Tuning.GATE_COMBO and _bricks("cgate"):
+		Sfx.play("gate_tick", 0.7 + 0.1 * combo)
 	var pay := roundi(Game.payout(level, combo) * Tuning.BRICKS[b.kind].pay * boost_mult)
 	if boost_hits > 0:
 		boost_hits -= 1
 		if boost_hits == 0:
 			boost_mult = 1.0
+			Sfx.play("boost_end")
 	_pay(b.position, pay)
 	best_combo = maxi(best_combo, combo)
 	create_tween().tween_property(combo_l, "scale", Vector2.ONE, 0.25).from(Vector2.ONE * 1.5)
@@ -547,40 +606,51 @@ func _pay(pos: Vector2, pay: int) -> void:
 func _effect(kind: String, b: Box) -> void:
 	match kind:
 		"multiball":
+			Sfx.play("multiball_pop")
 			_add_ball(b.position).vel = Vector2.DOWN.rotated(randf_range(-0.5, 0.5)) * Tuning.BALL_SPEED
 		"speedup":
+			Sfx.play("speedup")
 			for ball in balls:
 				ball.set_speed(ball.speed * Tuning.SPEEDUP)
 		"slowdown":
+			Sfx.play("slowdown")
 			for ball in balls:
 				ball.set_speed(ball.speed * Tuning.SLOWDOWN)
 		"x2", "x3":
+			Sfx.play("x2_sting" if kind == "x2" else "x3_sting")
 			boost_mult = maxf(boost_mult, 2 if kind == "x2" else 3)
 			boost_hits = Tuning.BOOST_HITS
 			_tag(b.position + Vector2(0, -24), kind)
 		"combo":
+			Sfx.play("combo_extend")
 			combo_timer += Tuning.COMBO_EXTEND
 		"timer":
+			Sfx.play("timer_extend")
 			time_left += Tuning.TIME_EXTEND
 			_tag(b.position + Vector2(0, -24), "+%ds" % int(Tuning.TIME_EXTEND))
 		"chain":
+			Sfx.play("chain_zap")
 			for n in _near(b, Tuning.CHAIN_DIST):
 				var mid: Vector2 = (b.position + n.position) / 2
 				Fx.play(self, "chain_arc", 64, 12, mid, b.position.angle_to_point(n.position))
 				_break(n)
 		"bomb":
 			Fx.play(self, "bomb_ring", 60, 12, b.position)
+			Sfx.play("bomb_boom")
 			for n in _near(b, Tuning.BOMB_RADIUS):
 				_break(n)
 		"bolt":
+			Sfx.play("bolt_sweep")
 			for n in get_children():
 				if n is Box and n.hp > 0 and n != b and absf(n.position.y - b.position.y) < 2:
 					Fx.play(self, "bolt_sweep", 60, 12, n.position)
 					_break(n)
 		"jackpot":
 			Fx.play(self, "jackpot_rays", 48, 8, b.position)
+			Sfx.play("jackpot")
 			_pay(b.position + Vector2(0, -28), Tuning.LEVELS[level].payout * Tuning.JACKPOT_MULT)
 		"mystery":
+			Sfx.play("mystery_reel")
 			var picks := Tuning.ICON_KINDS.duplicate()
 			picks.erase("mystery")
 			_effect(picks.pick_random(), b)
@@ -600,6 +670,11 @@ func _end(msg: String, cleared := false) -> void:
 	Game.runs += 1
 	Game.best = maxi(Game.best, earned)
 	Game.save()
+	Sfx.play({"Cleared!": "round_clear", "Time's up": "time_up", "Ball dropped": "round_fail"}.get(msg, "ui_back"))
+	if earned:
+		Sfx.play("coin_cascade", 1.0, 0.5)
+	if unlocked or (cleared and level == Tuning.LEVELS.size() - 1):
+		Sfx.play("ui_unlock", 1.0, 1.0)
 	var r := Ui.overlay(0.6)
 	Ui.bulbs(r, 4)
 	Ui.panel(r, 200, 118, 240, 112)

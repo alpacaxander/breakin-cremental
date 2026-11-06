@@ -4,6 +4,7 @@ extends Node
 
 const Tuning = preload("res://src/tuning.gd")
 const Fx = preload("res://src/fx.gd")
+const Sfx = preload("res://src/sfx.gd")
 const PNG := "res://assets/pixel/png/%s.png"
 const SIZE := Vector2(640, 360)
 const RX := 562  # right column x; columns are 78 wide, text inset 6
@@ -25,6 +26,7 @@ class Root extends Control:
 	func _unhandled_input(e: InputEvent) -> void:
 		if e is InputEventKey and e.pressed and e.keycode == KEY_ESCAPE and back.has_connections():
 			get_viewport().set_input_as_handled()
+			Sfx.play("ui_back")
 			back.emit()
 
 
@@ -115,8 +117,8 @@ static func centre(parent: Node, s: String, y: float, c: Color, k := 1) -> Label
 	return label(parent, s, FIELD_X, y, c, k, FIELD_W, HORIZONTAL_ALIGNMENT_CENTER)
 
 
-## mint: the lamp button, else chrome. k: text scale.
-static func button(parent: Node, s: String, x: float, y: float, w: float, h: float, on_press: Callable, mint := false, k := 2) -> Button:
+## mint: the lamp button, else chrome. k: text scale. snd: cue on press, "" when the handler plays its own.
+static func button(parent: Node, s: String, x: float, y: float, w: float, h: float, on_press: Callable, mint := false, k := 2, snd := "ui_click") -> Button:
 	var b := Button.new()
 	b.text = s
 	b.position = Vector2(x, y)
@@ -126,6 +128,8 @@ static func button(parent: Node, s: String, x: float, y: float, w: float, h: flo
 		b.theme_type_variation = &"Mint"
 	if k != 1:
 		b.add_theme_font_size_override("font_size", 5 * k)
+	if snd:
+		b.pressed.connect(func(): Sfx.play(snd))
 	b.pressed.connect(on_press)
 	parent.add_child(b)
 	return b
@@ -197,7 +201,7 @@ static func settings(back: Callable) -> Root:
 	fs.position = Vector2(380, 102)
 	fs.focus_mode = Control.FOCUS_NONE
 	fs.button_pressed = Game.settings.fullscreen
-	fs.toggled.connect(func(on): Game.set_setting("fullscreen", on))
+	fs.toggled.connect(func(on): Game.set_setting("fullscreen", on); Sfx.play("ui_click"))
 	r.add_child(fs)
 	label(r, "VOLUME", 220, 128, Tuning.COLORS.white)
 	var vol := HSlider.new()
@@ -207,8 +211,8 @@ static func settings(back: Callable) -> Root:
 	vol.max_value = 1.0
 	vol.step = 0.05
 	vol.value = Game.settings.volume
-	vol.value_changed.connect(func(v): Game.set_setting("volume", v))
+	vol.value_changed.connect(func(v): Game.set_setting("volume", v); Sfx.play("ui_slider"))  # the tick previews the new volume
 	r.add_child(vol)
-	button(r, "BACK", 260, 160, 120, 18, back)
+	button(r, "BACK", 260, 160, 120, 18, back, false, 2, "ui_back")
 	r.back.connect(back)
 	return r

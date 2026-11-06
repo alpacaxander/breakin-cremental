@@ -81,6 +81,14 @@ func _init() -> void:
 		check(s.sprite_frames.get_frame_count("default") == a[2], "anim_%s has %d frames" % [a[0], a[2]])
 		holder.free()
 
+	# Every cue the scripts play exists as a wav. Names: assets/audio/gen.mjs.
+	var call := RegEx.create_from_string("Sfx\\.(?:play|loop)\\(([^\\n]*)")
+	var lit := RegEx.create_from_string("\"([a-z]\\w{3,})\"")  # cue-shaped literals only, so "x2" in a condition is skipped
+	for f in ["arena", "main", "shop", "ui"]:
+		for c in call.search_all(FileAccess.get_file_as_string("res://src/%s.gd" % f)):
+			for m in lit.search_all(c.get_string(1)):
+				check(FileAccess.file_exists("res://assets/audio/wav/%s.wav" % m.get_string(1)), "cue %s has a wav" % m.get_string(1))
+
 	# Every brick kind and placeable builds with a face.
 	for k in Tuning.BRICKS.keys() + Tuning.PLACEABLES.keys():
 		var box = load("res://src/brick.gd").new()

@@ -7,6 +7,7 @@ signal menu
 const Tuning = preload("res://src/tuning.gd")
 const Ui = preload("res://src/ui.gd")
 const Fx = preload("res://src/fx.gd")
+const Sfx = preload("res://src/sfx.gd")
 
 var selected: String = Tuning.SEED_UPGRADE
 var level := 0
@@ -28,11 +29,13 @@ class Web extends Control:
 
 func _ready() -> void:
 	level = Game.unlocked
+	Sfx.loop(self, "lamp_hum")
 	_build()
 
 
 func _unhandled_input(e: InputEvent) -> void:
 	if e is InputEventKey and e.pressed and e.keycode == KEY_SPACE:
+		Sfx.play("ui_start")
 		play.emit(level)
 
 
@@ -59,8 +62,8 @@ func _build() -> void:
 		Ui.label(root, "%d/%d" % [Game.rank(id), Tuning.UPGRADES[id].ranks], 60, 60 + i * 8, C.pay if maxed else C.cream)
 		i += 1
 	# ponytail: instant wipe, no confirm. It's a tuning tool.
-	Ui.button(root, "RESET", 6, 316, 66, 14, func(): Game.reset(); _build(), false, 1)
-	Ui.button(root, "MENU", 6, 334, 66, 14, menu.emit, false, 1)
+	Ui.button(root, "RESET", 6, 316, 66, 14, func(): Game.reset(); _build(), false, 1, "ui_back")
+	Ui.button(root, "MENU", 6, 334, 66, 14, menu.emit, false, 1, "ui_back")
 
 	# Field: the web. Node lamps, icons, then rank pips on top.
 	Ui.centre(root, "UPGRADE WEB", 6, C.rivet)
@@ -68,7 +71,7 @@ func _build() -> void:
 	root.add_child(web)
 	for id in Tuning.UPGRADES:
 		if Game.is_revealed(id):
-			_node(web, id, Tuning.UPGRADES[id].pos - Vector2(15, 6)).pressed.connect(func(): selected = id; _build())
+			_node(web, id, Tuning.UPGRADES[id].pos - Vector2(15, 6)).pressed.connect(func(): Sfx.play("ui_click"); selected = id; _build())
 	for id in Tuning.UPGRADES:
 		if not Game.is_revealed(id):
 			continue
@@ -94,8 +97,8 @@ func _build() -> void:
 	Ui.pips(root, Ui.RX + 28, 86, u.ranks, Game.rank(selected), "ui_pip_pay")
 	Ui.icon(root, "coin", Ui.RX + 6, 98)
 	Ui.label(root, "MAX" if maxed else str(Game.cost(selected)), Ui.RX + 18, 96, C.pay, 2)
-	Ui.button(root, "BUY", Ui.RX + 6, 112, 66, 18, _buy.bind(1), true).disabled = not Game.can_buy(selected)
-	Ui.button(root, "BUY MAX", Ui.RX + 6, 134, 66, 14, _buy.bind(u.ranks), false, 1).disabled = not Game.can_buy(selected)
+	Ui.button(root, "BUY", Ui.RX + 6, 112, 66, 18, _buy.bind(1), true, 2, "").disabled = not Game.can_buy(selected)
+	Ui.button(root, "BUY MAX", Ui.RX + 6, 134, 66, 14, _buy.bind(u.ranks), false, 1, "").disabled = not Game.can_buy(selected)
 	Ui.rect(root, Ui.RX + 3, 154, 72, 1, C.rivet)
 	Ui.label(root, "LEVEL", Ui.RX + 6, 160, C.rivet)
 	for l in Tuning.LEVELS.size():
@@ -104,7 +107,7 @@ func _build() -> void:
 	var L: Dictionary = Tuning.LEVELS[level]
 	Ui.label(root, "LEVEL %d" % (level + 1), Ui.RX + 6, y, C.white)
 	Ui.label(root, "%d x %d %s" % [L.cols, L.rows, L.shape], Ui.RX + 6, y + 8, C.rivet)
-	Ui.button(root, "PLAY", Ui.RX + 6, 300, 66, 24, play.emit.bind(level), true)
+	Ui.button(root, "PLAY", Ui.RX + 6, 300, 66, 24, play.emit.bind(level), true, 2, "ui_start")
 	Ui.label(root, "SPACE", Ui.RX, 328, C.rivet, 1, 78, HORIZONTAL_ALIGNMENT_CENTER)
 
 
@@ -122,7 +125,12 @@ func _node(parent: Node, id: String, at: Vector2) -> TextureButton:
 
 
 func _buy(n: int) -> void:
+	var shown := Tuning.UPGRADES.keys().filter(Game.is_revealed).size()
+	var r := Game.rank(selected)
 	for i in n:
 		Game.buy(selected)  # a no-op once it can't
+	Sfx.play("ui_buy" if Game.rank(selected) > r else "ui_cant_afford")
+	if Tuning.UPGRADES.keys().filter(Game.is_revealed).size() > shown:
+		Sfx.play("ui_reveal", 1.0, 0.3)
 	Game.save()
 	_build()

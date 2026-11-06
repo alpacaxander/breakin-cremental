@@ -39,7 +39,7 @@ func load_settings() -> void:
 
 func apply_settings() -> void:
 	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN if settings.fullscreen else DisplayServer.WINDOW_MODE_WINDOWED)
-	AudioServer.set_bus_volume_db(0, linear_to_db(maxf(settings.volume, 0.001)))  # no audio yet; the master bus is ready for it
+	AudioServer.set_bus_volume_db(0, linear_to_db(maxf(settings.volume, 0.001)))  # every cue (src/sfx.gd) plays on the master bus
 
 
 func save() -> void:
