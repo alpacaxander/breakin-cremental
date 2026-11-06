@@ -26,7 +26,7 @@ const COMBO_MULT_PER_HIT := 0.25  # mult = 1 + this * (combo - 1)
 # Board generation. shape: "grid" or "triangle" (rows narrow by 2 going up).
 const BRICK_SIZE := Vector2(60, 24)
 const BRICK_GAP := 4.0
-const BOARD_TOP := 44.0
+const BOARD_TOP := 100.0  # 44 + two brick rows (2 * (24 + 4))
 # special: kind -> chance per brick (see BRICKS). jackpot: one 777 brick per board. seq: one 1-2-3 run per board.
 const LEVELS := [
 	{shape = "grid", cols = 10, rows = 4, holes = 0.1, solid = 0.05, payout = 1,
