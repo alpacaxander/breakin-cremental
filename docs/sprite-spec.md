@@ -25,6 +25,9 @@ One row per asset in `assets/pixel/png/`. Sizes are native 1x canvas pixels (2x 
 |---|---|---|---|---|---|---|---|
 | bumper | 45x7 | center | mint | lit | 1 | chrome caps 4px each end | done |
 | bumper_r15, bumper_r30, ... | varies | center | mint | lit | 1 each | pre-drawn angles, replaces runtime rotation | todo |
+| place_sticky | 30x6 | center | mint | lit | 1 | sticky pad body; sticky_hold shows it with the ball | done |
+| place_magnet | 30x12 | center | mint | lit | 1 | magnet icon; magnet_pull loops around it | done |
+| place_tele | 16x16 | center | violet | ring | 1 | empty portal ring; teleport_in/out add the ball | done |
 | ghost_valid | 30x12 | center | mint | ghost | 1 | dashed, alpha fill | done |
 | ghost_invalid | 30x12 | center | red | ghost | 1 | dashed, X | done |
 
@@ -48,7 +51,7 @@ One row per asset in `assets/pixel/png/`. Sizes are native 1x canvas pixels (2x 
 
 ## Animations
 
-Strips `anim_*.png`, one row per animation in `docs/animations.md`. All 72 listed there are generated.
+Strips `anim_*.png`, one row per animation in `docs/animations.md`. All listed there are generated.
 
 ## Field overlays (drawn in-engine, no sprite)
 

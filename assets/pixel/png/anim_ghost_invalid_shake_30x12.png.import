@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cxe4qn3bp1m3j"
-path="res://.godot/imported/anim_ghost_march.png-63e7eb100da5ecaccd7c97a7fafea72d.ctex"
+uid="uid://ft2td3gav0cx"
+path="res://.godot/imported/anim_ghost_invalid_shake_30x12.png-e1b9f0ab6c28e12fcfe56480c083e696.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/pixel/png/anim_ghost_march.png"
-dest_files=["res://.godot/imported/anim_ghost_march.png-63e7eb100da5ecaccd7c97a7fafea72d.ctex"]
+source_file="res://assets/pixel/png/anim_ghost_invalid_shake_30x12.png"
+dest_files=["res://.godot/imported/anim_ghost_invalid_shake_30x12.png-e1b9f0ab6c28e12fcfe56480c083e696.ctex"]
 
 [params]
 

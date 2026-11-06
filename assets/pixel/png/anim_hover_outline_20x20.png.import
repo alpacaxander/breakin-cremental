@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://0v4qe44mv5ys"
-path="res://.godot/imported/anim_hover_outline.png-f934bbb7348d775398b3b6443c84ad60.ctex"
+uid="uid://k7s5e4wynibb"
+path="res://.godot/imported/anim_hover_outline_20x20.png-501428bd657639bccb8c3da1c8d6b801.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/pixel/png/anim_hover_outline.png"
-dest_files=["res://.godot/imported/anim_hover_outline.png-f934bbb7348d775398b3b6443c84ad60.ctex"]
+source_file="res://assets/pixel/png/anim_hover_outline_20x20.png"
+dest_files=["res://.godot/imported/anim_hover_outline_20x20.png-501428bd657639bccb8c3da1c8d6b801.ctex"]
 
 [params]
 

@@ -50,7 +50,7 @@ Hue sets: mag (currency 1), ora (currency 2), vio (currency 3), mint (placeables
 | cond_too_slow | 30x12 | 6 | 12 | brick shakes 1px, red X blinks twice |
 | angle_prime | 30x12 | 10 | 8 | wedge icon version of cond_prime |
 | combo_gate | 30x12 | 6 | 8 | number counts down 3,2,1 then primed flash |
-| sequence_step | 30x12 | 6 | 12 | "1" lit, flash, dim face with mint check |
+| sequence_step1, sequence_step2, sequence_step3 | 30x12 | 6 | 12 | number lit, flash, dim face with mint check |
 | timed_blink | 30x12 | 8 | 8 | lit 3, unlit 3, with half-lit transitions (loop) |
 | shield_pop | 44x20 | 6 | 12 | sky shield ring outside brick cracks and bursts outward |
 
@@ -72,9 +72,9 @@ Hue sets: mag (currency 1), ora (currency 2), vio (currency 3), mint (placeables
 
 | Name | Frame | Frames | fps | What |
 |---|---|---|---|---|
-| ghost_march | 30x12 | 4 | 8 | valid ghost dashes march (loop) |
-| ghost_invalid_shake | 30x12 | 4 | 12 | red ghost shakes, X blinks |
-| hover_outline | 34x16 | 4 | 8 | white dashed outline marches around a brick (loop) |
+| ghost_march_WxH | W x H | 4 | 8 | valid ghost dashes march (loop). One per footprint: 30x12, 45x7, 24x24, 16x16, 30x6 |
+| ghost_invalid_shake_WxH | W x H | 4 | 12 | red ghost shakes, X blinks. Same footprints |
+| hover_outline_WxH | W+4 x H+4 | 4 | 8 | white dashed outline marches around a placed piece (loop). Same footprints plus 4 |
 
 ## Effects
 
@@ -82,7 +82,7 @@ Hue sets: mag (currency 1), ora (currency 2), vio (currency 3), mint (placeables
 |---|---|---|---|---|
 | spark_burst | 16x16 | 6 | 12 | eight-way ring grows and dims |
 | spark_burst_<set> | 16x16 | 6 | 12 | same in mint, sky |
-| payout_rise | 17x26 | 10 | 12 | tag rises, eases, fades |
+| payout_rise | 25x8 | 10 | 12 | blank tag holds, then fades; the node rises by tween and the number is a label on it |
 | combo_chase | 30x12 | 8 | 8 | one bright pixel chases around the tube (loop) |
 | halo_pulse | 60x30 | 4 | 8 | halo breathes (loop) |
 | hazard_strip | 32x4 | 4 | 8 | lamp strip chase, tileable (loop) |

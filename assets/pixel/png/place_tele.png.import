@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://i1ua6ki715fh"
-path="res://.godot/imported/anim_ghost_invalid_shake.png-09d3bf47f33c8517fb10edddc3605047.ctex"
+uid="uid://dbyxn1qwu5udi"
+path="res://.godot/imported/place_tele.png-8700de8015503339978f5d5a20ff1b36.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/pixel/png/anim_ghost_invalid_shake.png"
-dest_files=["res://.godot/imported/anim_ghost_invalid_shake.png-09d3bf47f33c8517fb10edddc3605047.ctex"]
+source_file="res://assets/pixel/png/place_tele.png"
+dest_files=["res://.godot/imported/place_tele.png-8700de8015503339978f5d5a20ff1b36.ctex"]
 
 [params]
 

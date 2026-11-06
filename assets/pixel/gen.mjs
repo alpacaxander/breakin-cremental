@@ -120,16 +120,17 @@ A.bumper = (() => {
 	return b;
 })();
 
-const ghost = (c, o = 0) => { // o: dash offset, for marching ants
-	const b = new Img(30, 12);
-	b.rect(1, 1, 28, 10, c, 50);
-	for (let x = 0; x < 30; x++) if ((x + o) % 4 < 2) { b.px(x, 0, c); b.px(29 - x, 11, c); }
-	for (let y = 0; y < 12; y++) if ((y + o + 2) % 4 < 2) { b.px(0, 11 - y, c); b.px(29, y, c); }
+const ghost = (c, o = 0, w = 30, h = 12) => { // o: dash offset, for marching ants
+	const b = new Img(w, h);
+	b.rect(1, 1, w - 2, h - 2, c, 50);
+	for (let x = 0; x < w; x++) if ((x + o) % 4 < 2) { b.px(x, 0, c); b.px(w - 1 - x, h - 1, c); }
+	for (let y = 0; y < h; y++) if ((y + o + 2) % 4 < 2) { b.px(0, h - 1 - y, c); b.px(w - 1, y, c); }
 	return b;
 };
+const cross = (f, w, h, c) => { const k = Math.min(6, h - 2, w - 2), x0 = (w - k) >> 1, y0 = (h - k) >> 1; for (let i = 0; i < k; i++) { f.px(x0 + i, y0 + i, c); f.px(x0 + k - 1 - i, y0 + i, c); } };
 A.ghost_valid = ghost(C.bump);
 A.ghost_invalid = ghost(C.danger);
-for (let i = 0; i < 6; i++) { A.ghost_invalid.px(12 + i, 3 + i, C.danger); A.ghost_invalid.px(17 - i, 3 + i, C.danger); }
+cross(A.ghost_invalid, 30, 12, C.danger);
 
 A.ball = (() => {
 	const b = new Img(8, 8);
@@ -295,9 +296,9 @@ def("Conditional bricks", "cond_too_slow", 12, [[-1, 1], [1, 1], [0, 0], [-1, 1]
 	return f;
 }));
 def("Conditional bricks", "combo_gate", 8, [withIcon(SD, label("3"), S.tube), withIcon(SD, label("2"), S.tube), withIcon(SD, label("1"), S.tube), FLASH, withIcon(SH, label("1"), C.pureWhite), withIcon(SL, label("1"), C.white)]);
-def("Conditional bricks", "sequence_step", 12, (() => {
+for (const n of [1, 2, 3]) def("Conditional bricks", `sequence_step${n}`, 12, (() => {
 	const done = withIcon(SD, glyph(["....#", "...#.", "#.#..", ".#..."]), C.bump);
-	return [...hold(withIcon(SL, label("1"), C.white), 2), FLASH, ...hold(done, 3)];
+	return [...hold(withIcon(SL, label(String(n)), C.white), 2), FLASH, ...hold(done, 3)];
 })());
 def("Conditional bricks", "timed_blink", 8, [...hold(SL, 3), SM, ...hold(SD, 3), SM]);
 def("Conditional bricks", "shield_pop", 12, (() => {
@@ -337,24 +338,33 @@ def("Placeables", "sticky_hold", 8, (() => {
 })());
 const portal = (ballSize, flashRing) => { const b = new Img(16, 16); ring(b, 7.5, 7.5, 7, flashRing ? C.pureWhite : SETS.vio.tube); if (ballSize) b.blit(ellipse(ballSize, ballSize), 8 - ballSize / 2, 8 - ballSize / 2); return b; };
 def("Placeables", "teleport_in", 12, [portal(8), portal(6), portal(4), portal(2, true)]);
+A.place_sticky = lamp(30, 6, SETS.mint);
+A.place_magnet = withIcon(lit(SETS.mint), ICONS.magnet, C.white);
+A.place_tele = portal(0);
 def("Placeables", "teleport_out", 12, [portal(2, true), portal(4), portal(6), portal(8)]);
 
 // -- Placement and selection --
-def("Placement and selection", "ghost_march", 8, [0, 1, 2, 3].map((o) => ghost(C.bump, o)));
-def("Placement and selection", "ghost_invalid_shake", 12, [-1, 1, -1, 1].map((dx, i) => { const f = frame(30, 12, [ghost(C.danger), dx, 0]); if (!(i & 1)) for (let k = 0; k < 6; k++) { f.px(12 + k, 3 + k, C.danger); f.px(17 - k, 3 + k, C.danger); } return f; }));
-def("Placement and selection", "hover_outline", 8, [0, 1, 2, 3].map((o) => {
-	const f = frame(34, 16, [ML, 2, 2]);
-	for (let x = 0; x < 34; x++) if ((x + o) % 4 < 2) { f.px(x, 0, C.white); f.px(33 - x, 15, C.white); }
-	for (let y = 0; y < 16; y++) if ((y + o + 2) % 4 < 2) { f.px(0, 15 - y, C.white); f.px(33, y, C.white); }
-	return f;
-}));
+// One ghost pair and hover outline per placeable footprint (native px): brick, bumper, pop bumper, teleporter, sticky pad.
+const FOOTPRINTS = [[30, 12], [45, 7], [24, 24], [16, 16], [30, 6]];
+for (const [w, h] of FOOTPRINTS) {
+	def("Placement and selection", `ghost_march_${w}x${h}`, 8, [0, 1, 2, 3].map((o) => ghost(C.bump, o, w, h)));
+	def("Placement and selection", `ghost_invalid_shake_${w}x${h}`, 12, [-1, 1, -1, 1].map((dx, i) => { const f = frame(w, h, [ghost(C.danger, 0, w, h), dx, 0]); if (!(i & 1)) cross(f, w, h, C.danger); return f; }));
+	def("Placement and selection", `hover_outline_${w + 4}x${h + 4}`, 8, [0, 1, 2, 3].map((o) => {
+		const W = w + 4, H = h + 4, f = new Img(W, H);
+		for (let x = 0; x < W; x++) if ((x + o) % 4 < 2) { f.px(x, 0, C.white); f.px(W - 1 - x, H - 1, C.white); }
+		for (let y = 0; y < H; y++) if ((y + o + 2) % 4 < 2) { f.px(0, H - 1 - y, C.white); f.px(W - 1, y, C.white); }
+		return f;
+	}));
+}
 
 // -- Effects --
 const burst = (s) => { const f0 = frame(16, 16, center(A.fx_spark, 16, 16)); const r = (rr, c, dot) => { const b = new Img(16, 16); sparks(b, rr, c); if (dot) b.px(8, 8, C.pureWhite); return b; }; return [f0, r(3, s.hi, 1), r(5, s.tube, 0), r(7, s.ring, 0), blank(16, 16), blank(16, 16)]; };
 def("Effects", "spark_burst", 12, burst({ hi: C.payHi, tube: C.pay, ring: C.payDim }));
 def("Effects", "spark_burst_mint", 12, burst(SETS.mint));
 def("Effects", "spark_burst_sky", 12, burst(SETS.sky));
-def("Effects", "payout_rise", 12, [[18, 255], [15, 255], [12, 255], [10, 255], [8, 255], [6, 255], [5, 170], [4, 110], [3, 60], [3, 0]].map(([y, a]) => frame(17, 26, [A.fx_payout_tag, 0, y, a])));
+// Blank tag, static in frame: the node rises by tween in-engine so a number label can ride on it.
+const tagBlank = (() => { const b = new Img(25, 8); b.rect(0, 0, 25, 8, C.pay); b.outline(0, 0, 25, 8, C.cream); b.corners(); return b; })();
+def("Effects", "payout_rise", 12, [255, 255, 255, 255, 255, 255, 170, 110, 60, 0].map((a) => tagBlank.fade(a)));
 def("Effects", "combo_chase", 8, (() => {
 	const path = []; for (let x = 1; x < 29; x++) path.push([x, 0]); for (let y = 1; y < 11; y++) path.push([29, y]); for (let x = 28; x > 0; x--) path.push([x, 11]); for (let y = 10; y > 0; y--) path.push([0, y]);
 	return [0, 1, 2, 3, 4, 5, 6, 7].map((f) => { const b = ML.crop(0, 0, 30, 12), p = Math.floor(f * path.length / 8); [[0, C.pureWhite], [1, C.brickHi], [2, C.brickHi], [3, C.brickHi]].forEach(([k, c]) => { const [x, y] = path[(p - k + path.length) % path.length]; b.px(x, y, c); }); return b; });
@@ -434,7 +444,7 @@ const GROUPS = [
 	["Icon bricks", ["brick_icon_multiball", "brick_icon_x2"]],
 	["Conditional", ["brick_cond_speed_idle", "brick_cond_speed_primed"]],
 	["Solid", ["brick_solid"]],
-	["Placeables", ["bumper", "ghost_valid", "ghost_invalid"]],
+	["Placeables", ["bumper", "place_sticky", "place_magnet", "place_tele", "ghost_valid", "ghost_invalid"]],
 	["Ball and paddle", ["ball", "paddle"]],
 	["Effects", ["fx_halo", "fx_spark", "fx_debris", "fx_payout_tag"]],
 ];

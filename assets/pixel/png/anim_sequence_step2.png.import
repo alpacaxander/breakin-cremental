@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://8cppijp76cq8"
-path="res://.godot/imported/anim_sequence_step.png-8c2172f221035677120e48caddd32f49.ctex"
+uid="uid://i0v0m61smps7"
+path="res://.godot/imported/anim_sequence_step2.png-59f81317db9fa387c8e2815ee602bfa1.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/pixel/png/anim_sequence_step.png"
-dest_files=["res://.godot/imported/anim_sequence_step.png-8c2172f221035677120e48caddd32f49.ctex"]
+source_file="res://assets/pixel/png/anim_sequence_step2.png"
+dest_files=["res://.godot/imported/anim_sequence_step2.png-59f81317db9fa387c8e2815ee602bfa1.ctex"]
 
 [params]
 
