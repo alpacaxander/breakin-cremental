@@ -129,6 +129,11 @@ func owned(kind: String) -> int:
 	return Tuning.PLACEABLES[kind].get("start", 0) + rank(kind)
 
 
+## The arena's size for a level, game px. ponytail: an upgrade that widens the arena adds its bonus here, capped at Tuning.ARENA.
+func arena_size(level: int) -> Vector2:
+	return Tuning.LEVELS[level].get("arena", Tuning.ARENA)
+
+
 func round_time(breakable: int) -> float:
 	return Tuning.ROUND_TIME_BASE + breakable * Tuning.ROUND_TIME_PER_BRICK + bonus("time")
 
@@ -147,7 +152,7 @@ func payout(level: int, combo: int) -> int:
 
 # --- Board generation ---
 
-## Returns [{pos: Vector2, kind: String}], kinds from Tuning.BRICKS. Always has at least one breakable brick.
+## Returns [{pos: Vector2, kind: String}] in arena px (origin top-left), kinds from Tuning.BRICKS. Always has at least one breakable brick.
 func generate(level: int, seed: int) -> Array:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed
@@ -159,7 +164,7 @@ func generate(level: int, seed: int) -> Array:
 		for c in cols:
 			if rng.randf() < L.holes:
 				continue
-			var pos := Vector2(Tuning.VIEW.x / 2 + (c - (cols - 1) / 2.0) * step.x, Tuning.BOARD_TOP + r * step.y)
+			var pos := Vector2(arena_size(level).x / 2 + (c - (cols - 1) / 2.0) * step.x, Tuning.BOARD_TOP + r * step.y)
 			var kind := "solid" if rng.randf() < L.solid else "plain"
 			if kind == "plain":
 				var roll := rng.randf()

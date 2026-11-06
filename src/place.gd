@@ -18,10 +18,10 @@ var holding: Box = null
 var hovered: Box = null
 
 
-func _init(a: Node2D, ui: Control) -> void:
+func _init(a: Node2D, ui: Ui.Root) -> void:
 	arena = a
 	tray.position.x = Ui.RX
-	ui.add_child(tray)
+	ui.right.add_child(tray)
 
 
 func _ready() -> void:
@@ -85,24 +85,24 @@ func _take(kind: String) -> void:
 		return
 	Sfx.play("ui_pickup")
 	_hover(null)
-	holding = arena.box(kind, Tuning.PLACEABLES[kind].size, get_global_mouse_position())
+	holding = arena.box(kind, Tuning.PLACEABLES[kind].size, get_local_mouse_position())
 	placed.append(holding)
 	_drag()
 	refresh()
 
 
 func _valid(b: Box) -> bool:
-	var zone := Rect2(Tuning.FIELD.position, Vector2(Tuning.FIELD.size.x, Tuning.PLACE_MAX_Y))
+	var zone := Rect2(Vector2.ZERO, Vector2(arena.field.size.x, arena.place_y()))
 	if not zone.encloses(b.rect()):
 		return false
 	for o in arena.get_children():
-		if o is Box and o != b and o.kind != "wall" and o.rect().grow(Tuning.PLACE_MARGIN).intersects(b.rect()):
+		if o is Box and o != b and o.rect().grow(Tuning.PLACE_MARGIN).intersects(b.rect()):
 			return false
 	return true
 
 
 func _drag() -> void:
-	holding.position = get_global_mouse_position()
+	holding.position = get_local_mouse_position()
 	var s := holding.size / Fx.SCALE
 	holding.overlay([("ghost_march_%dx%d" if _valid(holding) else "ghost_invalid_shake_%dx%d") % [s.x, s.y], int(s.x), 8])
 
@@ -126,7 +126,7 @@ func _placed_at(p: Vector2) -> Box:
 
 
 func _place_click(button: int) -> void:
-	var m := get_global_mouse_position()
+	var m := get_local_mouse_position()
 	if button == MOUSE_BUTTON_LEFT:
 		if holding and _valid(holding):
 			Sfx.play("ui_drop")
@@ -176,7 +176,7 @@ func _input(e: InputEvent) -> void:
 	if holding:
 		_drag()
 	else:
-		_hover(_placed_at(get_global_mouse_position()))
+		_hover(_placed_at(get_local_mouse_position()))
 
 
 func _unhandled_input(e: InputEvent) -> void:

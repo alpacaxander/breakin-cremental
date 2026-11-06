@@ -1,12 +1,12 @@
 ## Every tunable number and per-kind table lives here. Edit, rerun.
 
-const VIEW := Vector2(1280, 720)
-const FIELD := Rect2(160, 0, 960, 720)  # the play area between the two cabinet columns; sprite px are half these
+# Game px are 2x sprite px. The arena's origin is its top-left corner; the cabinet (ui.gd) centres it between the columns.
+const ARENA := Vector2(960, 720)  # default arena size and the largest allowed: what fits between the columns at the 1280x720 minimum window
 
 # Paddle / ball feel
 const PADDLE_WIDTH := 120.0
 const PADDLE_HEIGHT := 16.0
-const PADDLE_Y := 680.0
+const PADDLE_UP := 40.0  # paddle centre above the arena floor
 const PADDLE_SPEED := 1400.0  # px/s cap for both mouse-follow and keys
 const BALL_SPEED := 480.0
 const BALL_RADIUS := 8.0
@@ -28,8 +28,9 @@ const BRICK_SIZE := Vector2(60, 24)
 const BRICK_GAP := 4.0
 const BOARD_TOP := 100.0  # 44 + two brick rows (2 * (24 + 4))
 # special: kind -> chance per brick (see BRICKS). jackpot: one 777 brick per board. seq: one 1-2-3 run per board.
+# arena: size, default ARENA (never larger). walls: extra Rect2s in arena px for other shapes; the board must still fit (test.gd).
 const LEVELS := [
-	{shape = "grid", cols = 10, rows = 4, holes = 0.1, solid = 0.05, payout = 1,
+	{shape = "grid", cols = 10, rows = 4, holes = 0.1, solid = 0.05, payout = 1, arena = Vector2(800, 640),
 		special = {multi = 0.08, x2 = 0.03, combo = 0.03, timer = 0.03}},
 	{shape = "triangle", cols = 15, rows = 7, holes = 0.1, solid = 0.12, payout = 2, jackpot = true, seq = true,
 		special = {multi = 0.08, multi3 = 0.03, shield = 0.04, cond = 0.04, timed = 0.04, cgate = 0.03, x2 = 0.03, x3 = 0.01, combo = 0.03, timer = 0.02, multiball = 0.02, speedup = 0.03, slowdown = 0.02, chain = 0.03, bomb = 0.02, bolt = 0.01, mystery = 0.02}},
@@ -72,7 +73,7 @@ const GATE_COMBO := 3
 const CHASE_AT := 0.5  # combo seconds left when the pulse turns into the chase
 
 # Placement
-const PLACE_MAX_Y := 560.0  # placed bricks must sit above this line
+const PLACE_UP := 160.0  # placed bricks must sit at least this far above the arena floor
 const PLACE_MARGIN := 2.0  # min gap between a placed brick and anything else
 const ROTATE_DEG := 15.0  # per R press
 const CAPACITY_BASE := 2
@@ -100,7 +101,8 @@ const MAGNET_PULL := 700.0  # px/s^2
 const SPAWN_EVERY := 6.0  # seconds per spawner ball
 
 # Upgrade web. amount = effect per rank. cost(rank) = cost * cost_mult ^ rank.
-# links are undirected: a node shows once any linked node has rank >= 1. pos: node centre in sprite px (640x360), inside the field 80-559.
+# links are undirected: a node shows once any linked node has rank >= 1. pos: node centre in sprite px on the 640x360 layout;
+# the web pans and zooms (shop.gd), so positions may run past the field (80-559) once it fills up.
 # Names fit the 66px upgrade column at 2x when wrapped by word; descs use only glyphs the 3x5 font has (no ; or lowercase-only marks).
 const SEED_UPGRADE := "paddle"
 const UPGRADES := {

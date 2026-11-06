@@ -11,6 +11,7 @@ func _ready() -> void:
 	cursor.resize(16, 16, Image.INTERPOLATE_NEAREST)  # the cursor is in screen px, not sprite px
 	Input.set_custom_mouse_cursor(ImageTexture.create_from_image(cursor))
 	get_tree().auto_accept_quit = false  # the window's close button goes through Sfx.quit too
+	get_window().min_size = Vector2i(1280, 720)  # the field between the columns must always hold Tuning.ARENA
 	_show_menu()
 
 

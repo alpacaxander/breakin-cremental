@@ -23,7 +23,7 @@ func _ready() -> void:
 	for k in Tuning.PLACEABLES:
 		a.place._take(k)
 		assert(a.place.holding != null and a.place.holding.kind == k, "took %s" % k)
-		a.place.holding.position = Vector2(x, Tuning.PLACE_MAX_Y - 60)
+		a.place.holding.position = Vector2(x, a.place_y() - 60)
 		x += 120
 		a.place.holding.overlay(null)
 		a.place.holding = null
@@ -35,7 +35,7 @@ func _ready() -> void:
 	# Pause menu: open, swap to settings and back, resume.
 	a._pause(true)
 	assert(get_tree().paused and a.pause != null, "paused with a menu")
-	assert(a.pause.size * a.pause.scale == Tuning.VIEW, "pause overlay covers the arena at 2x, so its box centers")
+	assert(a.pause.sheet.size * a.pause.scale == get_viewport().get_visible_rect().size, "pause overlay covers the whole canvas")
 	a._pause_settings()
 	a._pause(true)
 	a._pause(false)

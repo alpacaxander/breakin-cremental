@@ -21,11 +21,16 @@ func _init() -> void:
 	check(g.combo_window(1000) == Tuning.COMBO_WINDOW_MIN, "window floors at MIN")
 
 	for lvl in Tuning.LEVELS.size():
+		var arena := Rect2(Vector2.ZERO, g.arena_size(lvl))
+		check(arena.size.x <= Tuning.ARENA.x and arena.size.y <= Tuning.ARENA.y, "level %d arena fits the minimum window" % lvl)
+		var walls: Array = Tuning.LEVELS[lvl].get("walls", [])
 		for s in 200:
 			var bricks: Array = g.generate(lvl, s)
 			check(bricks.any(func(b): return Tuning.BRICKS[b.kind].hp > 0), "level %d seed %d has a breakable brick" % [lvl, s])
 			for b in bricks:
-				check(Tuning.FIELD.encloses(Rect2(b.pos - Tuning.BRICK_SIZE / 2, Tuning.BRICK_SIZE)) and b.pos.y < Tuning.PLACE_MAX_Y, "level %d brick inside the field, above placement line" % lvl)
+				var r := Rect2(b.pos - Tuning.BRICK_SIZE / 2, Tuning.BRICK_SIZE)
+				check(arena.encloses(r) and r.end.y < arena.size.y - Tuning.PLACE_UP, "level %d brick inside the arena, above placement line" % lvl)
+				check(not walls.any(func(w): return w.intersects(r)), "level %d brick clear of the level walls" % lvl)
 			if Tuning.LEVELS[lvl].get("jackpot", false):
 				check(bricks.filter(func(b): return b.kind == "jackpot").size() == 1, "level %d has one jackpot" % lvl)
 			if Tuning.LEVELS[lvl].get("seq", false):

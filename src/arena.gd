@@ -58,15 +58,19 @@ var ui: Ui.Root  # the cabinet: score column left (hud.gd), pieces column right 
 var place: Place
 var hud: Hud
 var pause: Control = null
-var view := Tuning.VIEW
-var field := Tuning.FIELD
+var field: Rect2  # the arena in its own px: origin top-left. _fit centres the node between the cabinet columns.
 
 
 func _ready() -> void:
-	# Walls: left, right, top. Bottom is open, that's the drop.
-	box("wall", Vector2(100, view.y * 3), Vector2(field.position.x - 50, view.y / 2))
-	box("wall", Vector2(100, view.y * 3), Vector2(field.end.x + 50, view.y / 2))
-	box("wall", Vector2(view.x, 100), Vector2(view.x / 2, -50))
+	field = Rect2(Vector2.ZERO, Game.arena_size(level))
+	get_viewport().size_changed.connect(_fit)
+	_fit()
+	# Walls: left, right, top. Bottom is open, that's the drop. Then the level's own walls, if any.
+	box("wall", Vector2(100, field.size.y * 3), Vector2(-50, field.size.y / 2))
+	box("wall", Vector2(100, field.size.y * 3), Vector2(field.size.x + 50, field.size.y / 2))
+	box("wall", Vector2(field.size.x, 100), Vector2(field.size.x / 2, -50))
+	for w in Tuning.LEVELS[level].get("walls", []):
+		box("wall", w.size, w.get_center())
 	var rows := {}
 	for b in Game.generate(level, randi()):
 		var brick := box(b.kind, Tuning.BRICK_SIZE, b.pos)
@@ -83,7 +87,7 @@ func _ready() -> void:
 			if instance_from_id(id):
 				Fx.play(self, "mag_spawn", 30, 12, b.pos).animation_finished.connect(func(): if instance_from_id(id): instance_from_id(id).show())
 		).set_delay(0.08 * row)
-	paddle = box("paddle", Vector2(Game.paddle_width(), Tuning.PADDLE_HEIGHT), Vector2(view.x / 2, Tuning.PADDLE_Y))
+	paddle = box("paddle", Vector2(Game.paddle_width(), Tuning.PADDLE_HEIGHT), Vector2(field.size.x / 2, field.size.y - Tuning.PADDLE_UP))
 	target_x = paddle.position.x
 	_add_ball(Vector2.ZERO)
 	_rest_ball()
@@ -96,6 +100,21 @@ func _ready() -> void:
 	place = Place.new(self, ui)
 	place.started.connect(_on_start)
 	add_child(place)
+
+
+## Centres the arena between the cabinet columns, on whole sprite px, and re-fits the cabinet screens riding on this node.
+func _fit() -> void:
+	var canvas := get_viewport().get_visible_rect().size
+	var inset := Ui.FIELD_X * Fx.SCALE  # a column, in game px
+	position = (Vector2(inset, 0) + (Vector2(canvas.x - 2 * inset, canvas.y) - field.size) / 2).snapped(Vector2.ONE * Fx.SCALE)
+	for c in get_children():
+		if c is Ui.Root:
+			c.fit()
+
+
+## The line placed pieces must stay above.
+func place_y() -> float:
+	return field.size.y - Tuning.PLACE_UP
 
 
 func box(kind: String, size: Vector2, pos: Vector2) -> Box:
@@ -128,7 +147,7 @@ func _on_start() -> void:
 ## Motion comes through _input: the cabinet columns swallow events over them, and the paddle must still follow the mouse there.
 func _input(e: InputEvent) -> void:
 	if not over and e is InputEventMouseMotion:
-		target_x = get_global_mouse_position().x
+		target_x = get_local_mouse_position().x
 
 
 ## Placement input is handled (and consumed) by place.gd first.
@@ -207,8 +226,8 @@ func _physics_process(delta: float) -> void:
 		_move_ball(b, delta)
 		if over:
 			return
-		if b.position.y > view.y + Tuning.BALL_RADIUS:
-			Fx.play(self, "ball_lost", 12, 12, Vector2(b.position.x, view.y - 12))
+		if b.position.y > field.size.y + Tuning.BALL_RADIUS:
+			Fx.play(self, "ball_lost", 12, 12, Vector2(b.position.x, field.size.y - 12))
 			Sfx.play("ball_lost")
 			balls.erase(b)
 			b.queue_free()
@@ -249,7 +268,7 @@ func _move_paddle(delta: float) -> void:
 		target_x = paddle.position.x + dir * Tuning.PADDLE_SPEED * delta
 	var half := paddle.size.x / 2
 	# ponytail: paddle teleports, so a fast sideways swipe can clip into the ball. Use AnimatableBody2D if it shows up.
-	paddle.position.x = clampf(move_toward(paddle.position.x, target_x, Tuning.PADDLE_SPEED * delta), field.position.x + half, field.end.x - half)
+	paddle.position.x = clampf(move_toward(paddle.position.x, target_x, Tuning.PADDLE_SPEED * delta), half, field.size.x - half)
 
 
 func _move_ball(ball: Ball, delta: float) -> void:
@@ -556,12 +575,19 @@ func _process(_delta: float) -> void:
 
 
 func _draw() -> void:
-	# Base and dots come from the cabinet (ui, drawn beneath this). Here: the placement line, the bottom lamps and the balls.
+	# Base and dots come from the cabinet (ui, drawn beneath this). Here: the frame and level walls, the placement line,
+	# the bottom lamps and the balls. The frame sits just outside the arena, under the rails when the arena fills the field.
+	var w := field.size.x
+	var h := field.size.y
+	draw_polyline([Vector2(-2, h), Vector2(-2, -2), Vector2(w + 2, -2), Vector2(w + 2, h)], Tuning.COLORS.trim_hi, 4)
+	for r in Tuning.LEVELS[level].get("walls", []):
+		draw_rect(r, Tuning.COLORS.trim_hi)
 	if place.placing:
-		draw_dashed_line(Vector2(field.position.x + 4, Tuning.PLACE_MAX_Y), Vector2(field.end.x - 4, Tuning.PLACE_MAX_Y), Color(Tuning.COLORS.mint, 0.6), 2, 6, false)
+		draw_dashed_line(Vector2(4, place_y()), Vector2(w - 4, place_y()), Color(Tuning.COLORS.mint, 0.6), 2, 6, false)
 	var f := int(Time.get_ticks_msec() / 125) % 4  # 8 fps
-	for x in range(int(field.position.x), int(field.end.x), 64):
-		draw_texture_rect_region(HAZARD_TEX, Rect2(x, view.y - 8, 64, 8), Rect2(f * 32, 0, 32, 4))
+	for x in range(0, int(w), 64):
+		var cw := minf(64, w - x)  # the last chunk stops at the arena's edge
+		draw_texture_rect_region(HAZARD_TEX, Rect2(x, h - 8, cw, 8), Rect2(f * 32, 0, cw / 2, 4))
 	var r := Tuning.BALL_RADIUS
 	for b in balls:
 		if b.hold > 0:

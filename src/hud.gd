@@ -16,22 +16,22 @@ var best_l: Label
 
 
 ## Positions are sprite px inside the score column (see ui.gd).
-func _init(a: Node2D, ui: Control) -> void:
+func _init(a: Node2D, ui: Ui.Root) -> void:
 	arena = a
 	var C := Tuning.COLORS
-	cash_l = Ui.cash(ui, 0, Game.currency)
-	extra_l = Ui.label(ui, "", 6, 44, C.cream)
-	boost_l = Ui.label(ui, "", 6, 52, C.cream)
-	Ui.label(ui, "COMBO", 6, 60, C.rivet)
-	combo_l = Ui.label(ui, "-", 6, 68, C.rivet, 4)
+	cash_l = Ui.cash(ui.left, 0, Game.currency)
+	extra_l = Ui.label(ui.left, "", 6, 44, C.cream)
+	boost_l = Ui.label(ui.left, "", 6, 52, C.cream)
+	Ui.label(ui.left, "COMBO", 6, 60, C.rivet)
+	combo_l = Ui.label(ui.left, "-", 6, 68, C.rivet, 4)
 	combo_l.pivot_offset = Vector2(0, 10)
-	Ui.rect(ui, 6, 92, 68, 3, C.trim_lo)
-	bar = Ui.rect(ui, 6, 92, 0, 3, C.pay)
-	mult_l = Ui.label(ui, "", 6, 98, C.rivet)
-	Ui.label(ui, "TIME", 6, 108, C.rivet)
-	time_l = Ui.label(ui, "", 6, 116, C.cream, 3)
-	best_l = Ui.label(ui, "", 6, 138, C.rivet)
-	Ui.label(ui, "LEVEL %d" % (a.level + 1), 6, 146, C.rivet)
+	Ui.rect(ui.left, 6, 92, 68, 3, C.trim_lo)
+	bar = Ui.rect(ui.left, 6, 92, 0, 3, C.pay)
+	mult_l = Ui.label(ui.left, "", 6, 98, C.rivet)
+	Ui.label(ui.left, "TIME", 6, 108, C.rivet)
+	time_l = Ui.label(ui.left, "", 6, 116, C.cream, 3)
+	best_l = Ui.label(ui.left, "", 6, 138, C.rivet)
+	Ui.label(ui.left, "LEVEL %d" % (a.level + 1), 6, 146, C.rivet)
 
 
 func _process(_delta: float) -> void:

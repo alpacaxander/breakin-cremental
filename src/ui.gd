@@ -1,5 +1,8 @@
-## Cabinet UI: every screen is a 640x360 sprite-space Control shown at 2x. A score/stats column sits at x 0, the field spans
-## 80-559 and a pieces/menu column sits at 562, with rails between. Look: src/theme.tres and assets/pixel/preview/ui_*.png.
+## Cabinet UI: every screen is a 640x360 sprite-space layout shown at 2x, centred in a canvas that grows with the window
+## (project.godot: expand aspect, integer scale, so there are no bars and every sprite px stays whole). A score/stats column
+## sits at the canvas's left edge, a pieces/menu column at its right edge, the field between them; the columns stretch over
+## the canvas height. Layout coordinates work unchanged: centred content goes on the Root, column content on Root.left /
+## Root.right (origins at the edges, so x 0..77 and RX..639 land in the columns). Look: src/theme.tres, assets/pixel/preview/ui_*.png.
 extends Node
 
 const Tuning = preload("res://src/tuning.gd")
@@ -12,9 +15,14 @@ const FIELD_X := 80
 const FIELD_W := 480
 
 
-## A 2x sprite-space screen. Esc emits back when something listens; otherwise the event falls through (to the arena).
+## A 2x sprite-space screen: the 640x360 layout, centred in the canvas by fit(). Esc emits back when something listens;
+## otherwise the event falls through (to the arena).
 class Root extends Control:
 	signal back
+	var sheet := Control.new()  # covers the whole canvas: base, dots and the columns anchor to it
+	var left := Control.new()  # column content, origin at the canvas's left edge
+	var right := Control.new()  # column content, origin SIZE.x left of the canvas's right edge, so RX coordinates land in it
+	var field := Control.new()  # the canvas between the columns, full height; the shop pans its web inside it
 
 	func _init() -> void:
 		size = SIZE
@@ -22,6 +30,25 @@ class Root extends Control:
 		z_index = 2  # above the arena's effect sprites (z 1), so overlays dim them too
 		mouse_filter = MOUSE_FILTER_IGNORE
 		process_mode = Node.PROCESS_MODE_ALWAYS  # keeps working over a paused tree
+		for c in [sheet, left, right, field]:
+			c.mouse_filter = MOUSE_FILTER_IGNORE
+			add_child(c)
+
+	func _ready() -> void:
+		get_viewport().size_changed.connect(fit)
+		fit()
+
+	## Centres the layout in the canvas and lays the sheet, columns and field over all of it. A parent that moves
+	## (the arena) calls this again after moving.
+	func fit() -> void:
+		var canvas := get_viewport().get_visible_rect().size / Fx.SCALE
+		global_position = ((canvas - SIZE) / 2).floor() * Fx.SCALE
+		sheet.position = -global_position / Fx.SCALE
+		sheet.size = canvas
+		left.position.x = sheet.position.x
+		right.position.x = sheet.position.x + canvas.x - SIZE.x
+		field.position = Vector2(left.position.x + FIELD_X, sheet.position.y)
+		field.size = Vector2(canvas.x - 2 * FIELD_X, canvas.y)
 
 	func _unhandled_input(e: InputEvent) -> void:
 		if e is InputEventKey and e.pressed and e.keycode == KEY_ESCAPE and back.has_connections():
@@ -30,14 +57,15 @@ class Root extends Control:
 			back.emit()
 
 
-## The peg-board dots behind the field. Static, so drawn once.
+## The peg-board dots over the whole sheet. Static, so drawn once per resize (the columns cover their share).
 class Dots extends Control:
 	func _init() -> void:
 		mouse_filter = MOUSE_FILTER_IGNORE
+		resized.connect(queue_redraw)
 
 	func _draw() -> void:
-		for y in range(10, 360, 10):
-			for x in range(90, 560, 10):
+		for y in range(10, int(size.y), 10):
+			for x in range(10, int(size.x), 10):
 				draw_rect(Rect2(x, y, 1, 1), Tuning.COLORS.trim)
 
 
@@ -45,19 +73,38 @@ static func tex(name: String) -> Texture2D:
 	return load(PNG % name)
 
 
+## Adds c to the sheet, stretched over the whole canvas.
+static func fill(r: Root, c: Control) -> void:
+	r.sheet.add_child(c)
+	c.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+
+
+## Stretches a column control over the canvas height at its layout x; anything at the right column follows the right edge.
+static func pin(c: Control) -> void:
+	var right := c.position.x >= RX - 2
+	var x := c.position.x - (SIZE.x if right else 0.0)
+	var w := c.size.x
+	c.anchor_left = 1.0 if right else 0.0
+	c.anchor_right = c.anchor_left
+	c.anchor_bottom = 1.0
+	c.offset_left = x
+	c.offset_right = x + w
+	c.offset_top = 0
+	c.offset_bottom = 0
+
+
 ## Base, dots, both columns (titled when given) and rails. under: base and dots draw beneath the parent's own drawing (the arena's balls).
 static func chassis(left := "", right := "", under := false) -> Root:
 	var r := Root.new()
 	var base := ColorRect.new()
 	base.color = Tuning.COLORS.bg
-	base.size = SIZE
 	base.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	for n in [base, Dots.new()]:
 		if under:
 			n.z_index = -3  # relative to the root's 2: lands at -1, beneath the parent's own drawing
-		r.add_child(n)
+		fill(r, n)
 	for x in [0, RX]:
-		var p := panel(r, x, 0, 78, 360)
+		var p := panel(r.sheet, x, 0, 78, 360)
 		p.mouse_filter = Control.MOUSE_FILTER_STOP  # clicks on a column never reach the field
 		var rail := TextureRect.new()
 		rail.texture = tex("ui_rail")
@@ -66,11 +113,13 @@ static func chassis(left := "", right := "", under := false) -> Root:
 		rail.position.x = 78 if x == 0 else RX - 2
 		rail.size = Vector2(2, 360)
 		rail.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		r.add_child(rail)
-	for t in [[0, left], [RX, right]]:
-		if t[1]:
-			label(r, t[1], t[0], 6, Tuning.COLORS.rivet, 1, 78, HORIZONTAL_ALIGNMENT_CENTER)
-			rect(r, t[0] + 3, 14, 72, 1, Tuning.COLORS.rivet)
+		r.sheet.add_child(rail)
+		for c in [p, rail]:
+			pin(c)
+	for t in [[r.left, 0, left], [r.right, RX, right]]:
+		if t[2]:
+			label(t[0], t[2], t[1], 6, Tuning.COLORS.rivet, 1, 78, HORIZONTAL_ALIGNMENT_CENTER)
+			rect(t[0], t[1] + 3, 14, 72, 1, Tuning.COLORS.rivet)
 	return r
 
 
@@ -178,8 +227,7 @@ static func overlay(alpha: float) -> Root:
 	var r := Root.new()
 	var c := ColorRect.new()
 	c.color = Color(Tuning.COLORS.bg, alpha)
-	c.size = SIZE
-	r.add_child(c)
+	fill(r, c)
 	return r
 
 
