@@ -10,7 +10,7 @@ Hue sets: mag (currency 1), ora (currency 2), vio (currency 3), mint (placeables
 |---|---|---|---|---|
 | `<set>_hit` | 30x12 | 6 | 12 | flash, hot, settle |
 | `<set>_break` | 44x20 | 8 | 12 | flash, hot + sparks, split halves, fade + debris, empty |
-| `<set>_spawn` | 30x12 | 6 | 12 | dim outline, ring, flash, lit |
+| `<set>_spawn` | 30x12 | 6 | 12 | dim outline, ring, dim, flash, hot, lit |
 | `<set>_pulse` | 30x12 | 4 | 8 | combo-running idle: highlight row and tube breathe (loop) |
 
 ## Multi-hit and armor
@@ -50,7 +50,7 @@ Hue sets: mag (currency 1), ora (currency 2), vio (currency 3), mint (placeables
 | cond_too_slow | 30x12 | 6 | 12 | brick shakes 1px, red X blinks twice |
 | angle_prime | 30x12 | 10 | 8 | wedge icon version of cond_prime |
 | combo_gate | 30x12 | 6 | 8 | number counts down 3,2,1 then primed flash |
-| sequence_step | 30x12 | 6 | 12 | "1" lit, flash, number goes dim green check |
+| sequence_step | 30x12 | 6 | 12 | "1" lit, flash, dim face with mint check |
 | timed_blink | 30x12 | 8 | 8 | lit 3, unlit 3, with half-lit transitions (loop) |
 | shield_pop | 44x20 | 6 | 12 | sky shield ring outside brick cracks and bursts outward |
 
@@ -95,7 +95,7 @@ Hue sets: mag (currency 1), ora (currency 2), vio (currency 3), mint (placeables
 | ball_bounce | 12x12 | 6 | 12 | squash on contact, stretch leaving |
 | ball_trail | 24x8 | 4 | 12 | ball with two afterimages for the fast tier |
 | ball_lost | 12x12 | 6 | 12 | ball flashes red, shrinks to a dot |
-| paddle_hit | 60x8 | 4 | 12 | yellow strip flashes white, paddle dips 1px |
+| paddle_hit | 60x8 | 4 | 12 | yellow strip flashes white, then bright, then settles |
 
 ## Drawn in-engine, no strip
 

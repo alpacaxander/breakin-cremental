@@ -46,6 +46,7 @@ class Img {
 	}
 	crop(x, y, w, h) { const o = new Img(w, h); for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) o.px(i, j, this.get(x + i, y + j)); return o; }
 	fade(a) { const o = this.crop(0, 0, this.w, this.h); for (let i = 3; i < o.d.length; i += 4) o.d[i] = o.d[i] * a / 255; return o; }
+	line(x0, y0, x1, y1, c) { const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0), 1); for (let i = 0; i <= n; i++) this.px(Math.round(x0 + (x1 - x0) * i / n), Math.round(y0 + (y1 - y0) * i / n), c); }
 	pam() { return Buffer.concat([Buffer.from(`P7\nWIDTH ${this.w}\nHEIGHT ${this.h}\nDEPTH 4\nMAXVAL 255\nTUPLTYPE RGB_ALPHA\nENDHDR\n`), Buffer.from(this.d)]); }
 }
 
@@ -158,54 +159,215 @@ A.fx_debris = (() => { const b = new Img(4, 3); b.rect(0, 0, 4, 3, C.brick); b.r
 A.fx_payout_tag = (() => { const b = new Img(17, 8); b.rect(0, 0, 17, 8, C.pay); b.outline(0, 0, 17, 8, C.cream); b.corners(); text(b, 3, 2, "+12", C.base); return b; })();
 
 // ---- Animations: same-size frames, exported as horizontal strips anim_<name>.png. Held frames are repeated. ----
-const frame = (w, h, ...layers) => { const f = new Img(w, h); for (const [img, x, y, a] of layers) { const s = a == null ? img : img.fade(a); f.blit(s, x, y); } return f; };
+// Full list and intent: docs/animations.md. Each group below matches a section there.
+const frame = (w, h, ...layers) => { const f = new Img(w, h); for (const [img, x, y, a] of layers) f.blit(a == null ? img : img.fade(a), x, y); return f; };
 const center = (img, w, h, dx = 0, dy = 0) => [img, ((w - img.w) >> 1) + dx, ((h - img.h) >> 1) + dy];
-const MAG_HOT = { tube: C.brickHi, ring: C.brick, deep: C.brickRing, hi: C.pureWhite };
-const SKY_HOT = { tube: C.skyHi, ring: C.sky, deep: C.skyRing, hi: C.pureWhite };
-const ellipse = (w, h) => { // ball squash/stretch shapes
+const hold = (f, n) => Array(n).fill(f);
+const blank = (w, h) => new Img(w, h);
+
+// Hue sets. tube/ring/deep/hi for lit; dimTube/dimRing for dim. All from docs/palette.md ramps.
+const SETS = {
+	mag: { tube: C.brick, ring: C.brickRing, deep: C.brickDeep, hi: C.brickHi, dimTube: C.brickDim, dimRing: C.brickDimRing },
+	ora: { tube: "ff7500", ring: "c44f00", deep: "791800", hi: "ffb975", dimTube: "9f3800", dimRing: "812000" },
+	vio: { tube: "7f16ff", ring: "48009f", deep: "240051", hi: "c799ff", dimTube: "5b00c9", dimRing: "330071" },
+	mint: { tube: C.bump, ring: C.bumpRing, deep: C.bumpDeep, hi: C.bumpHi, dimTube: "027354", dimRing: C.bumpDeep },
+	sky: { tube: C.sky, ring: C.skyRing, deep: C.skyDeep, hi: C.skyHi, dimTube: "155386", dimRing: C.skyDeep },
+};
+const lit = (s, w = 30, h = 12) => lamp(w, h, s);
+const dim = (s, w = 30, h = 12) => lamp(w, h, { tube: s.dimTube, ring: s.dimRing, deep: C.base, hi: null }, false);
+const hot = (s, w = 30, h = 12) => lamp(w, h, { tube: s.hi, ring: s.tube, deep: s.ring, hi: C.pureWhite });
+const mid = (s, w = 30, h = 12) => lamp(w, h, { tube: s.ring, ring: s.deep, deep: C.base, hi: null }, false);
+const flash = (w = 30, h = 12) => { const b = lamp(w, h, { tube: C.pureWhite, ring: C.white, deep: C.white, hi: C.pureWhite }); b.rect(2, 2, w - 4, h - 4, C.pureWhite); b.rect(3, 3, w - 6, h - 6, C.white); return b; };
+const FLASH = flash();
+
+const ellipse = (w, h, edge = C.payHi, body = C.white) => { // ball shapes
 	const b = new Img(w, h), f = (x, y, r) => ((x + .5 - w / 2) / (w / 2 - r)) ** 2 + ((y + .5 - h / 2) / (h / 2 - r)) ** 2 <= 1;
-	for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { if (f(x, y, 0)) b.px(x, y, C.payHi); if (f(x, y, 1)) b.px(x, y, C.white); }
-	b.rect(2, 2, 2, 1, C.pureWhite); b.px(2, 3, C.pureWhite); return b;
+	for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { if (f(x, y, 0)) b.px(x, y, edge); if (f(x, y, 1)) b.px(x, y, body); }
+	if (w > 4) { b.rect(2, 2, 2, 1, C.pureWhite); b.px(2, 3, C.pureWhite); }
+	return b;
 };
 const sparks = (f, r, c) => { for (const [sx, sy] of [[1, 1], [-1, 1], [1, -1], [-1, -1], [1, 0], [-1, 0], [0, 1], [0, -1]]) f.px((f.w >> 1) + sx * r, (f.h >> 1) + sy * r, c); };
+const ring = (f, cx, cy, r, c, thick = 1, dash = 0) => { // circle outline by angle steps; dash: skip every other step group
+	const n = Math.ceil(r * 8);
+	for (let i = 0; i < n; i++) { if (dash && ((i >> 1) & 1)) continue; const t = i / n * Math.PI * 2; for (let k = 0; k < thick; k++) f.px(Math.round(cx + (r - k) * Math.cos(t)), Math.round(cy + (r - k) * Math.sin(t)), c); }
+};
+const oval = (f, cx, cy, rx, ry, c, dash = 0) => { const n = Math.ceil((rx + ry) * 4); for (let i = 0; i < n; i++) { if (dash && ((i >> 1) & 1)) continue; const t = i / n * Math.PI * 2; f.px(Math.round(cx + rx * Math.cos(t)), Math.round(cy + ry * Math.sin(t)), c); } };
+const withIcon = (b, icon, c) => { const o = b.crop(0, 0, b.w, b.h); icon(o, c); return o; };
+const glyph = (rows, c2 = null) => (b, c) => { const w = rows[0].length, h = rows.length; b.ascii(15 - (w >> 1), 3 + ((7 - h) >> 1), rows, { "#": c, "o": c2 || c }); };
+const label = (s) => (b, c) => text(b, 15 - (textW(s) >> 1), 4, s, c);
+FONT["?"] = ["###", "..#", ".##", "...", ".#."];
 
-const ANIM = {}; // name: { fps, frames }
-ANIM.brick_hit = { fps: 12, frames: [A.brick_plain_flash, lamp(30, 12, MAG_HOT), A.brick_plain_lit, A.brick_plain_lit, A.brick_plain_lit, A.brick_plain_lit] };
-ANIM.brick_break = { fps: 12, frames: (() => {
-	const W = 44, H = 20, lit = A.brick_plain_lit, L = lit.crop(0, 0, 15, 12), R = lit.crop(15, 0, 15, 12), hot = lamp(30, 12, MAG_HOT);
-	const f0 = frame(W, H, center(A.brick_plain_flash, W, H));
-	const f1 = frame(W, H, center(hot, W, H)); sparks(f1, 8, C.pay);
-	const f2 = frame(W, H, [L, 5, 3], [R, 24, 3]); sparks(f2, 7, C.payHi); f2.blit(A.fx_debris, 20, 1); f2.blit(A.fx_debris, 19, 15);
-	const f3 = frame(W, H, [L, 2, 1, 150], [R, 27, 5, 150], [A.fx_debris, 10, 17, 200], [A.fx_debris, 32, 0, 200], [A.fx_debris, 21, 16, 200]); sparks(f3, 9, C.payDim);
-	const f4 = frame(W, H, [A.fx_debris, 6, 19, 90], [A.fx_debris, 36, 0, 90], [A.fx_debris, 22, 18, 90]);
-	return [f0, f1, f2, f3, f4, new Img(W, H), new Img(W, H), new Img(W, H)];
-})() };
-ANIM.multi_crack = { fps: 12, frames: [A.brick_multi_full, A.brick_multi_full, A.brick_multi_full, A.brick_plain_flash, A.brick_multi_cracked, A.brick_multi_cracked, A.brick_multi_cracked, A.brick_multi_cracked] };
-ANIM.cond_prime = { fps: 8, frames: (() => {
-	const mid = lamp(30, 12, { tube: C.skyRing, ring: C.skyDeep, deep: C.base, hi: null }, false); chevrons(mid, C.sky);
-	const hot = lamp(30, 12, SKY_HOT); chevrons(hot, C.pureWhite);
-	const p = A.brick_cond_speed_primed, i = A.brick_cond_speed_idle;
-	return [i, i, i, mid, hot, p, p, p, p, p];
-})() };
-ANIM.bumper_hit = { fps: 12, frames: (() => {
-	const b = A.bumper, f = b.crop(0, 0, 45, 7), hot = b.crop(0, 0, 45, 7);
+const ICONS = {
+	multiball: (b, c) => { for (const [cx, cy] of [[11, 7], [17, 7], [14, 4]]) b.ascii(cx, cy, [".#.", "###", ".#."], { "#": c }); },
+	speedup: (b, c) => chevrons(b, c),
+	slowdown: (b, c) => { for (const x of [10, 14, 18]) b.ascii(x, 3, ["..#", ".#.", "#..", ".#.", "..#"], { "#": c }); },
+	x2: label("x2"), x3: label("x3"), combo: label("C+"), jackpot: label("777"), mystery: label("?"),
+	timer: glyph(["#####", ".#.#.", "..#..", ".#.#.", "#####"]),
+	chain: glyph(["###.###", "#.###.#", "###.###"]),
+	bomb: glyph(["...o.", "..#..", ".###.", "#####", "#####", ".###."], C.pay),
+	bolt: glyph(["..##.", "..#..", ".####", "...#.", "..#.."]),
+	wild: (b) => { [SETS.mag, SETS.ora, SETS.vio].forEach((s, i) => { b.rect(10 + i * 4, 5, 3, 3, s.tube); b.px(10 + i * 4, 5, s.hi); }); },
+	magnet: glyph(["o...o", "#...#", "#...#", "#...#", ".###."], C.pureWhite),
+	split: glyph(["#...#", ".#.#.", "..#..", "..#..", "..#.."]),
+	pierce: glyph(["...#...", "#..##..", "#######", "#..##..", "...#..."]),
+	wedge: glyph(["#....", "##...", "###..", "####.", "#####"]),
+	gate: glyph(["..#..", ".###.", "#.#.#", "..#..", "..#.."]),
+};
+
+const ANIM = {}, AGROUPS = [];
+const def = (group, name, fps, frames) => { ANIM[name] = { fps, frames }; (AGROUPS.find((g) => g[0] === group) || AGROUPS[AGROUPS.push([group, []]) - 1])[1].push(name); };
+
+// -- Brick states per currency set --
+for (const id of ["mag", "ora", "vio"]) {
+	const s = SETS[id], L = lit(s), H = hot(s), D = dim(s);
+	def("Brick states", `${id}_hit`, 12, [FLASH, H, ...hold(L, 4)]);
+	def("Brick states", `${id}_break`, 12, (() => {
+		const W = 44, Hh = 20, Lh = L.crop(0, 0, 15, 12), Rh = L.crop(15, 0, 15, 12), chip = (() => { const b = new Img(4, 3); b.rect(0, 0, 4, 3, s.tube); b.rect(1, 1, 2, 1, s.deep); return b; })();
+		const f0 = frame(W, Hh, center(FLASH, W, Hh));
+		const f1 = frame(W, Hh, center(H, W, Hh)); sparks(f1, 8, C.pay);
+		const f2 = frame(W, Hh, [Lh, 5, 3], [Rh, 24, 3], [chip, 20, 1], [chip, 19, 15]); sparks(f2, 7, C.payHi);
+		const f3 = frame(W, Hh, [Lh, 2, 1, 150], [Rh, 27, 5, 150], [chip, 10, 17, 200], [chip, 32, 0, 200], [chip, 21, 16, 200]); sparks(f3, 9, C.payDim);
+		const f4 = frame(W, Hh, [chip, 6, 19, 90], [chip, 36, 0, 90], [chip, 22, 18, 90]);
+		return [f0, f1, f2, f3, f4, ...hold(blank(W, Hh), 3)];
+	})());
+	def("Brick states", `${id}_spawn`, 12, (() => {
+		const o = new Img(30, 12); o.outline(0, 0, 30, 12, s.dimTube); o.corners();
+		const o2 = o.crop(0, 0, 30, 12); o2.outline(1, 1, 28, 10, s.dimRing);
+		return [o, o2, D, FLASH, H, L];
+	})());
+	def("Brick states", `${id}_pulse`, 8, [L, lamp(30, 12, { ...s, hi: C.pureWhite }), L, lamp(30, 12, { ...s, hi: null })]);
+}
+
+// -- Multi-hit and armor --
+const M = SETS.mag, ML = lit(M), MH = hot(M);
+const crack = (b, pts) => { for (const [x, y] of pts) b.px(x, y, C.white); return b; };
+const CRACK_L = [[9, 1], [10, 2], [11, 3], [11, 4], [10, 5], [11, 6], [12, 7], [12, 8], [13, 9]], CRACK_R = [[20, 1], [19, 2], [19, 3], [18, 4], [19, 5], [19, 6], [20, 7], [19, 8], [19, 9]];
+const pips3 = (b, n, blink = null) => { [10, 14, 18].forEach((x, i) => b.rect(x, 8, 2, 2, i === blink ? C.pureWhite : i < n ? C.pay : C.payDim)); return b; };
+def("Multi-hit and armor", "multi_crack", 12, [...hold(A.brick_multi_full, 3), FLASH, ...hold(A.brick_multi_cracked, 4)]);
+def("Multi-hit and armor", "multi3_crack", 12, (() => {
+	const f = pips3(ML.crop(0, 0, 30, 12), 3), c1 = crack(pips3(ML.crop(0, 0, 30, 12), 2), CRACK_L), c2 = crack(crack(pips3(ML.crop(0, 0, 30, 12), 1), CRACK_L), CRACK_R);
+	return [...hold(f, 3), FLASH, ...hold(c1, 3), FLASH, ...hold(c2, 4)];
+})());
+def("Multi-hit and armor", "pips_shrink", 12, [pips3(ML.crop(0, 0, 30, 12), 3), pips3(ML.crop(0, 0, 30, 12), 3, 2), pips3(ML.crop(0, 0, 30, 12), 3), pips3(ML.crop(0, 0, 30, 12), 3, 2), ...hold(pips3(ML.crop(0, 0, 30, 12), 2), 2)]);
+def("Multi-hit and armor", "armor_pop", 12, (() => {
+	const W = 44, Hh = 20, P = A.brick_solid, PF = (() => { const b = P.crop(0, 0, 30, 12); b.rect(1, 0, 28, 2, C.pureWhite); return b; })();
+	const f2 = frame(W, Hh, center(ML, W, Hh), center(P, W, Hh, 0, -2)); sparks(f2, 8, C.pay);
+	return [frame(W, Hh, center(P, W, Hh)), frame(W, Hh, center(PF, W, Hh)), f2, frame(W, Hh, center(ML, W, Hh), [P, 11, -1, 200]), frame(W, Hh, center(MH, W, Hh), [P, 17, -5, 100]), ...hold(frame(W, Hh, center(ML, W, Hh)), 3)];
+})());
+
+// -- Solid --
+const dust = [["..##..", ".####."], ["#..##..#", "..#..#.."], [".#......#.", "#...##...#", "....##...."], ["#........#", "..........", "....#....."]].map((rows, i) => { const b = new Img(12, 8); b.ascii(1, 6 - i * 2, rows, { "#": [C.chromeMid, C.rivet, C.trimHi, C.trimHi][i] }); return i > 1 ? b.fade(160) : b; });
+def("Solid", "dust_puff", 12, dust);
+def("Solid", "solid_bounce", 12, (() => {
+	const W = 44, Hh = 20, S = A.brick_solid, SF = S.crop(0, 0, 30, 12); SF.rect(1, 0, 28, 2, C.pureWhite);
+	return [frame(W, Hh, center(SF, W, Hh)), frame(W, Hh, center(S, W, Hh), [dust[0], 16, 1]), frame(W, Hh, center(S, W, Hh), [dust[1], 16, 0]), frame(W, Hh, center(S, W, Hh), [dust[2], 16, -1]), frame(W, Hh, center(S, W, Hh), [dust[3], 16, -2]), frame(W, Hh, center(S, W, Hh))];
+})());
+
+// -- Icon bricks --
+for (const id of ["multiball", "speedup", "slowdown", "x2", "x3", "combo", "timer", "chain", "bomb", "bolt", "wild", "jackpot", "mystery", "magnet", "split", "pierce"])
+	def("Icon bricks", `icon_${id}_pulse`, 8, [C.pay, C.white, C.pureWhite, C.white].map((c) => withIcon(ML, ICONS[id], c)));
+def("Icon bricks", "wild_cycle", 8, [SETS.mag, SETS.mag, SETS.ora, SETS.ora, SETS.vio, SETS.vio].map((s) => withIcon(lit(s), ICONS.wild, null)));
+def("Icon bricks", "mystery_cycle", 8, ["mystery", "multiball", "mystery", "bolt", "mystery", "x2"].map((k) => withIcon(ML, ICONS[k], C.white)));
+def("Icon bricks", "chain_arc", 12, [0, 1, 2, 3].map((f) => {
+	const b = new Img(64, 12), ys = [6, 3, 8, 4, 9, 2, 7, 3, 9, 5, 8, 2, 7, 4, 9, 3, 6].map((y, i) => f === 3 ? 6 : (y + (f * (i + 1)) % 3 - 1 + 12) % 12);
+	for (let i = 0; i < 16; i++) b.line(i * 4, ys[i], i * 4 + 4, ys[i + 1], C.brick);
+	ys.forEach((y, i) => b.px(i * 4, y, C.pureWhite));
+	return f === 3 ? b.fade(110) : b;
+}));
+def("Icon bricks", "bomb_ring", 12, [[6, 3, C.pureWhite], [12, 2, C.payHi], [20, 1, C.pay], [28, 1, C.payDim]].map(([r, t, c]) => { const b = new Img(60, 60); ring(b, 30, 30, r, c, t); return b; }));
+def("Icon bricks", "bolt_sweep", 12, [0, 1, 2, 3].map((f) => { const b = new Img(60, 12); b.rect(0, 5, 60, 2, C.pay); for (let x = 0; x < 60; x++) if (((x - f * 15) % 60 + 60) % 60 < 15) { b.rect(x, 4, 1, 4, C.payHi); b.rect(x, 5, 1, 2, C.pureWhite); } return b; }));
+def("Icon bricks", "jackpot_rays", 8, [8, 12, 16, 20, 16, 12].map((len, f) => {
+	const b = new Img(48, 48);
+	for (let i = 0; i < 8; i++) { const t = i * Math.PI / 4 + (f & 1 ? Math.PI / 8 : 0), l = i & 1 ? len * .6 : len; b.line(24, 24, Math.round(24 + l * Math.cos(t)), Math.round(24 + l * Math.sin(t)), i & 1 ? C.payDim : C.pay); }
+	b.rect(23, 23, 2, 2, C.pureWhite); return b;
+}));
+def("Icon bricks", "magnet_field", 8, [21, 17, 13, 9].map((rx) => { const b = new Img(44, 20); oval(b, 22, 10, rx, Math.round(rx * .45), C.brick, 1); return b; }));
+def("Icon bricks", "pierce_trail", 12, [0, 1, 2, 3].map((f) => frame(24, 8, [A.ball, 1 - (f & 1), 0, 40], [A.ball, 6, 0, 90 + f * 10], [A.ball, 11 - (f & 1), 0, 150], [A.ball, 16, 0])));
+
+// -- Conditional bricks --
+const S = SETS.sky, SL = lit(S), SD = dim(S), SM = mid(S), SH = hot(S);
+const prime = (icon) => [...hold(withIcon(SD, icon, S.ring), 3), withIcon(SM, icon, S.tube), withIcon(SH, icon, C.pureWhite), ...hold(withIcon(SL, icon, C.white), 5)];
+def("Conditional bricks", "cond_prime", 8, prime(ICONS.speedup));
+def("Conditional bricks", "angle_prime", 8, prime(ICONS.wedge));
+def("Conditional bricks", "cond_too_slow", 12, [[-1, 1], [1, 1], [0, 0], [-1, 1], [1, 1], [0, 0]].map(([dx, X]) => {
+	const f = frame(30, 12, [withIcon(SD, ICONS.speedup, S.ring), dx, 0]);
+	if (X) for (let i = 0; i < 6; i++) { f.px(12 + i, 3 + i, C.danger); f.px(17 - i, 3 + i, C.danger); }
+	return f;
+}));
+def("Conditional bricks", "combo_gate", 8, [withIcon(SD, label("3"), S.tube), withIcon(SD, label("2"), S.tube), withIcon(SD, label("1"), S.tube), FLASH, withIcon(SH, label("1"), C.pureWhite), withIcon(SL, label("1"), C.white)]);
+def("Conditional bricks", "sequence_step", 12, (() => {
+	const done = withIcon(SD, glyph(["....#", "...#.", "#.#..", ".#..."]), C.bump);
+	return [...hold(withIcon(SL, label("1"), C.white), 2), FLASH, ...hold(done, 3)];
+})());
+def("Conditional bricks", "timed_blink", 8, [...hold(SL, 3), SM, ...hold(SD, 3), SM]);
+def("Conditional bricks", "shield_pop", 12, (() => {
+	const W = 44, Hh = 20, base = () => frame(W, Hh, center(ML, W, Hh));
+	const sh = (c, gaps = [], off = 0, a = 255) => { const f = base(), s = new Img(W, Hh); s.outline(5 - off, 2 - off, 34 + off * 2, 16 + off * 2, c); s.corners(); for (const [x, y] of gaps) s.clear(x, y); f.blit(a < 255 ? s.fade(a) : s, 0, 0); return f; };
+	const gaps = [[12, 2], [13, 2], [30, 17], [31, 17], [5, 8], [38, 11]];
+	const pieces = (off, a) => { const f = base(); const s = new Img(W, Hh); s.outline(5 - off, 2 - off, 34 + off * 2, 16 + off * 2, C.sky); for (let i = 0; i < W; i++) for (let j = 0; j < Hh; j++) if ((i + j) % 5 < 2) s.clear(i, j); f.blit(s.fade(a), 0, 0); return f; };
+	return [sh(C.sky), sh(C.sky, gaps), sh(C.pureWhite, gaps), pieces(2, 200), pieces(4, 100), base()];
+})());
+
+// -- Placeables --
+const B = A.bumper;
+def("Placeables", "bumper_hit", 12, (() => {
+	const f = B.crop(0, 0, 45, 7), h = B.crop(0, 0, 45, 7);
 	f.rect(4, 0, 37, 7, C.white); f.rect(5, 1, 35, 5, C.pureWhite);
-	hot.rect(4, 0, 37, 1, C.bumpHi); hot.rect(4, 6, 37, 1, C.bumpHi); hot.hline(6, 2, 33, C.pureWhite);
-	return [f, hot, b, b, b, b];
-})() };
-ANIM.ghost_march = { fps: 8, frames: [0, 1, 2, 3].map((o) => ghost(C.bump, o)) };
-ANIM.ball_bounce = { fps: 12, frames: (() => {
-	const W = 12, H = 12, n = A.ball, sq = ellipse(10, 6), st = ellipse(6, 10);
-	return [frame(W, H, [n, 2, 2]), frame(W, H, [n, 2, 4]), frame(W, H, [sq, 1, 6]), frame(W, H, [st, 3, 0]), frame(W, H, [n, 2, 0]), frame(W, H, [n, 2, 0])];
-})() };
-ANIM.payout_rise = { fps: 12, frames: [[18, 255], [15, 255], [12, 255], [10, 255], [8, 255], [6, 255], [5, 170], [4, 110], [3, 60], [3, 0]].map(([y, a]) => frame(17, 26, [A.fx_payout_tag, 0, y, a])) };
-ANIM.spark_burst = { fps: 12, frames: (() => {
-	const f0 = frame(16, 16, center(A.fx_spark, 16, 16));
-	const f1 = new Img(16, 16); sparks(f1, 3, C.payHi); f1.px(8, 8, C.pureWhite);
-	const f2 = new Img(16, 16); sparks(f2, 5, C.pay);
-	const f3 = new Img(16, 16); sparks(f3, 7, C.payDim);
-	return [f0, f1, f2, f3, new Img(16, 16), new Img(16, 16)];
-})() };
+	h.rect(4, 0, 37, 1, C.bumpHi); h.rect(4, 6, 37, 1, C.bumpHi); h.hline(6, 2, 33, C.pureWhite);
+	return [f, h, ...hold(B, 4)];
+})());
+def("Placeables", "pop_bumper_hit", 12, (() => {
+	const pop = (t, r, d, hi) => { const b = new Img(24, 24); for (let y = 0; y < 24; y++) for (let x = 0; x < 24; x++) { const q = (x - 11.5) ** 2 + (y - 11.5) ** 2; if (q <= 49) b.px(x, y, d); } ring(b, 11.5, 11.5, 6, r); ring(b, 11.5, 11.5, 7, t); if (hi) b.rect(9, 7, 5, 1, hi); return b; };
+	const n = pop(C.bump, C.bumpRing, C.bumpDeep, C.bumpHi), fl = pop(C.pureWhite, C.white, C.white, C.pureWhite), ho = pop(C.bumpHi, C.bump, C.bumpRing, C.pureWhite);
+	const r1 = n.crop(0, 0, 24, 24); ring(r1, 11.5, 11.5, 9, C.pay); const r2 = n.crop(0, 0, 24, 24); ring(r2, 11.5, 11.5, 11, C.payDim, 1, 1);
+	return [fl, ho, r1, r2, n, n];
+})());
+const glassScroll = (draw, n = 4) => Array.from({ length: n }, (_, f) => { const g = new Img(26, 7); draw(g, f); const b = lit(SETS.mint).crop(0, 0, 30, 12); b.blit(g, 2, 3); return b; });
+def("Placeables", "gate_flow", 8, glassScroll((g, f) => { for (let k = -1; k < 3; k++) g.ascii(10, k * 4 + 3 - f, ["..#..", ".###.", "#.#.#"], { "#": C.white }); }));
+def("Placeables", "accel_chevrons", 8, glassScroll((g, f) => { for (let k = -1; k < 8; k++) g.ascii(k * 4 + f, 1, ["#..", ".#.", "..#", ".#.", "#.."], { "#": C.white }); }));
+def("Placeables", "magnet_pull", 8, [21, 17, 13, 9].map((rx) => { const b = new Img(44, 20); oval(b, 22, 10, rx, Math.round(rx * .45), C.bump, 1); return b; }));
+def("Placeables", "spawner_charge", 12, (() => {
+	const W = 30, Hh = 20, cell = (fill) => { const b = lit(SETS.mint, 30, 12); b.rect(2, 10 - fill, 26, fill, C.bumpHi); if (fill) b.hline(2, 10 - fill, 26, C.pureWhite); return b; };
+	const at = (b, ...rest) => frame(W, Hh, [b, 0, 8], ...rest);
+	return [at(cell(0)), at(cell(2)), at(cell(4)), at(cell(7)), frame(W, Hh, [flash(30, 12), 0, 8]), at(hot(SETS.mint), [A.ball, 11, 2]), at(cell(0), [A.ball, 11, 0]), at(cell(0))];
+})());
+def("Placeables", "sticky_hold", 8, (() => {
+	const pad = (h) => lamp(30, h, SETS.mint), P6 = pad(6), P5 = pad(5);
+	return [frame(30, 16, [A.ball, 11, 2], [P6, 0, 10]), frame(30, 16, [A.ball, 11, 3], [P5, 0, 11]), frame(30, 16, [A.ball, 10, 3], [P5, 0, 11]), frame(30, 16, [A.ball, 12, 3], [P5, 0, 11]), frame(30, 16, [A.ball, 11, 2], [P6, 0, 10]), frame(30, 16, [A.ball, 11, 2], [P6, 0, 10])];
+})());
+const portal = (ballSize, flashRing) => { const b = new Img(16, 16); ring(b, 7.5, 7.5, 7, flashRing ? C.pureWhite : SETS.vio.tube); if (ballSize) b.blit(ellipse(ballSize, ballSize), 8 - ballSize / 2, 8 - ballSize / 2); return b; };
+def("Placeables", "teleport_in", 12, [portal(8), portal(6), portal(4), portal(2, true)]);
+def("Placeables", "teleport_out", 12, [portal(2, true), portal(4), portal(6), portal(8)]);
+
+// -- Placement and selection --
+def("Placement and selection", "ghost_march", 8, [0, 1, 2, 3].map((o) => ghost(C.bump, o)));
+def("Placement and selection", "ghost_invalid_shake", 12, [-1, 1, -1, 1].map((dx, i) => { const f = frame(30, 12, [ghost(C.danger), dx, 0]); if (!(i & 1)) for (let k = 0; k < 6; k++) { f.px(12 + k, 3 + k, C.danger); f.px(17 - k, 3 + k, C.danger); } return f; }));
+def("Placement and selection", "hover_outline", 8, [0, 1, 2, 3].map((o) => {
+	const f = frame(34, 16, [ML, 2, 2]);
+	for (let x = 0; x < 34; x++) if ((x + o) % 4 < 2) { f.px(x, 0, C.white); f.px(33 - x, 15, C.white); }
+	for (let y = 0; y < 16; y++) if ((y + o + 2) % 4 < 2) { f.px(0, 15 - y, C.white); f.px(33, y, C.white); }
+	return f;
+}));
+
+// -- Effects --
+const burst = (s) => { const f0 = frame(16, 16, center(A.fx_spark, 16, 16)); const r = (rr, c, dot) => { const b = new Img(16, 16); sparks(b, rr, c); if (dot) b.px(8, 8, C.pureWhite); return b; }; return [f0, r(3, s.hi, 1), r(5, s.tube, 0), r(7, s.ring, 0), blank(16, 16), blank(16, 16)]; };
+def("Effects", "spark_burst", 12, burst({ hi: C.payHi, tube: C.pay, ring: C.payDim }));
+def("Effects", "spark_burst_mint", 12, burst(SETS.mint));
+def("Effects", "spark_burst_sky", 12, burst(SETS.sky));
+def("Effects", "payout_rise", 12, [[18, 255], [15, 255], [12, 255], [10, 255], [8, 255], [6, 255], [5, 170], [4, 110], [3, 60], [3, 0]].map(([y, a]) => frame(17, 26, [A.fx_payout_tag, 0, y, a])));
+def("Effects", "combo_chase", 8, (() => {
+	const path = []; for (let x = 1; x < 29; x++) path.push([x, 0]); for (let y = 1; y < 11; y++) path.push([29, y]); for (let x = 28; x > 0; x--) path.push([x, 11]); for (let y = 10; y > 0; y--) path.push([0, y]);
+	return [0, 1, 2, 3, 4, 5, 6, 7].map((f) => { const b = ML.crop(0, 0, 30, 12), p = Math.floor(f * path.length / 8); [[0, C.pureWhite], [1, C.brickHi], [2, C.brickHi], [3, C.brickHi]].forEach(([k, c]) => { const [x, y] = path[(p - k + path.length) % path.length]; b.px(x, y, c); }); return b; });
+})());
+def("Effects", "halo_pulse", 8, [255, 200, 150, 200].map((a) => A.fx_halo.fade(a)));
+def("Effects", "hazard_strip", 8, [0, 1, 2, 3].map((f) => { const b = new Img(32, 4); b.hline(0, 0, 32, C.trimLo); b.hline(0, 3, 32, C.trimLo); for (let i = 0; i < 8; i++) { const k = (i + f) % 4; b.rect(i * 4 + 1, 1, 2, 2, k === 0 ? C.pay : k === 1 ? C.cream : C.payDim); } return b; }));
+
+// -- Ball and paddle --
+def("Ball and paddle", "ball_bounce", 12, (() => { const n = A.ball, sq = ellipse(10, 6), st = ellipse(6, 10); return [frame(12, 12, [n, 2, 2]), frame(12, 12, [n, 2, 4]), frame(12, 12, [sq, 1, 6]), frame(12, 12, [st, 3, 0]), frame(12, 12, [n, 2, 0]), frame(12, 12, [n, 2, 0])]; })());
+def("Ball and paddle", "ball_trail", 12, [0, 1, 2, 3].map((f) => frame(24, 8, [A.ball, 4 - (f & 1), 0, 60], [A.ball, 10 - (f >> 1), 0, 120], [A.ball, 16, 0])));
+def("Ball and paddle", "ball_lost", 12, [frame(12, 12, [A.ball, 2, 2]), frame(12, 12, [ellipse(8, 8, C.danger, C.white), 2, 2]), frame(12, 12, [ellipse(6, 6, C.danger, "7f0000"), 3, 3]), frame(12, 12, [ellipse(4, 4, C.danger, "7f0000"), 4, 4]), frame(12, 12, [ellipse(2, 2, C.danger, C.danger), 5, 5]), blank(12, 12)]);
+def("Ball and paddle", "paddle_hit", 12, [C.pureWhite, C.white, C.payHi, C.pay].map((c) => { const b = A.paddle.crop(0, 0, 60, 8); b.hline(6, 4, 48, c); return b; }));
+
 const strip = (frames) => { const s = new Img(frames[0].w * frames.length, frames[0].h); frames.forEach((f, i) => s.blit(f, i * f.w, 0)); return s; };
 
 // ---- Mockup 640x360 ----
@@ -279,10 +441,11 @@ const GROUPS = [
 const cards = GROUPS.map(([title, names]) => `<section><h2>${title}</h2><div class="row">${names.map((n) =>
 	`<figure><div class="tile"><img src="${uri(n)}" width="${A[n].w}" height="${A[n].h}" alt="${n}"></div><figcaption>${n}<span>${A[n].w}×${A[n].h}</span></figcaption></figure>`
 ).join("")}</div></section>`).join("");
-const anims = `<section id="anims"><h2>Animations</h2><p class="lede">Looping at the frame rate noted. The strip under each is the exported sprite sheet; held frames are repeated in the strip, in-engine they would be a hold time instead.</p><div class="row">${Object.entries(ANIM).map(([n, a]) => {
-	const { w, h } = a.frames[0], k = a.frames.length;
+const animCard = (n) => {
+	const a = ANIM[n], { w, h } = a.frames[0], k = a.frames.length;
 	return `<figure><div class="tile"><div class="anim" style="--fw:${w}px;--fh:${h}px;--n:${k};--fps:${a.fps};background-image:url(${uri("anim_" + n)})"></div></div><div class="tile"><img src="${uri("anim_" + n)}" width="${w * k}" height="${h}" alt="${n} strip"></div><figcaption>anim_${n}<span>${w}×${h} · ${k}f · ${a.fps}fps</span></figcaption></figure>`;
-}).join("")}</div></section>`;
+};
+const anims = `<section id="anims"><h2>Animations</h2><p class="lede">${Object.keys(ANIM).length} animations looping at the frame rate noted. The strip under each is the exported sprite sheet; held frames are repeated in the strip, in-engine they would be a hold time instead. Grouped as in docs/animations.md.</p>${AGROUPS.map(([t, names]) => `<h3>${t}</h3><div class="row">${names.map(animCard).join("")}</div>`).join("")}</section>`;
 const html = `<title>Breakin' Cremental Pixel Sprites</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen&family=IBM+Plex+Sans:wght@400;600&display=swap">
@@ -293,6 +456,7 @@ const html = `<title>Breakin' Cremental Pixel Sprites</title>
 body{background:var(--bg);color:var(--fg);font:15px/1.5 var(--body);padding-block:24px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 h1{font:22px var(--display);color:var(--accent);margin:0 0 4px;text-shadow:0 0 12px #${C.pay}88;text-wrap:balance}
 h2{font:12px var(--display);color:var(--pink);margin:0 0 10px}
+h3{font:600 13px var(--body);color:var(--muted);margin:18px 0 8px;text-transform:uppercase;letter-spacing:.08em}
 p.lede{color:var(--muted);margin:0 0 20px;max-width:65ch}
 img{image-rendering:pixelated;image-rendering:crisp-edges}
 .bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;position:sticky;top:env(safe-area-inset-top,0px);background:var(--bg);padding-block:8px;margin-bottom:16px;border-bottom:1px solid var(--trim);z-index:5}

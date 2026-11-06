@@ -74,10 +74,12 @@ One font: the 3x5 face in `FONT` in the generator. 1px letter spacing. HUD text 
 ## Animation
 
 - 12 fps for hits and effects, 8 fps for idle loops. Frames are whole-pixel moves, no tweening.
-- Every hit starts with one flash frame, then one "hot" frame (tube goes to highlight swatch, glass to ring swatch, highlight to pure white), then the normal state. See `MAG_HOT`.
+- Every hit starts with one flash frame, then one "hot" frame (tube goes to highlight swatch, glass to ring swatch, highlight to pure white), then the normal state. See `hot()` in the generator. Dim is `dim()`, half-lit transitions are `mid()`.
 - Breaks: flash, hot, split into two halves, fade with debris, empty. Fade is alpha on the whole sprite, the only place alpha is allowed on an object.
 - Ball squashes to 10x6 on contact and stretches to 6x10 leaving. Never rotates.
 - Strips in `anim_*.png` repeat held frames so the demo loops. In-engine, use hold times.
+- Loops (pulse, march, scroll, chase) are 4 to 8 frames at 8 fps and must tile seamlessly from last frame to first.
+- Icons pulse by color only: yellow, warm white, pure white, warm white. The icon shape never moves.
 
 ## Rotation
 

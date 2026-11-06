@@ -46,20 +46,9 @@ One row per asset in `assets/pixel/png/`. Sizes are native 1x canvas pixels (2x 
 | fx_payout_tag | 17x8 | bottom center | yellow | 1 | "+12" placeholder, number drawn in-engine | done |
 | fx_halo per set | 60x30 | center | mint, sky | 1 each | | todo |
 
-## Animations (`anim_*.png`, horizontal strips, held frames repeated)
+## Animations
 
-| Name | Frame | Set | Frames | fps | Notes | Status |
-|---|---|---|---|---|---|---|
-| anim_brick_hit | 30x12 | magenta | 6 | 12 | flash, hot, settle | done |
-| anim_brick_break | 44x20 | magenta | 8 | 12 | flash, hot + sparks, split halves, fade + debris, empty | done |
-| anim_multi_crack | 30x12 | magenta | 8 | 12 | full, flash, cracked hold | done |
-| anim_cond_prime | 30x12 | sky | 10 | 8 | idle, half-lit, hot, primed hold | done |
-| anim_bumper_hit | 45x7 | mint | 6 | 12 | flash, hot, settle | done |
-| anim_ghost_march | 30x12 | mint | 4 | 8 | dashes march clockwise | done |
-| anim_ball_bounce | 12x12 | yellow | 6 | 12 | paddle contact: squash 10x6, stretch 6x10 | done |
-| anim_payout_rise | 17x26 | yellow | 10 | 12 | rises 15px, eases, fades last 4 | done |
-| anim_spark_burst | 16x16 | yellow | 6 | 12 | 8-way ring grows and dims | done |
-| anim_brick_hit per set | | mint, sky | | | | todo |
+Strips `anim_*.png`, one row per animation in `docs/animations.md`. All 72 listed there are generated.
 
 ## Field overlays (drawn in-engine, no sprite)
 
