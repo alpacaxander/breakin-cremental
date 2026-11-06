@@ -73,7 +73,7 @@ func refresh() -> void:
 	if not placing:
 		Ui.label(tray, "LOCKED", 6, y + 24, C.rivet)
 		return
-	var hints := ["LMB PICK/DROP", "R ROTATE", "RMB REMOVE", "ESC PAUSE"]
+	var hints := ["LMB PICK/DROP", "WHEEL/A/D ROTATE", "RMB REMOVE", "ESC PAUSE"]
 	for i in hints.size():
 		Ui.label(tray, hints[i], 6, y + 24 + i * 8, C.rivet)
 	Ui.button(tray, "START", 6, 300, 66, 24, _start, true, 2, "")
@@ -183,14 +183,23 @@ func _unhandled_input(e: InputEvent) -> void:
 	if not placing:
 		return
 	var key: bool = e is InputEventKey and e.pressed and not e.echo
-	if e is InputEventMouseButton and e.pressed:
+	var wheel: bool = e is InputEventMouseButton and e.pressed and e.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]
+	if wheel and holding:
+		_rotate(1 if e.button_index == MOUSE_BUTTON_WHEEL_UP else -1)
+	elif e is InputEventMouseButton and e.pressed:
 		_place_click(e.button_index)
 	elif key and e.keycode == KEY_SPACE:
 		_start()
-	elif key and e.keycode == KEY_R and holding:
-		Sfx.play("ui_rotate")
-		holding.rotation += deg_to_rad(Tuning.ROTATE_DEG)
-		_drag()
+	elif key and e.keycode in [KEY_R, KEY_D] and holding:
+		_rotate(1)
+	elif key and e.keycode == KEY_A and holding:
+		_rotate(-1)
 	else:
 		return
 	get_viewport().set_input_as_handled()  # the arena sees the event next and would launch on the same press
+
+
+func _rotate(dir: int) -> void:
+	Sfx.play("ui_rotate")
+	holding.rotation += dir * deg_to_rad(Tuning.ROTATE_DEG)
+	_drag()
