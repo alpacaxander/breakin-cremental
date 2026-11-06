@@ -1,4 +1,4 @@
-# Breakin' Cremental
+# BreakIn cremental
 
 **Logline:** A breakout-style incremental game where you build the board you're about to break. "Sir, We Have an Orc Problem" meets breakout.
 

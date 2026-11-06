@@ -456,7 +456,7 @@ const animCard = (n) => {
 	return `<figure><div class="tile"><div class="anim" style="--fw:${w}px;--fh:${h}px;--n:${k};--fps:${a.fps};background-image:url(${uri("anim_" + n)})"></div></div><div class="tile"><img src="${uri("anim_" + n)}" width="${w * k}" height="${h}" alt="${n} strip"></div><figcaption>anim_${n}<span>${w}×${h} · ${k}f · ${a.fps}fps</span></figcaption></figure>`;
 };
 const anims = `<section id="anims"><h2>Animations</h2><p class="lede">${Object.keys(ANIM).length} animations looping at the frame rate noted. The strip under each is the exported sprite sheet; held frames are repeated in the strip, in-engine they would be a hold time instead. Grouped as in docs/animations.md.</p>${AGROUPS.map(([t, names]) => `<h3>${t}</h3><div class="row">${names.map(animCard).join("")}</div>`).join("")}</section>`;
-const html = `<title>Breakin' Cremental Pixel Sprites</title>
+const html = `<title>BreakIn cremental Pixel Sprites</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen&family=IBM+Plex+Sans:wght@400;600&display=swap">
 <style>
@@ -488,7 +488,7 @@ figcaption{font-size:12px;color:var(--muted);display:flex;justify-content:space-
 #anims .tile{overflow:auto;max-width:100%}
 #anims p{margin-bottom:12px}
 </style>
-<h1>Breakin' Cremental Pixel Sprites</h1>
+<h1>BreakIn cremental Pixel Sprites</h1>
 <p class="lede">Pachinko lamp look as pixel art on a 2× canvas (640×360). One sprite pixel is two screen pixels in game. Sizes below are native pixels. Glow in-engine comes from a shader; the bumpers in the mockup show what nearest-neighbour rotation does to pixel art.</p>
 <img class="board" src="data:image/png;base64,${readFileSync("assets/pixel/look.png").toString("base64")}" width="1280" height="720" alt="Mockup of a full arena at 2x">
 <div class="bar"><span>Zoom</span><button data-z="2">2×</button><button data-z="4" aria-pressed="true">4×</button><button data-z="8">8×</button><button id="pause" aria-pressed="false" style="margin-left:auto">Pause</button></div>

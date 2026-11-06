@@ -189,7 +189,7 @@ const cards = GROUPS.map(([title, names]) => `<section><h2>${title}</h2><div cla
 	const [w, h] = dims(A[n]);
 	return `<figure><div class="tile"><img src="${uri(A[n])}" width="${w}" height="${h}" alt="${n}"></div><figcaption>${n}<span>${w}×${h}</span></figcaption></figure>`;
 }).join("")}</div></section>`).join("");
-const html = `<title>Breakin' Cremental Sprites</title>
+const html = `<title>BreakIn cremental Sprites</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=IBM+Plex+Sans:wght@400;600&display=swap">
 <style>
@@ -214,7 +214,7 @@ figure{margin:0;display:flex;flex-direction:column;gap:6px;min-width:0}
 figcaption{font-size:12px;color:var(--muted);display:flex;justify-content:space-between;gap:12px;font-variant-numeric:tabular-nums}
 @media (prefers-reduced-motion:no-preference){.tile img{transition:width .15s}}
 </style>
-<h1>Breakin' Cremental Sprites</h1>
+<h1>BreakIn cremental Sprites</h1>
 <p class="lede">Pachinko lamp look: dark glass, neon tube outline, chrome for anything unlit. Sizes are 1× game units at a 1280×720 view. Glow in-engine comes from a shader, not these files.</p>
 <img class="board" src="${uri(boardSvg)}" width="1280" height="720" alt="Mockup of a full arena">
 <div class="bar"><span>Zoom</span><button data-z="1">1×</button><button data-z="2" aria-pressed="true">2×</button><button data-z="4">4×</button></div>

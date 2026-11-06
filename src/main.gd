@@ -9,7 +9,7 @@ func _ready() -> void:
 
 
 func _show_menu() -> void:
-	_swap(Ui.screen("Breakin' Cremental", [
+	_swap(Ui.screen("BreakIn cremental", [
 		Ui.button("Play", _show_shop),
 		Ui.button("Settings", func(): _swap(Ui.settings(_show_menu))),
 		Ui.button("Quit", get_tree().quit),
