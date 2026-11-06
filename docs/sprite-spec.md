@@ -1,0 +1,66 @@
+# Sprite spec
+
+One row per asset in `assets/pixel/png/`. Sizes are native 1x canvas pixels (2x on screen). Anchor is where the game positions it. Hue sets and states are defined in `docs/art-style.md`. Regenerate with `node assets/pixel/gen.mjs`.
+
+## Bricks (30x12, anchor center)
+
+| Name | Set | State | Frames | Notes | Status |
+|---|---|---|---|---|---|
+| brick_plain_lit | magenta | lit | 1 | the base brick | done |
+| brick_plain_dim | magenta | dim | 1 | | done |
+| brick_plain_flash | magenta | flash | 1 | shared hit flash for all magenta bricks | done |
+| brick_multi_full | magenta | lit | 1 | two yellow pips at bottom | done |
+| brick_multi_cracked | magenta | cracked | 1 | one pip dim, crack in warm white | done |
+| brick_icon_multiball | magenta | lit | 1 | three white plus-dots | done |
+| brick_icon_x2 | magenta | lit | 1 | "x2" in 3x5 font, yellow | done |
+| brick_cond_speed_idle | sky | dim | 1 | chevrons in ring color | done |
+| brick_cond_speed_primed | sky | lit | 1 | chevrons in warm white | done |
+| brick_solid | chrome | unlit | 1 | bevel bands, two rivets | done |
+| brick_icon_* (other effects) | magenta | lit | 1 | per icon in design.md | todo |
+| brick_plain_* per extra currency | orange, violet | lit, dim, flash | 1 each | when currency 2 and 3 exist | todo |
+
+## Placeables
+
+| Name | Size | Anchor | Set | State | Frames | Notes | Status |
+|---|---|---|---|---|---|---|---|
+| bumper | 45x7 | center | mint | lit | 1 | chrome caps 4px each end | done |
+| bumper_r15, bumper_r30, ... | varies | center | mint | lit | 1 each | pre-drawn angles, replaces runtime rotation | todo |
+| ghost_valid | 30x12 | center | mint | ghost | 1 | dashed, alpha fill | done |
+| ghost_invalid | 30x12 | center | red | ghost | 1 | dashed, X | done |
+
+## Ball and paddle
+
+| Name | Size | Anchor | Set | Frames | Notes | Status |
+|---|---|---|---|---|---|---|
+| ball | 8x8 | center | yellow edge, warm white body | 1 | white 3px highlight top-left | done |
+| paddle | 60x8 | center | chrome, yellow strip row 4 | 1 | width upgrades need a 3-slice or per-width sprites | done |
+| paddle_cap_l, paddle_mid, paddle_cap_r | 4x8, 1x8, 4x8 | left | chrome | 1 each | 3-slice for scalable width | todo |
+
+## Effects
+
+| Name | Size | Anchor | Set | Frames | Notes | Status |
+|---|---|---|---|---|---|---|
+| fx_halo | 60x30 | center | magenta | 1 | checker dither, additive blend | done |
+| fx_spark | 5x5 | center | yellow | 1 | | done |
+| fx_debris | 4x3 | center | magenta | 1 | | done |
+| fx_payout_tag | 17x8 | bottom center | yellow | 1 | "+12" placeholder, number drawn in-engine | done |
+| fx_halo per set | 60x30 | center | mint, sky | 1 each | | todo |
+
+## Animations (`anim_*.png`, horizontal strips, held frames repeated)
+
+| Name | Frame | Set | Frames | fps | Notes | Status |
+|---|---|---|---|---|---|---|
+| anim_brick_hit | 30x12 | magenta | 6 | 12 | flash, hot, settle | done |
+| anim_brick_break | 44x20 | magenta | 8 | 12 | flash, hot + sparks, split halves, fade + debris, empty | done |
+| anim_multi_crack | 30x12 | magenta | 8 | 12 | full, flash, cracked hold | done |
+| anim_cond_prime | 30x12 | sky | 10 | 8 | idle, half-lit, hot, primed hold | done |
+| anim_bumper_hit | 45x7 | mint | 6 | 12 | flash, hot, settle | done |
+| anim_ghost_march | 30x12 | mint | 4 | 8 | dashes march clockwise | done |
+| anim_ball_bounce | 12x12 | yellow | 6 | 12 | paddle contact: squash 10x6, stretch 6x10 | done |
+| anim_payout_rise | 17x26 | yellow | 10 | 12 | rises 15px, eases, fades last 4 | done |
+| anim_spark_burst | 16x16 | yellow | 6 | 12 | 8-way ring grows and dims | done |
+| anim_brick_hit per set | | mint, sky | | | | todo |
+
+## Field overlays (drawn in-engine, no sprite)
+
+Placement line, peg-board dots, rails, combo bar, HUD text. See `board()` in the generator for the reference rendering.
