@@ -92,8 +92,9 @@ func capacity() -> int:
 	return Tuning.CAPACITY_BASE + int(bonus("capacity"))
 
 
-func bumpers() -> int:
-	return Tuning.START_BUMPERS + int(bonus("bumper"))
+## How many of a placeable the player can put down.
+func owned(kind: String) -> int:
+	return Tuning.PLACEABLES[kind].get("start", 0) + rank(kind)
 
 
 func round_time(breakable: int) -> float:
@@ -114,7 +115,7 @@ func payout(level: int, combo: int) -> int:
 
 # --- Board generation ---
 
-## Returns [{pos: Vector2, kind: "plain" | "solid"}]. Always has at least one plain brick.
+## Returns [{pos: Vector2, kind: String}], kinds from Tuning.BRICKS. Always has at least one breakable brick.
 func generate(level: int, seed: int) -> Array:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed
@@ -127,7 +128,33 @@ func generate(level: int, seed: int) -> Array:
 			if rng.randf() < L.holes:
 				continue
 			var pos := Vector2(Tuning.VIEW.x / 2 + (c - (cols - 1) / 2.0) * step.x, Tuning.BOARD_TOP + r * step.y)
-			out.append({pos = pos, kind = "solid" if rng.randf() < L.solid else "plain"})
-	if not out.any(func(b): return b.kind == "plain"):
+			var kind := "solid" if rng.randf() < L.solid else "plain"
+			if kind == "plain":
+				var roll := rng.randf()
+				for k in L.get("special", {}):
+					roll -= L.special[k]
+					if roll < 0:
+						kind = k
+						break
+			out.append({pos = pos, kind = kind})
+	var breakable := out.filter(func(b): return Tuning.BRICKS[b.kind].hp > 0)
+	if breakable.is_empty():
 		out[0].kind = "plain"  # ponytail: assumes holes never empty the whole board
+		breakable = [out[0]]
+	if L.get("seq", false):
+		# First brick (from a random start) with two neighbours to its right becomes the 1-2-3 run.
+		var at := func(p: Vector2): return out.filter(func(b): return b.pos.is_equal_approx(p))
+		var start := rng.randi() % out.size()
+		for i in out.size():
+			var b: Dictionary = out[(start + i) % out.size()]
+			var n1: Array = at.call(b.pos + Vector2(step.x, 0))
+			var n2: Array = at.call(b.pos + Vector2(step.x * 2, 0))
+			if b.kind != "solid" and n1 and n2 and n1[0].kind != "solid" and n2[0].kind != "solid":
+				b.kind = "seq1"
+				n1[0].kind = "seq2"
+				n2[0].kind = "seq3"
+				break
+	if L.get("jackpot", false):
+		var free := breakable.filter(func(b): return not b.kind.begins_with("seq"))
+		free[rng.randi() % free.size()].kind = "jackpot"
 	return out

@@ -9,7 +9,9 @@ static var _cache := {}
 ## fw: frame width in strip pixels. One-shot unless loop; one-shots free themselves when done.
 static func play(parent: Node, name: String, fw: int, fps: int, pos: Vector2, rot := 0.0, loop := false) -> AnimatedSprite2D:
 	var s := AnimatedSprite2D.new()
-	s.sprite_frames = _frames(name, fw, fps, loop)
+	s.sprite_frames = _frames(name, fw)
+	s.sprite_frames.set_animation_speed("default", fps)
+	s.sprite_frames.set_animation_loop("default", loop)
 	s.position = pos
 	s.rotation = rot
 	s.scale = Vector2.ONE * SCALE
@@ -21,13 +23,17 @@ static func play(parent: Node, name: String, fw: int, fps: int, pos: Vector2, ro
 	return s
 
 
-static func _frames(name: String, fw: int, fps: int, loop: bool) -> SpriteFrames:
+## One frame of a strip as a texture, for a still face.
+static func frame(name: String, fw: int, i: int) -> Texture2D:
+	return _frames(name, fw).get_frame_texture("default", i)
+
+
+# ponytail: one SpriteFrames per strip, shared; every use of a strip has the same fps so sharing is safe.
+static func _frames(name: String, fw: int) -> SpriteFrames:
 	if name in _cache:
 		return _cache[name]
 	var tex: Texture2D = load(DIR % name)
 	var sf := SpriteFrames.new()
-	sf.set_animation_speed("default", fps)
-	sf.set_animation_loop("default", loop)
 	for i in int(tex.get_width()) / fw:
 		var at := AtlasTexture.new()
 		at.atlas = tex
