@@ -24,20 +24,21 @@ func _exit_tree() -> void:
 
 
 func _show_menu() -> void:
-	var r := Ui.chassis("RECORD", "MENU")
+	var r := Ui.chassis()
 	Sfx.loop(r, "lamp_hum")
-	var rows := ["BEST $%s" % Ui.money(Game.best), "RUNS %d" % Game.runs, "LEVEL %d" % (Game.unlocked + 1), "YOU WIN!" if Game.won else ""]
-	for i in rows.size():
-		Ui.label(r, rows[i], 6, 22 + i * 10, Tuning.COLORS.white if i == 0 else Tuning.COLORS.rivet)
 	Ui.bulbs(r, 4)
 	var logo := Ui.tex("title_logo")
-	Ui.icon(r, logo, 320 - logo.get_width() / 2, 110)
+	Ui.icon(r, logo, 320 - logo.get_width() / 2, 50)
+	# Logo above a pause-sized card of stacked buttons, the record as one caption line beneath.
+	Ui.panel(r, 240, 140, 160, 82)
+	Ui.button(r, "PLAY", 260, 150, 120, 18, _show_shop, true, 2, "ui_start")
+	Ui.button(r, "SETTINGS", 260, 174, 120, 18, func(): _swap(Ui.settings(_show_menu)))
+	Ui.button(r, "QUIT", 260, 198, 120, 18, Sfx.quit, false, 2, "")
+	var record := "BEST $%s   RUNS %d   LEVEL %d" % [Ui.money(Game.best), Game.runs, Game.unlocked + 1]
+	Ui.centre(r, record + ("   YOU WIN!" if Game.won else ""), 232, Tuning.COLORS.rivet)
 	Ui.centre(r, "BUILD THE BOARD. BREAK THE BOARD.", 300, Tuning.COLORS.rivet)
 	for i in 6:
 		Ui.icon(r, "brick_plain_lit" if i % 3 == 0 else "brick_plain_dim", 230 + i * 32, 330)
-	Ui.button(r, "PLAY", Ui.RX + 6, 22, 66, 18, _show_shop, true, 2, "ui_start")
-	Ui.button(r, "SETTINGS", Ui.RX + 6, 46, 66, 18, func(): _swap(Ui.settings(_show_menu)), false, 1)
-	Ui.button(r, "QUIT", Ui.RX + 6, 70, 66, 18, Sfx.quit, false, 1, "")
 	_swap(r)
 
 

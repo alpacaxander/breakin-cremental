@@ -593,12 +593,12 @@ const breakFx = (m, fx, fy) => {
 const placed = (m) => { m.blit(A.bumper.rotated(-15), 140, 200); m.blit(A.bumper.rotated(15), 430, 212); m.blit(A.place_magnet, 305, 176); };
 const MOCK = {};
 MOCK.menu = (() => {
-	const m = chassis(); col(m, 0, "RECORD"); col(m, RX, "MENU");
-	["BEST 486", "RUNS 14", "LEVEL 3", "", "V0.1"].forEach((s, i) => text(m, 6, 22 + i * 10, s, i ? C.rivet : C.white));
+	const m = chassis(); col(m, 0); col(m, RX);
 	bulbs(m, 4);
-	m.blit(A.title_logo, 320 - (A.title_logo.w >> 1), 110);
-	btn(m, RX + 6, 22, 66, 18, "ui_button_mint_hot", "PLAY"); m.blit(A.ui_cursor, RX + 50, 32);
-	btn(m, RX + 6, 46, 66, 18, "ui_button_chrome", "SETTINGS", 1); btn(m, RX + 6, 70, 66, 18, "ui_button_chrome", "QUIT", 1);
+	m.blit(A.title_logo, 320 - (A.title_logo.w >> 1), 50);
+	m.blit(nine(A.ui_panel, 160, 82), 240, 140);
+	[["PLAY", "ui_button_mint_hot"], ["SETTINGS", "ui_button_chrome"], ["QUIT", "ui_button_chrome"]].forEach(([s, k], i) => btn(m, 260, 150 + i * 24, 120, 18, k, s)); m.blit(A.ui_cursor, 330, 160);
+	centreText(m, 232, "BEST $486   RUNS 14   LEVEL 3", C.rivet, 1);
 	centreText(m, 300, "BUILD THE BOARD. BREAK THE BOARD.", C.rivet, 1);
 	for (let i = 0; i < 6; i++) m.blit(i % 3 ? A.brick_plain_dim : A.brick_plain_lit, 230 + i * 32, 330);
 	return m;
