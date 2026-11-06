@@ -74,6 +74,13 @@ func _ready() -> void:
 		await get_tree().physics_frame
 		if a.over:
 			break
+	a._end("Time's up")  # builds the result panel
+	await get_tree().create_timer(1.1).timeout  # let its delayed cues fire, else they leak at quit
+	var total := 0
+	for v in a.tally.values():
+		total += v
+	assert(total == a.earned, "tally lines sum to earned")
+	assert(a.combos.all(func(c): return c[0] > 1), "combo runs are 2+")
 	var fx: int = a.get_children().filter(func(c): return c is AnimatedSprite2D).size()
 	print("smoke ok: over=%s earned=%d balls=%d placed=%d fx=%d" % [a.over, a.earned, a.balls.size(), a.placed.size(), fx])
 	if saved:

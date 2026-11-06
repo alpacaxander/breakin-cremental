@@ -51,6 +51,9 @@ var mode := ""  # plain brick idle: "", "pulse", "chase"
 
 var placed: Array[Box] = []  # the player's pieces, handed over by place.gd at start
 var best_combo := 0
+var tally := {bricks = 0, combo = 0, specials = 0, boost = 0, jackpot = 0}  # earned, split by what each factor added
+var combos: Array = []  # every combo run of 2+: [length, pay]
+var run_pay := 0  # paid during the current combo run
 var ui: Ui.Root  # the cabinet: score column left (hud.gd), pieces column right (place.gd)
 var place: Place
 var hud: Hud
@@ -196,7 +199,7 @@ func _physics_process(delta: float) -> void:
 	if combo_timer <= 0:
 		if combo > 1:
 			Sfx.play("combo_drop")
-		combo = 0
+		_end_combo()
 	for p in placed:
 		if p.kind == "spawner":
 			_charge(p, delta)
@@ -408,7 +411,14 @@ func _break(b: Box) -> void:
 		Sfx.play("combo_up")
 	elif combo < Tuning.GATE_COMBO and _bricks("cgate"):
 		Sfx.play("gate_tick", 0.7 + 0.1 * combo)
-	var pay := roundi(Game.payout(level, combo) * Tuning.BRICKS[b.kind].pay * boost_mult)
+	var base: int = Tuning.LEVELS[level].payout
+	var with_combo := Game.payout(level, combo)
+	var with_kind := roundi(with_combo * Tuning.BRICKS[b.kind].pay)
+	var pay := roundi(with_kind * boost_mult)
+	tally.bricks += base
+	tally.combo += with_combo - base
+	tally.specials += with_kind - with_combo
+	tally.boost += pay - with_kind
 	if boost_hits > 0:
 		boost_hits -= 1
 		if boost_hits == 0:
@@ -425,6 +435,7 @@ func _break(b: Box) -> void:
 
 func _pay(pos: Vector2, pay: int) -> void:
 	earned += pay
+	run_pay += pay
 	Game.currency += pay
 	_tag(pos, "+$%d" % pay)
 
@@ -475,7 +486,9 @@ func _effect(kind: String, b: Box) -> void:
 		"jackpot":
 			Fx.play(self, "jackpot_rays", 48, 8, b.position)
 			Sfx.play("jackpot")
-			_pay(b.position + Vector2(0, -28), Tuning.LEVELS[level].payout * Tuning.JACKPOT_MULT)
+			var j: int = Tuning.LEVELS[level].payout * Tuning.JACKPOT_MULT
+			tally.jackpot += j
+			_pay(b.position + Vector2(0, -28), j)
 		"mystery":
 			Sfx.play("mystery_reel")
 			var picks := Tuning.ICON_KINDS.duplicate()
@@ -487,10 +500,19 @@ func _near(b: Box, dist: float) -> Array:
 	return get_children().filter(func(o): return o is Box and o != b and o.hp > 0 and not o.is_queued_for_deletion() and o.position.distance_to(b.position) <= dist)
 
 
+## A combo run ends: record it for the result panel.
+func _end_combo() -> void:
+	if combo > 1:
+		combos.append([combo, run_pay])
+	combo = 0
+	run_pay = 0
+
+
 func _end(msg: String, cleared := false) -> void:
 	if over:
 		return
 	over = true
+	_end_combo()
 	var unlocked := cleared and Game.unlocked == level and level + 1 < Tuning.LEVELS.size()
 	if cleared:
 		Game.clear_level(level)

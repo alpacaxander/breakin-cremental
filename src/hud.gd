@@ -58,13 +58,34 @@ func result(msg: String, cleared: bool, unlocked: bool) -> void:
 	var C := Tuning.COLORS
 	var r := Ui.overlay(0.6)
 	Ui.bulbs(r, 4)
-	Ui.panel(r, 200, 118, 240, 112)
-	Ui.centre(r, msg, 128, C.cream)
-	Ui.centre(r, "+$%s" % Ui.money(arena.earned), 140, C.pay, 4)
-	Ui.centre(r, "x%d BEST COMBO" % arena.best_combo, 166, C.white)
+	Ui.panel(r, 160, 70, 320, 180)
+	Ui.centre(r, msg, 80, C.cream)
+	Ui.centre(r, "+$%s" % Ui.money(arena.earned), 92, C.pay, 4)
+	Ui.centre(r, "x%d BEST COMBO" % arena.best_combo, 116, C.white)
 	if cleared and arena.level == Tuning.LEVELS.size() - 1:
-		Ui.centre(r, "YOU WIN!", 176, C.mint)
+		Ui.centre(r, "YOU WIN!", 126, C.mint)
 	elif unlocked:
-		Ui.centre(r, "LEVEL %d UNLOCKED" % (arena.level + 2), 176, C.mint)
-	Ui.button(r, "CONTINUE", 272, 194, 96, 20, arena.done.emit, true)
+		Ui.centre(r, "LEVEL %d UNLOCKED" % (arena.level + 2), 126, C.mint)
+	# Left column: where the money came from. Right column: the biggest combo runs.
+	Ui.label(r, "SOURCES", 170, 140, C.rivet)
+	var y := 150
+	for k in arena.tally:
+		var v: int = arena.tally[k]
+		if v == 0:
+			continue
+		var name: String = "BRICKS x%d" % (v / Tuning.LEVELS[arena.level].payout) if k == "bricks" else k.to_upper()
+		Ui.label(r, name, 170, y, C.cream)
+		Ui.label(r, "+$%s" % Ui.money(v), 170, y, C.pay, 1, 140, HORIZONTAL_ALIGNMENT_RIGHT)  # no share: the font has no "%"
+		y += 10
+	Ui.label(r, "COMBOS", 330, 140, C.rivet)
+	var runs: Array = arena.combos.duplicate()
+	runs.sort_custom(func(a, b): return a[1] > b[1])
+	y = 150
+	for run in runs.slice(0, 6):  # ponytail: top six by pay fit the panel; a scroll list if runs matter past that
+		Ui.label(r, "x%d" % run[0], 330, y, C.cream)
+		Ui.label(r, "+$%s" % Ui.money(run[1]), 330, y, C.pay, 1, 140, HORIZONTAL_ALIGNMENT_RIGHT)
+		y += 10
+	if runs.is_empty():
+		Ui.label(r, "NONE", 330, 150, C.rivet)
+	Ui.button(r, "CONTINUE", 272, 222, 96, 20, arena.done.emit, true)
 	add_child(r)
