@@ -414,7 +414,8 @@ func _move_ball(ball: Ball, delta: float) -> void:
 			# Angle comes from where the ball lands on the paddle, not reflection.
 			var off := clampf((ball.position.x - paddle.position.x) / (paddle.size.x / 2), -1, 1)
 			ball.vel = Vector2.UP.rotated(off * deg_to_rad(Tuning.MAX_BOUNCE_DEG)) * Tuning.BALL_SPEED * ball.speed
-			Fx.play(self, "paddle_hit", 60, 12, paddle.position).scale = paddle.size / Vector2(60, 8)
+			# Child of the paddle so the flash rides along instead of ghosting where the hit happened.
+			Fx.play(paddle, "paddle_hit", 60, 12, Vector2.ZERO).scale = paddle.size / Vector2(60, 8)
 		else:
 			ball.vel = ball.vel.bounce(n)
 		if hit is Box:
