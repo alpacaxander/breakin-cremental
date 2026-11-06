@@ -22,16 +22,26 @@ There is no test framework and no lint step. `tests/test.gd` is a plain `SceneTr
 
 ## Architecture
 
-Nine scripts in `src/`, no scenes except `main.tscn`. Everything is built in code.
+Eleven scripts in `src/`, no scenes except `main.tscn`. Everything is built in code.
 
-- **`tuning.gd`** is the single home for every number and table: level layouts (`LEVELS`), brick kinds (`BRICKS`, `ICON_KINDS`), placeable pieces (`PLACEABLES`), and the upgrade web (`UPGRADES`). Changing balance means editing this file only. Keys are shared across tables: a placeable's id doubles as its upgrade id (owned count = `start` + rank), and `ICON_KINDS` must all be `BRICKS` keys. `test.gd` enforces these cross-references.
+- **`tuning.gd`** is the single home for every number and table: level layouts (`LEVELS`), brick kinds (`BRICKS`, `ICON_KINDS`), placeable pieces (`PLACEABLES`), the paddle and wall (`PIECES`), and the upgrade web (`UPGRADES`). A kind's row holds its numbers and its look (`face`, optional `idle` strip and `offset`); `spec(kind)` finds the row whichever table holds it. Changing balance means editing this file only. Keys are shared across tables: a placeable's id doubles as its upgrade id (owned count = `start` + rank), and `ICON_KINDS` must all be `BRICKS` keys. `test.gd` enforces these cross-references.
 - **`game.gd`** (autoload `Game`) holds run state (currency, unlocked level, upgrade ranks), save/settings files, and the pure rules: combo window and multiplier, upgrade reveal/cost/buy, derived stats, and `generate(level, seed)` for boards. It has no scene dependencies, which is why `test.gd` can instantiate it headless.
 - **`main.gd`** swaps one child at a time between the main menu, `shop.gd` (upgrade web and level select) and `arena.gd` (a round). Signals `play(level)` / `menu` / `done` drive the swaps.
-- **`arena.gd`** is one round end to end: placement mode (drag pieces from a tray, R rotates, capacity check), then play mode (ball physics, paddle, combo timer, brick effects, pass-through pieces, spawner), then a result panel. Balls are an inner `CharacterBody2D` class. Brick-kind behaviour lives here in `_damage`, `_effect` and `_pass`, keyed by `kind` string; `brick.gd` only knows shape and look.
-- **`brick.gd`** (`Box`) is every physical piece: board bricks, placeables, paddle, walls. It maps `kind` to a still face and optional looping idle strip (`FACE`, `IDLE` tables). Pass-through placeables set `collision_layer = 0` and the arena checks overlap itself.
+- **`arena.gd`** is one round: it builds the board, walls and paddle, then runs play mode (ball physics, paddle, combo timer, brick effects, pass-through pieces, spawner) and ends it. Balls are an inner `CharacterBody2D` class. Brick-kind behaviour lives here in `_hit`, `_damage`, `_effect` and `_pass`, keyed by `kind` string. Two child nodes take the rest and read the arena's fields directly (untyped `arena` var, so neither preloads the other):
+  - **`place.gd`** is placement mode: the pieces tray, pick/drag/rotate/drop, validity and capacity checks. Pieces it creates are arena children (`arena.box`). It consumes its input events so the arena does not also launch, and emits `started`, at which point the arena copies its `placed` list.
+  - **`hud.gd`** is the score column, refreshed every frame from the arena, plus the result panel.
+- **`brick.gd`** (`Box`) is every physical piece: board bricks, placeables, paddle, walls. It builds the collider and look from the kind's `tuning.gd` row; icon kinds derive their face from `icon_<kind>_pulse`. Pass-through placeables set `collision_layer = 0` and the arena checks overlap itself.
 - **`fx.gd`** plays horizontal animation strips from `assets/pixel/png/anim_<name>.png` as `AnimatedSprite2D` at 2x, slicing by a caller-supplied frame width. One `SpriteFrames` is cached per strip, so a strip must always be played at the same fps.
 - **`sfx.gd`** plays one cue from `assets/audio/wav/<name>.wav`: `play(name, pitch, delay)` one-shots under the scene root (they survive scene swaps and pauses), `loop(parent, name)` as a child that stops with its owner. Pitch ladders reuse one sample (`st(n)` = n semitones). `Ui.button` plays `ui_click` unless given another cue or `""`; `test.gd` checks every cue name the scripts play has a wav.
 - **`ui.gd`** is the cabinet: every screen is a 640x360 sprite-space `Control` scaled 2x (`Ui.Root`) with a left column, the field (80-559) and a right column. Static helpers (`chassis`, `label`, `button`, `icon`, `pips`, `cash`, `dialog`, `settings`) place things in sprite px; `theme.tres` supplies the 3x5 bitmap font and the nine-patch button, toggle and slider styles. The arena's HUD, tray, pause and result panels are built from these too.
+
+### Adding a brick kind
+
+A kind is a string that several tables and `match` blocks agree on. Touch, in order:
+
+1. `tuning.gd`: a row in `BRICKS` (and a `special` weight in a level, or `ICON_KINDS` for a break effect) or in `PLACEABLES` (plus an `UPGRADES` node with the same id).
+2. `arena.gd`: the arm it needs. `_hit` for a bounce reaction, `_damage` for a refusal or multi-hit face, `_effect` for an on-break effect, `_pass` for a pass-through placeable. Per-tick behaviour (magnet, spawner) is a `kind` check in `_physics_process` or `_move_ball`; the `sky` spark list in `_break` names the conditional kinds.
+3. Art and sound: `assets/pixel/gen.mjs`, `docs/animations.md`, `assets/audio/gen.mjs`, and the strip list in `test.gd`.
 
 ## Art pipeline
 

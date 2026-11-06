@@ -1,25 +1,10 @@
 extends StaticBody2D
 ## Any piece in the arena: board bricks, placeables, paddle, wall. Rules in arena.gd; this is shape and look.
+## The look comes from the kind's row in tuning.gd (face, idle, offset); icon kinds derive theirs from the kind name.
 
 const Tuning = preload("res://src/tuning.gd")
 const Fx = preload("res://src/fx.gd")
 const PNG := "res://assets/pixel/png/%s.png"
-
-# kind -> still face. A string is a sprite; [strip, frame width, frame] is one frame of an animation strip.
-const FACE := {
-	plain = "brick_plain_lit", solid = "brick_solid", bumper = "bumper", paddle = "paddle",
-	multi = "brick_multi_full", multi3 = ["multi3_crack", 30, 0], shield = ["shield_pop", 44, 0],
-	cond = "brick_cond_speed_idle", cgate = ["combo_gate", 30, 0], timed = ["timed_blink", 30, 0],
-	seq1 = ["sequence_step1", 30, 0], seq2 = ["sequence_step2", 30, 0], seq3 = ["sequence_step3", 30, 0],
-	pop = ["pop_bumper_hit", 24, 4], oneway = ["gate_flow", 30, 0], accel = ["accel_chevrons", 30, 0],
-	spawner = ["spawner_charge", 30, 0], sticky = "place_sticky", magnet = "place_magnet", tele = "place_tele",
-}
-# kind -> looping idle [strip, frame width, fps] layered over the face.
-const IDLE := {
-	timed = ["timed_blink", 30, 8], mystery = ["mystery_cycle", 30, 8],
-	oneway = ["gate_flow", 30, 8], accel = ["accel_chevrons", 30, 8], magnet = ["magnet_pull", 44, 8],
-}
-const FACE_OFFSET := {spawner = Vector2(0, -8)}  # strips taller than the body: shift so the body lines up
 
 var kind := "plain"
 var hp := 1  # < 0 = unbreakable
@@ -32,7 +17,7 @@ var overlay_sprite: AnimatedSprite2D  # ghost or hover outline
 
 func _ready() -> void:
 	var c := CollisionShape2D.new()
-	var p: Dictionary = Tuning.PLACEABLES.get(kind, {})
+	var p := Tuning.spec(kind)
 	if p.get("round", false):
 		c.shape = CircleShape2D.new()
 		c.shape.radius = size.x / 2
@@ -47,8 +32,8 @@ func _ready() -> void:
 		idle(["icon_%s_pulse" % kind, 30, 8])
 		Fx.play(self, "halo_pulse", 60, 8, Vector2.ZERO, 0, true).show_behind_parent = true
 	else:
-		face(FACE.get(kind))
-		idle(IDLE.get(kind))
+		face(p.get("face"))
+		idle(p.get("idle"))
 
 
 ## Axis-aligned bounds. ponytail: a rotated bumper's box is its AABB, so overlap checks are conservative.
@@ -61,7 +46,7 @@ func face(spec) -> void:
 	queue_redraw()
 
 
-## The texture a face spec names (see FACE); the tray shows pieces with it.
+## The texture a face spec names (see Tuning.BRICKS); the tray shows pieces with it.
 static func tex_of(spec) -> Texture2D:
 	return null if spec == null else load(PNG % spec) if spec is String else Fx.frame(spec[0], spec[1], spec[2])
 
@@ -90,4 +75,4 @@ func _draw() -> void:
 		return
 	# ponytail: the paddle sprite stretches with width upgrades; 3-slice it if the chrome bands smear.
 	var s := size if kind == "paddle" else tex.get_size() * Fx.SCALE
-	draw_texture_rect(tex, Rect2(-s / 2 + FACE_OFFSET.get(kind, Vector2.ZERO), s), false)
+	draw_texture_rect(tex, Rect2(-s / 2 + Tuning.spec(kind).get("offset", Vector2.ZERO), s), false)

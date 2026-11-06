@@ -1,4 +1,4 @@
-## Every tunable number lives here. Edit, rerun.
+## Every tunable number and per-kind table lives here. Edit, rerun.
 
 const VIEW := Vector2(1280, 720)
 const FIELD := Rect2(160, 0, 960, 720)  # the play area between the two cabinet columns; sprite px are half these
@@ -38,13 +38,18 @@ const LEVELS := [
 ]
 
 # Board brick kinds. hp: hits to break (-1 never). pay: payout multiplier on break.
+# face: the still look, a sprite name or [strip, frame width, frame]. idle: a looping [strip, frame width, fps] over it.
+# Icon kinds (multiball..mystery) fire an effect on break and draw their icon_<kind>_pulse strip, so they carry no face here.
 # cond breaks only from a ball at FAST_SPEED. cgate only at combo >= GATE_COMBO. timed only while lit.
-# seq1..3 only in order. shield loses its shield first. Icon kinds (multiball..mystery) fire an effect on break.
+# seq1..3 only in order. shield loses its shield first. Behaviour: arena.gd _hit, _damage, _effect (adding a kind: CLAUDE.md).
 const BRICKS := {
-	plain = {hp = 1, pay = 1}, solid = {hp = -1, pay = 0},
-	multi = {hp = 2, pay = 2}, multi3 = {hp = 3, pay = 3}, shield = {hp = 2, pay = 2},
-	cond = {hp = 1, pay = 3}, cgate = {hp = 1, pay = 3}, timed = {hp = 1, pay = 2},
-	seq1 = {hp = 1, pay = 1}, seq2 = {hp = 1, pay = 2}, seq3 = {hp = 1, pay = 5},
+	plain = {hp = 1, pay = 1, face = "brick_plain_lit"}, solid = {hp = -1, pay = 0, face = "brick_solid"},
+	multi = {hp = 2, pay = 2, face = "brick_multi_full"}, multi3 = {hp = 3, pay = 3, face = ["multi3_crack", 30, 0]},
+	shield = {hp = 2, pay = 2, face = ["shield_pop", 44, 0]},
+	cond = {hp = 1, pay = 3, face = "brick_cond_speed_idle"}, cgate = {hp = 1, pay = 3, face = ["combo_gate", 30, 0]},
+	timed = {hp = 1, pay = 2, face = ["timed_blink", 30, 0], idle = ["timed_blink", 30, 8]},
+	seq1 = {hp = 1, pay = 1, face = ["sequence_step1", 30, 0]}, seq2 = {hp = 1, pay = 2, face = ["sequence_step2", 30, 0]},
+	seq3 = {hp = 1, pay = 5, face = ["sequence_step3", 30, 0]},
 	multiball = {hp = 1, pay = 1}, speedup = {hp = 1, pay = 1}, slowdown = {hp = 1, pay = 1},
 	x2 = {hp = 1, pay = 1}, x3 = {hp = 1, pay = 1}, combo = {hp = 1, pay = 1}, timer = {hp = 1, pay = 1},
 	chain = {hp = 1, pay = 1}, bomb = {hp = 1, pay = 1}, bolt = {hp = 1, pay = 1}, jackpot = {hp = 1, pay = 1}, mystery = {hp = 1, pay = 1},
@@ -72,17 +77,20 @@ const PLACE_MARGIN := 2.0  # min gap between a placed brick and anything else
 const ROTATE_DEG := 15.0  # per R press
 const CAPACITY_BASE := 2
 # Placeables. size in screen px, cost in capacity. Owned = start + rank of the upgrade with the same id.
-# thru: the ball flies through and the piece acts on it. round: circle collider.
+# thru: the ball flies through and the piece acts on it (arena.gd _pass). round: circle collider.
+# face and idle as in BRICKS. offset: a strip taller than the body, shifted so the body lines up.
 const PLACEABLES := {
-	bumper = {name = "Bumper", size = Vector2(90, 14), cost = 2, start = 1},
-	pop = {name = "Pop bumper", size = Vector2(48, 48), cost = 2, round = true},
-	accel = {name = "Launcher", size = Vector2(60, 24), cost = 1, thru = true},
-	oneway = {name = "One-way gate", size = Vector2(60, 24), cost = 2, thru = true},
-	sticky = {name = "Sticky pad", size = Vector2(60, 12), cost = 2, thru = true},
-	magnet = {name = "Magnet", size = Vector2(60, 24), cost = 3, thru = true},
-	tele = {name = "Portal", size = Vector2(32, 32), cost = 1, thru = true, round = true},
-	spawner = {name = "Spawner", size = Vector2(60, 24), cost = 4},
+	bumper = {name = "Bumper", size = Vector2(90, 14), cost = 2, start = 1, face = "bumper"},
+	pop = {name = "Pop bumper", size = Vector2(48, 48), cost = 2, round = true, face = ["pop_bumper_hit", 24, 4]},
+	accel = {name = "Launcher", size = Vector2(60, 24), cost = 1, thru = true, face = ["accel_chevrons", 30, 0], idle = ["accel_chevrons", 30, 8]},
+	oneway = {name = "One-way gate", size = Vector2(60, 24), cost = 2, thru = true, face = ["gate_flow", 30, 0], idle = ["gate_flow", 30, 8]},
+	sticky = {name = "Sticky pad", size = Vector2(60, 12), cost = 2, thru = true, face = "place_sticky"},
+	magnet = {name = "Magnet", size = Vector2(60, 24), cost = 3, thru = true, face = "place_magnet", idle = ["magnet_pull", 44, 8]},
+	tele = {name = "Portal", size = Vector2(32, 32), cost = 1, thru = true, round = true, face = "place_tele"},
+	spawner = {name = "Spawner", size = Vector2(60, 24), cost = 4, face = ["spawner_charge", 30, 0], offset = Vector2(0, -8)},
 }
+# The other two pieces. The paddle's sprite stretches to its width; walls are invisible.
+const PIECES := {paddle = {face = "paddle"}, wall = {}}
 const POP_SPEED := 0.1  # speed added per pop bumper hit
 const ACCEL_SPEED := 1.5  # ball leaves an accelerator at least this fast
 const STICKY_HOLD := 0.75  # seconds, matches sticky_hold strip
@@ -126,3 +134,8 @@ const COLORS := {  # docs/palette.md. Brick, bumper and paddle colors live in th
 	mint = Color("15f2b0"),
 	danger = Color("ff0000"),
 }
+
+
+## The row describing a kind, whichever table holds it.
+static func spec(kind: String) -> Dictionary:
+	return BRICKS.get(kind, PLACEABLES.get(kind, PIECES.get(kind, {})))

@@ -1,5 +1,5 @@
 extends Node2D
-## One round: placement mode, then play mode, then a result panel.
+## One round: placement (place.gd), then play: paddle, ball physics, brick rules and effects, then the result (hud.gd).
 
 signal done
 
@@ -8,6 +8,8 @@ const Box = preload("res://src/brick.gd")
 const Fx = preload("res://src/fx.gd")
 const Ui = preload("res://src/ui.gd")
 const Sfx = preload("res://src/sfx.gd")
+const Place = preload("res://src/place.gd")
+const Hud = preload("res://src/hud.gd")
 const BALL_TEX := preload("res://assets/pixel/png/ball.png")
 const TRAIL_TEX := preload("res://assets/pixel/png/anim_ball_trail.png")
 const HAZARD_TEX := preload("res://assets/pixel/png/anim_hazard_strip.png")
@@ -31,7 +33,6 @@ class Ball extends CharacterBody2D:
 
 
 var level := 0
-var placing := true
 var launched := false
 var over := false
 
@@ -48,21 +49,11 @@ var boost_hits := 0
 var was_fast := false
 var mode := ""  # plain brick idle: "", "pulse", "chase"
 
-var placed: Array[Box] = []
-var holding: Box = null
-var hovered: Box = null
-
+var placed: Array[Box] = []  # the player's pieces, handed over by place.gd at start
 var best_combo := 0
-var ui: Ui.Root  # the cabinet: score column left, pieces column right
-var tray := Control.new()  # right column contents, rebuilt by _refresh_tray
-var cash_l: Label
-var extra_l: Label
-var boost_l: Label
-var combo_l: Label
-var bar: ColorRect
-var mult_l: Label
-var time_l: Label
-var best_l: Label
+var ui: Ui.Root  # the cabinet: score column left (hud.gd), pieces column right (place.gd)
+var place: Place
+var hud: Hud
 var pause: Control = null
 var view := Tuning.VIEW
 var field := Tuning.FIELD
@@ -70,54 +61,41 @@ var field := Tuning.FIELD
 
 func _ready() -> void:
 	# Walls: left, right, top. Bottom is open, that's the drop.
-	_box("wall", Vector2(100, view.y * 3), Vector2(field.position.x - 50, view.y / 2))
-	_box("wall", Vector2(100, view.y * 3), Vector2(field.end.x + 50, view.y / 2))
-	_box("wall", Vector2(view.x, 100), Vector2(view.x / 2, -50))
+	box("wall", Vector2(100, view.y * 3), Vector2(field.position.x - 50, view.y / 2))
+	box("wall", Vector2(100, view.y * 3), Vector2(field.end.x + 50, view.y / 2))
+	box("wall", Vector2(view.x, 100), Vector2(view.x / 2, -50))
 	var rows := {}
 	for b in Game.generate(level, randi()):
-		var box := _box(b.kind, Tuning.BRICK_SIZE, b.pos)
-		if box.hp > 0:
+		var brick := box(b.kind, Tuning.BRICK_SIZE, b.pos)
+		if brick.hp > 0:
 			breakable += 1
 		# Spawn-in, one row after another. The brick shows once its spawn strip ends.
-		box.hide()
+		brick.hide()
 		var row := int((b.pos.y - Tuning.BOARD_TOP) / (Tuning.BRICK_SIZE.y + Tuning.BRICK_GAP))
 		if not row in rows:  # one tick per row as it lands
 			rows[row] = true
 			Sfx.play("count_tick", 1.0 + 0.06 * row, 0.08 * row)
-		var id := box.get_instance_id()  # not the box itself: a lambda holding a freed object logs an engine error
+		var id := brick.get_instance_id()  # not the box itself: a lambda holding a freed object logs an engine error
 		create_tween().tween_callback(func():
 			if instance_from_id(id):
 				Fx.play(self, "mag_spawn", 30, 12, b.pos).animation_finished.connect(func(): if instance_from_id(id): instance_from_id(id).show())
 		).set_delay(0.08 * row)
-	paddle = _box("paddle", Vector2(Game.paddle_width(), Tuning.PADDLE_HEIGHT), Vector2(view.x / 2, Tuning.PADDLE_Y))
+	paddle = box("paddle", Vector2(Game.paddle_width(), Tuning.PADDLE_HEIGHT), Vector2(view.x / 2, Tuning.PADDLE_Y))
 	target_x = paddle.position.x
 	_add_ball(Vector2.ZERO)
 	_rest_ball()
 	time_left = Game.round_time(breakable)
 
-	# The cabinet. Positions are sprite px inside the score column (see ui.gd).
 	ui = Ui.chassis("SCORE", "PIECES", true)
 	add_child(ui)
-	var C := Tuning.COLORS
-	cash_l = Ui.cash(ui, 0, Game.currency)
-	extra_l = Ui.label(ui, "", 6, 44, C.cream)
-	boost_l = Ui.label(ui, "", 6, 52, C.cream)
-	Ui.label(ui, "COMBO", 6, 60, C.rivet)
-	combo_l = Ui.label(ui, "-", 6, 68, C.rivet, 4)
-	combo_l.pivot_offset = Vector2(0, 10)
-	Ui.rect(ui, 6, 92, 68, 3, C.trim_lo)
-	bar = Ui.rect(ui, 6, 92, 0, 3, C.pay)
-	mult_l = Ui.label(ui, "", 6, 98, C.rivet)
-	Ui.label(ui, "TIME", 6, 108, C.rivet)
-	time_l = Ui.label(ui, "", 6, 116, C.cream, 3)
-	best_l = Ui.label(ui, "", 6, 138, C.rivet)
-	Ui.label(ui, "LEVEL %d" % (level + 1), 6, 146, C.rivet)
-	tray.position.x = Ui.RX
-	ui.add_child(tray)
-	_refresh_tray()
+	hud = Hud.new(self, ui)
+	add_child(hud)
+	place = Place.new(self, ui)
+	place.started.connect(_on_start)
+	add_child(place)
 
 
-func _box(kind: String, size: Vector2, pos: Vector2) -> Box:
+func box(kind: String, size: Vector2, pos: Vector2) -> Box:
 	var b := Box.new()
 	b.kind = kind
 	b.size = size
@@ -135,181 +113,30 @@ func _add_ball(pos: Vector2) -> Ball:
 	return b
 
 
-# --- Placement ---
-
-func _count(kind: String) -> int:
-	return placed.filter(func(b): return b.kind == kind).size()
-
-
-func _used() -> int:
-	var n := 0
-	for b in placed:
-		n += Tuning.PLACEABLES[b.kind].cost
-	return n
-
-
-func _can_take(kind: String) -> bool:
-	return holding == null and _count(kind) < Game.owned(kind) and _used() + Tuning.PLACEABLES[kind].cost <= Game.capacity()
-
-
-## Rebuilds the pieces column: a slot per owned piece with its count left, capacity pips, hints and the start button.
-func _refresh_tray() -> void:
-	for c in tray.get_children():
-		c.queue_free()
-	var C := Tuning.COLORS
-	var kinds: Array = Tuning.PLACEABLES.keys().filter(func(k): return Game.owned(k) > 0)
-	for i in kinds.size():
-		var kind: String = kinds[i]
-		var left := Game.owned(kind) - _count(kind)
-		var slot := TextureButton.new()
-		slot.texture_normal = Ui.tex("ui_slot")
-		slot.texture_hover = Ui.tex("ui_slot_hover")
-		slot.texture_disabled = slot.texture_normal
-		slot.position = Vector2(22, 22 + i * 20)
-		slot.focus_mode = Control.FOCUS_NONE
-		slot.disabled = not _can_take(kind)
-		slot.pressed.connect(_take.bind(kind))
-		tray.add_child(slot)
-		var t := Box.tex_of(Box.FACE[kind])
-		Ui.icon(slot, t, 18 - t.get_width() / 2, 9 - t.get_height() / 2).modulate.a = 1.0 if left and placing else 0.3
-		if left:
-			Ui.icon(slot, "ui_badge", 30, -3)
-			Ui.label(slot, str(left), 33, -2, C.bg)
-	var y := 26 + kinds.size() * 20
-	Ui.label(tray, "CAP", 6, y, C.rivet)
-	Ui.label(tray, "%d/%d" % [_used(), Game.capacity()], 24, y, C.white)
-	Ui.pips(tray, 6, y + 8, Game.capacity(), _used())
-	if not placing:
-		Ui.label(tray, "LOCKED", 6, y + 24, C.rivet)
-		return
-	var hints := ["LMB PICK/DROP", "R ROTATE", "RMB REMOVE", "ESC PAUSE"]
-	for i in hints.size():
-		Ui.label(tray, hints[i], 6, y + 24 + i * 8, C.rivet)
-	Ui.button(tray, "START", 6, 300, 66, 24, _start, true, 2, "")
-	Ui.label(tray, "SPACE", 0, 328, C.rivet, 1, 78, HORIZONTAL_ALIGNMENT_CENTER)
-
-
-func _take(kind: String) -> void:
-	if not _can_take(kind):
-		return
-	Sfx.play("ui_pickup")
-	_hover(null)
-	holding = _box(kind, Tuning.PLACEABLES[kind].size, get_global_mouse_position())
-	placed.append(holding)
-	_drag()
-	_refresh_tray()
-
-
-func _valid(b: Box) -> bool:
-	var zone := Rect2(field.position, Vector2(field.size.x, Tuning.PLACE_MAX_Y))
-	if not zone.encloses(b.rect()):
-		return false
-	for o in get_children():
-		if o is Box and o != b and o.kind != "wall" and o.rect().grow(Tuning.PLACE_MARGIN).intersects(b.rect()):
-			return false
-	return true
-
-
-func _drag() -> void:
-	holding.position = get_global_mouse_position()
-	var s := holding.size / Fx.SCALE
-	holding.overlay([("ghost_march_%dx%d" if _valid(holding) else "ghost_invalid_shake_%dx%d") % [s.x, s.y], int(s.x), 8])
-
-
-func _hover(b: Box) -> void:
-	if b == hovered:
-		return
-	if hovered:
-		hovered.overlay(null)
-	hovered = b
-	if b:
-		var s := b.size / Fx.SCALE + Vector2(4, 4)
-		b.overlay(["hover_outline_%dx%d" % [s.x, s.y], int(s.x), 8])
-
-
-func _placed_at(p: Vector2) -> Box:
-	for b in placed:
-		if b.rect().has_point(p):
-			return b
-	return null
-
-
-func _place_click(button: int) -> void:
-	var m := get_global_mouse_position()
-	if button == MOUSE_BUTTON_LEFT:
-		if holding and _valid(holding):
-			Sfx.play("ui_drop")
-			holding.overlay(null)
-			holding = null
-			_hover(_placed_at(m))
-		elif not holding:
-			_hover(null)
-			holding = _placed_at(m)
-			if holding:
-				Sfx.play("ui_pickup")
-				_drag()
-		else:
-			Sfx.play("ui_invalid")
-	elif button == MOUSE_BUTTON_RIGHT:
-		var b := holding if holding else _placed_at(m)
-		if b:
-			Sfx.play("ui_back")
-			_hover(null)
-			placed.erase(b)
-			b.queue_free()
-			holding = null
-	_refresh_tray()
-
-
-func _start() -> void:
-	if not placing:
-		return
-	if holding and not _valid(holding):
-		placed.erase(holding)
-		holding.queue_free()
-	elif holding:
-		holding.overlay(null)
-	_hover(null)
-	holding = null
-	placing = false
-	Sfx.play("ui_start")
+func _on_start() -> void:
+	placed = place.placed
 	for p in placed:
 		if p.kind == "magnet":
 			Sfx.loop(p, "magnet_hum")
-	_refresh_tray()
 
 
 # --- Play ---
 
 ## Motion comes through _input: the cabinet columns swallow events over them, and the paddle must still follow the mouse there.
 func _input(e: InputEvent) -> void:
-	if over or not e is InputEventMouseMotion:
-		return
-	target_x = get_global_mouse_position().x
-	if holding:
-		_drag()
-	elif placing:
-		_hover(_placed_at(get_global_mouse_position()))
+	if not over and e is InputEventMouseMotion:
+		target_x = get_global_mouse_position().x
 
 
+## Placement input is handled (and consumed) by place.gd first.
 func _unhandled_input(e: InputEvent) -> void:
-	if over:
+	if over or place.placing:
 		return
-	if e is InputEventMouseButton and e.pressed:
-		if placing:
-			_place_click(e.button_index)
-		elif not launched:
-			_launch()
+	if e is InputEventMouseButton and e.pressed and not launched:
+		_launch()
 	elif e is InputEventKey and e.pressed and not e.echo:
-		if e.keycode == KEY_SPACE:
-			if placing:
-				_start()
-			elif not launched:
-				_launch()
-		elif e.keycode == KEY_R and holding:
-			Sfx.play("ui_rotate")
-			holding.rotation += deg_to_rad(Tuning.ROTATE_DEG)
-			_drag()
+		if e.keycode == KEY_SPACE and not launched:
+			_launch()
 		elif e.keycode == KEY_ESCAPE:
 			_pause(true)
 
@@ -339,7 +166,7 @@ func _pause_settings() -> void:
 
 func _quit() -> void:
 	_pause(false)
-	if placing:
+	if place.placing:
 		done.emit()
 	else:
 		_end("Abandoned")
@@ -356,7 +183,7 @@ func _rest_ball() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if placing or over:
+	if place.placing or over:
 		return
 	_move_paddle(delta)
 	if not launched:
@@ -407,7 +234,7 @@ func _charge(p: Box, delta: float) -> void:
 		return
 	p.charge = 0
 	p.face(["spawner_charge", 30, 0])
-	Fx.play(self, "spawner_charge", 30, 12, p.position + Box.FACE_OFFSET.spawner)
+	Fx.play(self, "spawner_charge", 30, 12, p.position + Tuning.PLACEABLES.spawner.offset)
 	Sfx.play("spawner_charge")
 	var b := _add_ball(p.position + Vector2(0, -p.size.y / 2 - Tuning.BALL_RADIUS - 2))
 	b.vel = Vector2.UP.rotated(randf_range(-0.6, 0.6)) * Tuning.BALL_SPEED
@@ -589,7 +416,7 @@ func _break(b: Box) -> void:
 			Sfx.play("boost_end")
 	_pay(b.position, pay)
 	best_combo = maxi(best_combo, combo)
-	create_tween().tween_property(combo_l, "scale", Vector2.ONE, 0.25).from(Vector2.ONE * 1.5)
+	hud.pop_combo()
 	breakable -= 1
 	_effect(b.kind, b)
 	if breakable == 0:
@@ -675,18 +502,7 @@ func _end(msg: String, cleared := false) -> void:
 		Sfx.play("coin_cascade", 1.0, 0.5)
 	if unlocked or (cleared and level == Tuning.LEVELS.size() - 1):
 		Sfx.play("ui_unlock", 1.0, 1.0)
-	var r := Ui.overlay(0.6)
-	Ui.bulbs(r, 4)
-	Ui.panel(r, 200, 118, 240, 112)
-	Ui.centre(r, msg, 128, Tuning.COLORS.cream)
-	Ui.centre(r, "+$%s" % Ui.money(earned), 140, Tuning.COLORS.pay, 4)
-	Ui.centre(r, "x%d BEST COMBO" % best_combo, 166, Tuning.COLORS.white)
-	if cleared and level == Tuning.LEVELS.size() - 1:
-		Ui.centre(r, "YOU WIN!", 176, Tuning.COLORS.mint)
-	elif unlocked:
-		Ui.centre(r, "LEVEL %d UNLOCKED" % (level + 2), 176, Tuning.COLORS.mint)
-	Ui.button(r, "CONTINUE", 272, 194, 96, 20, done.emit, true)
-	add_child(r)
+	hud.result(msg, cleared, unlocked)
 
 
 ## Payout tag: the strip fades while the node rises; the text is a label riding on it.
@@ -705,18 +521,8 @@ func _tag(pos: Vector2, text: String) -> void:
 	create_tween().tween_property(s, "position:y", pos.y - 40, 10.0 / 12).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
 
 
+## Brick idles that follow the combo: plain bricks pulse then chase, the gate counts down.
 func _process(_delta: float) -> void:
-	cash_l.text = Ui.money(Game.currency)
-	extra_l.text = "+%d" % earned if earned else ""
-	boost_l.text = "x%d FOR %d" % [boost_mult, boost_hits] if boost_hits > 0 else ""
-	combo_l.text = "x%d" % combo if combo else "-"
-	combo_l.add_theme_color_override("font_color", Tuning.COLORS.pay if combo else Tuning.COLORS.rivet)
-	bar.size.x = 68 * clampf(combo_timer / Game.combo_window(combo), 0, 1) if combo else 0.0
-	mult_l.text = "x%.2f PAY" % Game.combo_mult(combo) if combo > 1 else ""
-	var t := maxf(time_left, 0)
-	time_l.text = "%d:%02d" % [int(t) / 60, int(t) % 60]
-	time_l.add_theme_color_override("font_color", Tuning.COLORS.danger if launched and t < 5 else Tuning.COLORS.cream)
-	best_l.text = "BEST x%d" % best_combo if best_combo > 1 else ""
 	var m := "" if combo == 0 else "chase" if combo_timer < Tuning.CHASE_AT else "pulse"
 	if m != mode:
 		mode = m
@@ -729,7 +535,7 @@ func _process(_delta: float) -> void:
 
 func _draw() -> void:
 	# Base and dots come from the cabinet (ui, drawn beneath this). Here: the placement line, the bottom lamps and the balls.
-	if placing:
+	if place.placing:
 		draw_dashed_line(Vector2(field.position.x + 4, Tuning.PLACE_MAX_Y), Vector2(field.end.x - 4, Tuning.PLACE_MAX_Y), Color(Tuning.COLORS.mint, 0.6), 2, 6, false)
 	var f := int(Time.get_ticks_msec() / 125) % 4  # 8 fps
 	for x in range(int(field.position.x), int(field.end.x), 64):

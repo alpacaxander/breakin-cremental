@@ -21,15 +21,15 @@ func _ready() -> void:
 	# Place one of each in a row under the board, then hover and drop like the mouse would.
 	var x := 60.0
 	for k in Tuning.PLACEABLES:
-		a._take(k)
-		assert(a.holding != null and a.holding.kind == k, "took %s" % k)
-		a.holding.position = Vector2(x, Tuning.PLACE_MAX_Y - 60)
+		a.place._take(k)
+		assert(a.place.holding != null and a.place.holding.kind == k, "took %s" % k)
+		a.place.holding.position = Vector2(x, Tuning.PLACE_MAX_Y - 60)
 		x += 120
-		a.holding.overlay(null)
-		a.holding = null
-	a._hover(a.placed[0])
-	a._start()
-	assert(a.placed.size() == Tuning.PLACEABLES.size(), "all placed")
+		a.place.holding.overlay(null)
+		a.place.holding = null
+	a.place._hover(a.place.placed[0])
+	a.place._start()
+	assert(a.placed.size() == Tuning.PLACEABLES.size() and not a.place.placing, "all placed and handed to the arena")
 	a._launch()
 	await get_tree().physics_frame
 	# Pause menu: open, swap to settings and back, resume.
