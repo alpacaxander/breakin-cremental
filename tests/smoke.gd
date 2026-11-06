@@ -33,6 +33,7 @@ func _ready() -> void:
 	# Pause menu: open, swap to settings and back, resume.
 	a._pause(true)
 	assert(get_tree().paused and a.pause != null, "paused with a menu")
+	assert(a.pause.size == Tuning.VIEW, "pause overlay covers the arena, so its box centers")
 	a._pause_settings()
 	a._pause(true)
 	a._pause(false)

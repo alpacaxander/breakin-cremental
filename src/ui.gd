@@ -18,6 +18,7 @@ static func screen(title: String, rows: Array, dim := false) -> Screen:
 	var s := Screen.new()
 	s.color = Color(Tuning.COLORS.bg, 0.8 if dim else 1.0)
 	s.set_anchors_preset(Control.PRESET_FULL_RECT)
+	s.size = Tuning.VIEW  # anchors are no-ops under a Node2D parent (the arena)
 	s.process_mode = Node.PROCESS_MODE_ALWAYS  # keeps working over a paused tree
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 12)
