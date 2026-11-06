@@ -5,6 +5,8 @@ signal done
 
 const Tuning = preload("res://src/tuning.gd")
 const Box = preload("res://src/brick.gd")
+const Fx = preload("res://src/fx.gd")
+const BALL_TEX := preload("res://assets/pixel/png/ball.png")
 
 var level := 0
 var placing := true
@@ -214,6 +216,7 @@ func _physics_process(delta: float) -> void:
 	if over:
 		return
 	if ball.position.y > view.y + Tuning.BALL_RADIUS:
+		Fx.play(self, "ball_lost", 12, 12, Vector2(ball.position.x, view.y - 12))
 		_end("Ball dropped")
 	elif time_left <= 0:
 		_end("Time's up")
@@ -240,10 +243,14 @@ func _move_ball(delta: float) -> void:
 			# Angle comes from where the ball lands on the paddle, not reflection.
 			var off := clampf((ball.position.x - paddle.position.x) / (paddle.size.x / 2), -1, 1)
 			vel = Vector2.UP.rotated(off * deg_to_rad(Tuning.MAX_BOUNCE_DEG)) * Tuning.BALL_SPEED
+			Fx.play(self, "paddle_hit", 60, 12, paddle.position).scale = paddle.size / Vector2(60, 8)
 		else:
 			vel = vel.bounce(n)
-		if hit is Box and hit.kind == "plain":
-			_break(hit)
+		if hit is Box:
+			match hit.kind:
+				"plain": _break(hit)
+				"solid": Fx.play(self, "solid_bounce", 44, 12, hit.position)
+				"bumper": Fx.play(self, "bumper_hit", 45, 12, hit.position, hit.rotation)
 		motion = vel.normalized() * c.get_remainder().length()
 	var min_vy := Tuning.BALL_SPEED * Tuning.MIN_VERTICAL
 	if absf(vel.y) < min_vy:
@@ -258,6 +265,8 @@ func _break(b: Box) -> void:
 	if b.hp > 0:
 		return
 	b.queue_free()
+	Fx.play(self, "mag_break", 44, 12, b.position)
+	Fx.play(self, "spark_burst", 16, 12, b.position)
 	combo = combo + 1 if combo > 0 else 1
 	combo_timer = Game.combo_window(combo)
 	var pay := Game.payout(level, combo)
@@ -317,4 +326,5 @@ func _draw() -> void:
 	if combo > 0:
 		var frac := clampf(combo_timer / Game.combo_window(combo), 0, 1)
 		draw_rect(Rect2(0, Tuning.HUD_HEIGHT - 4, view.x * frac, 4), Tuning.COLORS.combo)
-	draw_circle(ball.position, Tuning.BALL_RADIUS, Tuning.COLORS.ball)
+	var r := Tuning.BALL_RADIUS
+	draw_texture_rect(BALL_TEX, Rect2(ball.position - Vector2(r, r), Vector2(r, r) * 2), false)

@@ -56,6 +56,14 @@ func _init() -> void:
 	check(b.rect().is_equal_approx(Rect2(93, 55, 14, 90)), "rotated brick rect is its bounding box")
 	b.free()
 
+	# Every strip the arena plays exists and slices into whole frames. Names, widths, fps: docs/animations.md.
+	var Fx = load("res://src/fx.gd")
+	for a in [["mag_break", 44, 8], ["spark_burst", 16, 6], ["bumper_hit", 45, 6], ["solid_bounce", 44, 6], ["paddle_hit", 60, 4], ["ball_lost", 12, 6]]:
+		var holder := Node2D.new()
+		var s: AnimatedSprite2D = Fx.play(holder, a[0], a[1], 12, Vector2.ZERO)
+		check(s.sprite_frames.get_frame_count("default") == a[2], "anim_%s has %d frames" % [a[0], a[2]])
+		holder.free()
+
 	g.free()
 	print("FAILED %d" % failed if failed else "ok")
 	quit(1 if failed else 0)

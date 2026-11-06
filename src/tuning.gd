@@ -52,13 +52,8 @@ const UPGRADES := {
 	"capacity": {name = "Capacity", desc = "+2 arena capacity", amount = 2, cost = 15, cost_mult = 2.0, ranks = 3, links = [], pos = Vector2(860, 170)},
 }
 
-const COLORS := {
-	bg = Color("1a1426"),
-	ball = Color("fff4c2"),
-	combo = Color("ffcc33"),
-	plain = Color("e8486b"),
-	solid = Color("6b6880"),
-	bumper = Color("3ad1c6"),
-	paddle = Color("f2f2f2"),
-	line = Color(1, 1, 1, 0.25),
+const COLORS := {  # docs/palette.md. Brick, bumper and paddle colors live in their sprites.
+	bg = Color("000020"),
+	combo = Color("ffff00"),
+	line = Color("5454a7"),
 }

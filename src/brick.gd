@@ -2,6 +2,12 @@ extends StaticBody2D
 ## Any rectangle in the arena: plain/solid brick, bumper, paddle, wall.
 
 const Tuning = preload("res://src/tuning.gd")
+const TEX := {
+	plain = preload("res://assets/pixel/png/brick_plain_lit.png"),
+	solid = preload("res://assets/pixel/png/brick_solid.png"),
+	bumper = preload("res://assets/pixel/png/bumper.png"),
+	paddle = preload("res://assets/pixel/png/paddle.png"),
+}
 
 var kind := "plain"
 var hp := 1  # < 0 = unbreakable
@@ -22,5 +28,6 @@ func rect() -> Rect2:
 
 
 func _draw() -> void:
-	if kind != "wall":
-		draw_rect(Rect2(-size / 2, size), Tuning.COLORS[kind])
+	# ponytail: the paddle sprite stretches with width upgrades; 3-slice it if the chrome bands smear.
+	if kind in TEX:
+		draw_texture_rect(TEX[kind], Rect2(-size / 2, size), false)
