@@ -53,6 +53,25 @@ One row per asset in `assets/pixel/png/`. Sizes are native 1x canvas pixels (2x 
 
 Strips `anim_*.png`, one row per animation in `docs/animations.md`. All listed there are generated.
 
+## Cabinet UI
+
+Every screen is a 640x360 sprite-space Control shown at 2x (`src/ui.gd`): score/stats column 0-77, rail, field 80-559, rail, pieces/menu column 562-639. Reference renders: `assets/pixel/preview/ui_*.png` and `assets/pixel/preview/ui.html`.
+
+| Sprite | Size | Use |
+|---|---|---|
+| font_3x5.png + .fnt | 192x6 | BMFont, size 5, advance 4, line 6. Capitals, digits, `$ + , - . / : ! ' ?` and a small `x`; lowercase maps onto the capitals. Scaled 2x/3x/4x for cash, time and combo. |
+| ui_panel | 24x24 | Column and dialog panel, nine-patch with 3px corners |
+| ui_rail | 2x8 | Tiled rail beside each column, flipped on the right |
+| ui_button_chrome, _hot | 24x16 | Chrome button (theme `Button`), nine-patch 3px |
+| ui_button_mint, _hot, _dim | 24x16 | Lamp button (theme variation `Mint`): normal, hover/pressed, disabled |
+| ui_slot, ui_slot_hover | 36x18 | Piece slot in the tray; piece face centred, ui_badge (9x7) with the count at (30,-3) |
+| ui_pip_on/off/pay | 4x4 | Capacity and rank pips at 5px pitch |
+| coin | 8x8 | Beside CASH and costs |
+| node_dim/lit/max | 30x12 | Upgrade web lamp by rank; icon_<upgrade> (12x5) overlaid at (9,3), rank pips drawn at row 8 |
+| ui_toggle_on/off, ui_slider_track, ui_slider_knob | 16x8, 1x4, 6x8 | CheckButton icons and HSlider styles in theme.tres |
+| ui_cursor | 8x8 | Mouse cursor, scaled 2x at runtime |
+| title_logo | 177x63 | Menu logo (gen.mjs `LOGOS.split_mag_pay`) |
+
 ## Field overlays (drawn in-engine, no sprite)
 
-Placement line, peg-board dots, rails, combo bar, HUD text. See `board()` in the generator for the reference rendering.
+Placement line (dashed mint), peg-board dots, combo bar, bottom lamp row (anim_hazard_strip). See `MOCK.play` in the generator for the reference rendering.

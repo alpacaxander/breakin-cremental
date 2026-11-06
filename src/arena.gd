@@ -51,20 +51,27 @@ var placed: Array[Box] = []
 var holding: Box = null
 var hovered: Box = null
 
-var hud := Label.new()
-var combo_label := Label.new()
-var tray := VBoxContainer.new()
-var pieces := HBoxContainer.new()
-var cap_label := Label.new()
+var best_combo := 0
+var ui: Ui.Root  # the cabinet: score column left, pieces column right
+var tray := Control.new()  # right column contents, rebuilt by _refresh_tray
+var cash_l: Label
+var extra_l: Label
+var boost_l: Label
+var combo_l: Label
+var bar: ColorRect
+var mult_l: Label
+var time_l: Label
+var best_l: Label
 var pause: Control = null
 var view := Tuning.VIEW
+var field := Tuning.FIELD
 
 
 func _ready() -> void:
 	# Walls: left, right, top. Bottom is open, that's the drop.
-	_box("wall", Vector2(100, view.y * 3), Vector2(-50, view.y / 2))
-	_box("wall", Vector2(100, view.y * 3), Vector2(view.x + 50, view.y / 2))
-	_box("wall", Vector2(view.x, 100), Vector2(view.x / 2, Tuning.HUD_HEIGHT - 50))
+	_box("wall", Vector2(100, view.y * 3), Vector2(field.position.x - 50, view.y / 2))
+	_box("wall", Vector2(100, view.y * 3), Vector2(field.end.x + 50, view.y / 2))
+	_box("wall", Vector2(view.x, 100), Vector2(view.x / 2, -50))
 	for b in Game.generate(level, randi()):
 		var box := _box(b.kind, Tuning.BRICK_SIZE, b.pos)
 		if box.hp > 0:
@@ -83,39 +90,25 @@ func _ready() -> void:
 	_rest_ball()
 	time_left = Game.round_time(breakable)
 
-	hud.position = Vector2(12, 10)
-	add_child(hud)
-	combo_label.size = Vector2(400, 60)
-	combo_label.position = Vector2(view.x / 2 - 200, Tuning.PLACE_MAX_Y - 120)
-	combo_label.pivot_offset = combo_label.size / 2
-	combo_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	combo_label.add_theme_font_size_override("font_size", 40)
-	combo_label.modulate = Tuning.COLORS.combo
-	add_child(combo_label)
-
-	tray.position = Vector2(12, Tuning.PLACE_MAX_Y + 12)
-	tray.add_theme_constant_override("separation", 8)
-	pieces.add_theme_constant_override("separation", 8)
-	for kind in Tuning.PLACEABLES:
-		if Game.owned(kind) > 0:
-			var b := Button.new()
-			b.name = kind
-			b.focus_mode = Control.FOCUS_NONE  # else Space re-presses the last clicked button
-			b.pressed.connect(_take.bind(kind))
-			pieces.add_child(b)
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 16)
-	var start := Button.new()
-	start.text = "Start round (Space)"
-	start.focus_mode = Control.FOCUS_NONE
-	start.pressed.connect(_start)
-	var hint := Label.new()
-	hint.text = "Click to pick up / drop.  R rotates.  Right-click removes.  Esc pauses."
-	for c in [start, cap_label, hint]:
-		row.add_child(c)
-	tray.add_child(pieces)
-	tray.add_child(row)
-	add_child(tray)
+	# The cabinet. Positions are sprite px inside the score column (see ui.gd).
+	ui = Ui.chassis("SCORE", "PIECES", true)
+	add_child(ui)
+	var C := Tuning.COLORS
+	cash_l = Ui.cash(ui, 0, Game.currency)
+	extra_l = Ui.label(ui, "", 6, 44, C.cream)
+	boost_l = Ui.label(ui, "", 6, 52, C.cream)
+	Ui.label(ui, "COMBO", 6, 60, C.rivet)
+	combo_l = Ui.label(ui, "-", 6, 68, C.rivet, 4)
+	combo_l.pivot_offset = Vector2(0, 10)
+	Ui.rect(ui, 6, 92, 68, 3, C.trim_lo)
+	bar = Ui.rect(ui, 6, 92, 0, 3, C.pay)
+	mult_l = Ui.label(ui, "", 6, 98, C.rivet)
+	Ui.label(ui, "TIME", 6, 108, C.rivet)
+	time_l = Ui.label(ui, "", 6, 116, C.cream, 3)
+	best_l = Ui.label(ui, "", 6, 138, C.rivet)
+	Ui.label(ui, "LEVEL %d" % (level + 1), 6, 146, C.rivet)
+	tray.position.x = Ui.RX
+	ui.add_child(tray)
 	_refresh_tray()
 
 
@@ -154,13 +147,41 @@ func _can_take(kind: String) -> bool:
 	return holding == null and _count(kind) < Game.owned(kind) and _used() + Tuning.PLACEABLES[kind].cost <= Game.capacity()
 
 
+## Rebuilds the pieces column: a slot per owned piece with its count left, capacity pips, hints and the start button.
 func _refresh_tray() -> void:
-	for b in pieces.get_children():
-		var kind := String(b.name)
-		var P: Dictionary = Tuning.PLACEABLES[kind]
-		b.text = "%s %d/%d (%d)" % [P.name, _count(kind), Game.owned(kind), P.cost]
-		b.disabled = not _can_take(kind)
-	cap_label.text = "Capacity %d/%d" % [_used(), Game.capacity()]
+	for c in tray.get_children():
+		c.queue_free()
+	var C := Tuning.COLORS
+	var kinds: Array = Tuning.PLACEABLES.keys().filter(func(k): return Game.owned(k) > 0)
+	for i in kinds.size():
+		var kind: String = kinds[i]
+		var left := Game.owned(kind) - _count(kind)
+		var slot := TextureButton.new()
+		slot.texture_normal = Ui.tex("ui_slot")
+		slot.texture_hover = Ui.tex("ui_slot_hover")
+		slot.texture_disabled = slot.texture_normal
+		slot.position = Vector2(22, 22 + i * 20)
+		slot.focus_mode = Control.FOCUS_NONE
+		slot.disabled = not _can_take(kind)
+		slot.pressed.connect(_take.bind(kind))
+		tray.add_child(slot)
+		var t := Box.tex_of(Box.FACE[kind])
+		Ui.icon(slot, t, 18 - t.get_width() / 2, 9 - t.get_height() / 2).modulate.a = 1.0 if left and placing else 0.3
+		if left:
+			Ui.icon(slot, "ui_badge", 30, -3)
+			Ui.label(slot, str(left), 33, -2, C.bg)
+	var y := 26 + kinds.size() * 20
+	Ui.label(tray, "CAP", 6, y, C.rivet)
+	Ui.label(tray, "%d/%d" % [_used(), Game.capacity()], 24, y, C.white)
+	Ui.pips(tray, 6, y + 8, Game.capacity(), _used())
+	if not placing:
+		Ui.label(tray, "LOCKED", 6, y + 24, C.rivet)
+		return
+	var hints := ["LMB PICK/DROP", "R ROTATE", "RMB REMOVE", "ESC PAUSE"]
+	for i in hints.size():
+		Ui.label(tray, hints[i], 6, y + 24 + i * 8, C.rivet)
+	Ui.button(tray, "START", 6, 300, 66, 24, _start, true)
+	Ui.label(tray, "SPACE", 0, 328, C.rivet, 1, 78, HORIZONTAL_ALIGNMENT_CENTER)
 
 
 func _take(kind: String) -> void:
@@ -174,7 +195,7 @@ func _take(kind: String) -> void:
 
 
 func _valid(b: Box) -> bool:
-	var zone := Rect2(0, Tuning.HUD_HEIGHT, view.x, Tuning.PLACE_MAX_Y - Tuning.HUD_HEIGHT)
+	var zone := Rect2(field.position, Vector2(field.size.x, Tuning.PLACE_MAX_Y))
 	if not zone.encloses(b.rect()):
 		return false
 	for o in get_children():
@@ -240,21 +261,26 @@ func _start() -> void:
 	_hover(null)
 	holding = null
 	placing = false
-	tray.queue_free()
+	_refresh_tray()
 
 
 # --- Play ---
 
+## Motion comes through _input: the cabinet columns swallow events over them, and the paddle must still follow the mouse there.
+func _input(e: InputEvent) -> void:
+	if over or not e is InputEventMouseMotion:
+		return
+	target_x = get_global_mouse_position().x
+	if holding:
+		_drag()
+	elif placing:
+		_hover(_placed_at(get_global_mouse_position()))
+
+
 func _unhandled_input(e: InputEvent) -> void:
 	if over:
 		return
-	if e is InputEventMouseMotion:
-		target_x = get_global_mouse_position().x
-		if holding:
-			_drag()
-		elif placing:
-			_hover(_placed_at(get_global_mouse_position()))
-	elif e is InputEventMouseButton and e.pressed:
+	if e is InputEventMouseButton and e.pressed:
 		if placing:
 			_place_click(e.button_index)
 		elif not launched:
@@ -281,11 +307,7 @@ func _pause(on: bool) -> void:
 		pause = null
 	if not on:
 		return
-	pause = Ui.screen("Paused", [
-		Ui.button("Resume", _pause.bind(false)),
-		Ui.button("Settings", _pause_settings),
-		Ui.button("Quit round", _quit),
-	], true)
+	pause = Ui.dialog("PAUSED", [["RESUME", true, _pause.bind(false)], ["SETTINGS", false, _pause_settings], ["MENU", false, _quit]])
 	pause.back.connect(_pause.bind(false))
 	add_child(pause)
 
@@ -366,7 +388,7 @@ func _move_paddle(delta: float) -> void:
 		target_x = paddle.position.x + dir * Tuning.PADDLE_SPEED * delta
 	var half := paddle.size.x / 2
 	# ponytail: paddle teleports, so a fast sideways swipe can clip into the ball. Use AnimatableBody2D if it shows up.
-	paddle.position.x = clampf(move_toward(paddle.position.x, target_x, Tuning.PADDLE_SPEED * delta), half, view.x - half)
+	paddle.position.x = clampf(move_toward(paddle.position.x, target_x, Tuning.PADDLE_SPEED * delta), field.position.x + half, field.end.x - half)
 
 
 func _move_ball(ball: Ball, delta: float) -> void:
@@ -506,7 +528,8 @@ func _break(b: Box) -> void:
 		if boost_hits == 0:
 			boost_mult = 1.0
 	_pay(b.position, pay)
-	create_tween().tween_property(combo_label, "scale", Vector2.ONE, 0.25).from(Vector2.ONE * 1.5)
+	best_combo = maxi(best_combo, combo)
+	create_tween().tween_property(combo_l, "scale", Vector2.ONE, 0.25).from(Vector2.ONE * 1.5)
 	breakable -= 1
 	_effect(b.kind, b)
 	if breakable == 0:
@@ -570,25 +593,24 @@ func _end(msg: String, cleared := false) -> void:
 	if over:
 		return
 	over = true
+	var unlocked := cleared and Game.unlocked == level and level + 1 < Tuning.LEVELS.size()
 	if cleared:
 		Game.clear_level(level)
+	Game.runs += 1
+	Game.best = maxi(Game.best, earned)
 	Game.save()
-	var panel := PanelContainer.new()
-	var box := VBoxContainer.new()
-	var label := Label.new()
-	label.text = "%s\nEarned $%d" % [msg, earned]
+	var r := Ui.overlay(0.6)
+	Ui.bulbs(r, 4)
+	Ui.panel(r, 200, 118, 240, 112)
+	Ui.centre(r, msg, 128, Tuning.COLORS.cream)
+	Ui.centre(r, "+$%s" % Ui.money(earned), 140, Tuning.COLORS.pay, 4)
+	Ui.centre(r, "x%d BEST COMBO" % best_combo, 166, Tuning.COLORS.white)
 	if cleared and level == Tuning.LEVELS.size() - 1:
-		label.text += "\nYOU WIN!"
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.add_theme_font_size_override("font_size", 24)
-	box.add_theme_constant_override("separation", 16)
-	box.add_child(label)
-	box.add_child(Ui.button("Continue", done.emit))
-	panel.add_child(box)
-	panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
-	add_child(panel)
+		Ui.centre(r, "YOU WIN!", 176, Tuning.COLORS.mint)
+	elif unlocked:
+		Ui.centre(r, "LEVEL %d UNLOCKED" % (level + 2), 176, Tuning.COLORS.mint)
+	Ui.button(r, "CONTINUE", 272, 194, 96, 20, done.emit, true)
+	add_child(r)
 
 
 ## Payout tag: the strip fades while the node rises; the text is a label riding on it.
@@ -608,10 +630,17 @@ func _tag(pos: Vector2, text: String) -> void:
 
 
 func _process(_delta: float) -> void:
-	combo_label.text = "COMBO %d   x%.2f" % [combo, Game.combo_mult(combo)] if combo > 1 else ""
-	hud.text = "Level %d    Time %.1f    $%d (+%d)    Combo %d  x%.2f%s" % [
-		level + 1, maxf(time_left, 0), Game.currency, earned, combo, Game.combo_mult(combo),
-		"    x%d for %d" % [boost_mult, boost_hits] if boost_hits > 0 else ""]
+	cash_l.text = Ui.money(Game.currency)
+	extra_l.text = "+%d" % earned if earned else ""
+	boost_l.text = "x%d FOR %d" % [boost_mult, boost_hits] if boost_hits > 0 else ""
+	combo_l.text = "x%d" % combo if combo else "-"
+	combo_l.add_theme_color_override("font_color", Tuning.COLORS.pay if combo else Tuning.COLORS.rivet)
+	bar.size.x = 68 * clampf(combo_timer / Game.combo_window(combo), 0, 1) if combo else 0.0
+	mult_l.text = "x%.2f PAY" % Game.combo_mult(combo) if combo > 1 else ""
+	var t := maxf(time_left, 0)
+	time_l.text = "%d:%02d" % [int(t) / 60, int(t) % 60]
+	time_l.add_theme_color_override("font_color", Tuning.COLORS.danger if launched and t < 5 else Tuning.COLORS.cream)
+	best_l.text = "BEST x%d" % best_combo if best_combo > 1 else ""
 	var m := "" if combo == 0 else "chase" if combo_timer < Tuning.CHASE_AT else "pulse"
 	if m != mode:
 		mode = m
@@ -623,15 +652,11 @@ func _process(_delta: float) -> void:
 
 
 func _draw() -> void:
-	draw_rect(Rect2(Vector2.ZERO, view), Tuning.COLORS.bg)
-	draw_rect(Rect2(0, 0, view.x, Tuning.HUD_HEIGHT), Tuning.COLORS.trim)
+	# Base and dots come from the cabinet (ui, drawn beneath this). Here: the placement line, the bottom lamps and the balls.
 	if placing:
-		draw_line(Vector2(0, Tuning.PLACE_MAX_Y), Vector2(view.x, Tuning.PLACE_MAX_Y), Tuning.COLORS.line, 2)
-	if combo > 0:
-		var frac := clampf(combo_timer / Game.combo_window(combo), 0, 1)
-		draw_rect(Rect2(0, Tuning.HUD_HEIGHT - 4, view.x * frac, 4), Tuning.COLORS.combo)
+		draw_dashed_line(Vector2(field.position.x + 4, Tuning.PLACE_MAX_Y), Vector2(field.end.x - 4, Tuning.PLACE_MAX_Y), Color(Tuning.COLORS.mint, 0.6), 2, 6, false)
 	var f := int(Time.get_ticks_msec() / 125) % 4  # 8 fps
-	for x in range(0, int(view.x), 64):
+	for x in range(int(field.position.x), int(field.end.x), 64):
 		draw_texture_rect_region(HAZARD_TEX, Rect2(x, view.y - 8, 64, 8), Rect2(f * 32, 0, 32, 4))
 	var r := Tuning.BALL_RADIUS
 	for b in balls:

@@ -20,13 +20,12 @@ func _init() -> void:
 	check(g.combo_window(1) == Tuning.COMBO_WINDOW_START, "window starts at START")
 	check(g.combo_window(1000) == Tuning.COMBO_WINDOW_MIN, "window floors at MIN")
 
-	var view := Rect2(Vector2.ZERO, Tuning.VIEW)
 	for lvl in Tuning.LEVELS.size():
 		for s in 200:
 			var bricks: Array = g.generate(lvl, s)
 			check(bricks.any(func(b): return Tuning.BRICKS[b.kind].hp > 0), "level %d seed %d has a breakable brick" % [lvl, s])
 			for b in bricks:
-				check(view.has_point(b.pos) and b.pos.y < Tuning.PLACE_MAX_Y, "level %d brick on screen, above placement line" % lvl)
+				check(Tuning.FIELD.encloses(Rect2(b.pos - Tuning.BRICK_SIZE / 2, Tuning.BRICK_SIZE)) and b.pos.y < Tuning.PLACE_MAX_Y, "level %d brick inside the field, above placement line" % lvl)
 			if Tuning.LEVELS[lvl].get("jackpot", false):
 				check(bricks.filter(func(b): return b.kind == "jackpot").size() == 1, "level %d has one jackpot" % lvl)
 			if Tuning.LEVELS[lvl].get("seq", false):

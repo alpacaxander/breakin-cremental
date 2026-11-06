@@ -8,6 +8,8 @@ const SETTINGS_PATH := "user://settings.json"  # separate from the save: reset()
 var currency := 0
 var unlocked := 0  # highest playable level index
 var won := false
+var best := 0  # most earned in one round
+var runs := 0
 var ranks := {}  # upgrade id -> rank
 var settings := {fullscreen = false, volume = 1.0}
 
@@ -42,7 +44,7 @@ func apply_settings() -> void:
 
 func save() -> void:
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
-	f.store_string(JSON.stringify({currency = currency, unlocked = unlocked, won = won, ranks = ranks}))
+	f.store_string(JSON.stringify({currency = currency, unlocked = unlocked, won = won, best = best, runs = runs, ranks = ranks}))
 
 
 func load_save() -> void:
@@ -54,6 +56,8 @@ func load_save() -> void:
 	currency = int(d.get("currency", 0))
 	unlocked = clampi(int(d.get("unlocked", 0)), 0, Tuning.LEVELS.size() - 1)
 	won = bool(d.get("won", false))
+	best = int(d.get("best", 0))
+	runs = int(d.get("runs", 0))
 	for k in d.get("ranks", {}):
 		if k in Tuning.UPGRADES:
 			ranks[k] = int(d.ranks[k])
@@ -63,6 +67,8 @@ func reset() -> void:
 	currency = 0
 	unlocked = 0
 	won = false
+	best = 0
+	runs = 0
 	ranks = {}
 	save()
 

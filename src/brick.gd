@@ -57,8 +57,13 @@ func rect() -> Rect2:
 
 
 func face(spec) -> void:
-	tex = null if spec == null else load(PNG % spec) if spec is String else Fx.frame(spec[0], spec[1], spec[2])
+	tex = tex_of(spec)
 	queue_redraw()
+
+
+## The texture a face spec names (see FACE); the tray shows pieces with it.
+static func tex_of(spec) -> Texture2D:
+	return null if spec == null else load(PNG % spec) if spec is String else Fx.frame(spec[0], spec[1], spec[2])
 
 
 func idle(spec) -> void:

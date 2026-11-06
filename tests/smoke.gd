@@ -12,6 +12,8 @@ func _ready() -> void:
 	for k in Tuning.PLACEABLES:
 		Game.ranks[k] = 1
 	Game.ranks["capacity"] = 10  # ranks are not capped here; all pieces together cost more than max capacity
+	var Ui = load("res://src/ui.gd")  # needs the Game autoload, so it is checked here and not in test.gd
+	assert(Ui.money(0) == "0" and Ui.money(999) == "999" and Ui.money(1248) == "1,248" and Ui.money(1234567) == "1,234,567", "cash gets thousands separators")
 	var a = load("res://src/arena.gd").new()
 	a.level = Tuning.LEVELS.size() - 1
 	add_child(a)
@@ -33,7 +35,7 @@ func _ready() -> void:
 	# Pause menu: open, swap to settings and back, resume.
 	a._pause(true)
 	assert(get_tree().paused and a.pause != null, "paused with a menu")
-	assert(a.pause.size == Tuning.VIEW, "pause overlay covers the arena, so its box centers")
+	assert(a.pause.size * a.pause.scale == Tuning.VIEW, "pause overlay covers the arena at 2x, so its box centers")
 	a._pause_settings()
 	a._pause(true)
 	a._pause(false)

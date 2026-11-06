@@ -83,7 +83,7 @@ One font: the 3x5 face in `FONT` in the generator. 1px letter spacing. HUD text 
 
 ## Rotation
 
-No runtime rotation of pixel art. Bumpers snap to pre-drawn angles or stay as drawn shapes in `_draw`. The two rotated bumpers in `assets/pixel/look.png` show why.
+No runtime rotation of pixel art. Bumpers snap to pre-drawn angles or stay as drawn shapes in `_draw`. The two rotated bumpers in `assets/pixel/preview/look.png` show why.
 
 ## Don'ts
 

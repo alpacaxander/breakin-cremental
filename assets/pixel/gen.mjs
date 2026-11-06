@@ -46,6 +46,7 @@ class Img {
 	}
 	crop(x, y, w, h) { const o = new Img(w, h); for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) o.px(i, j, this.get(x + i, y + j)); return o; }
 	fade(a) { const o = this.crop(0, 0, this.w, this.h); for (let i = 3; i < o.d.length; i += 4) o.d[i] = o.d[i] * a / 255; return o; }
+	flipX() { const o = new Img(this.w, this.h); for (let j = 0; j < this.h; j++) for (let i = 0; i < this.w; i++) o.px(this.w - 1 - i, j, this.get(i, j)); return o; }
 	line(x0, y0, x1, y1, c) { const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0), 1); for (let i = 0; i <= n; i++) this.px(Math.round(x0 + (x1 - x0) * i / n), Math.round(y0 + (y1 - y0) * i / n), c); }
 	pam() { return Buffer.concat([Buffer.from(`P7\nWIDTH ${this.w}\nHEIGHT ${this.h}\nDEPTH 4\nMAXVAL 255\nTUPLTYPE RGB_ALPHA\nENDHDR\n`), Buffer.from(this.d)]); }
 }
@@ -425,15 +426,260 @@ function board() {
 	return m;
 }
 
+// ---- UI: one cabinet chassis (score column, field, pieces column) that every screen lives inside. ----
+// Columns at 1x: score 0-77, rail 78-79, field 80-559, rail 560-561, pieces 562-639. Text: 3x5 font, HUD at 2x.
+Object.assign(FONT, {
+	A: [".#.", "#.#", "###", "#.#", "#.#"], D: ["##.", "#.#", "#.#", "#.#", "##."], E: ["###", "#..", "###", "#..", "###"], F: ["###", "#..", "###", "#..", "#.."],
+	G: ["###", "#..", "#.#", "#.#", "###"], H: ["#.#", "#.#", "###", "#.#", "#.#"], I: ["###", ".#.", ".#.", ".#.", "###"], J: ["..#", "..#", "..#", "#.#", "###"],
+	K: ["#.#", "#.#", "##.", "#.#", "#.#"], L: ["#..", "#..", "#..", "#..", "###"], N: ["##.", "#.#", "#.#", "#.#", "#.#"], P: ["###", "#.#", "###", "#..", "#.."],
+	Q: ["###", "#.#", "#.#", "###", "..#"], R: ["###", "#.#", "##.", "#.#", "#.#"], S: ["###", "#..", "###", "..#", "###"], T: ["###", ".#.", ".#.", ".#.", ".#."],
+	U: ["#.#", "#.#", "#.#", "#.#", "###"], V: ["#.#", "#.#", "#.#", "#.#", ".#."], W: ["#.#", "#.#", "###", "###", "#.#"], Y: ["#.#", "#.#", ".#.", ".#.", ".#."],
+	Z: ["###", "..#", ".#.", "#..", "###"], "-": ["...", "...", "###", "...", "..."], ".": ["...", "...", "...", "...", ".#."], "/": ["..#", "..#", ".#.", "#..", "#.."],
+	"!": [".#.", ".#.", ".#.", "...", ".#."], "'": [".#.", ".#.", "...", "...", "..."], X: ["#.#", "#.#", ".#.", "#.#", "#.#"],
+});
+const FONT_ORDER = " !$'+,-./0123456789:ABCDEFGHIJKLMNOPQRSTUVWXYZx?";
+A.font_3x5 = (() => { const b = new Img(FONT_ORDER.length * 4, 6); [...FONT_ORDER].forEach((ch, i) => text(b, i * 4, 0, ch, C.pureWhite)); return b; })();
+// BMFont descriptor so Godot imports the atlas as a FontFile (size 5, line 6, advance 4). Lowercase maps onto the capitals; "x" keeps its own small glyph.
+const fnt = (() => {
+	const chars = [];
+	[...FONT_ORDER].forEach((ch, i) => { for (const c of ch === "x" ? ["x"] : /[A-Z]/.test(ch) ? [ch, ch.toLowerCase()] : [ch]) chars.push(`char id=${c.charCodeAt(0)} x=${i * 4} y=0 width=4 height=6 xoffset=0 yoffset=0 xadvance=4 page=0 chnl=15`); });
+	return [`info face="font_3x5" size=5 bold=0 italic=0 charset="" unicode=1 stretchH=100 smooth=0 aa=1 padding=0,0,0,0 spacing=0,0 outline=0`,
+		`common lineHeight=6 base=5 scaleW=${FONT_ORDER.length * 4} scaleH=6 pages=1 packed=0 alphaChnl=0 redChnl=4 greenChnl=4 blueChnl=4`,
+		`page id=0 file="font_3x5.png"`, `chars count=${chars.length}`, ...chars, ""].join("\n");
+})();
+
+SETS.pay = { tube: C.pay, ring: C.payDim, deep: C.base, hi: C.payHi, dimTube: C.payDim, dimRing: "443a05" };
+// Nine-patch stretch: m px corners stay, edges and glass repeat. Lamp buttons use m=3 (tube, ring, highlight inset).
+const nine = (s, w, h, m = 3) => { const o = new Img(w, h), f = (v, n, sn) => v < m ? v : v >= n - m ? sn - (n - v) : m + (v - m) % (sn - 2 * m); for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) o.px(x, y, s.get(f(x, w, s.w), f(y, h, s.h))); return o; };
+
+A.ui_button_mint = lit(SETS.mint, 24, 16);
+A.ui_button_mint_hot = hot(SETS.mint, 24, 16);
+A.ui_button_mint_dim = dim(SETS.mint, 24, 16);
+const chromeBtn = (hover) => { const b = new Img(24, 16); b.rect(0, 0, 24, 16, hover ? C.trimHi : C.trim); b.hline(0, 0, 24, hover ? C.pureWhite : C.chromeHi); b.hline(0, 1, 24, C.chromeMid); b.rect(0, 0, 1, 16, C.chromeMid); b.rect(23, 0, 1, 16, C.chromeLo); b.hline(0, 14, 24, C.chromeLo); b.hline(0, 15, 24, C.trimLo); b.corners(); return b; };
+A.ui_button_chrome = chromeBtn(false);
+A.ui_button_chrome_hot = chromeBtn(true);
+A.ui_panel = (() => { const b = new Img(24, 24); b.rect(0, 0, 24, 24, C.trimLo); b.outline(0, 0, 24, 24, C.rivet); b.outline(1, 1, 22, 22, C.trim); b.hline(3, 2, 18, C.trimHi); b.corners(); return b; })();
+A.ui_rail = (() => { const b = new Img(2, 8); b.rect(0, 0, 1, 8, C.rivet); b.rect(1, 0, 1, 8, C.trimHi); return b; })();
+
+// Web node: yellow lamp, icon in rows 3-7, rank pips on row 9. UI never borrows a brick hue.
+const nglyph = (rows) => (b, c) => b.ascii(15 - (rows[0].length >> 1), 3 + ((5 - rows.length) >> 1), rows, { "#": c });
+const UICONS = {
+	paddle: nglyph(["#.....#", "##...##", "#######", "##...##", "#.....#"]), time: nglyph(["#####", ".#.#.", "..#..", ".#.#.", "#####"]), combo: (b, c) => text(b, 12, 3, "C+", c),
+	bumper: nglyph(["##...##", "#######", "##...##"]), capacity: nglyph(["##.##.##", "##.##.##", "........", "##.##.##", "##.##.##"]), pop: nglyph([".###.", "#...#", "#...#", "#...#", ".###."]),
+	accel: (b, c) => chevrons(b, c), oneway: nglyph(["..#..", ".###.", "#.#.#", "..#..", "#####"]), tele: nglyph([".###.", "#...#", "#.#.#", "#...#", ".###."]),
+	sticky: nglyph(["..#..", "..#..", ".....", "#####", "#####"]), spawner: nglyph([".#...", "###..", ".#.#.", "..###", "...#."]), magnet: nglyph(["#...#", "#...#", "#...#", "##.##", ".###."]),
+};
+const node = (state, icon, rank, ranks) => {
+	const b = state === "lit" ? lit(SETS.pay) : state === "hot" ? hot(SETS.pay) : dim(SETS.pay);
+	if (icon) icon(b, state === "dim" ? C.payDim : state === "hot" ? C.pureWhite : C.white);
+	for (let i = 0; i < ranks; i++) b.rect(15 - ((ranks * 3 - 1) >> 1) + i * 3, 8, 2, 2, i < rank ? (state === "dim" ? C.payDim : C.payHi) : state === "dim" ? "443a05" : C.payDim);
+	return b;
+};
+// Shipped nodes are blank lamps: the game overlays icon_<id> and draws rank pips itself.
+A.node_lit = node("lit"); A.node_dim = node("dim"); A.node_max = node("hot");
+for (const id in UICONS) A[`icon_${id}`] = (() => { const b = new Img(30, 12); UICONS[id](b, C.white); return b.crop(9, 3, 12, 5); })();
+
+const pip = (s, on) => { const b = new Img(4, 4); if (on) { b.rect(0, 0, 4, 4, s.tube); b.rect(1, 1, 2, 2, s.hi); } else { b.rect(0, 0, 4, 4, s.deep); b.outline(0, 0, 4, 4, s.dimTube); } b.corners(); return b; };
+A.ui_pip_on = pip(SETS.mint, true); A.ui_pip_off = pip(SETS.mint, false); A.ui_pip_pay = pip(SETS.pay, true);
+A.coin = (() => { const b = ellipse(8, 8, C.payDim, C.pay); text(b, 3, 2, "$", C.base); return b; })();
+A.ui_badge = (() => { const b = new Img(9, 7); b.rect(0, 0, 9, 7, C.pay); b.outline(0, 0, 9, 7, C.cream); b.corners(); return b; })();
+const hoverOutline = (W, H, o = 0) => { const f = new Img(W, H); for (let x = 0; x < W; x++) if ((x + o) % 4 < 2) { f.px(x, 0, C.white); f.px(W - 1 - x, H - 1, C.white); } for (let y = 0; y < H; y++) if ((y + o + 2) % 4 < 2) { f.px(0, H - 1 - y, C.white); f.px(W - 1, y, C.white); } return f; };
+A.ui_slot = (() => { const b = new Img(36, 18); b.rect(0, 0, 36, 18, C.base); b.outline(0, 0, 36, 18, C.trim); b.hline(1, 1, 34, C.trimLo); b.rect(1, 1, 1, 16, C.trimLo); b.corners(); return b; })();
+A.ui_slot_hover = (() => { const b = A.ui_slot.crop(0, 0, 36, 18); b.blit(hoverOutline(36, 18), 0, 0); return b; })();
+A.ui_cursor = (() => { const b = new Img(8, 8); b.ascii(0, 0, ["#.......", "##......", "#o#.....", "#oo#....", "#ooo#...", "#o##....", "##.#....", "....#..."], { "#": C.chromeLo, "o": C.chromeMid }); b.px(0, 0, C.pay); b.px(1, 1, C.payHi); return b; })();
+A.ui_toggle_on = (() => { const b = lit(SETS.mint, 16, 8); b.rect(10, 1, 5, 6, C.chromeMid); b.hline(10, 1, 5, C.chromeHi); b.hline(10, 6, 5, C.rivet); return b; })();
+A.ui_toggle_off = (() => { const b = dim(SETS.mint, 16, 8); b.rect(1, 1, 5, 6, C.rivet); b.hline(1, 1, 5, C.chromeMid); b.hline(1, 6, 5, C.trimHi); return b; })();
+A.ui_slider_track = (() => { const b = new Img(1, 4); [C.bumpRing, C.bump, C.bump, C.bumpRing].forEach((c, y) => b.px(0, y, c)); return b; })();
+A.ui_slider_knob = (() => { const b = new Img(6, 8); [C.chromeHi, C.chromeMid, C.rivet, C.rivet, "7777bb", C.trimHi, C.chromeLo, C.trimLo].forEach((c, y) => b.hline(0, y, 6, c)); b.corners(); return b; })();
+
+// Lamp lettering: rasterize the font at scale k, then paint tube / ring / glass by distance to the stroke edge. Needs k >= 5 for any glass.
+const lampText = (s, k, set, hollow = false) => {
+	const w = textW(s, k) + 2, h = 5 * k + 2, m = new Img(w, h); text(m, 1, 1, s, C.pureWhite, k);
+	const on = (x, y) => x >= 0 && y >= 0 && x < w && y < h && m.get(x, y)[3] > 0;
+	const o = new Img(w, h);
+	for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+		if (!on(x, y)) continue;
+		const e1 = !(on(x - 1, y) && on(x + 1, y) && on(x, y - 1) && on(x, y + 1));
+		const e2 = !(on(x - 2, y) && on(x + 2, y) && on(x, y - 2) && on(x, y + 2));
+		const c = e1 ? set.tube : e2 ? set.ring : hollow ? null : !on(x, y - 3) ? set.hi : set.deep;
+		if (c) o.px(x, y, c);
+	}
+	return o;
+};
+A.title_logo = lampText("BREAKIN", 5, SETS.mag);
+
+// ---- Logo variants: same lamp lettering, different name treatments. ----
+const chromeText = (s, k) => {
+	const w = textW(s, k) + 2, h = 5 * k + 2, m = new Img(w, h); text(m, 1, 1, s, C.pureWhite, k);
+	const on = (x, y) => x >= 0 && y >= 0 && x < w && y < h && m.get(x, y)[3] > 0, band = [C.chromeHi, C.chromeMid, C.rivet, "7777bb", C.trimHi];
+	const o = new Img(w, h);
+	for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (on(x, y)) o.px(x, y, on(x - 1, y) && on(x + 1, y) && on(x, y - 1) && on(x, y + 1) ? band[Math.min(4, ((y - 1) / k) | 0)] : C.chromeLo);
+	return o;
+};
+const word = (s, c, k = 1) => { const o = new Img(textW(s, k), 5 * k); text(o, 0, 0, s, c, k); return o; };
+const stack = (parts, gap = 3) => { const w = Math.max(...parts.map((p) => p.w)), o = new Img(w, parts.reduce((a, p) => a + p.h + gap, -gap)); let y = 0; for (const p of parts) { o.blit(p, (w - p.w) >> 1, y); y += p.h + gap; } return o; };
+const row = (parts, gap = 6) => { const h = Math.max(...parts.map((p) => p.h)), o = new Img(parts.reduce((a, p) => a + p.w + gap, -gap), h); let x = 0; for (const p of parts) { o.blit(p, x, (h - p.h) >> 1); x += p.w + gap; } return o; };
+const LOGOS = {
+	lamp: stack([A.title_logo, word("CREMENTAL", C.pay, 2)]),
+	twotone: stack([row([lampText("BREAK", 5, SETS.mag), lampText("IN", 5, SETS.pay)]), word("CREMENTAL", C.cream, 2)]),
+	tower: stack([lampText("BREAK", 5, SETS.mag), lampText("IN", 5, SETS.pay), lampText("CREMENTAL", 5, SETS.mint)], 2),
+	neon: lampText("BREAKINCREMENTAL", 4, SETS.mint, true),
+	sign: (() => { const o = nine(A.ui_panel, 160, 66); for (let x = 0; x < 160; x += 32) { o.blit(ANIM.hazard_strip.frames[(x >> 5) & 3], x, 0); o.blit(ANIM.hazard_strip.frames[(x >> 5) & 3], x, 58); } const t = stack([chromeText("BREAKIN", 5), word("CREMENTAL", C.pay, 2)]); o.blit(t, (160 - t.w) >> 1, 11); return o; })(),
+	breakin: stack([lampText("BREAKIN'", 5, SETS.mag), word("CREMENTAL", C.pay, 2)]),
+	hyphen: stack([lampText("BREAK-IN", 5, SETS.sky), word("CREMENTAL", C.pay, 2)]),
+	oneline: lampText("BREAK IN CREMENTAL", 5, SETS.pay),
+};
+// Split: BREAKIN on one line with BREAK in treatment a, IN and CREMENTAL in treatment b. a/b = (text, k) => Img.
+const split = (a, b) => stack([row([a("BREAK", 6), b("IN", 6)], 4), b("CREMENTAL", 5)], 4);
+const lampOf = (set) => (s, k) => lampText(s, k, set), neonOf = (set) => (s, k) => lampText(s, k, set, true);
+Object.assign(LOGOS, {
+	split_lamp_neon: split(lampOf(SETS.mag), neonOf(SETS.mint)),
+	split_neon_lamp: split(neonOf(SETS.mag), lampOf(SETS.mint)),
+	split_pay_neon: split(lampOf(SETS.pay), neonOf(SETS.mag)),
+	split_mint_pay: split(neonOf(SETS.mint), lampOf(SETS.pay)),
+	split_mag_pay: split(lampOf(SETS.mag), neonOf(SETS.pay)),
+	split_pay_mint: split(neonOf(SETS.pay), lampOf(SETS.mint)),
+});
+A.title_logo = LOGOS.split_mag_pay; // the chosen one; the game loads this file. The rest only appear as cards on ui.html.
+
+// ---- UI mock screens, 640x360. Three columns: score 0-79, field 80-559, pieces 562-639, rails between. ----
+const btn = (m, x, y, w, h, kind, s, k = 2, c = C.white) => { m.blit(nine(A[kind], w, h), x, y); text(m, x + ((w - textW(s, k)) >> 1), y + ((h - 5 * k) >> 1), s, c, k); };
+const RX = 562; // right column origin; left is 0. Text inset 6, so 68px of text per column.
+const chassis = () => {
+	const m = new Img(640, 360); m.rect(0, 0, 640, 360, C.base);
+	for (let y = 10; y < 360; y += 10) for (let x = 90; x < 560; x += 10) m.px(x, y, C.trim);
+	const rr = A.ui_rail.flipX(); for (let y = 0; y < 360; y += 8) { m.blit(A.ui_rail, 78, y); m.blit(rr, 560, y); }
+	return m;
+};
+const col = (m, x, title) => { m.blit(nine(A.ui_panel, 78, 360), x, 0); if (title) { text(m, x + 39 - (textW(title) >> 1), 6, title, C.rivet); m.hline(x + 3, 14, 72, C.rivet); } };
+const cash = (m, x, s) => { m.blit(A.coin, x + 6, 22); text(m, x + 16, 23, "CASH", C.rivet); text(m, x + 6, 32, s, C.pay, 2); };
+const hud = (m, { money, extra, combo, bar, time, danger, best }) => {
+	col(m, 0, "SCORE"); cash(m, 0, money); if (extra) text(m, 6, 44, extra, C.cream);
+	text(m, 6, 60, "COMBO", C.rivet); text(m, 6, 68, combo, combo === "-" ? C.rivet : C.pay, 4);
+	m.rect(6, 92, 68, 3, C.trimLo); if (bar) m.rect(6, 92, Math.round(68 * bar), 3, C.pay);
+	text(m, 6, 104, "TIME", C.rivet); text(m, 6, 112, time, danger ? C.danger : C.cream, 3);
+	if (best) text(m, 6, 134, `BEST ${best}`, C.rivet);
+};
+const PIECES = () => [[A.bumper, 2], [ANIM.pop_bumper_hit.frames[4], 1], [A.place_sticky, 1], [A.place_magnet, 0], [A.place_tele, 2]];
+const tray = (m, { sel, cap, locked }) => {
+	col(m, RX, "PIECES");
+	PIECES().forEach(([p, n], i) => { const x = RX + 22, y = 22 + i * 22; m.blit(sel === i ? A.ui_slot_hover : A.ui_slot, x, y); m.blit(n && !locked ? p : p.fade(70), x + 18 - (p.w >> 1), y + 9 - (p.h >> 1)); if (n) { m.blit(A.ui_badge, x + 30, y - 3); text(m, x + 33, y - 2, String(n), C.base); } });
+	text(m, RX + 6, 136, "CAP", C.rivet); text(m, RX + 24, 136, `${cap}/8`, C.white); for (let i = 0; i < 8; i++) m.blit(i < cap ? A.ui_pip_on : A.ui_pip_off, RX + 6 + i * 6, 144);
+	if (locked) { text(m, RX + 6, 160, "LOCKED", C.rivet); return; }
+	["LMB PICK/DROP", "R ROTATE", "RMB REMOVE", "ESC PAUSE"].forEach((s, i) => text(m, RX + 6, 160 + i * 8, s, C.rivet));
+	btn(m, RX + 6, 300, 66, 24, "ui_button_mint", "START"); text(m, RX + 39 - (textW("SPACE") >> 1), 328, "SPACE", C.rivet);
+};
+const centreText = (m, y, s, c, k = 2) => text(m, 320 - (textW(s, k) >> 1), y, s, c, k);
+const bulbs = (m, y) => { for (let x = 80; x < 560; x += 32) m.blit(ANIM.hazard_strip.frames[(x >> 5) & 3], x, y); };
+const dashLine = (m, x0, y0, x1, y1, c) => { const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0), 1); for (let i = 0; i <= n; i++) if (i % 5 < 3) m.px(Math.round(x0 + (x1 - x0) * i / n), Math.round(y0 + (y1 - y0) * i / n), c); };
+const pickBrick = (r, c) => {
+	const k = (r * 7 + c * 3) % 23;
+	if (r === 0 && c === 7) return "brick_icon_x2";
+	if (k === 4 || k === 15) return "brick_solid";
+	if (k === 9) return "brick_multi_full";
+	if (k === 13) return "brick_multi_cracked";
+	if (k === 20) return "brick_icon_multiball";
+	if (k === 6) return "brick_cond_speed_idle";
+	if (k === 11) return "brick_plain_dim";
+	return "brick_plain_lit";
+};
+const fieldBricks = (m, y0, rows = 7) => { const cols = 14, bw = 32, x0 = 320 - (cols * bw) / 2; for (let r = 0; r < rows; r++) for (let i = 0; i < cols - r * 2; i++) { const c = r + i; if ((r * 5 + c * 11) % 17 === 0) continue; m.blit(A[pickBrick(r, c)], x0 + c * bw, y0 + r * 14); } return x0; };
+const breakFx = (m, fx, fy) => {
+	m.blit(A.fx_halo, fx - 15, fy - 9); m.blit(A.brick_plain_flash, fx, fy);
+	for (const [dx, dy] of [[-6, -5], [34, -4], [10, 15], [26, 13]]) m.blit(A.fx_spark, fx + dx, fy + dy);
+	for (const [dx, dy] of [[-9, 3], [33, 1], [15, 16]]) m.blit(A.fx_debris, fx + dx, fy + dy);
+	m.blit(A.fx_payout_tag, fx + 4, fy - 12);
+};
+const placed = (m) => { m.blit(A.bumper.rotated(-15), 140, 200); m.blit(A.bumper.rotated(15), 430, 212); m.blit(A.place_magnet, 305, 176); };
+const MOCK = {};
+MOCK.menu = (() => {
+	const m = chassis(); col(m, 0, "RECORD"); col(m, RX, "MENU");
+	["BEST 486", "RUNS 14", "LEVEL 3", "", "V0.1"].forEach((s, i) => text(m, 6, 22 + i * 10, s, i ? C.rivet : C.white));
+	bulbs(m, 4);
+	m.blit(A.title_logo, 320 - (A.title_logo.w >> 1), 110);
+	btn(m, RX + 6, 22, 66, 18, "ui_button_mint_hot", "PLAY"); m.blit(A.ui_cursor, RX + 50, 32);
+	btn(m, RX + 6, 46, 66, 18, "ui_button_chrome", "SETTINGS", 1); btn(m, RX + 6, 70, 66, 18, "ui_button_chrome", "QUIT", 1);
+	centreText(m, 300, "BUILD THE BOARD. BREAK THE BOARD.", C.rivet, 1);
+	for (let i = 0; i < 6; i++) m.blit(i % 3 ? A.brick_plain_dim : A.brick_plain_lit, 230 + i * 32, 330);
+	return m;
+})();
+MOCK.shop = (() => {
+	const m = chassis(); col(m, 0, "STATS"); cash(m, 0, "1,248");
+	const R = { paddle: [3, 3], time: [2, 3], bumper: [1, 3], combo: [1, 3], capacity: [1, 5], pop: [0, 3], accel: [0, 3], sticky: [0, 2], magnet: [0, 2] };
+	text(m, 6, 52, "OWNED", C.rivet); Object.entries(R).filter(([, [r]]) => r).forEach(([id, [r, n]], i) => { text(m, 6, 60 + i * 8, ({ capacity: "CAP" })[id] ?? id.toUpperCase(), C.white); text(m, 56, 60 + i * 8, `${r}/${n}`, r >= n ? C.pay : C.cream); });
+	btn(m, 6, 316, 66, 14, "ui_button_chrome", "RESET", 1); btn(m, 6, 334, 66, 14, "ui_button_chrome", "MENU", 1);
+	centreText(m, 6, "UPGRADE WEB", C.rivet, 1);
+	const P = { paddle: [320, 420], time: [210, 300], combo: [210, 170], bumper: [430, 300], capacity: [430, 170], pop: [530, 300], accel: [530, 170], sticky: [430, 440], magnet: [320, 170] };
+	const at = (id) => [Math.round(96 + (P[id][0] - 210) * 1.4), Math.round(40 + (P[id][1] - 170) * 280 / 270)];
+	const L = [["paddle", "time"], ["paddle", "bumper"], ["time", "combo"], ["bumper", "capacity"], ["bumper", "pop"], ["bumper", "sticky"], ["capacity", "accel"], ["capacity", "magnet"]];
+	for (const [a, b] of L) { const [x0, y0] = at(a), [x1, y1] = at(b); dashLine(m, x0, y0, x1, y1, R[a][0] && R[b][0] ? C.pay : C.payDim); }
+	for (const id in P) { const [x, y] = at(id), [r, n] = R[id]; m.blit(node(r >= n ? "hot" : r ? "lit" : "dim", UICONS[id], r, n), x - 15, y - 6); }
+	const [hx, hy] = at("capacity"); m.blit(hoverOutline(34, 16), hx - 17, hy - 8); m.blit(A.ui_cursor, hx + 8, hy + 3);
+	col(m, RX, "UPGRADE");
+	m.blit(node("lit", UICONS.capacity, 1, 5), RX + 24, 20);
+	text(m, RX + 6, 36, "CAPACITY", C.white, 2); text(m, RX + 6, 50, "+2 CAPACITY", C.rivet); text(m, RX + 6, 58, "PER RANK", C.rivet);
+	text(m, RX + 6, 70, "RANK", C.rivet); for (let i = 0; i < 5; i++) m.blit(i < 1 ? A.ui_pip_pay : A.ui_pip_off, RX + 28 + i * 6, 70);
+	m.blit(A.coin, RX + 6, 84); text(m, RX + 18, 82, "30", C.pay, 2);
+	btn(m, RX + 6, 98, 66, 18, "ui_button_mint", "BUY"); btn(m, RX + 6, 120, 66, 14, "ui_button_chrome", "BUY MAX", 1);
+	m.hline(RX + 3, 142, 72, C.rivet); text(m, RX + 6, 148, "LEVEL", C.rivet);
+	[["1", "ui_button_chrome"], ["2", "ui_button_chrome"], ["3", "ui_button_chrome_hot"]].forEach(([s, k], i) => btn(m, RX + 6 + (i % 2) * 35, 158 + (i >> 1) * 22, 31, 18, k, s));
+	m.blit(nine(A.ui_button_chrome, 31, 18), RX + 41, 180); text(m, RX + 53, 185, "4", C.trimHi, 2);
+	["LEVEL 3", "16 x 7 GRID", "60 SECONDS"].forEach((s, i) => text(m, RX + 6, 206 + i * 8, s, i ? C.rivet : C.white));
+	btn(m, RX + 6, 300, 66, 24, "ui_button_mint", "PLAY"); text(m, RX + 39 - (textW("SPACE") >> 1), 328, "SPACE", C.rivet);
+	return m;
+})();
+MOCK.place = (() => {
+	const m = chassis(); hud(m, { money: "1,248", combo: "-", time: "0:32", best: "x12" }); tray(m, { sel: 0, cap: 5 });
+	centreText(m, 6, "PLACE PIECES", C.rivet, 1);
+	fieldBricks(m, 16, 5); placed(m);
+	m.blit(A.ghost_valid, 300, 240); m.blit(A.ui_cursor, 316, 246);
+	for (let x = 82; x < 558; x += 6) m.rect(x, 280, 3, 1, C.bump, 160);
+	return m;
+})();
+MOCK.play = (() => {
+	const m = chassis(); hud(m, { money: "1,248", extra: "+86", combo: "x7", bar: 0.6, time: "0:04", danger: true, best: "x12" }); tray(m, { cap: 5, locked: true });
+	const x0 = fieldBricks(m, 16); breakFx(m, x0 + 5 * 32, 16 + 7 * 14); placed(m);
+	for (let i = 1; i <= 4; i++) m.rect(318 - i * 7, 299 + i * 5, 2, 2, C.pay, 160 - i * 35);
+	m.blit(A.ball, 315, 295); m.blit(A.paddle, 290, 336);
+	bulbs(m, 352);
+	return m;
+})();
+MOCK.result = (() => {
+	const m = MOCK.play.crop(0, 0, 640, 360); m.rect(0, 0, 640, 360, C.base, 150); bulbs(m, 4);
+	m.blit(nine(A.ui_panel, 240, 112), 200, 118);
+	centreText(m, 128, "ROUND CLEARED", C.cream, 1); centreText(m, 140, "+486", C.pay, 4); centreText(m, 166, "x12 BEST COMBO", C.white, 1); centreText(m, 176, "LEVEL 4 UNLOCKED", C.bump, 1);
+	btn(m, 272, 194, 96, 20, "ui_button_mint", "CONTINUE");
+	for (const [x, y] of [[196, 114], [438, 116], [198, 230], [440, 228]]) m.blit(A.fx_spark, x, y);
+	return m;
+})();
+MOCK.pause = (() => {
+	const m = MOCK.play.crop(0, 0, 640, 360); m.rect(0, 0, 640, 360, C.base, 180);
+	m.blit(nine(A.ui_panel, 160, 110), 240, 110); centreText(m, 120, "PAUSED", C.pay);
+	[["RESUME", "ui_button_mint"], ["SETTINGS", "ui_button_chrome"], ["MENU", "ui_button_chrome"]].forEach(([s, k], i) => btn(m, 260, 140 + i * 24, 120, 18, k, s));
+	return m;
+})();
+MOCK.settings = (() => {
+	const m = chassis(); col(m, 0); col(m, RX); centreText(m, 60, "SETTINGS", C.pay);
+	text(m, 220, 104, "FULLSCREEN", C.white); m.blit(A.ui_toggle_on, 380, 102);
+	text(m, 220, 128, "VOLUME", C.white); for (let x = 300; x < 396; x++) m.blit(A.ui_slider_track, x, 128); m.blit(A.ui_slider_knob, 364, 126);
+	btn(m, 260, 160, 120, 18, "ui_button_chrome", "BACK");
+	return m;
+})();
+
 mkdirSync("assets/pixel/png", { recursive: true });
 mkdirSync("assets/pixel/tmp", { recursive: true });
+mkdirSync("assets/pixel/preview", { recursive: true });
 const toPng = (img, out, scale = 1) => {
 	writeFileSync("assets/pixel/tmp/x.pam", img.pam());
-	execSync(`magick assets/pixel/tmp/x.pam ${scale > 1 ? `-scale ${scale * 100}%` : ""} ${out}`);
+	execSync(`magick assets/pixel/tmp/x.pam ${scale > 1 ? `-scale ${scale * 100}%` : ""} -define png:color-type=6 ${out}`);
 };
 for (const [n, img] of Object.entries(A)) toPng(img, `assets/pixel/png/${n}.png`);
+writeFileSync("assets/pixel/png/font_3x5.fnt", fnt);
 for (const [n, a] of Object.entries(ANIM)) toPng(strip(a.frames), `assets/pixel/png/anim_${n}.png`);
-toPng(board(), "assets/pixel/look.png", 2);
+toPng(board(), "assets/pixel/preview/look.png", 2);
+for (const [n, img] of Object.entries(MOCK)) toPng(img, `assets/pixel/preview/ui_${n}.png`, 2);
+const logoCard = (l) => { const m = new Img(l.w + 32, l.h + 24); m.rect(0, 0, m.w, m.h, C.base); for (let y = 6; y < m.h; y += 10) for (let x = 6; x < m.w; x += 10) m.px(x, y, C.trim); m.blit(l, 16, 12); return m; };
+for (const [n, l] of Object.entries(LOGOS)) toPng(logoCard(l), `assets/pixel/preview/logo_${n}.png`, 3);
 execSync("rm -r assets/pixel/tmp");
 
 // ---- Demo page ----
@@ -448,16 +694,16 @@ const GROUPS = [
 	["Ball and paddle", ["ball", "paddle"]],
 	["Effects", ["fx_halo", "fx_spark", "fx_debris", "fx_payout_tag"]],
 ];
-const cards = GROUPS.map(([title, names]) => `<section><h2>${title}</h2><div class="row">${names.map((n) =>
+const cardsFor = (groups) => groups.map(([title, names]) => `<section><h2>${title}</h2><div class="row">${names.map((n) =>
 	`<figure><div class="tile"><img src="${uri(n)}" width="${A[n].w}" height="${A[n].h}" alt="${n}"></div><figcaption>${n}<span>${A[n].w}×${A[n].h}</span></figcaption></figure>`
 ).join("")}</div></section>`).join("");
+const cards = cardsFor(GROUPS);
 const animCard = (n) => {
 	const a = ANIM[n], { w, h } = a.frames[0], k = a.frames.length;
 	return `<figure><div class="tile"><div class="anim" style="--fw:${w}px;--fh:${h}px;--n:${k};--fps:${a.fps};background-image:url(${uri("anim_" + n)})"></div></div><div class="tile"><img src="${uri("anim_" + n)}" width="${w * k}" height="${h}" alt="${n} strip"></div><figcaption>anim_${n}<span>${w}×${h} · ${k}f · ${a.fps}fps</span></figcaption></figure>`;
 };
 const anims = `<section id="anims"><h2>Animations</h2><p class="lede">${Object.keys(ANIM).length} animations looping at the frame rate noted. The strip under each is the exported sprite sheet; held frames are repeated in the strip, in-engine they would be a hold time instead. Grouped as in docs/animations.md.</p>${AGROUPS.map(([t, names]) => `<h3>${t}</h3><div class="row">${names.map(animCard).join("")}</div>`).join("")}</section>`;
-const html = `<title>BreakIn cremental Pixel Sprites</title>
-<meta name="claude:viewport-fit-sides" content="cover">
+const HEAD = `<meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen&family=IBM+Plex+Sans:wght@400;600&display=swap">
 <style>
 /* Layout: 2x mockup on top, sprite groups in wrapping rows, sticky zoom. Single dark theme: it is the game's screen. */
@@ -487,10 +733,25 @@ figcaption{font-size:12px;color:var(--muted);display:flex;justify-content:space-
 @media(prefers-reduced-motion:reduce){.anim{animation-play-state:paused}}
 #anims .tile{overflow:auto;max-width:100%}
 #anims p{margin-bottom:12px}
-</style>
+.screen{margin-bottom:36px}
+.screen h2{font-size:14px;color:var(--accent)}
+.screen p{color:var(--muted);margin:0 0 12px;max-width:65ch}
+.screen p b{color:var(--fg);font-weight:600}
+.screen img.board{margin-bottom:0}
+.zones{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:0 0 28px}
+.zones div{background:var(--panel);border:1px solid var(--trim);padding:12px 14px}
+.zones b{display:block;font:12px var(--display);color:var(--mint);margin-bottom:4px}
+.zones span{color:var(--muted);font-size:13px}
+nav{display:flex;gap:6px 14px;flex-wrap:wrap;margin-bottom:24px}
+.logo{max-width:100%}.logo img{border:1px solid var(--trim);max-width:100%;height:auto}.logo figcaption{display:block;max-width:40ch;line-height:1.4}.logo b{display:block;color:var(--mint);font:12px var(--display);margin-bottom:2px}
+nav a{color:var(--mint);font-size:13px;text-transform:uppercase;letter-spacing:.08em;text-decoration:none;border-bottom:1px solid transparent}
+nav a:hover,nav a:focus-visible{border-color:var(--mint);outline:none}
+</style>`;
+const html = `<title>BreakIn cremental Pixel Sprites</title>
+${HEAD}
 <h1>BreakIn cremental Pixel Sprites</h1>
 <p class="lede">Pachinko lamp look as pixel art on a 2× canvas (640×360). One sprite pixel is two screen pixels in game. Sizes below are native pixels. Glow in-engine comes from a shader; the bumpers in the mockup show what nearest-neighbour rotation does to pixel art.</p>
-<img class="board" src="data:image/png;base64,${readFileSync("assets/pixel/look.png").toString("base64")}" width="1280" height="720" alt="Mockup of a full arena at 2x">
+<img class="board" src="data:image/png;base64,${readFileSync("assets/pixel/preview/look.png").toString("base64")}" width="1280" height="720" alt="Mockup of a full arena at 2x">
 <div class="bar"><span>Zoom</span><button data-z="2">2×</button><button data-z="4" aria-pressed="true">4×</button><button data-z="8">8×</button><button id="pause" aria-pressed="false" style="margin-left:auto">Pause</button></div>
 ${anims}
 ${cards}
@@ -503,4 +764,61 @@ document.querySelectorAll(".bar button").forEach(b=>b.onclick=()=>{
 });
 </script>`;
 writeFileSync("assets/pixel/assets.html", html);
-console.log(`${Object.keys(A).length} pixel assets + look.png + assets.html`);
+
+// ---- UI preview page: the cabinet layout as mock screens, then the UI sprites that build it. ----
+const SCREENS = [
+	["menu", "Main menu", "The cabinet is the chassis of every screen: a riveted <b>score column</b> on the left, the peg-board field in the middle, a <b>pieces column</b> on the right, rails between. The menu shows it idle: records on the left, the <b>lamp lettering</b> logo in the field, the button column on the right where every screen's actions live. The hovered button is the <b>hot</b> state; the cursor is a chrome arrow with a lit tip."],
+	["shop", "Shop: upgrade web", "The web fills the field. Nodes are <b>yellow lamps</b> with an icon in the glass and rank pips along the bottom row: dim when revealed, lit when owned, hot when maxed. Links light up between two owned nodes. The left column lists cash and owned ranks, with Reset and Menu at the bottom. Hovering a node writes its name, effect, rank and cost into the <b>right column</b>, with Buy under it. Level select and Play sit in the same column, so the player always looks to the same place to act."],
+	["place", "Round: placement", "Left column is the <b>HUD</b>: cash, combo, timer idle, best combo. The board sits at the top of the field, the placement line is the dashed mint row at 280. The right column is the <b>tray</b>: real piece sprites in slots with a count badge, the selected slot outlined, capacity as pips, controls, Start as one big mint button with its key under it."],
+	["play", "Round: play", "The tray locks and dims, the paddle owns the field's bottom. The HUD counts: this round's earnings under cash, combo big in payout yellow with its bar under it, timer going danger-red near zero. Nothing in the field but the game."],
+	["result", "Round: result", "The arena dims under a panel built from the same nine-patch as the columns. The payout is the headline at 4x, then the best combo and what unlocked. Bulbs chase along the top of the field while the readout shows."],
+	["pause", "Pause", "Esc dims the arena and drops the menu column into a small panel. Nothing else changes, so resuming is instant."],
+	["settings", "Settings", "A toggle and a slider in the same lamp language: a mint lamp switch with a chrome knob, a mint tube track with a chrome knob."],
+];
+const UI_GROUPS = [
+	["Font", ["font_3x5"]],
+	["Buttons (24x16 nine-patch, 3px margins)", ["ui_button_mint", "ui_button_mint_hot", "ui_button_mint_dim", "ui_button_chrome", "ui_button_chrome_hot"]],
+	["Chassis", ["ui_rail", "ui_panel"]],
+	["Web", ["node_dim", "node_lit", "node_max", ...Object.keys(UICONS).map((k) => `icon_${k}`)]],
+	["Tray and HUD", ["ui_slot", "ui_slot_hover", "ui_badge", "ui_pip_on", "ui_pip_off", "ui_pip_pay", "coin", "ui_cursor"]],
+	["Settings", ["ui_toggle_on", "ui_toggle_off", "ui_slider_track", "ui_slider_knob"]],
+	["Menu", ["title_logo"]],
+];
+const LOGO_NOTES = [
+	["lamp", "Lamp", "The first draft. BREAKIN as a magenta lamp tube, CREMENTAL in payout yellow under it."],
+	["twotone", "Two-tone", "BREAK magenta, IN payout yellow: the pun split by colour. CREMENTAL in cream so the yellow stays the accent."],
+	["tower", "Tower", "Three stacked lamps, one hue each, like a pachinko parlour sign. Tallest, fits the field as a splash."],
+	["neon", "Neon", "One word, BREAKINCREMENTAL, as a hollow mint tube. Reads as neon rather than lamp; the smallest at 4x."],
+	["sign", "Marquee sign", "Chrome lettering on a riveted panel between two bulb strips. The same parts as the columns, so it can be the cabinet header or a loading card."],
+	["breakin", "Breakin' Cremental", "Name variant: the apostrophe makes the verb explicit, breakin' bricks."],
+	["hyphen", "Break-In Cremental", "Name variant: hyphenated and sky blue, reads as a heist."],
+	["oneline", "Marquee line", "BREAK IN CREMENTAL as one payout-yellow lamp line: a header strip rather than a stacked mark."],
+	["split_lamp_neon", "Split: magenta lamp, mint neon", "BREAK as a solid magenta lamp; IN and CREMENTAL as a mint neon tube."],
+	["split_neon_lamp", "Split: magenta neon, mint lamp", "The inverse: BREAK as a hollow magenta tube; IN and CREMENTAL as solid mint lamps."],
+	["split_pay_neon", "Split: yellow lamp, magenta neon", "BREAK as a yellow lamp; IN and CREMENTAL as magenta neon."],
+	["split_mint_pay", "Split: mint neon, yellow lamp", "BREAK as a mint tube; IN and CREMENTAL as solid yellow lamps."],
+	["split_mag_pay", "Split: magenta lamp, yellow neon (chosen)", "BREAK as a magenta lamp; IN and CREMENTAL as yellow neon. This is title_logo, shown on the menu mock above."],
+	["split_pay_mint", "Split: yellow neon, mint lamp", "BREAK as a yellow tube; IN and CREMENTAL as solid mint lamps."],
+];
+const logos = LOGO_NOTES.map(([n, t, d]) => `<figure class="logo"><img src="data:image/png;base64,${readFileSync(`assets/pixel/preview/logo_${n}.png`).toString("base64")}" width="${(LOGOS[n].w + 32) * 3}" height="${(LOGOS[n].h + 24) * 3}" alt="${t} logo"><figcaption><b>${t}</b>${d}</figcaption></figure>`).join("");
+const screens = SCREENS.map(([n, t, d]) => `<section class="screen" id="${n}"><h2>${t}</h2><p>${d}</p><img class="board" src="data:image/png;base64,${readFileSync(`assets/pixel/preview/ui_${n}.png`).toString("base64")}" width="1280" height="720" alt="${t} mock screen"></section>`).join("");
+const uiHtml = `<title>BreakIn cremental UI Preview</title>
+${HEAD}
+<h1>BreakIn cremental UI Preview</h1>
+<p class="lede">Proposed layout: one pachinko cabinet that every screen lives inside, split into three columns. Mock screens are rendered from the real sprite generator at 640×360, shown at 2× like the game. Text is the 3×5 font, HUD size is 2×.</p>
+<nav>${SCREENS.map(([n, t]) => `<a href="#${n}">${t}</a>`).join("")}<a href="#logos">Logos</a><a href="#sprites">Sprites</a></nav>
+<div class="zones"><div><b>Score · 0–160</b><span>Cash, round earnings, combo with its bar, timer, best combo. Stats and Reset/Menu in the shop.</span></div><div><b>Field · 160–1120</b><span>The board in a round, the upgrade web in the shop. 960 wide: a 16-column level at 60px bricks fits exactly.</span></div><div><b>Pieces · 1120–1280</b><span>Tray, capacity and Start in placement; node detail, Buy, level select and Play in the shop; locked during play.</span></div></div>
+${screens}
+<section id="logos"><h2 style="font-size:14px;color:var(--accent)">Logo and name variants</h2><p class="lede">Treatments of the same lamp lettering at 3×. The first five keep the name, the next three try other spellings, the last six set BREAKIN on one line with BREAK in one treatment and IN in another, then CREMENTAL under it in IN's treatment.</p><div class="row">${logos}</div></section>
+<section id="sprites"><h2 style="font-size:14px;color:var(--accent)">UI sprites</h2><p class="lede">Everything the screens above are built from, at native size. Buttons and the panel are nine-patches: 3px corners stay fixed, edges and glass repeat.</p>
+<div class="bar"><span>Zoom</span><button data-z="2">2×</button><button data-z="4" aria-pressed="true">4×</button><button data-z="8">8×</button></div>
+${cardsFor(UI_GROUPS)}</section>
+<script>
+document.querySelectorAll(".tile img").forEach(i=>i.style.setProperty("--w",i.getAttribute("width")+"px"));
+document.querySelectorAll(".bar button").forEach(b=>b.onclick=()=>{
+	document.querySelectorAll(".bar button").forEach(x=>x.setAttribute("aria-pressed",x===b));
+	document.documentElement.style.setProperty("--z",b.dataset.z);
+});
+</script>`;
+writeFileSync("assets/pixel/preview/ui.html", uiHtml);
+console.log(`${Object.keys(A).length} pixel assets + look.png + assets.html + ${Object.keys(MOCK).length} ui mocks + ${Object.keys(LOGOS).length} logos + ui.html`);
