@@ -113,4 +113,5 @@ const COLORS := {  # docs/palette.md. Brick, bumper and paddle colors live in th
 	bg = Color("000020"),
 	combo = Color("ffff00"),
 	line = Color("5454a7"),
+	trim = Color("2e2e5c"),
 }

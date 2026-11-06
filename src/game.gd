@@ -3,15 +3,41 @@ extends Node
 
 const Tuning = preload("res://src/tuning.gd")
 const SAVE_PATH := "user://save.json"
+const SETTINGS_PATH := "user://settings.json"  # separate from the save: reset() leaves settings alone
 
 var currency := 0
 var unlocked := 0  # highest playable level index
 var won := false
 var ranks := {}  # upgrade id -> rank
+var settings := {fullscreen = false, volume = 1.0}
 
 
 func _ready() -> void:
 	load_save()
+	load_settings()
+
+
+# --- Settings ---
+
+func set_setting(key: String, value: Variant) -> void:
+	settings[key] = value
+	apply_settings()
+	FileAccess.open(SETTINGS_PATH, FileAccess.WRITE).store_string(JSON.stringify(settings))
+
+
+func load_settings() -> void:
+	if FileAccess.file_exists(SETTINGS_PATH):
+		var d = JSON.parse_string(FileAccess.get_file_as_string(SETTINGS_PATH))
+		if typeof(d) == TYPE_DICTIONARY:
+			for k in settings:
+				if k in d:
+					settings[k] = type_convert(d[k], typeof(settings[k]))
+	apply_settings()
+
+
+func apply_settings() -> void:
+	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN if settings.fullscreen else DisplayServer.WINDOW_MODE_WINDOWED)
+	AudioServer.set_bus_volume_db(0, linear_to_db(maxf(settings.volume, 0.001)))  # no audio yet; the master bus is ready for it
 
 
 func save() -> void:

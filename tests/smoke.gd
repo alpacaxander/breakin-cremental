@@ -30,6 +30,13 @@ func _ready() -> void:
 	assert(a.placed.size() == Tuning.PLACEABLES.size(), "all placed")
 	a._launch()
 	await get_tree().physics_frame
+	# Pause menu: open, swap to settings and back, resume.
+	a._pause(true)
+	assert(get_tree().paused and a.pause != null, "paused with a menu")
+	a._pause_settings()
+	a._pause(true)
+	a._pause(false)
+	assert(not get_tree().paused and a.pause == null, "resumed")
 
 	# Icon effects and area breaks, each on a real brick.
 	var ball = a.balls[0]

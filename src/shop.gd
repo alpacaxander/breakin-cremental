@@ -2,6 +2,7 @@ extends Control
 ## Between rounds: upgrade web and level select.
 
 signal play(level: int)
+signal menu
 
 const Tuning = preload("res://src/tuning.gd")
 const BTN := Vector2(180, 64)
@@ -12,13 +13,20 @@ func _ready() -> void:
 	_build()
 
 
+func _unhandled_input(e: InputEvent) -> void:
+	if e is InputEventKey and e.pressed and e.keycode == KEY_ESCAPE:
+		menu.emit()
+
+
 func _build() -> void:
 	for c in get_children():
 		c.queue_free()
 	var top := Label.new()
 	top.text = "$%d" % Game.currency + ("        YOU WIN! Keep playing if you like." if Game.won else "")
 	top.position = Vector2(16, 12)
+	top.add_theme_font_size_override("font_size", 24)
 	add_child(top)
+	_button("Menu (Esc)", Vector2(1150, 12)).pressed.connect(menu.emit)
 
 	for id in Tuning.UPGRADES:
 		if not Game.is_revealed(id):
@@ -55,6 +63,7 @@ func _buy(id: String) -> void:
 
 func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, size), Tuning.COLORS.bg)
+	draw_rect(Rect2(0, 0, size.x, Tuning.HUD_HEIGHT + 8), Tuning.COLORS.trim)
 	for id in Tuning.UPGRADES:
 		if not Game.is_revealed(id):
 			continue

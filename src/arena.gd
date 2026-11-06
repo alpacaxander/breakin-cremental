@@ -6,6 +6,7 @@ signal done
 const Tuning = preload("res://src/tuning.gd")
 const Box = preload("res://src/brick.gd")
 const Fx = preload("res://src/fx.gd")
+const Ui = preload("res://src/ui.gd")
 const BALL_TEX := preload("res://assets/pixel/png/ball.png")
 const TRAIL_TEX := preload("res://assets/pixel/png/anim_ball_trail.png")
 const HAZARD_TEX := preload("res://assets/pixel/png/anim_hazard_strip.png")
@@ -55,6 +56,7 @@ var combo_label := Label.new()
 var tray := VBoxContainer.new()
 var pieces := HBoxContainer.new()
 var cap_label := Label.new()
+var pause: Control = null
 var view := Tuning.VIEW
 
 
@@ -108,7 +110,7 @@ func _ready() -> void:
 	start.focus_mode = Control.FOCUS_NONE
 	start.pressed.connect(_start)
 	var hint := Label.new()
-	hint.text = "Click to pick up / drop.  R rotates.  Right-click removes.  Esc quits."
+	hint.text = "Click to pick up / drop.  R rotates.  Right-click removes.  Esc pauses."
 	for c in [start, cap_label, hint]:
 		row.add_child(c)
 	tray.add_child(pieces)
@@ -267,10 +269,39 @@ func _unhandled_input(e: InputEvent) -> void:
 			holding.rotation += deg_to_rad(Tuning.ROTATE_DEG)
 			_drag()
 		elif e.keycode == KEY_ESCAPE:
-			if placing:
-				done.emit()
-			else:
-				_end("Abandoned")
+			_pause(true)
+
+
+# --- Pause ---
+
+func _pause(on: bool) -> void:
+	get_tree().paused = on
+	if pause:
+		pause.queue_free()
+		pause = null
+	if not on:
+		return
+	pause = Ui.screen("Paused", [
+		Ui.button("Resume", _pause.bind(false)),
+		Ui.button("Settings", _pause_settings),
+		Ui.button("Quit round", _quit),
+	], true)
+	pause.back.connect(_pause.bind(false))
+	add_child(pause)
+
+
+func _pause_settings() -> void:
+	pause.queue_free()
+	pause = Ui.settings(_pause.bind(true))  # Back rebuilds the pause menu
+	add_child(pause)
+
+
+func _quit() -> void:
+	_pause(false)
+	if placing:
+		done.emit()
+	else:
+		_end("Abandoned")
 
 
 func _launch() -> void:
@@ -548,13 +579,15 @@ func _end(msg: String, cleared := false) -> void:
 	label.text = "%s\nEarned $%d" % [msg, earned]
 	if cleared and level == Tuning.LEVELS.size() - 1:
 		label.text += "\nYOU WIN!"
-	var btn := Button.new()
-	btn.text = "Continue"
-	btn.pressed.connect(done.emit)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.add_theme_font_size_override("font_size", 24)
+	box.add_theme_constant_override("separation", 16)
 	box.add_child(label)
-	box.add_child(btn)
+	box.add_child(Ui.button("Continue", done.emit))
 	panel.add_child(box)
-	panel.position = view / 2 - Vector2(80, 50)
+	panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
 	add_child(panel)
 
 
@@ -591,6 +624,7 @@ func _process(_delta: float) -> void:
 
 func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, view), Tuning.COLORS.bg)
+	draw_rect(Rect2(0, 0, view.x, Tuning.HUD_HEIGHT), Tuning.COLORS.trim)
 	if placing:
 		draw_line(Vector2(0, Tuning.PLACE_MAX_Y), Vector2(view.x, Tuning.PLACE_MAX_Y), Tuning.COLORS.line, 2)
 	if combo > 0:
