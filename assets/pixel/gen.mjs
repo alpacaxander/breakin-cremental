@@ -671,7 +671,7 @@ mkdirSync("assets/pixel/tmp", { recursive: true });
 mkdirSync("assets/pixel/preview", { recursive: true });
 const toPng = (img, out, scale = 1) => {
 	writeFileSync("assets/pixel/tmp/x.pam", img.pam());
-	execSync(`magick assets/pixel/tmp/x.pam ${scale > 1 ? `-scale ${scale * 100}%` : ""} -define png:color-type=6 ${out}`);
+	execSync(`magick assets/pixel/tmp/x.pam ${scale > 1 ? `-scale ${scale * 100}%` : ""} -define png:color-type=6 -define png:exclude-chunks=date,time ${out}`);
 };
 for (const [n, img] of Object.entries(A)) toPng(img, `assets/pixel/png/${n}.png`);
 writeFileSync("assets/pixel/png/font_3x5.fnt", fnt);
