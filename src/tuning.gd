@@ -23,12 +23,14 @@ const COMBO_WINDOW_SHRINK := 0.1
 const COMBO_WINDOW_MIN := 0.4
 const COMBO_MULT_PER_HIT := 0.25  # mult = 1 + this * (combo - 1)
 
-# Board generation. shape: "grid" or "triangle" (rows narrow by 2 going up).
+# Board generation. shape: "grid", "triangle" (rows narrow by 2 going up) or "honey" (odd rows one brick short, so offset half a step).
 const BRICK_SIZE := Vector2(60, 24)
 const BRICK_GAP := 4.0
 const BOARD_TOP := 100.0  # 44 + two brick rows (2 * (24 + 4))
 # special: kind -> chance per brick (see BRICKS). jackpot: one 777 brick per board. seq: one 1-2-3 run per board.
 # arena: size, default ARENA (never larger). walls: extra Rect2s in arena px for other shapes; the board must still fit (test.gd).
+# skip: column indices left empty (room for a wall). time: round time scale, default 1. Fit at 960x720: cols <= 15, rows <= 16.
+# The ramp: each level puts more on screen and needs a bigger combo than the last (docs/ideas.md, Level design).
 const LEVELS := [
 	{shape = "grid", cols = 10, rows = 4, holes = 0.1, solid = 0.05, payout = 1, arena = Vector2(800, 640),
 		special = {multi = 0.08, x2 = 0.03, combo = 0.03, timer = 0.03}},
@@ -36,6 +38,33 @@ const LEVELS := [
 		special = {multi = 0.08, multi3 = 0.03, shield = 0.04, cond = 0.04, timed = 0.04, cgate = 0.03, x2 = 0.03, x3 = 0.01, combo = 0.03, timer = 0.02, multiball = 0.02, speedup = 0.03, slowdown = 0.02, chain = 0.03, bomb = 0.02, bolt = 0.01, mystery = 0.02}},
 	{shape = "grid", cols = 15, rows = 7, holes = 0.08, solid = 0.1, payout = 3, jackpot = true, seq = true,
 		special = {multi = 0.1, multi3 = 0.05, shield = 0.05, cond = 0.06, timed = 0.05, cgate = 0.04, x2 = 0.03, x3 = 0.02, combo = 0.03, timer = 0.02, multiball = 0.03, speedup = 0.03, slowdown = 0.02, chain = 0.04, bomb = 0.03, bolt = 0.02, mystery = 0.03}},
+	# 4 Honeycomb: offset rows leave diagonal corridors; bolts and speedups at the mouths.
+	{shape = "honey", cols = 13, rows = 8, holes = 0.12, solid = 0.04, payout = 4, jackpot = true, seq = true,
+		special = {multi = 0.08, shield = 0.03, cond = 0.04, timed = 0.03, cgate = 0.03, x2 = 0.03, combo = 0.03, timer = 0.02, multiball = 0.03, speedup = 0.06, chain = 0.02, bomb = 0.02, bolt = 0.06, mystery = 0.02}},
+	# 5 Multiball rain: a swarm is the normal state, combo bricks keep one chain alive, shorter clock.
+	{shape = "grid", cols = 14, rows = 8, holes = 0.08, solid = 0.04, payout = 5, time = 0.8, jackpot = true,
+		special = {multi = 0.06, shield = 0.03, cond = 0.04, cgate = 0.04, x2 = 0.04, x3 = 0.02, combo = 0.06, timer = 0.02, multiball = 0.1, speedup = 0.03, chain = 0.02, bomb = 0.02, bolt = 0.02, mystery = 0.02}},
+	# 6 Tall stack: the most rows yet, a long trip up that pays the whole way.
+	{shape = "grid", cols = 13, rows = 12, holes = 0.1, solid = 0.05, payout = 6, arena = Vector2(900, 720), jackpot = true, seq = true,
+		special = {multi = 0.08, multi3 = 0.03, shield = 0.03, cond = 0.05, timed = 0.03, cgate = 0.04, x2 = 0.03, x3 = 0.02, combo = 0.04, timer = 0.03, multiball = 0.04, speedup = 0.06, chain = 0.03, bomb = 0.03, bolt = 0.05, mystery = 0.02}},
+	# 7 Pinball: holes and solids as posts between clusters, the ball ricochets cluster to cluster. Sells capacity.
+	{shape = "grid", cols = 15, rows = 9, holes = 0.16, solid = 0.1, payout = 7, jackpot = true, seq = true,
+		special = {multi = 0.08, multi3 = 0.03, shield = 0.04, cond = 0.05, timed = 0.03, cgate = 0.04, x2 = 0.04, x3 = 0.02, combo = 0.04, timer = 0.02, multiball = 0.05, speedup = 0.05, slowdown = 0.02, chain = 0.03, bomb = 0.03, bolt = 0.03, mystery = 0.03}},
+	# 8 Chain field: a tight lattice of shockers and bombs, one hit cascades and the counter climbs on its own.
+	{shape = "grid", cols = 15, rows = 10, holes = 0.04, solid = 0.02, payout = 8, jackpot = true,
+		special = {multi = 0.06, shield = 0.03, cond = 0.04, cgate = 0.04, x2 = 0.04, x3 = 0.02, combo = 0.04, timer = 0.02, multiball = 0.04, speedup = 0.04, chain = 0.1, bomb = 0.06, bolt = 0.03, mystery = 0.02}},
+	# 9 Double wide: two boards split by a divider the ball flies over; the far half is for spawned balls and portals.
+	{shape = "grid", cols = 15, rows = 10, holes = 0.06, solid = 0.03, payout = 9, skip = [7], walls = [Rect2(472, 180, 16, 380)], jackpot = true, seq = true,
+		special = {multi = 0.08, multi3 = 0.03, shield = 0.03, cond = 0.05, timed = 0.03, cgate = 0.04, x2 = 0.04, x3 = 0.02, combo = 0.05, timer = 0.03, multiball = 0.08, speedup = 0.04, chain = 0.03, bomb = 0.03, bolt = 0.04, mystery = 0.02}},
+	# 10 Storm: every action brick at once on a dense tall grid, short clock. The clear is one run that never drops.
+	{shape = "grid", cols = 15, rows = 12, holes = 0.08, solid = 0.03, payout = 11, time = 0.7, jackpot = true, seq = true,
+		special = {multi = 0.06, shield = 0.03, cond = 0.05, timed = 0.03, cgate = 0.05, x2 = 0.05, x3 = 0.03, combo = 0.05, timer = 0.03, multiball = 0.1, speedup = 0.08, chain = 0.04, bomb = 0.04, bolt = 0.05, mystery = 0.03}},
+	# 11 Open sky: a few rows at the top of a full arena, the empty middle is the player's own machine.
+	{shape = "grid", cols = 15, rows = 5, holes = 0.05, solid = 0.0, payout = 13, time = 0.9, jackpot = true,
+		special = {multi = 0.08, multi3 = 0.04, shield = 0.04, cond = 0.05, cgate = 0.05, x2 = 0.04, x3 = 0.03, combo = 0.06, timer = 0.03, multiball = 0.06, speedup = 0.04, chain = 0.03, bomb = 0.04, bolt = 0.03, mystery = 0.03}},
+	# 12 Finale: the biggest board the arena holds, every kind, the shortest clock per brick. Clear it to win.
+	{shape = "grid", cols = 15, rows = 15, holes = 0.06, solid = 0.04, payout = 16, time = 0.6, jackpot = true, seq = true,
+		special = {multi = 0.08, multi3 = 0.04, shield = 0.04, cond = 0.05, timed = 0.04, cgate = 0.05, x2 = 0.05, x3 = 0.03, combo = 0.05, timer = 0.03, multiball = 0.08, speedup = 0.06, slowdown = 0.02, chain = 0.05, bomb = 0.04, bolt = 0.05, mystery = 0.03}},
 ]
 
 # Board brick kinds. hp: hits to break (-1 never). pay: payout multiplier on break.

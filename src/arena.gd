@@ -91,7 +91,7 @@ func _ready() -> void:
 	target_x = paddle.position.x
 	_add_ball(Vector2.ZERO)
 	_rest_ball()
-	time_left = Game.round_time(breakable)
+	time_left = Game.round_time(level, breakable)
 
 	ui = Ui.chassis("SCORE", "PIECES", true)
 	add_child(ui)

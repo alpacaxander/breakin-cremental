@@ -42,7 +42,7 @@ Feel like a jackpot engineer: clever brick placement turns a chaotic arena into 
 - New brick colors (= new currencies) only generate after certain levels, which gates the upgrades that cost them.
 - A new level is typically too hard on the first try; failed attempts still pay out, so upgrades make the retry easier.
 - Replaying earlier levels is allowed, but earlier levels pay less (no new colors, smaller boards), so grinding is possible but slow.
-- Level count: fixed number, TBD during tuning. No prestige/reset layer; out of scope for v1.
+- Level count: twelve, a ramp of scale and combo size (`docs/ideas.md`, Level design). No prestige/reset layer; out of scope for v1.
 
 ## Win / lose
 

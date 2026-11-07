@@ -164,8 +164,8 @@ func _build() -> void:
 	Ui.rect(right, Ui.RX + 3, 154, 72, 1, C.rivet)
 	Ui.label(right, "LEVEL", Ui.RX + 6, 160, C.rivet)
 	for l in Tuning.LEVELS.size():
-		Ui.button(right, str(l + 1), Ui.RX + 6 + (l % 2) * 35, 170 + (l / 2) * 22, 31, 18, func(): level = l; _build(), l == level).disabled = l > Game.unlocked
-	var y := 174 + ((Tuning.LEVELS.size() + 1) / 2) * 22
+		Ui.button(right, str(l + 1), Ui.RX + 6 + (l % 3) * 24, 170 + (l / 3) * 22, 22, 18, func(): level = l; _build(), l == level).disabled = l > Game.unlocked
+	var y := 174 + ((Tuning.LEVELS.size() + 2) / 3) * 22
 	var L: Dictionary = Tuning.LEVELS[level]
 	Ui.label(right, "LEVEL %d" % (level + 1), Ui.RX + 6, y, C.white)
 	Ui.label(right, "%d x %d %s" % [L.cols, L.rows, L.shape], Ui.RX + 6, y + 8, C.rivet)

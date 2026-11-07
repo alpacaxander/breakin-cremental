@@ -134,8 +134,8 @@ func arena_size(level: int) -> Vector2:
 	return Tuning.LEVELS[level].get("arena", Tuning.ARENA)
 
 
-func round_time(breakable: int) -> float:
-	return Tuning.ROUND_TIME_BASE + breakable * Tuning.ROUND_TIME_PER_BRICK
+func round_time(level: int, breakable: int) -> float:
+	return (Tuning.ROUND_TIME_BASE + breakable * Tuning.ROUND_TIME_PER_BRICK) * Tuning.LEVELS[level].get("time", 1.0)
 
 
 func combo_window(combo: int) -> float:
@@ -160,9 +160,9 @@ func generate(level: int, seed: int) -> Array:
 	var step := Tuning.BRICK_SIZE + Vector2.ONE * Tuning.BRICK_GAP
 	var out := []
 	for r in L.rows:
-		var cols: int = L.cols - (2 * (L.rows - 1 - r) if L.shape == "triangle" else 0)
+		var cols: int = L.cols - (2 * (L.rows - 1 - r) if L.shape == "triangle" else (r % 2 if L.shape == "honey" else 0))
 		for c in cols:
-			if rng.randf() < L.holes:
+			if c in L.get("skip", []) or rng.randf() < L.holes:
 				continue
 			var pos := Vector2(arena_size(level).x / 2 + (c - (cols - 1) / 2.0) * step.x, Tuning.BOARD_TOP + r * step.y)
 			var kind := "solid" if rng.randf() < L.solid else "plain"

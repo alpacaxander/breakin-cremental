@@ -43,6 +43,9 @@ func _init() -> void:
 	for k in Tuning.PLACEABLES:
 		check(k in Tuning.UPGRADES, "placeable %s has an upgrade node" % k)
 	check(g.generate(1, 1).size() > g.generate(0, 1).size(), "level 2 board is bigger")
+	check(g.generate(3, 1).filter(func(b): return b.pos.y == Tuning.BOARD_TOP + 28).all(func(b): return int(b.pos.x) % 64 == 0), "honey odd rows sit half a step over (even rows are at 32)")
+	check(g.generate(8, 1).all(func(b): return b.pos.x != 480), "double wide leaves the divider column empty")
+	check(g.round_time(11, 100) < g.round_time(2, 100), "finale clock is shorter per brick")
 
 	var seed_id: String = Tuning.SEED_UPGRADE
 	check(g.is_revealed(seed_id), "seed visible")
