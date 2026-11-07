@@ -102,5 +102,4 @@ func result(msg: String, cleared: bool, unlocked: bool) -> void:
 		Ui.label(r, "NONE", 330, 150, C.rivet)
 	Ui.button(r, "PLAY AGAIN", 214, 222, 96, 20, arena.again.emit, true, 2, "ui_start")
 	Ui.button(r, "UPGRADES", 330, 222, 96, 20, arena.done.emit)
-	r.back.connect(arena.done.emit)  # Esc, like every other screen
 	add_child(r)

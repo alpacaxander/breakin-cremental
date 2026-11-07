@@ -45,17 +45,25 @@ func _ready() -> void:
 	again.queue_free()
 	a._launch()
 	await get_tree().physics_frame
-	# Pause menu: open, swap to settings and back, resume.
-	a._pause(true)
-	assert(get_tree().paused and a.pause != null, "paused with a menu")
-	assert(a.pause.sheet.size * a.pause.sheet.scale == get_viewport().get_visible_rect().size, "pause overlay covers the whole canvas")
-	a._pause_settings()
-	assert(await _click(a.pause, "BACK") and a.pause and _button(a.pause, "RESUME"), "settings BACK clicks back to the pause menu")
-	assert(await _click(a.pause, "RESUME") and not get_tree().paused and a.pause == null, "RESUME clicks through")
-	a._pause(true)
+	# Pause menu, main.gd's, shared by the shop and a round: Esc opens it over the round, settings and back, resume, Esc closes, MENU leaves.
+	var main = load("res://src/main.gd").new()
+	add_child(main)
+	main.group = true
 	_key(KEY_ESCAPE)
 	await get_tree().process_frame
-	assert(not get_tree().paused and a.pause == null, "Esc resumes")
+	assert(get_tree().paused and main.pause != null and not a.can_process(), "Esc pauses the round under a menu")
+	assert(main.pause.sheet.size * main.pause.sheet.scale == get_viewport().get_visible_rect().size, "pause overlay covers the whole canvas")
+	main._pause_settings()
+	assert(await _click(main.pause, "BACK") and main.pause and _button(main.pause, "RESUME"), "settings BACK clicks back to the pause menu")
+	assert(await _click(main.pause, "RESUME") and not get_tree().paused and main.pause == null, "RESUME clicks through")
+	main._pause(true)
+	_key(KEY_ESCAPE)
+	await get_tree().process_frame
+	assert(not get_tree().paused and main.pause == null, "Esc resumes")
+	main._pause(true)
+	assert(await _click(main.pause, "MENU") and not get_tree().paused and main.pause == null and not main.group, "MENU abandons straight to the menu")
+	main.queue_free()
+	await get_tree().process_frame
 
 	# Icon effects and area breaks, each on a real brick.
 	var ball = a.balls[0]
@@ -103,9 +111,6 @@ func _ready() -> void:
 	var res: Node = a.hud.get_child(a.hud.get_child_count() - 1)
 	assert(await _click(res, "PLAY AGAIN") and hit[0], "result PLAY AGAIN clicks through")
 	assert(await _click(res, "UPGRADES") and hit[1], "result UPGRADES clicks through")
-	hit[1] = false
-	_key(KEY_ESCAPE)
-	assert(hit[1], "Esc on the result goes to upgrades")
 	var fx: int = a.get_children().filter(func(c): return c is AnimatedSprite2D).size()
 	print("smoke ok: over=%s earned=%d balls=%d placed=%d fx=%d" % [a.over, a.earned, a.balls.size(), a.placed.size(), fx])
 

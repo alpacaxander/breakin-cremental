@@ -18,7 +18,7 @@ const FIELD_W := 480
 
 
 ## A 2x sprite-space screen: the 640x360 layout, centred in the canvas by fit(). Esc emits back when something listens;
-## otherwise the event falls through (to the arena).
+## otherwise the event falls through (to main.gd, which pauses the play group).
 class Root extends Control:
 	signal back
 	# The sheet and columns sit outside the Root's transform (top_level) at a fixed 2x; the Root itself scales with the content.

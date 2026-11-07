@@ -1,5 +1,7 @@
 extends Node
-## Swaps between the main menu, the shop and a round.
+## Swaps between the main menu, the shop and a round. The shop and a round form the play group: Esc in either opens the one
+## pause dialog (RESUME / SETTINGS / MENU), and MENU drops whatever is up and returns to the menu, so a live round is
+## abandoned with no result. Movement inside the group is the cabinet columns' buttons.
 
 const Ui = preload("res://src/ui.gd")
 const Tuning = preload("res://src/tuning.gd")
@@ -7,6 +9,8 @@ const Sfx = preload("res://src/sfx.gd")
 
 
 var zoom := 0.0  # the cabinet's scale k: a sprite px is 2k screen px
+var group := false  # in the shop or a round: Esc pauses
+var pause: Control = null
 
 
 func _ready() -> void:
@@ -42,6 +46,7 @@ func _exit_tree() -> void:
 
 
 func _show_menu() -> void:
+	group = false
 	if Game.sandbox:
 		Game.leave_sandbox()
 	var r := Ui.chassis()
@@ -66,7 +71,7 @@ func _show_menu() -> void:
 func _show_shop() -> void:
 	var s = preload("res://src/shop.gd").new()
 	s.play.connect(_play)
-	s.menu.connect(_show_menu)
+	group = true
 	_swap(s)
 
 
@@ -75,10 +80,47 @@ func _play(level: int) -> void:
 	a.level = level
 	a.done.connect(_show_shop)
 	a.again.connect(_play.bind(level))
+	group = true
 	_swap(a)
 
 
 func _swap(n: Node) -> void:
+	_pause(false)
 	for c in get_children():
 		c.queue_free()
 	add_child(n)
+
+
+# --- Pause ---
+
+## Screens with their own Esc (settings, the pause dialog itself) take it first through Ui.Root.back; the rest falls through here.
+func _unhandled_input(e: InputEvent) -> void:
+	if group and not pause and e is InputEventKey and e.pressed and not e.echo and e.keycode == KEY_ESCAPE:
+		_pause(true)
+
+
+func _pause(on: bool) -> void:
+	if on != get_tree().paused:
+		Sfx.play("ui_pause" if on else "ui_unpause")
+	get_tree().paused = on
+	if pause:
+		pause.queue_free()
+		pause = null
+	if not on:
+		return
+	pause = Ui.dialog("PAUSED", [["RESUME", true, _pause.bind(false)], ["SETTINGS", false, _pause_settings], ["MENU", false, _abandon]])
+	pause.back.connect(_pause.bind(false))
+	add_child(pause)
+
+
+func _pause_settings() -> void:
+	Sfx.play("ui_click")
+	pause.queue_free()
+	pause = Ui.settings(_pause.bind(true))  # Back rebuilds the pause menu
+	add_child(pause)
+
+
+## Straight to the menu: a live round ends with no result and does not count as a run; what it paid out so far is kept.
+func _abandon() -> void:
+	Game.save()
+	_show_menu()

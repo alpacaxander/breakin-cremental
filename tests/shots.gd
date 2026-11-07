@@ -16,7 +16,7 @@ func _ready() -> void:
 	print("shots -> ", dir)
 	# Each screen is built once and then resized live, the way a player drags the window.
 	var screens := [["menu", main._show_menu], ["shop", main._show_shop], ["arena1", main._play.bind(0)], ["arena2", main._play.bind(1)],
-		["pause", func(): main._play(1); main.get_child(-1)._pause(true)]]
+		["pause", func(): main._play(1); main._pause(true)]]
 	for sc in screens:
 		sc[1].call()
 		for s in SIZES:

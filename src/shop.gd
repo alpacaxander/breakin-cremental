@@ -2,7 +2,6 @@ extends Node
 ## Between rounds: the upgrade web in the field, stats in the left column, the selected upgrade and level select on the right.
 
 signal play(level: int)
-signal menu
 
 const Tuning = preload("res://src/tuning.gd")
 const Ui = preload("res://src/ui.gd")
@@ -101,11 +100,10 @@ func _build() -> void:
 	if root:
 		root.queue_free()
 	root = Ui.chassis("STATS", "UPGRADE")
-	root.back.connect(menu.emit)
 	add_child(root)
 	var C := Tuning.COLORS
 
-	# Left: cash, owned upgrades, reset and menu.
+	# Left: cash, owned upgrades and reset. The way back to the menu is Esc, main.gd's pause dialog.
 	var left := root.left
 	Ui.cash(left, 0, Game.currency)
 	if Game.sandbox:
@@ -122,8 +120,7 @@ func _build() -> void:
 	if owned.size() > 30:
 		Ui.label(left, "+%d MORE" % (owned.size() - 30), 6, 300, C.rivet)
 	# ponytail: instant wipe, no confirm. It's a tuning tool. In the sandbox it puts the dev save back to everything owned.
-	Ui.button(left, "RESET", 6, 316, 66, 14, func(): Game.reset(); _build(), false, 1, "ui_back")
-	Ui.button(left, "MENU", 6, 334, 66, 14, menu.emit, false, 1, "ui_back")
+	Ui.button(left, "RESET", 6, 334, 66, 14, func(): Game.reset(); _build(), false, 1, "ui_back")
 
 	# Field: the web, panned and zoomed inside the clipped cabinet field. Node lamps, icons, then rank pips on top.
 	Ui.centre(root, "UPGRADE WEB", 6, C.rivet)

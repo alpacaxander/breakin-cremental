@@ -62,7 +62,6 @@ var run_pay := 0  # paid during the current combo run
 var ui: Ui.Root  # the cabinet: score column left (hud.gd), pieces column right (place.gd)
 var place: Place
 var hud: Hud
-var pause: Control = null
 var field: Rect2  # the arena in its own px: origin top-left. _fit scales the node into the cabinet's 4:3 field.
 
 
@@ -158,48 +157,12 @@ func _input(e: InputEvent) -> void:
 		target_x = get_local_mouse_position().x
 
 
-## Placement input is handled (and consumed) by place.gd first.
+## Placement input is handled (and consumed) by place.gd first. Esc falls through to main.gd, which pauses.
 func _unhandled_input(e: InputEvent) -> void:
-	if over:
+	if over or place.placing or launched:
 		return
-	var key: bool = e is InputEventKey and e.pressed and not e.echo
-	if key and e.keycode == KEY_ESCAPE:
-		_pause(true)  # in placement too: the dialog's MENU then leaves the round without a result
-	elif place.placing:
-		return
-	elif not launched and (e is InputEventMouseButton and e.pressed or key and e.keycode == KEY_SPACE):
+	if e is InputEventMouseButton and e.pressed or e is InputEventKey and e.pressed and not e.echo and e.keycode == KEY_SPACE:
 		_launch()
-
-
-# --- Pause ---
-
-func _pause(on: bool) -> void:
-	if on != get_tree().paused:
-		Sfx.play("ui_pause" if on else "ui_unpause")
-	get_tree().paused = on
-	if pause:
-		pause.queue_free()
-		pause = null
-	if not on:
-		return
-	pause = Ui.dialog("PAUSED", [["RESUME", true, _pause.bind(false)], ["SETTINGS", false, _pause_settings], ["SHOP" if place.placing else "MENU", false, _quit]])
-	pause.back.connect(_pause.bind(false))
-	add_child(pause)
-
-
-func _pause_settings() -> void:
-	Sfx.play("ui_click")
-	pause.queue_free()
-	pause = Ui.settings(_pause.bind(true))  # Back rebuilds the pause menu
-	add_child(pause)
-
-
-func _quit() -> void:
-	_pause(false)
-	if place.placing:
-		done.emit()
-	else:
-		_end("Abandoned")
 
 
 func _launch() -> void:
