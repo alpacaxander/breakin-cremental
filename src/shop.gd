@@ -121,9 +121,8 @@ func _build() -> void:
 		Ui.label(left, "%d/%d" % [Game.rank(id), Tuning.UPGRADES[id].ranks], 60, 60 + i * 8, C.pay if maxed else C.cream)
 	if owned.size() > 30:
 		Ui.label(left, "+%d MORE" % (owned.size() - 30), 6, 300, C.rivet)
-	# ponytail: instant wipe, no confirm. It's a tuning tool. Sandbox has nothing to wipe.
-	if not Game.sandbox:
-		Ui.button(left, "RESET", 6, 316, 66, 14, func(): Game.reset(); _build(), false, 1, "ui_back")
+	# ponytail: instant wipe, no confirm. It's a tuning tool. In the sandbox it puts the dev save back to everything owned.
+	Ui.button(left, "RESET", 6, 316, 66, 14, func(): Game.reset(); _build(), false, 1, "ui_back")
 	Ui.button(left, "MENU", 6, 334, 66, 14, menu.emit, false, 1, "ui_back")
 
 	# Field: the web, panned and zoomed inside the clipped cabinet field. Node lamps, icons, then rank pips on top.

@@ -64,8 +64,9 @@ func _init() -> void:
 		for state in ["dim", "lit", "max"]:
 			check(FileAccess.file_exists("res://assets/pixel/png/node_%s_%s.png" % [cat, state]), "%s %s lamp exists" % [cat, state])
 	# Maxed generation upgrades still fit every level and the unlocks land.
-	g.sandbox = true
-	check(g.rank("tele") == Tuning.UPGRADES.tele.ranks and g.is_revealed("tele") and not g.can_buy("tele"), "sandbox owns everything")
+	g.slot = g.SANDBOX_PATH
+	g.wipe()
+	check(g.sandbox and g.rank("tele") == Tuning.UPGRADES.tele.ranks and g.is_revealed("tele") and not g.can_buy("tele"), "sandbox owns everything")
 	for lvl in Tuning.LEVELS.size():
 		var arena := Rect2(Vector2.ZERO, g.arena_size(lvl))
 		for s in 50:
@@ -81,8 +82,9 @@ func _init() -> void:
 	check(g.round_time(0, 10) == fresh.round_time(0, 10) + Tuning.UPGRADES.time.amount * Tuning.UPGRADES.time.ranks, "round length adds its seconds")
 	fresh.free()
 	check(g.piece_cost("spawner") == Tuning.PLACEABLES.spawner.cost - 1 and g.piece_cost("accel") == 1, "cheaper pieces floor at 1")
-	g.sandbox = false
-	check(g.rank("tele") == 0, "leaving sandbox forgets nothing it never saved")
+	g.slot = g.SAVE_PATH
+	g.wipe()
+	check(not g.sandbox and g.rank("tele") == 0 and g.currency == 0, "the real slot starts from zero, not the sandbox's state")
 	check(g.generate(1, 1).size() > g.generate(0, 1).size(), "level 2 board is bigger")
 	check(g.generate(3, 1).filter(func(b): return b.pos.y == Tuning.BOARD_TOP + 28).all(func(b): return int(b.pos.x) % 64 == 0), "honey odd rows sit half a step over (even rows are at 32)")
 	check(g.generate(8, 1).all(func(b): return b.pos.x != 480), "double wide leaves the divider column empty")

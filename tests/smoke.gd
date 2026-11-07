@@ -7,8 +7,10 @@ const Tuning = preload("res://src/tuning.gd")
 
 func _ready() -> void:
 	get_window().size = Vector2i(1280, 720)  # headless starts 64x64; at that size the arena is a 100 px thumbnail and physics misses collisions
-	# The round saves at the end; put the real save back afterwards.
-	var saved := FileAccess.get_file_as_string(Game.SAVE_PATH) if FileAccess.file_exists(Game.SAVE_PATH) else ""
+	# Rounds save at the end; put both save files back afterwards.
+	var saved := {}
+	for p in [Game.SAVE_PATH, Game.SANDBOX_PATH]:
+		saved[p] = FileAccess.get_file_as_string(p) if FileAccess.file_exists(p) else ""
 	# Own one of everything and enough capacity to place it all.
 	for k in Tuning.PLACEABLES:
 		Game.ranks[k] = 1
@@ -120,10 +122,11 @@ func _ready() -> void:
 	sb.queue_free()
 	Game.leave_sandbox()
 	assert(not Game.sandbox and Game.rank("twin") == 0, "leaving the sandbox forgets it")
-	if saved:
-		FileAccess.open(Game.SAVE_PATH, FileAccess.WRITE).store_string(saved)
-	else:
-		DirAccess.remove_absolute(Game.SAVE_PATH)
+	for p in saved:
+		if saved[p]:
+			FileAccess.open(p, FileAccess.WRITE).store_string(saved[p])
+		else:
+			DirAccess.remove_absolute(p)
 	Game.load_save()
 	load("res://src/sfx.gd").quit()  # not get_tree().quit(): a cue still mixing at exit logs a leak
 

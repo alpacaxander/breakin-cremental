@@ -3,6 +3,7 @@ extends Node
 
 const Tuning = preload("res://src/tuning.gd")
 const SAVE_PATH := "user://save.json"
+const SANDBOX_PATH := "user://sandbox.json"  # the dev save: same shape, starts with every rank maxed and every level open
 const SETTINGS_PATH := "user://settings.json"  # separate from the save: reset() leaves settings alone
 
 var currency := 0
@@ -12,7 +13,9 @@ var best := 0  # most earned in one round
 var runs := 0
 var broken := {}  # level index (as a string, JSON keys) -> best share of bricks broken in one round, 0..100. Not a win condition
 var ranks := {}  # upgrade id -> rank
-var sandbox := false  # every node maxed, every level open, nothing saved (enter_sandbox / leave_sandbox)
+var slot := SAVE_PATH  # which file holds the run in memory: SAVE_PATH or SANDBOX_PATH (enter_sandbox / leave_sandbox)
+var sandbox: bool:
+	get: return slot == SANDBOX_PATH
 var settings := {fullscreen = false, volume = 1.0}
 
 
@@ -44,17 +47,18 @@ func apply_settings() -> void:
 	AudioServer.set_bus_volume_db(0, linear_to_db(maxf(settings.volume, 0.001)))  # every cue (src/sfx.gd) plays on the master bus
 
 
+# --- Save: one JSON object per slot file. load_save wipes to the slot's defaults first, so slots never mix. ---
+
 func save() -> void:
-	if sandbox:
-		return
-	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+	var f := FileAccess.open(slot, FileAccess.WRITE)
 	f.store_string(JSON.stringify({currency = currency, unlocked = unlocked, won = won, best = best, runs = runs, ranks = ranks, broken = broken}))
 
 
 func load_save() -> void:
-	if not FileAccess.file_exists(SAVE_PATH):
+	wipe()
+	if not FileAccess.file_exists(slot):
 		return
-	var d = JSON.parse_string(FileAccess.get_file_as_string(SAVE_PATH))
+	var d = JSON.parse_string(FileAccess.get_file_as_string(slot))
 	if typeof(d) != TYPE_DICTIONARY:
 		return
 	currency = int(d.get("currency", 0))
@@ -74,14 +78,18 @@ func reset() -> void:
 	save()
 
 
+## The slot's fresh state: zero for the real run, everything owned for the sandbox.
 func wipe() -> void:
-	currency = 0
-	unlocked = 0
+	currency = 999999 if sandbox else 0
+	unlocked = Tuning.LEVELS.size() - 1 if sandbox else 0
 	won = false
 	best = 0
 	runs = 0
 	ranks = {}
 	broken = {}
+	if sandbox:
+		for id in Tuning.UPGRADES:
+			ranks[id] = Tuning.UPGRADES[id].ranks
 
 
 ## Best share of bricks broken on a level, kept across rounds. A retry stat, not a win condition.
@@ -97,23 +105,21 @@ func clear_level(level: int) -> void:
 
 # --- Sandbox ---
 
-## Max rank on every node, every level open, deep pockets. The real run is untouched and comes back with leave_sandbox.
+## Switch to the dev save. Every change already saves to its own file, so switching is just loading the other one.
 func enter_sandbox() -> void:
-	sandbox = true
-	currency = 999999
-	unlocked = Tuning.LEVELS.size() - 1
+	slot = SANDBOX_PATH
+	load_save()
 
 
 func leave_sandbox() -> void:
-	sandbox = false
-	wipe()
+	slot = SAVE_PATH
 	load_save()
 
 
 # --- Upgrades ---
 
 func rank(id: String) -> int:
-	return Tuning.UPGRADES[id].ranks if sandbox else ranks.get(id, 0)
+	return ranks.get(id, 0)
 
 
 func bonus(id: String) -> float:
