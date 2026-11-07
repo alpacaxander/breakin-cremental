@@ -112,7 +112,7 @@ const CAPACITY_BASE := 2
 # thru: the ball flies through and the piece acts on it (arena.gd _pass). round: circle collider.
 # face and idle as in BRICKS. offset: a strip taller than the body, shifted so the body lines up.
 const PLACEABLES := {
-	bumper = {name = "Bumper", size = Vector2(90, 14), cost = 2, start = 1, face = "bumper"},
+	bumper = {name = "Bumper", size = Vector2(90, 14), cost = 2, face = "bumper"},
 	pop = {name = "Pop bumper", size = Vector2(48, 48), cost = 2, round = true, face = ["pop_bumper_hit", 24, 4]},
 	accel = {name = "Launcher", size = Vector2(60, 24), cost = 1, thru = true, face = ["accel_chevrons", 30, 0], idle = ["accel_chevrons", 30, 8]},
 	oneway = {name = "One-way gate", size = Vector2(60, 24), cost = 2, thru = true, face = ["gate_flow", 30, 0], idle = ["gate_flow", 30, 8]},
@@ -138,10 +138,10 @@ const SPAWN_EVERY := 6.0  # seconds per spawner ball
 # cat: the category (CATS) that colours the node. icon: the icon_<name> sprite, default the id. A node whose id is a brick kind
 # in ICON_KINDS is an unlock: each rank guarantees one more of that brick on every board (game.gd generate).
 # Layout: paddle and round nodes along the bottom-left, placement right, blocks top-left; the web is one tree from the seed.
-const SEED_UPGRADE := "paddle"
+const SEED_UPGRADE := "bumper"  # the first buy is the first placeable: nothing to place until then
 const UPGRADES := {
 	# Paddle
-	"paddle": {cat = "paddle", name = "Wider Paddle", desc = "+25 paddle width", amount = 25, cost = 5, cost_mult = 1.8, ranks = 3, links = ["bumper", "speed", "time"], pos = Vector2(320, 310)},
+	"paddle": {cat = "paddle", name = "Wider Paddle", desc = "+25 paddle width", amount = 25, cost = 5, cost_mult = 1.8, ranks = 3, links = ["speed", "time"], pos = Vector2(320, 310)},
 	"speed": {cat = "paddle", name = "Faster Paddle", desc = "+300 paddle speed", amount = 300, cost = 8, cost_mult = 1.8, ranks = 3, links = ["aim"], pos = Vector2(320, 260)},
 	"aim": {cat = "paddle", name = "Aim", desc = "the launch follows the mouse", amount = 1, cost = 12, cost_mult = 1.0, ranks = 1, links = [], pos = Vector2(250, 260)},
 	# Round: the cap, beside the seed
@@ -149,7 +149,7 @@ const UPGRADES := {
 	"shield": {cat = "round", name = "Shield Floor", desc = "+1 floor per round that bounces a dropped ball back", amount = 1, cost = 30, cost_mult = 2.5, ranks = 2, links = ["balls"], pos = Vector2(180, 310)},
 	"balls": {cat = "round", name = "Extra Ball", desc = "+1 ball at launch", amount = 1, cost = 25, cost_mult = 2.5, ranks = 2, links = [], pos = Vector2(110, 310)},
 	# Placement
-	"bumper": {cat = "place", name = "Bumper", desc = "+1 placeable bumper", amount = 1, cost = 10, cost_mult = 2.0, ranks = 3, links = ["capacity", "sticky", "piecepay"], pos = Vector2(400, 310)},
+	"bumper": {cat = "place", name = "Bumper", desc = "+1 placeable bumper", amount = 1, cost = 10, cost_mult = 2.0, ranks = 3, links = ["paddle", "capacity", "sticky", "piecepay"], pos = Vector2(400, 310)},
 	"sticky": {cat = "place", name = "Sticky Pad", desc = "+1 pad that catches the ball and fires it up", amount = 1, cost = 14, cost_mult = 2.0, ranks = 2, links = ["spawner"], pos = Vector2(470, 310)},
 	"spawner": {cat = "place", name = "Spawner", desc = "+1 lamp that spits out an extra ball every few seconds", amount = 1, cost = 30, cost_mult = 2.0, ranks = 2, links = ["fastspawn"], pos = Vector2(540, 310)},
 	"fastspawn": {cat = "place", icon = "spawner", name = "Fast Spawner", desc = "spawners fire 1s sooner", amount = -1, cost = 25, cost_mult = 2.0, ranks = 3, links = [], pos = Vector2(540, 260)},

@@ -97,13 +97,14 @@ func _init() -> void:
 	check(g.is_revealed(seed_id), "seed visible")
 	check(not g.is_revealed("tele"), "far node hidden")
 	check(not g.can_buy(seed_id), "can't buy broke")
+	check(Tuning.PLACEABLES.keys().all(func(k): return g.owned(k) == 0), "nothing to place before the seed is bought")
 	g.currency = 10000
 	g.buy("tele")
 	check(g.rank("tele") == 0, "can't buy hidden node")
 	g.buy(seed_id)
 	check(g.rank(seed_id) == 1 and g.currency == 10000 - Tuning.UPGRADES[seed_id].cost, "buy charges cost")
-	check(g.is_revealed("bumper"), "neighbours revealed")
-	check(g.owned("bumper") == 1 and g.owned("pop") == 0, "start with one bumper, nothing else")
+	check(g.is_revealed("paddle"), "neighbours revealed")
+	check(g.owned("bumper") == 1 and g.owned("pop") == 0, "the seed is the first bumper, nothing else")
 	check(g.cost(seed_id) > Tuning.UPGRADES[seed_id].cost, "cost rises per rank")
 	for i in 10:
 		g.buy(seed_id)
