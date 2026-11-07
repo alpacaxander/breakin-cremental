@@ -91,6 +91,7 @@ const CUES = {
 	combo_extend: { g: "Icon effects", d: "combo window extended", gen: () => layer([bell(1319, 0.25)], [noise({ dur: 0.15, lp: 10000, hp: 5000 }), 0, 0.15]) },
 	timer_extend: { g: "Icon effects", d: "round time added, tick tock", gen: () => layer([click(1500, 0.015)], [click(1000, 0.015), 0.08], [bell(1568, 0.2, 0.6), 0.16]) },
 	chain_zap: { g: "Icon effects", d: "chain arc to a neighbour", gen: () => layer([tone({ f: 2000, f1: 200, dur: 0.12, trem: 0.8, tremf: 90 })], [noise({ dur: 0.1, lp: 9000, hp: 1500 }), 0, 0.5]) },
+	fuse_lit: { g: "Icon effects", d: "bomb or bolt armed, fuse sizzle", gen: () => layer([noise({ dur: 0.3, lp: 9000, hp: 2500 })], [click(1800, 0.02), 0, 0.8]) },
 	bomb_boom: { g: "Icon effects", d: "bomb ring", gen: () => layer([noise({ dur: 0.4, lp: 2000, lp1: 100 })], [tone({ f: 120, f1: 40, dur: 0.35, wave: "sin" }), 0, 1.2]) },
 	bolt_sweep: { g: "Icon effects", d: "row beam", gen: () => tone({ f: 2400, f1: 300, dur: 0.15, wave: "saw", lp: 4000 }) },
 	jackpot: { g: "Icon effects", d: "jackpot fanfare", gen: () => layer([notes([[523, 0.07], [659, 0.07], [784, 0.07], [1047, 0.07], [1319, 0.07], [1568, 0.07], [2093, 0.3]], { k: 12 })], [bell(2093, 0.6, 0.7), 0.42], [bell(3136, 0.5, 0.3), 0.5], [noise({ dur: 0.5, lp: 12000, hp: 6000 }), 0.42, 0.1]) },

@@ -36,6 +36,7 @@ Hue sets: mag (currency 1), ora (currency 2), vio (currency 3), mint (placeables
 | wild_cycle | 30x12 | 6 | 8 | tube and ring cycle mag, ora, vio |
 | mystery_cycle | 30x12 | 6 | 8 | "?" swaps through other icons |
 | chain_arc | 64x12 | 4 | 12 | zigzag arc between two bricks, white core, magenta edge |
+| <id>_fuse | 30x12 | 16 | 8 | armed bomb or bolt: icon blinks red/white, faster and faster, then the face flashes white. ids: bomb, bolt |
 | bomb_ring | 60x60 | 4 | 12 | expanding ring, thinning |
 | bolt_sweep | 60x12 | 4 | 12 | row beam: white core travels left to right, tileable |
 | jackpot_rays | 48x48 | 6 | 8 | eight-ray starburst, rays lengthen and rotate by half step |

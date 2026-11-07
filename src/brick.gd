@@ -10,6 +10,7 @@ var kind := "plain"
 var hp := 1  # < 0 = unbreakable
 var size := Vector2.ONE
 var charge := 0.0  # spawner seconds
+var fuse := 0.0  # seconds left on an armed bomb or bolt, 0 = not armed
 var tex: Texture2D
 var idle_sprite: AnimatedSprite2D
 var overlay_sprite: AnimatedSprite2D  # ghost or hover outline

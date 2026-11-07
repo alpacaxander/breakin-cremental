@@ -98,6 +98,7 @@ const COMBO_EXTEND := 1.0  # seconds, C+ brick
 const TIME_EXTEND := 5.0  # seconds, hourglass brick
 const CHAIN_DIST := 66.0  # orthogonal neighbours only (step is 64 x 28)
 const BOMB_RADIUS := 72.0  # 3x3 block
+const FUSE := 2.0  # seconds from a bomb or bolt's first hit to going off; a second hit sets it off at once
 const JACKPOT_MULT := 20  # times the level payout
 const GATE_COMBO := 3
 const CHASE_AT := 0.5  # combo seconds left when the pulse turns into the chase

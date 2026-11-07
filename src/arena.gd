@@ -236,6 +236,11 @@ func _physics_process(delta: float) -> void:
 	for p in placed:
 		if p.kind == "spawner":
 			_charge(p, delta)
+	for b in get_children():
+		if b is Box and b.fuse > 0:
+			b.fuse -= delta
+			if b.fuse <= 0:
+				_break(b)
 	for b in balls.duplicate():
 		_move_ball(b, delta)
 		if over:
@@ -410,6 +415,11 @@ func _damage(b: Box, ball: Ball) -> void:
 		return
 	if b.kind.begins_with("seq"):
 		Sfx.play("seq_step", [1.0, 1.26, 1.5][int(b.kind[-1]) - 1])
+	if b.kind in ["bomb", "bolt"] and b.fuse == 0:  # first hit arms it; the fuse ticks in _physics_process, a second hit falls through
+		b.fuse = Tuning.FUSE
+		b.flash("%s_fuse" % b.kind, 30, 8)  # ponytail: 16 frames at 8 fps is FUSE seconds; regenerate the strip if FUSE changes
+		Sfx.play("fuse_lit")
+		return
 	b.hp -= 1
 	if b.hp <= 0:
 		_break(b)
