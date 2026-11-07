@@ -415,8 +415,8 @@ func _damage(b: Box, ball: Ball) -> void:
 		return
 	if b.kind.begins_with("seq"):
 		Sfx.play("seq_step", [1.0, 1.26, 1.5][int(b.kind[-1]) - 1])
-	if b.kind in ["bomb", "bolt"]:
-		_trigger(b)
+	if b.kind in Tuning.FUSED:
+		_trigger(b, true)
 		return
 	b.hp -= 1
 	if b.hp <= 0:
@@ -457,15 +457,16 @@ func _bricks(kind: String) -> Array:
 	return _live().filter(func(o): return o.kind == kind)
 
 
-## The one way anything, ball or blast, sets off a brick. A bomb or bolt arms on the first trigger (the fuse ticks in
-## _physics_process); a second trigger while armed, or the fuse running out, breaks it.
-func _trigger(b: Box) -> void:
-	if b.kind in ["bomb", "bolt"] and b.fuse == 0:
+## The one way anything, ball or blast, sets off a brick. A fused kind arms on the first trigger (the fuse ticks in
+## _physics_process) and breaks when it runs out, or on a ball's second hit (direct); a blast on an armed brick does nothing,
+## so a cascade ripples at FUSE intervals instead of short-circuiting itself.
+func _trigger(b: Box, direct := false) -> void:
+	if not b.kind in Tuning.FUSED or (direct and b.fuse > 0):
+		_break(b)
+	elif b.fuse == 0:
 		b.fuse = Tuning.FUSE
 		b.flash("%s_fuse" % b.kind, 30, 8)  # ponytail: 16 frames at 8 fps is FUSE seconds; regenerate the strip if FUSE changes
 		Sfx.play("fuse_lit")
-	else:
-		_break(b)
 
 
 func _break(b: Box) -> void:

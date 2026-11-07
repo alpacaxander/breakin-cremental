@@ -287,8 +287,8 @@ def("Icon bricks", "chain_arc", 12, [0, 1, 2, 3].map((f) => {
 	ys.forEach((y, i) => b.px(i * 4, y, C.pureWhite));
 	return f === 3 ? b.fade(110) : b;
 }));
-// Fuse: the icon blinks faster and faster for 16 frames (2 s at 8 fps, Tuning.FUSE), then the face goes white.
-for (const id of ["bomb", "bolt"])
+// Fuse (Tuning.FUSED): the icon blinks faster and faster for 16 frames (2 s at 8 fps, Tuning.FUSE), then the face goes white.
+for (const id of ["chain", "bomb", "bolt"])
 	def("Icon bricks", `${id}_fuse`, 8, [1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 2, 2].map((on) => on === 2 ? FLASH : withIcon(ML, ICONS[id], on ? C.pureWhite : C.danger)));
 def("Icon bricks", "bomb_ring", 12, [[6, 3, C.pureWhite], [12, 2, C.payHi], [20, 1, C.pay], [28, 1, C.payDim]].map(([r, t, c]) => { const b = new Img(60, 60); ring(b, 30, 30, r, c, t); return b; }));
 def("Icon bricks", "bolt_sweep", 12, [0, 1, 2, 3].map((f) => { const b = new Img(60, 12); b.rect(0, 5, 60, 2, C.pay); for (let x = 0; x < 60; x++) if (((x - f * 15) % 60 + 60) % 60 < 15) { b.rect(x, 4, 1, 4, C.payHi); b.rect(x, 5, 1, 2, C.pureWhite); } return b; }));
