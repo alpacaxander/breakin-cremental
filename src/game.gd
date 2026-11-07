@@ -135,11 +135,11 @@ func arena_size(level: int) -> Vector2:
 
 
 func round_time(breakable: int) -> float:
-	return Tuning.ROUND_TIME_BASE + breakable * Tuning.ROUND_TIME_PER_BRICK + bonus("time")
+	return Tuning.ROUND_TIME_BASE + breakable * Tuning.ROUND_TIME_PER_BRICK
 
 
 func combo_window(combo: int) -> float:
-	return maxf(Tuning.COMBO_WINDOW_MIN, Tuning.COMBO_WINDOW_START + bonus("combo") - Tuning.COMBO_WINDOW_SHRINK * (combo - 1))
+	return maxf(Tuning.COMBO_WINDOW_MIN, Tuning.COMBO_WINDOW_START - Tuning.COMBO_WINDOW_SHRINK * (combo - 1))
 
 
 func combo_mult(combo: int) -> float:

@@ -1,0 +1,168 @@
+# Upgrade ideas
+
+Working list for the upgrade web. Three categories; every node in `tuning.gd` `UPGRADES` belongs to one.
+Existing nodes are marked **(in)**. Rules the ideas must respect:
+
+- Losing a ball does nothing on its own. The round ends when no ball is left on the stage.
+- Paddle hits never touch the combo timer. Only bricks start, extend or pay into a combo.
+- Layouts are always saved per level. Not an upgrade.
+
+## Paddle
+
+- **Wider Paddle (in)**: +width per rank.
+- **Faster Paddle**: +speed cap.
+- **Aim on first shot**: the launch angle follows the mouse instead of firing straight up.
+- **Starting ball count**: the round opens with more balls in play.
+- **Shield floor**: a one-use floor per round that bounces a dropped ball back. Later ranks add uses.
+- **Mini paddles**: a small paddle that moves with the main one. Sub-upgrades:
+  - count: +1 mini paddle, mirrored left and right, then above.
+  - width: mini paddles grow.
+  - spacing: how far from the main paddle they sit.
+  - placement: choose where each mini paddle lives (ties into Placement).
+- **Vertical paddle movement**: the paddle can rise toward the board, a band that widens per rank.
+- **Power until first combo**: the ball leaves the paddle fast until the first combo of N. Each rank raises N, so the power lasts longer.
+- **Abilities on right click**: an energy bar where 1 energy = 1 second of ability time. Energy refills between rounds, upgrades raise the pool and the refill rate. One ability equipped at a time, more equip slots as an upgrade.
+  - *Stick and shoot*: hold to catch the ball on the paddle, release to fire it the way the mouse points.
+  - *Grow*: the paddle gets much wider while held.
+  - *Slow time*: balls move at half speed while held, the round clock keeps running.
+  - *Flipper*: a quick flick that fires every touching ball upward at full speed.
+  - *Blast*: a one-shot shockwave from the paddle that breaks the lowest row within reach, costs a chunk of energy.
+  - *Magnet paddle*: nearby balls curve toward the paddle while held.
+  - *Ghost*: balls pass through placed pieces while held, for clearing a jam.
+  - *Recall*: pulls the lowest ball back up to the paddle, costs energy per use rather than per second.
+
+## Placement
+
+### Placeable items
+
+Each item is a `PLACEABLES` row and an `UPGRADES` node of the same id, so +1 owned is the base upgrade for all of them. Special upgrades that only make sense for one item are listed under it.
+
+- **Bumper (in)**: a flat bar the ball bounces off.
+  - Paid bumper: each hit pays a little, scaled by the combo.
+  - Long bumper: wider bar.
+- **Pop bumper (in)**: a round bumper that speeds the ball up, then goes on cooldown. While cooling it acts as a plain bumper.
+  - Cooldown: shorter cooldown per hit.
+  - Pop power: more speed per hit.
+  - Pop pay: a hit pays, like a pinball pop.
+- **Launcher (in)**: a strip the ball flies through and leaves at fast speed.
+  - Hotter launch: higher exit speed.
+  - Aimed launch: exit follows the strip's rotation exactly, no spread.
+- **One-way gate (in)**: ball passes up, bounces down, then goes on cooldown. While cooling it collides with nothing.
+  - Cooldown: shorter cooldown per pass.
+  - Gate pay: pays each time a ball passes.
+  - Combo gate: passing extends the combo timer.
+- **Portal (in)**: the ball jumps to the next portal placed.
+  - Split portal: the ball exits from every other portal at once, one use per round.
+- **Sticky pad (in)**: catches the ball and fires it up.
+  - Sticky aim: fires toward the nearest brick.
+  - Quick release: shorter hold.
+  - Charged release: the longer the hold, the faster the shot.
+- **Spawner (in)**: spits out an extra ball every few seconds.
+  - Fast spawner: shorter interval.
+  - Burst: spawns two at once.
+  - Warm start: the first ball comes out at round start.
+- **Magnet (in)**: bends the ball toward it.
+  - Magnet reach: larger radius.
+  - Magnet pull: stronger pull.
+  - Repel: a rotated magnet pushes instead.
+- **Splitter (new)**: pass-through piece that forks the ball into two.
+  - More splits: forks into three, then four.
+  - Cooldown: shorter wait before it can split again.
+- **Flipper (new)**: a pinball flipper that flicks on click, placed left or right handed.
+  - Flip power: faster flick.
+  - Longer flipper: wider reach.
+- **Deflector wedge (new)**: a 45 degree wall piece.
+- **Ramp (new)**: curves the ball sideways.
+  - Ramp speed: the ball keeps more speed through the turn.
+- **Toll lamp (new)**: pays each time a ball passes through.
+  - Toll rate: pays more per pass.
+
+### Placeable upgrades
+
+Upgrades that apply to placement as a whole or to every piece.
+
+- **Capacity (in)**: +arena capacity.
+- **Cheaper pieces**: every piece costs one less capacity, floored at 1.
+- **Cheaper kind**: one chosen kind costs less.
+- **Lower floor**: pieces may sit closer to the paddle.
+- **Tight fit**: smaller gap required between pieces.
+- **Free rotate**: finer rotation steps.
+- **Piece pay**: every piece contact pays a flat amount.
+- **Piece combo**: piece contacts count as combo hits.
+- **Shared cooldown**: every cooldown piece cools faster.
+- **Overlap**: pieces may overlap bricks, the brick sits behind.
+- **Mirror**: place a piece and its mirror image for one capacity extra.
+
+## Blocks
+
+### Unlockable blocks
+
+Each is an unlock node. Rank 1 guarantees one of that block on every board, and each rank after adds one more. These are the icon kinds: bonus effects the player adds to a level. Special upgrades that only make sense for one block are listed under it.
+
+- **Multiball (in)**: spawns an extra ball.
+  - Extra split: spawns one more ball.
+- **Speedup (in)**: the ball goes faster.
+  - Paid speed: pays extra while the ball is fast.
+- **Multiplier (in, merges x2 and x3)**: multiplies the total earned by the current combo run.
+  - Bigger multiplier: x2, then x3, x4 and on.
+  - Stacking: two multipliers in one run multiply instead of replacing.
+- **Combo (in)**: pauses the combo window for N seconds. The window does not shrink, but the combo keeps counting and paying.
+  - Longer pause: more seconds.
+- **Timer (in)**: adds seconds to the round.
+  - Longer timer: more seconds.
+- **Shocker (in, replaces chain)**: a multi-hit brick. Each hit fires chain lightning that damages nearby bricks.
+  - More charges: more hits before it breaks.
+  - Wider arc: the lightning hits more bricks per hit.
+- **Bomb (in)**: breaks everything in a 3x3 and pays for every brick blown up.
+  - Bigger bomb: wider radius.
+- **Bolt (in)**: breaks a line in a random direction: up, down, left, right or diagonal.
+  - Twin bolt: fires in two directions.
+- **Rewind (new)**: pauses the arena briefly, restores every brick broken so far, and resets the round clock to its start. Balls in flight keep going when play resumes. A ball inside a restored brick must be pushed out or that brick left broken.
+- **Mystery (in)**: does its own weird things on break. Ideas: swap every brick with a neighbour, flip the board upside down, turn all balls into one big ball, flip paddle controls for a few seconds, reverse gravity on the balls, turn every plain brick gold for one hit, teleport every ball to a random spot. Shrug.
+
+### Level blocks
+
+Native to level design, never unlocked. A level row places them by chance or by hand to shape the board. Some still have upgrades that soften them, listed under each.
+
+- **Solid (in)**: never breaks, a wall inside the board.
+- **Shield (in, replaces multi and multi3)**: a shield of power N takes N hits to strip, then the brick breaks. Levels place shields of different powers.
+  - Weak shield: every shield takes one hit less.
+- **Cond (in)**: breaks only from a fast ball, pays triple.
+  - Slow cond: lower speed threshold.
+- **Combo gate (in)**: breaks only at combo N or above, pays triple.
+  - Lower gate: opens at a lower combo.
+- **Timed (in)**: breaks only while lit.
+  - Longer lit: lit for more of its cycle.
+- **Sequence (in)**: a 1-2-3 run that breaks in order, the last pays five.
+  - Longer sequence: a fourth brick with a bigger payout.
+  - Any order: the run pays in any order at a smaller bonus.
+- **Jackpot (in)**: one 777 brick per board, pays 20x the level payout.
+  - Bigger jackpot: higher multiplier.
+- **Slowdown (in)**: the ball goes slower.
+  - Wide on slow: paddle grows while a slowdown is active.
+- **Magnet brick (new)**: pulls balls toward it until broken.
+- **Ghost brick (new)**: the ball passes through it every other second.
+- **Gold brick (new)**: pays ten times, but takes five hits.
+  - Softer gold: fewer hits.
+- **Mirror brick (new)**: bounces the ball back the way it came.
+- **Teleport brick (new)**: the ball exits from its twin elsewhere on the board.
+- **Regrow brick (new)**: comes back a few seconds after breaking, pays each time.
+- **Key and lock (new)**: lock bricks become breakable once the key brick breaks.
+
+### Block upgrades
+
+Upgrades that apply to generation as a whole, to every unlockable block, or to every level block.
+
+- **Payout**: +base payout per brick.
+- **Special pay**: every special block pays more.
+- **Fewer solids**: lower solid brick rate.
+- **Fewer holes**: denser boards.
+- **Extra row**: one more board row.
+- **Special spread**: specials are placed apart rather than clumped.
+- **Low specials**: specials favour the bottom rows, reached sooner.
+- **Reroll**: reroll the board once per round before placement.
+- **Twin unlock**: one extra of every unlocked kind.
+
+## Removed
+
+- **More Time** and **Combo Window**: cut on 2026-11-06, neither fit a category.

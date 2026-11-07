@@ -106,9 +106,7 @@ const SPAWN_EVERY := 6.0  # seconds per spawner ball
 # Names fit the 66px upgrade column at 2x when wrapped by word; descs use only glyphs the 3x5 font has (no ; or lowercase-only marks).
 const SEED_UPGRADE := "paddle"
 const UPGRADES := {
-	"paddle": {name = "Wider Paddle", desc = "+25 paddle width", amount = 25, cost = 5, cost_mult = 1.8, ranks = 3, links = ["time", "bumper"], pos = Vector2(320, 310)},
-	"time": {name = "More Time", desc = "+5s per round", amount = 5, cost = 8, cost_mult = 1.8, ranks = 3, links = ["combo"], pos = Vector2(170, 240)},
-	"combo": {name = "Combo Window", desc = "+0.3s combo window", amount = 0.3, cost = 12, cost_mult = 2.0, ranks = 3, links = [], pos = Vector2(170, 170)},
+	"paddle": {name = "Wider Paddle", desc = "+25 paddle width", amount = 25, cost = 5, cost_mult = 1.8, ranks = 3, links = ["bumper"], pos = Vector2(320, 310)},
 	"bumper": {name = "Bumper", desc = "+1 placeable bumper", amount = 1, cost = 10, cost_mult = 2.0, ranks = 3, links = ["capacity", "pop", "sticky"], pos = Vector2(430, 240)},
 	"capacity": {name = "Capacity", desc = "+2 arena capacity", amount = 2, cost = 15, cost_mult = 2.0, ranks = 5, links = ["accel", "magnet"], pos = Vector2(330, 170)},
 	"pop": {name = "Pop Bumper", desc = "+1 round bumper that speeds the ball up", amount = 1, cost = 12, cost_mult = 2.0, ranks = 3, links = ["oneway"], pos = Vector2(500, 170)},
