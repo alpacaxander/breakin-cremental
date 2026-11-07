@@ -17,7 +17,7 @@ One row per asset in `assets/pixel/png/`. Sizes are native 1x canvas pixels (2x 
 | brick_cond_speed_primed | sky | lit | 1 | chevrons in warm white | done |
 | brick_solid | chrome | unlit | 1 | bevel bands, two rivets | done |
 | brick_icon_* (other effects) | magenta | lit | 1 | per icon in design.md | todo |
-| brick_plain_* per extra currency | orange, violet | lit, dim, flash | 1 each | when currency 2 and 3 exist | todo |
+| brick_plain_* per extra currency | orange, violet | lit, dim, flash | 1 each | when coloured bricks paying new currencies exist (docs/design.md) | todo |
 
 ## Placeables
 

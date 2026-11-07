@@ -80,15 +80,16 @@ func refresh() -> void:
 			Ui.icon(slot, "ui_badge", 30, -3)
 			Ui.label(slot, str(left), 33, -2, C.bg)
 	var y := 26 + kinds.size() * 20
-	Ui.label(tray, "CAP", 6, y, C.rivet)
-	Ui.label(tray, "%d/%d" % [_used(), Game.capacity()], 24, y, C.white)
-	Ui.pips(tray, 6, y + 8, Game.capacity(), _used())
+	if kinds:
+		Ui.label(tray, "CAP", 6, y, C.rivet)
+		Ui.label(tray, "%d/%d" % [_used(), Game.capacity()], 24, y, C.white)
+		Ui.pips(tray, 6, y + 8, Game.capacity(), _used())
 	if not placing:
 		Ui.label(tray, "LOCKED", 6, y + 24, C.rivet)
 		return
 	var hints := ["LMB PICK/DROP", "WHEEL/A/D ROTATE", "RMB REMOVE", "ESC PAUSE"]
 	for i in hints.size():
-		Ui.label(tray, hints[i], 6, y + 24 + i * 8, C.rivet)
+		Ui.label(tray, hints[i], 6, 208 + i * 8, C.rivet)  # sits just above CLEAR
 	Ui.button(tray, "CLEAR", 6, 244, 66, 24, clear, false, 2, "ui_back").disabled = placed.is_empty()
 	Ui.button(tray, "SHOP", 6, 272, 66, 24, arena.done.emit, false, 2, "ui_back")  # back to the upgrade web; the round never started, so no result
 	Ui.button(tray, "START", 6, 300, 66, 24, _start, true, 2, "")

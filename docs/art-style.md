@@ -38,12 +38,16 @@ A lit object uses exactly one set. Never mix swatches across sets.
 
 | Set | Tube | Ring | Deep | Highlight | Used for |
 |---|---|---|---|---|---|
-| Magenta | `ff4aff` | `a200a2` | `350035` | `ffcaff` | plain bricks, icon bricks, multi-hit |
-| Mint | `15f2b0` | `02936b` | `01563f` | `b7fbe7` | bumpers, placeables, valid ghost |
-| Sky | `4fc7ff` | `186fb6` | `0e3556` | `cefaff` | conditional bricks |
-| Yellow | `ffff00` | `887809` | `000020` | `ffff73` | payout, combo, ball edge |
+| Magenta | `ff4aff` | `a200a2` | `350035` | `ffcaff` | plain bricks, multi-hit, Blocks web nodes |
+| Blue | `3d6bff` | `1f3bc4` | `0b1658` | `bccbff` | unlocks: icon bricks and their web nodes. Off-palette, deeper than sky |
+| Mint | `15f2b0` | `02936b` | `01563f` | `b7fbe7` | bumpers, placeables, valid ghost, Placement web nodes |
+| Sky | `4fc7ff` | `186fb6` | `0e3556` | `cefaff` | paddle extras and Paddle web nodes; conditional bricks borrow it until they get their own hue |
+| Orange | `ff7500` | `c44f00` | `791800` | `ffb975` | Round web nodes |
+| Violet | `7f16ff` | `48009f` | `240051` | `c799ff` | reserved: a future brick colour (docs/design.md) |
+| Gold | `ebdb57` | `9b5b13` | `2b1a06` | `fff5a8` | the gold brick (docs/ideas.md) |
+| Yellow | `ffff00` | `887809` | `000020` | `ffff73` | payout, combo, ball edge, web links and costs |
 
-Reserved, not yet drawn: orange `ff7500`, violet `7f16ff`. Build their sets from the same palette ramp (top, mid, near-bottom, tint).
+The sets are `SETS` in `gen.mjs`; a new one takes top, mid, near-bottom and tint from one palette ramp.
 
 ## Unlit anatomy
 

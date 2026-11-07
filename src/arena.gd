@@ -88,7 +88,7 @@ func _ready() -> void:
 		var id := brick.get_instance_id()  # not the box itself: a lambda holding a freed object logs an engine error
 		create_tween().tween_callback(func():
 			if instance_from_id(id):
-				Fx.play(self, "mag_spawn", 30, 12, b.pos).animation_finished.connect(func(): if instance_from_id(id): instance_from_id(id).show())
+				Fx.play(self, "blue_spawn" if b.kind in Tuning.ICON_KINDS else "mag_spawn", 30, 12, b.pos).animation_finished.connect(func(): if instance_from_id(id): instance_from_id(id).show())
 		).set_delay(0.08 * row)
 	paddle = box("paddle", Vector2(Game.paddle_width(), Tuning.PADDLE_HEIGHT), Vector2(field.size.x / 2, field.size.y - Tuning.PADDLE_UP))
 	target_x = paddle.position.x
@@ -437,7 +437,7 @@ func _break(b: Box) -> void:
 		return
 	b.queue_free()
 	var sky := b.kind in ["cond", "cgate", "timed", "seq1", "seq2", "seq3"]
-	Fx.play(self, "mag_break", 44, 12, b.position)
+	Fx.play(self, "blue_break" if b.kind in Tuning.ICON_KINDS else "mag_break", 44, 12, b.position)  # icon bricks are unlocks: blue
 	Fx.play(self, "spark_burst_sky" if sky else "spark_burst", 16, 12, b.position)
 	combo = combo + 1 if combo > 0 else 1
 	combo_timer = Game.combo_window(combo)
@@ -550,9 +550,7 @@ func _end(msg: String, cleared := false) -> void:
 		return
 	over = true
 	_end_combo()
-	var unlocked := cleared and Game.unlocked == level and level + 1 < Tuning.LEVELS.size()
-	if cleared:
-		Game.clear_level(level)
+	var unlocked := Game.finish_level(level, cleared, best_combo)
 	Game.runs += 1
 	Game.best = maxi(Game.best, earned)
 	Game.note_broken(level, total - breakable, total)

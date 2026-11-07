@@ -55,6 +55,7 @@ func _init() -> void:
 	for id in Tuning.UPGRADES:
 		var u: Dictionary = Tuning.UPGRADES[id]
 		check(u.cat in Tuning.CATS, "node %s has a category" % id)
+		check((u.cat == "unlock") == (id in Tuning.ICON_KINDS), "node %s is blue exactly when it unlocks a brick" % id)
 		check(FileAccess.file_exists("res://assets/pixel/png/icon_%s.png" % u.get("icon", id)), "node %s has an icon" % id)
 		check(u.links.all(func(l): return l in Tuning.UPGRADES), "node %s links to real nodes" % id)
 		check(not u.pos in seen, "node %s has its own spot" % id)
@@ -111,10 +112,13 @@ func _init() -> void:
 		g.buy(seed_id)
 	check(g.rank(seed_id) == Tuning.UPGRADES[seed_id].ranks, "rank caps")
 
-	g.clear_level(0)
-	check(g.unlocked == 1 and not g.won, "clearing level 1 unlocks level 2")
-	g.clear_level(Tuning.LEVELS.size() - 1)
-	check(g.won and g.unlocked == Tuning.LEVELS.size() - 1, "clearing last level wins")
+	check(not g.finish_level(0, true, 9) and g.unlocked == 0, "clearing level 1 alone does not unlock level 2")
+	check(g.finish_level(0, false, 10) and g.unlocked == 1 and not g.won, "a combo of 10 on level 1 unlocks level 2")
+	check(not g.finish_level(0, false, 10), "an open level does not unlock twice")
+	check(not g.finish_level(1, false, 99) and g.unlocked == 1, "level 3 needs a clear")
+	check(g.finish_level(1, true, 0) and g.unlocked == 2, "clearing level 2 unlocks level 3")
+	check(not g.finish_level(Tuning.LEVELS.size() - 1, true, 0) and g.won, "clearing last level wins")
+	check(g.unlock_text(1) == "COMBO x10" and g.unlock_text(2) == "CLEAR", "unlock text")
 
 	var b = load("res://src/brick.gd").new()
 	b.size = Vector2(90, 14)
@@ -125,7 +129,7 @@ func _init() -> void:
 
 	# Every strip the arena plays exists and slices into whole frames. Names, widths, fps: docs/animations.md.
 	var Fx = load("res://src/fx.gd")
-	for a in [["mag_break", 44, 8], ["spark_burst", 16, 6], ["bumper_hit", 45, 6], ["solid_bounce", 44, 6], ["paddle_hit", 60, 4], ["ball_lost", 12, 6],
+	for a in [["mag_break", 44, 8], ["blue_break", 44, 8], ["blue_spawn", 30, 6], ["spark_burst", 16, 6], ["bumper_hit", 45, 6], ["solid_bounce", 44, 6], ["paddle_hit", 60, 4], ["ball_lost", 12, 6],
 			["mag_spawn", 30, 6], ["mag_hit", 30, 6], ["mag_pulse", 30, 4], ["combo_chase", 30, 8], ["multi3_crack", 30, 12], ["pips_shrink", 30, 6], ["shield_pop", 44, 6],
 			["cond_prime", 30, 10], ["cond_too_slow", 30, 6], ["combo_gate", 30, 6], ["sequence_step3", 30, 6], ["timed_blink", 30, 8],
 			["chain_arc", 64, 4], ["chain_fuse", 30, 16], ["bomb_fuse", 30, 16], ["bolt_fuse", 30, 16], ["bomb_ring", 60, 4], ["bolt_sweep", 60, 4], ["jackpot_rays", 48, 6], ["mystery_cycle", 30, 6], ["halo_pulse", 60, 4],

@@ -32,11 +32,11 @@ const BOARD_TOP := 100.0  # 44 + two brick rows (2 * (24 + 4))
 # special: kind -> chance per brick (see BRICKS). jackpot: one 777 brick per board. seq: one 1-2-3 run per board.
 # arena: size, default ARENA (never larger). walls: extra Rect2s in arena px for other shapes; the board must still fit (test.gd).
 # skip: column indices left empty (room for a wall). time: round time scale, default 1. Fit at 960x720: cols <= 15, rows <= 16.
+# unlock: how the previous level opens this one; default clear its board, {combo = n} a combo of n in one round (game.gd finish_level).
 # The ramp: each level puts more on screen and needs a bigger combo than the last (docs/ideas.md, Level design).
 const LEVELS := [
 	{shape = "grid", cols = 8, rows = 3, holes = 0, solid = 0, payout = 1, arena = Vector2(800, 640)},  # plain bricks only: what the player unlocks is all that shows
-	{shape = "triangle", cols = 15, rows = 7, holes = 0.1, solid = 0.12, payout = 2, jackpot = true, seq = true,
-		special = {multi = 0.08, multi3 = 0.03, shield = 0.04, cond = 0.04, timed = 0.04, cgate = 0.03, x2 = 0.03, x3 = 0.01, combo = 0.03, timer = 0.02, multiball = 0.02, speedup = 0.03, slowdown = 0.02, chain = 0.03, bomb = 0.02, bolt = 0.01, mystery = 0.02}},
+	{shape = "columns", cols = 14, rows = 14, holes = 0, solid = 0, payout = 2, unlock = {combo = 10}},  # plain bricks only, like level 1
 	{shape = "grid", cols = 15, rows = 7, holes = 0.08, solid = 0.1, payout = 3, jackpot = true, seq = true,
 		special = {multi = 0.1, multi3 = 0.05, shield = 0.05, cond = 0.06, timed = 0.05, cgate = 0.04, x2 = 0.03, x3 = 0.02, combo = 0.03, timer = 0.02, multiball = 0.03, speedup = 0.03, slowdown = 0.02, chain = 0.04, bomb = 0.03, bolt = 0.02, mystery = 0.03}},
 	# 4 Honeycomb: offset rows leave diagonal corridors; bolts and speedups at the mouths.
@@ -174,17 +174,17 @@ const UPGRADES := {
 	"solids": {cat = "block", name = "Fewer Solids", desc = "-2 in 100 solid bricks", amount = -0.02, cost = 20, cost_mult = 2.0, ranks = 3, links = ["holes", "multiball"], pos = Vector2(250, 200)},
 	"holes": {cat = "block", name = "Fewer Holes", desc = "-3 in 100 holes", amount = -0.03, cost = 20, cost_mult = 2.0, ranks = 3, links = ["row", "chain"], pos = Vector2(180, 200)},
 	"row": {cat = "block", name = "Extra Row", desc = "+1 board row when the arena has room", amount = 1, cost = 50, cost_mult = 2.5, ranks = 2, links = ["bomb"], pos = Vector2(110, 200)},
-	"x2": {cat = "block", name = "Multiplier", desc = "+1 x2 brick per board", amount = 1, cost = 25, cost_mult = 2.0, ranks = 3, links = ["multiball", "timer"], pos = Vector2(320, 150)},
-	"multiball": {cat = "block", name = "Multiball", desc = "+1 multiball brick per board", amount = 1, cost = 25, cost_mult = 2.0, ranks = 3, links = ["chain", "speedup"], pos = Vector2(250, 150)},
-	"chain": {cat = "block", name = "Shocker", desc = "+1 chain brick per board", amount = 1, cost = 25, cost_mult = 2.0, ranks = 3, links = ["bomb", "bolt"], pos = Vector2(180, 150)},
-	"bomb": {cat = "block", name = "Bomb", desc = "+1 bomb brick per board", amount = 1, cost = 25, cost_mult = 2.0, ranks = 3, links = ["bigbomb"], pos = Vector2(110, 150)},
-	"timer": {cat = "block", name = "Timer", desc = "+1 hourglass brick per board", amount = 1, cost = 25, cost_mult = 2.0, ranks = 3, links = ["speedup", "longtimer"], pos = Vector2(320, 100)},
-	"speedup": {cat = "block", name = "Speedup", desc = "+1 speedup brick per board", amount = 1, cost = 20, cost_mult = 2.0, ranks = 3, links = ["bolt", "combo"], pos = Vector2(250, 100)},
-	"bolt": {cat = "block", name = "Bolt", desc = "+1 bolt brick per board", amount = 1, cost = 25, cost_mult = 2.0, ranks = 3, links = ["mystery"], pos = Vector2(180, 100)},
+	"x2": {cat = "unlock", name = "Multiplier", desc = "+1 x2 brick per board", amount = 1, cost = 25, cost_mult = 2.0, ranks = 3, links = ["multiball", "timer"], pos = Vector2(320, 150)},
+	"multiball": {cat = "unlock", name = "Multiball", desc = "+1 multiball brick per board", amount = 1, cost = 25, cost_mult = 2.0, ranks = 3, links = ["chain", "speedup"], pos = Vector2(250, 150)},
+	"chain": {cat = "unlock", name = "Shocker", desc = "+1 chain brick per board", amount = 1, cost = 25, cost_mult = 2.0, ranks = 3, links = ["bomb", "bolt"], pos = Vector2(180, 150)},
+	"bomb": {cat = "unlock", name = "Bomb", desc = "+1 bomb brick per board", amount = 1, cost = 25, cost_mult = 2.0, ranks = 3, links = ["bigbomb"], pos = Vector2(110, 150)},
+	"timer": {cat = "unlock", name = "Timer", desc = "+1 hourglass brick per board", amount = 1, cost = 25, cost_mult = 2.0, ranks = 3, links = ["speedup", "longtimer"], pos = Vector2(320, 100)},
+	"speedup": {cat = "unlock", name = "Speedup", desc = "+1 speedup brick per board", amount = 1, cost = 20, cost_mult = 2.0, ranks = 3, links = ["bolt", "combo"], pos = Vector2(250, 100)},
+	"bolt": {cat = "unlock", name = "Bolt", desc = "+1 bolt brick per board", amount = 1, cost = 25, cost_mult = 2.0, ranks = 3, links = ["mystery"], pos = Vector2(180, 100)},
 	"bigbomb": {cat = "block", icon = "bomb", name = "Bigger Bomb", desc = "+40 bomb radius", amount = 40, cost = 30, cost_mult = 2.0, ranks = 2, links = [], pos = Vector2(110, 100)},
 	"longtimer": {cat = "block", icon = "timer", name = "Longer Timer", desc = "+3s per hourglass brick", amount = 3, cost = 20, cost_mult = 2.0, ranks = 3, links = ["combo"], pos = Vector2(320, 50)},
-	"combo": {cat = "block", name = "Combo", desc = "+1 C+ brick per board", amount = 1, cost = 25, cost_mult = 2.0, ranks = 3, links = ["mystery"], pos = Vector2(250, 50)},
-	"mystery": {cat = "block", name = "Mystery", desc = "+1 mystery brick per board", amount = 1, cost = 20, cost_mult = 2.0, ranks = 3, links = ["twin"], pos = Vector2(180, 50)},
+	"combo": {cat = "unlock", name = "Combo", desc = "+1 C+ brick per board", amount = 1, cost = 25, cost_mult = 2.0, ranks = 3, links = ["mystery"], pos = Vector2(250, 50)},
+	"mystery": {cat = "unlock", name = "Mystery", desc = "+1 mystery brick per board", amount = 1, cost = 20, cost_mult = 2.0, ranks = 3, links = ["twin"], pos = Vector2(180, 50)},
 	"twin": {cat = "block", name = "Twin Unlock", desc = "+1 more of every unlocked brick", amount = 1, cost = 150, cost_mult = 1.0, ranks = 1, links = [], pos = Vector2(110, 50)},
 }
 # Node colours per category: docs/palette.md. The lamp sprites are node_<cat>_<state>; the icons and pips use these.
@@ -193,6 +193,7 @@ const CATS := {
 	round = {lit = Color("ff7500"), dim = Color("9f3800")},
 	place = {lit = Color("15f2b0"), dim = Color("027354")},
 	block = {lit = Color("ff4aff"), dim = Color("790079")},
+	unlock = {lit = Color("3d6bff"), dim = Color("1a2f8f")},  # the ICON_KINDS nodes, blue like their bricks
 }
 
 const COLORS := {  # docs/palette.md. Brick, bumper and paddle colors live in their sprites; these are the cabinet and text.

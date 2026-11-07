@@ -10,6 +10,7 @@ const C = {
 	brick: "ff4aff", brickRing: "a200a2", brickDeep: "350035", brickHi: "ffcaff", brickDim: "790079", brickDimRing: "550055",
 	bump: "15f2b0", bumpRing: "02936b", bumpDeep: "01563f", bumpHi: "b7fbe7",
 	sky: "4fc7ff", skyRing: "186fb6", skyDeep: "0e3556", skyHi: "cefaff",
+	blue: "3d6bff", blueRing: "1f3bc4", blueDeep: "0b1658", blueHi: "bccbff",  // unlocks: icon bricks and their web nodes
 	danger: "ff0000", white: "ffffcf", pureWhite: "ffffff", cream: "ebde81",
 };
 const rgba = (h, a = 255) => [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16), a];
@@ -160,7 +161,7 @@ A.fx_halo = (() => {
 	const b = new Img(60, 30);
 	for (let y = 0; y < 30; y++) for (let x = 0; x < 60; x++) {
 		const d = ((x - 29.5) / 30) ** 2 + ((y - 14.5) / 15) ** 2, dith = (x + y) % 2 === 0;
-		if (d < .25) b.px(x, y, C.brick, 110); else if (d < .5 && dith) b.px(x, y, C.brick, 90); else if (d < .8 && dith && x % 2 === 0) b.px(x, y, C.brick, 60);
+		if (d < .25) b.px(x, y, C.blue, 110); else if (d < .5 && dith) b.px(x, y, C.blue, 90); else if (d < .8 && dith && x % 2 === 0) b.px(x, y, C.blue, 60);
 	}
 	return b;
 })();
@@ -182,6 +183,7 @@ const SETS = {
 	vio: { tube: "7f16ff", ring: "48009f", deep: "240051", hi: "c799ff", dimTube: "5b00c9", dimRing: "330071" },
 	mint: { tube: C.bump, ring: C.bumpRing, deep: C.bumpDeep, hi: C.bumpHi, dimTube: "027354", dimRing: C.bumpDeep },
 	sky: { tube: C.sky, ring: C.skyRing, deep: C.skyDeep, hi: C.skyHi, dimTube: "155386", dimRing: C.skyDeep },
+	blue: { tube: C.blue, ring: C.blueRing, deep: C.blueDeep, hi: C.blueHi, dimTube: "1a2f8f", dimRing: C.blueDeep },
 	gold: { tube: "ebdb57", ring: "9b5b13", deep: "2b1a06", hi: "fff5a8", dimTube: "9b5b13", dimRing: "4e2d0a" }, // palette 64-71, the gold brick
 };
 const lit = (s, w = 30, h = 12) => lamp(w, h, s);
@@ -238,8 +240,8 @@ const ICONS = {
 const ANIM = {}, AGROUPS = [];
 const def = (group, name, fps, frames) => { ANIM[name] = { fps, frames }; (AGROUPS.find((g) => g[0] === group) || AGROUPS[AGROUPS.push([group, []]) - 1])[1].push(name); };
 
-// -- Brick states per currency set, plus gold and sky for the level blocks in docs/ideas.md --
-for (const id of ["mag", "ora", "vio", "gold", "sky"]) {
+// -- Brick states per brick hue set (mag plain, ora and vio reserved for future brick colours), plus gold and sky for the level blocks in docs/ideas.md --
+for (const id of ["mag", "ora", "vio", "gold", "sky", "blue"]) {
 	const s = SETS[id], L = lit(s), H = hot(s), D = dim(s);
 	def("Brick states", `${id}_hit`, 12, [FLASH, H, ...hold(L, 4)]);
 	def("Brick states", `${id}_break`, 12, (() => {
@@ -261,6 +263,7 @@ for (const id of ["mag", "ora", "vio", "gold", "sky"]) {
 
 // -- Multi-hit and armor --
 const M = SETS.mag, ML = lit(M), MH = hot(M);
+const UL = lit(SETS.blue);  // icon bricks are unlocks: blue body, like their web nodes
 const crack = (b, pts) => { for (const [x, y] of pts) b.px(x, y, C.white); return b; };
 const CRACK_L = [[9, 1], [10, 2], [11, 3], [11, 4], [10, 5], [11, 6], [12, 7], [12, 8], [13, 9]], CRACK_R = [[20, 1], [19, 2], [19, 3], [18, 4], [19, 5], [19, 6], [20, 7], [19, 8], [19, 9]];
 const pips3 = (b, n, blink = null) => { [10, 14, 18].forEach((x, i) => b.rect(x, 8, 2, 2, i === blink ? C.pureWhite : i < n ? C.pay : C.payDim)); return b; };
@@ -286,9 +289,9 @@ def("Solid", "solid_bounce", 12, (() => {
 
 // -- Icon bricks --
 for (const id of ["multiball", "speedup", "slowdown", "x2", "x3", "combo", "timer", "chain", "bomb", "bolt", "wild", "jackpot", "mystery", "magnet", "split", "pierce", "rewind"])
-	def("Icon bricks", `icon_${id}_pulse`, 8, [C.pay, C.white, C.pureWhite, C.white].map((c) => withIcon(ML, ICONS[id], c)));
+	def("Icon bricks", `icon_${id}_pulse`, 8, [C.pay, C.white, C.pureWhite, C.white].map((c) => withIcon(UL, ICONS[id], c)));
 def("Icon bricks", "wild_cycle", 8, [SETS.mag, SETS.mag, SETS.ora, SETS.ora, SETS.vio, SETS.vio].map((s) => withIcon(lit(s), ICONS.wild, null)));
-def("Icon bricks", "mystery_cycle", 8, ["mystery", "multiball", "mystery", "bolt", "mystery", "x2"].map((k) => withIcon(ML, ICONS[k], C.white)));
+def("Icon bricks", "mystery_cycle", 8, ["mystery", "multiball", "mystery", "bolt", "mystery", "x2"].map((k) => withIcon(UL, ICONS[k], C.white)));
 def("Icon bricks", "chain_arc", 12, [0, 1, 2, 3].map((f) => {
 	const b = new Img(64, 12), ys = [6, 3, 8, 4, 9, 2, 7, 3, 9, 5, 8, 2, 7, 4, 9, 3, 6].map((y, i) => f === 3 ? 6 : (y + (f * (i + 1)) % 3 - 1 + 12) % 12);
 	for (let i = 0; i < 16; i++) b.line(i * 4, ys[i], i * 4 + 4, ys[i + 1], C.brick);
@@ -297,7 +300,7 @@ def("Icon bricks", "chain_arc", 12, [0, 1, 2, 3].map((f) => {
 }));
 // Fuse (Tuning.FUSED): the icon blinks faster and faster for 16 frames (2 s at 8 fps, Tuning.FUSE), then the face goes white.
 for (const id of ["chain", "bomb", "bolt"])
-	def("Icon bricks", `${id}_fuse`, 8, [1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 2, 2].map((on) => on === 2 ? FLASH : withIcon(ML, ICONS[id], on ? C.pureWhite : C.danger)));
+	def("Icon bricks", `${id}_fuse`, 8, [1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 2, 2].map((on) => on === 2 ? FLASH : withIcon(UL, ICONS[id], on ? C.pureWhite : C.danger)));
 def("Icon bricks", "bomb_ring", 12, [[6, 3, C.pureWhite], [12, 2, C.payHi], [20, 1, C.pay], [28, 1, C.payDim]].map(([r, t, c]) => { const b = new Img(60, 60); ring(b, 30, 30, r, c, t); return b; }));
 def("Icon bricks", "bolt_sweep", 12, [0, 1, 2, 3].map((f) => { const b = new Img(60, 12); b.rect(0, 5, 60, 2, C.pay); for (let x = 0; x < 60; x++) if (((x - f * 15) % 60 + 60) % 60 < 15) { b.rect(x, 4, 1, 4, C.payHi); b.rect(x, 5, 1, 2, C.pureWhite); } return b; }));
 def("Icon bricks", "jackpot_rays", 8, [8, 12, 16, 20, 16, 12].map((len, f) => {
@@ -568,7 +571,7 @@ const UICONS = {
 	reroll: nglyph(["#####", "#.#.#", "#...#", "#.#.#", "#####"]), twin: (b, c) => text(b, 12, 3, "2X", c),
 };
 Object.assign(UICONS, { speedup: UICONS.accel, timer: UICONS.time, bolt: UICONS.power, cooldown: UICONS.time, piececombo: UICONS.combo, ab_magnet: UICONS.magnet });
-const NODE_SETS = { paddle: SETS.sky, round: SETS.ora, place: SETS.mint, block: SETS.mag };
+const NODE_SETS = { paddle: SETS.sky, round: SETS.ora, place: SETS.mint, block: SETS.mag, unlock: SETS.blue };
 const node = (state, icon, rank, ranks, set = SETS.pay) => {
 	const b = state === "lit" ? lit(set) : state === "hot" ? hot(set) : dim(set);
 	if (icon) icon(b, state === "dim" ? C.payDim : state === "hot" ? C.pureWhite : C.white);

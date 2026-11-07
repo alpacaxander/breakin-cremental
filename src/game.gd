@@ -100,10 +100,24 @@ func note_broken(level: int, done: int, total: int) -> void:
 	broken[str(level)] = maxi(broken.get(str(level), 0), 100 * done / maxi(total, 1))
 
 
-func clear_level(level: int) -> void:
-	unlocked = clampi(maxi(unlocked, level + 1), 0, Tuning.LEVELS.size() - 1)
-	if level == Tuning.LEVELS.size() - 1:
+## A level's unlock row as a label for the shop: "CLEAR" or "COMBO x10".
+func unlock_text(level: int) -> String:
+	var u: Dictionary = Tuning.LEVELS[level].get("unlock", {})
+	return "COMBO x%d" % u.combo if u.has("combo") else "CLEAR"
+
+
+## Round over on `level`: win on clearing the last, open the next if its `unlock` row is met. Returns whether a level just opened.
+func finish_level(level: int, cleared: bool, best_combo: int) -> bool:
+	var next := level + 1
+	if cleared and next == Tuning.LEVELS.size():
 		won = true
+	if next >= Tuning.LEVELS.size() or unlocked >= next:
+		return false
+	var u: Dictionary = Tuning.LEVELS[next].get("unlock", {})
+	if not (best_combo >= u.combo if u.has("combo") else cleared):
+		return false
+	unlocked = next
+	return true
 
 
 # --- Sandbox ---
@@ -231,9 +245,12 @@ func generate(level: int, seed: int) -> Array:
 	var solid: float = maxf(0, stat(L.solid, "solids"))
 	var out := []
 	for r in rows:
-		var cols: int = L.cols - (2 * (rows - 1 - r) if L.shape == "triangle" else (r % 2 if L.shape == "honey" else 0))
+		var cols: int = L.cols - (r % 2 if L.shape == "honey" else 0)
 		for c in cols:
 			if c in L.get("skip", []):
+				continue
+			# columns: 2-wide pairs a one-brick gap apart; the centre pair is a row short at both ends, each pair out one row shorter again.
+			if L.shape == "columns" and (c % 3 == 2 or absf(r - (rows - 1) / 2.0) > (rows - 1) / 2.0 - 1 - absi(c / 3 - cols / 3 / 2)):
 				continue
 			var pos := Vector2(arena_size(level).x / 2 + (c - (cols - 1) / 2.0) * step.x, Tuning.BOARD_TOP + r * step.y)
 			# A hole is a brick kind, not a gap: every seed fills the same slots, so a saved layout always fits (place.gd).

@@ -38,7 +38,7 @@ Feel like a jackpot engineer: clever brick placement turns a chaotic arena into 
 
 ## Progression
 
-- Clearing all breakable bricks within the timer advances to the next level. Cleared levels produce bigger boards with more combo potential.
+- Clearing all breakable bricks within the timer advances to the next level (a level row's `unlock` can ask for something else: level 2 opens on a combo of 10). Cleared levels produce bigger boards with more combo potential.
 - New brick colors (= new currencies) only generate after certain levels, which gates the upgrades that cost them.
 - A new level is typically too hard on the first try; failed attempts still pay out, so upgrades make the retry easier.
 - Replaying earlier levels is allowed, but earlier levels pay less (no new colors, smaller boards), so grinding is possible but slow.

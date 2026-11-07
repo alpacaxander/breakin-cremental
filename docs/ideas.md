@@ -178,7 +178,7 @@ Upgrades that apply to generation as a whole, to every unlockable block, or to e
 
 Levels are a ramp of scale. Each one puts more bricks, more balls and more pieces on screen than the last, and each one asks for a bigger combo than the last to clear in time. The puzzle is never "how do I get in", it is "how do I keep the chain going". All twelve are rows in `tuning.gd` **(in)**; the combo targets are the tuning goal, not something the game enforces. Rules:
 
-- A level row is data only: shape (`grid`, `triangle`, `honey`), size, hole and solid rates, payout, specials, optional `arena` size, `walls`, `skip` columns and `time` scale. A new shape or block is a code change first.
+- A level row is data only: shape (`grid`, `columns`, `honey`), size, hole and solid rates, payout, specials, optional `arena` size, `walls`, `skip` columns and `time` scale. A new shape or block is a code change first.
 - Every level must fit its arena (`test.gd` checks this), and `arena` never exceeds `Tuning.ARENA`.
 - Each level's board, timer and special mix are tuned so that clearing it needs roughly the combo size the previous level taught. Failing still pays, so the retry buys the upgrade that closes the gap.
 - Solids are rare and never form walls. They are there to bank the ball into a good run, not to block one.
@@ -186,7 +186,7 @@ Levels are a ramp of scale. Each one puts more bricks, more balls and more piece
 The ramp, with the combo each level is built around:
 
 - **Open grid (in, level 1, combo 3)**: a small N x M grid, almost no specials. The player learns that two bricks in a row inside the window pay more than two bricks apart.
-- **Triangle (in, level 2, combo 5)**: rows narrow going up, so a ball that gets above the bottom row rattles between the slanted edges and breaks several bricks per trip. The shape itself makes the first real combos. Multiball and the first multiplier appear.
+- **Columns (in, level 2, combo 5)**: five 2-wide columns with gaps between and a clear row above and below, shorter further from the centre, so a ball that slips into a gap or over the top rattles between columns and breaks several bricks per trip. The shape itself makes the first real combos. Multiball and the first multiplier appear.
 - **Full grid (in, level 3, combo 8)**: the full arena and the whole special table. Dense enough that a fast ball chains on its own; the timer is tight enough that one ball cannot clear it. Teaches that the second ball is the engine.
 - **Honeycomb (in, level 4, combo 10)**: offset rows with a hole pattern that leaves diagonal corridors. A ball entering a corridor breaks the whole diagonal, so bolt and speedup bricks sit at corridor mouths. First level where a launcher aimed at a corridor is the obvious play.
 - **Multiball rain (in, level 5, combo 12)**: a normal grid with a high multiball rate and a lower timer. Three or four balls in play is the expected state, not a bonus. Combo bricks pause the window so the swarm can keep one chain alive.
