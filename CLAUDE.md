@@ -41,7 +41,7 @@ Eleven scripts in `src/`, no scenes except `main.tscn`. Everything is built in c
 A kind is a string that several tables and `match` blocks agree on. Touch, in order:
 
 1. `tuning.gd`: a row in `BRICKS` (and a `special` weight in a level, or `ICON_KINDS` for a break effect) or in `PLACEABLES` (plus an `UPGRADES` node with the same id).
-2. `arena.gd`: the arm it needs. `_hit` for a bounce reaction, `_damage` for a refusal or multi-hit face, `_effect` for an on-break effect, `_pass` for a pass-through placeable. Per-tick behaviour (magnet, spawner) is a `kind` check in `_physics_process` or `_move_ball`; the `sky` spark list in `_break` names the conditional kinds.
+2. `arena.gd`: the arm it needs. `_hit` for a bounce reaction, `_damage` for a refusal or multi-hit face, `_effect` for an on-break effect, `_pass` for a pass-through placeable. An area effect sets off its neighbours through `_trigger` (never `_break` directly, so fuses arm) and finds them with `_live` or `_near`. Per-tick behaviour (magnet, spawner) is a `kind` check in `_physics_process` or `_move_ball`; the `sky` spark list in `_break` names the conditional kinds.
 3. Art and sound: `assets/pixel/gen.mjs`, `docs/animations.md`, `assets/audio/gen.mjs`, and the strip list in `test.gd`.
 
 ## Art pipeline

@@ -236,8 +236,8 @@ func _physics_process(delta: float) -> void:
 	for p in placed:
 		if p.kind == "spawner":
 			_charge(p, delta)
-	for b in get_children():
-		if b is Box and b.fuse > 0:
+	for b in _live():
+		if b.fuse > 0:
 			b.fuse -= delta
 			if b.fuse <= 0:
 				_break(b)
@@ -415,10 +415,8 @@ func _damage(b: Box, ball: Ball) -> void:
 		return
 	if b.kind.begins_with("seq"):
 		Sfx.play("seq_step", [1.0, 1.26, 1.5][int(b.kind[-1]) - 1])
-	if b.kind in ["bomb", "bolt"] and b.fuse == 0:  # first hit arms it; the fuse ticks in _physics_process, a second hit falls through
-		b.fuse = Tuning.FUSE
-		b.flash("%s_fuse" % b.kind, 30, 8)  # ponytail: 16 frames at 8 fps is FUSE seconds; regenerate the strip if FUSE changes
-		Sfx.play("fuse_lit")
+	if b.kind in ["bomb", "bolt"]:
+		_trigger(b)
 		return
 	b.hp -= 1
 	if b.hp <= 0:
@@ -450,8 +448,24 @@ func _seq_next() -> String:
 	return ""
 
 
+## Every box still standing: breakable, not already broken this frame.
+func _live() -> Array:
+	return get_children().filter(func(o): return o is Box and o.hp > 0 and not o.is_queued_for_deletion())
+
+
 func _bricks(kind: String) -> Array:
-	return get_children().filter(func(o): return o is Box and o.kind == kind and not o.is_queued_for_deletion())
+	return _live().filter(func(o): return o.kind == kind)
+
+
+## The one way anything, ball or blast, sets off a brick. A bomb or bolt arms on the first trigger (the fuse ticks in
+## _physics_process); a second trigger while armed, or the fuse running out, breaks it.
+func _trigger(b: Box) -> void:
+	if b.kind in ["bomb", "bolt"] and b.fuse == 0:
+		b.fuse = Tuning.FUSE
+		b.flash("%s_fuse" % b.kind, 30, 8)  # ponytail: 16 frames at 8 fps is FUSE seconds; regenerate the strip if FUSE changes
+		Sfx.play("fuse_lit")
+	else:
+		_break(b)
 
 
 func _break(b: Box) -> void:
@@ -531,18 +545,17 @@ func _effect(kind: String, b: Box) -> void:
 			for n in _near(b, Tuning.CHAIN_DIST):
 				var mid: Vector2 = (b.position + n.position) / 2
 				Fx.play(self, "chain_arc", 64, 12, mid, b.position.angle_to_point(n.position))
-				_break(n)
+				_trigger(n)
 		"bomb":
 			Fx.play(self, "bomb_ring", 60, 12, b.position)
 			Sfx.play("bomb_boom")
 			for n in _near(b, Game.stat(Tuning.BOMB_RADIUS, "bigbomb")):
-				_break(n)
+				_trigger(n)
 		"bolt":
 			Sfx.play("bolt_sweep")
-			for n in get_children():
-				if n is Box and n.hp > 0 and n != b and absf(n.position.y - b.position.y) < 2:
-					Fx.play(self, "bolt_sweep", 60, 12, n.position)
-					_break(n)
+			for n in _live().filter(func(o): return o != b and absf(o.position.y - b.position.y) < 2):
+				Fx.play(self, "bolt_sweep", 60, 12, n.position)
+				_trigger(n)
 		"jackpot":
 			Fx.play(self, "jackpot_rays", 48, 8, b.position)
 			Sfx.play("jackpot")
@@ -557,7 +570,7 @@ func _effect(kind: String, b: Box) -> void:
 
 
 func _near(b: Box, dist: float) -> Array:
-	return get_children().filter(func(o): return o is Box and o != b and o.hp > 0 and not o.is_queued_for_deletion() and o.position.distance_to(b.position) <= dist)
+	return _live().filter(func(o): return o != b and o.position.distance_to(b.position) <= dist)
 
 
 ## A combo run ends: record it for the result panel.
