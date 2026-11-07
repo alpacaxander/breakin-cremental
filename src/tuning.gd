@@ -33,8 +33,7 @@ const BOARD_TOP := 100.0  # 44 + two brick rows (2 * (24 + 4))
 # skip: column indices left empty (room for a wall). time: round time scale, default 1. Fit at 960x720: cols <= 15, rows <= 16.
 # The ramp: each level puts more on screen and needs a bigger combo than the last (docs/ideas.md, Level design).
 const LEVELS := [
-	{shape = "grid", cols = 10, rows = 4, holes = 0.1, solid = 0.05, payout = 1, arena = Vector2(800, 640),
-		special = {multi = 0.08, x2 = 0.03, combo = 0.03, timer = 0.03}},
+	{shape = "grid", cols = 8, rows = 3, holes = 0.1, solid = 0, payout = 1, arena = Vector2(800, 640)},  # plain bricks only: what the player unlocks is all that shows
 	{shape = "triangle", cols = 15, rows = 7, holes = 0.1, solid = 0.12, payout = 2, jackpot = true, seq = true,
 		special = {multi = 0.08, multi3 = 0.03, shield = 0.04, cond = 0.04, timed = 0.04, cgate = 0.03, x2 = 0.03, x3 = 0.01, combo = 0.03, timer = 0.02, multiball = 0.02, speedup = 0.03, slowdown = 0.02, chain = 0.03, bomb = 0.02, bolt = 0.01, mystery = 0.02}},
 	{shape = "grid", cols = 15, rows = 7, holes = 0.08, solid = 0.1, payout = 3, jackpot = true, seq = true,
