@@ -3,7 +3,7 @@ extends Node
 ## window manager fighting the sizes, so run it under Xvfb (nothing opens on the desktop):
 ## nix develop -c xvfb-run -s "-screen 0 3840x2160x24" godot --display-driver x11 --rendering-driver opengl3 tests/shots.tscn
 
-const SIZES := [Vector2i(1280, 720), Vector2i(1800, 1100), Vector2i(1920, 1080), Vector2i(1280, 1440), Vector2i(2520, 1370), Vector2i(2560, 1440), Vector2i(3440, 1440), Vector2i(3840, 2160)]
+const SIZES := [Vector2i(1000, 600), Vector2i(960, 1080), Vector2i(1280, 720), Vector2i(1800, 1100), Vector2i(1920, 1080), Vector2i(1280, 1440), Vector2i(2520, 1370), Vector2i(2560, 1440), Vector2i(3440, 1440), Vector2i(3840, 2160)]
 
 
 func _ready() -> void:

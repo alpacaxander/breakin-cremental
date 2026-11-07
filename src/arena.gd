@@ -63,7 +63,7 @@ var ui: Ui.Root  # the cabinet: score column left (hud.gd), pieces column right 
 var place: Place
 var hud: Hud
 var pause: Control = null
-var field: Rect2  # the arena in its own px: origin top-left. _fit centres the node between the cabinet columns.
+var field: Rect2  # the arena in its own px: origin top-left. _fit scales the node into the cabinet's 4:3 field.
 
 
 func _ready() -> void:
@@ -107,22 +107,17 @@ func _ready() -> void:
 	place = Place.new(self, ui)
 	place.started.connect(_on_start)
 	add_child(place)
-	_fit()  # after the cabinet exists, so its columns move in to the frame
+	_fit()
 
 
-## Scales the arena to the largest that fits between the cabinet columns, centres it on whole sprite px, and moves the
-## columns of the cabinet screens riding on this node in against its frame.
+## Scales the arena to the largest that fits the cabinet's 4:3 field between the columns and centres it there on whole
+## sprite px. Tuning.ARENA fills the field exactly; other ratios leave bare sheet beside or above the board.
 func _fit() -> void:
-	var canvas := get_viewport().get_visible_rect().size
-	var inset := Ui.FIELD_X * Fx.SCALE  # a column, in game px
+	var content := Ui.Root.content(get_viewport())  # sprite px
 	# ponytail: free scale, so sprite px go uneven above 1x; floor s to 0.5 steps (whole screen px) if the shimmer bothers
-	var s := minf((canvas.x - 2 * inset) / field.size.x, canvas.y / field.size.y)
+	var s := minf(content.size.x * Fx.SCALE / field.size.x, content.size.y * Fx.SCALE / field.size.y)
 	scale = Vector2.ONE * s
-	position = ((canvas - field.size * s) / 2).snapped(Vector2.ONE * Fx.SCALE)
-	for c in get_children():
-		if c is Ui.Root:
-			c.edge = maxf(0, position.x / Fx.SCALE - Ui.FIELD_X)
-			c.fit()
+	position = (content.position + ((content.size - field.size * s / Fx.SCALE) / 2).floor()) * Fx.SCALE
 
 
 ## The line placed pieces must stay above.

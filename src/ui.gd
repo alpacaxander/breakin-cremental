@@ -1,9 +1,10 @@
 ## Cabinet UI: every screen is a 640x360 sprite-space layout shown at 2x, centred in a canvas that grows with the window
-## (main.gd scales the window so 1280x720 just fits, so there are no bars). A score/stats column sits at the canvas's left
-## edge, a pieces/menu column at its right edge, the field between them; the columns stretch over the canvas height. In a
-## round the arena moves both columns in against its frame (edge), leaving board outside them. Layout coordinates work
-## unchanged: centred content goes on the Root, column content on Root.left / Root.right (origins at the columns' outer
-## edges, so x 0..77 and RX..639 land in the columns). Look: src/theme.tres, assets/pixel/preview/ui_*.png.
+## (main.gd scales the window so 1280x720 just fits, so there are no bars). Left to right: padding, the score/stats column,
+## the 4:3 field (480x360, the content of every screen; the arena scales down into it), the pieces/menu column, padding.
+## The columns stretch over the canvas height; the padding is bare sheet. In a window smaller than 1280x720 the columns
+## keep their 2x (their content needs all of it) and the field shrinks to what is left between them (Root.content). Centred
+## content goes on the Root, column content on Root.left / Root.right (x 0..77 and RX..639 land in the columns). Look:
+## src/theme.tres, assets/pixel/preview/ui_*.png.
 extends Node
 
 const Tuning = preload("res://src/tuning.gd")
@@ -20,12 +21,12 @@ const FIELD_W := 480
 ## otherwise the event falls through (to the arena).
 class Root extends Control:
 	signal back
-	var sheet := Control.new()  # covers the whole canvas: base, dots and the columns anchor to it
-	var left := Control.new()  # column content, origin at the left column's outer edge
-	var right := Control.new()  # column content, origin SIZE.x left of the right column's outer edge, so RX coordinates land in it
-	var field := Control.new()  # the canvas between the columns, full height; the shop pans its web inside it
-	var edge := 0.0  # board left outside each column, in sprite px; the arena sets it so the columns meet its frame
-	var cols: Array[Control] = []  # chassis' left panel, left rail, right panel, right rail
+	# The sheet and columns sit outside the Root's transform (top_level) at a fixed 2x; the Root itself scales with the content.
+	var sheet := Control.new()  # covers the whole canvas: base and dots anchor to it
+	var left := Control.new()  # column content, in layout coordinates
+	var right := Control.new()
+	var field := Control.new()  # the 4:3 content between the columns; the shop pans its web inside it
+	var cols: Array[Control] = []  # chassis' panels and rails, stretched over the canvas height by fit()
 
 	func _init() -> void:
 		size = SIZE
@@ -37,28 +38,39 @@ class Root extends Control:
 		for c in [sheet, left, right, field]:
 			c.mouse_filter = MOUSE_FILTER_IGNORE
 			add_child(c)
+		for c in [sheet, left, right]:
+			c.top_level = true
+			c.scale = Vector2.ONE * Fx.SCALE
+		field.position = Vector2(FIELD_X, 0)
+		field.size = Vector2(FIELD_W, SIZE.y)
 
 	func _ready() -> void:
 		get_viewport().size_changed.connect(fit)
 		fit()
 
-	## Centres the layout in the canvas and lays the sheet, columns and field over all of it. A parent that moves
-	## (the arena) calls this again after moving.
+	## The content rect in canvas sprite px: the largest 4:3 between the 2x columns, at most the layout's 480x360 field.
+	## main.gd keeps the canvas at least 360 sprite px tall, so only the width can run short.
+	static func content(vp: Viewport) -> Rect2:
+		var canvas := (vp.get_visible_rect().size / Fx.SCALE).floor()
+		var f := clampf((canvas.x - 2 * FIELD_X) / FIELD_W, 0.1, 1)  # ponytail: a window narrower than the columns gets a sliver, not a crash
+		var size := Vector2(FIELD_W, SIZE.y) * f
+		return Rect2(((canvas - size) / 2).floor(), size)
+
+	## Scales the layout so its field is the canvas's content rect, lays the sheet over the whole canvas and the columns
+	## against the content, stretched over the canvas height.
 	func fit() -> void:
 		var exact := get_viewport().get_visible_rect().size / Fx.SCALE  # sprite px, fractional at odd window sizes
-		var canvas := exact.floor()  # layout stays on whole sprite px; the sheet and columns reach the exact edge
-		global_position = ((canvas - SIZE) / 2).floor() * Fx.SCALE
-		sheet.position = -global_position / Fx.SCALE
+		var c := content(get_viewport())
+		var f := c.size.x / FIELD_W
+		scale = Vector2.ONE * Fx.SCALE * f
+		global_position = (c.position - Vector2(FIELD_X, 0) * f) * Fx.SCALE
+		var top := floorf((exact.floor().y - SIZE.y) / 2)  # column content centred in the canvas height
+		left.position = Vector2(c.position.x - FIELD_X, top) * Fx.SCALE
+		right.position = Vector2(c.end.x - RX, top) * Fx.SCALE
 		sheet.size = exact
-		left.position.x = sheet.position.x + edge
-		right.position.x = sheet.position.x + canvas.x - SIZE.x - edge
-		field.position = Vector2(left.position.x + FIELD_X, sheet.position.y)
-		field.size = Vector2(canvas.x - 2 * (FIELD_X + edge), exact.y)
-		var xs := [edge, edge + FIELD_X - 2, canvas.x - edge - FIELD_X + 2, canvas.x - edge - FIELD_X]
-		var ws := [FIELD_X - 2.0, 2.0, (exact.x - canvas.x if edge == 0 else 0.0) + FIELD_X - 2, 2.0]  # flush panels reach the exact edge
-		for i in cols.size():
-			cols[i].position = Vector2(xs[i], 0)
-			cols[i].size = Vector2(ws[i], exact.y)
+		for col in cols:
+			col.position.y = -top
+			col.size.y = exact.y
 
 	func _unhandled_input(e: InputEvent) -> void:
 		if e is InputEventKey and e.pressed and e.keycode == KEY_ESCAPE and back.has_connections():
@@ -99,19 +111,18 @@ static func chassis(left := "", right := "", under := false) -> Root:
 		if under:
 			n.z_index = -3  # relative to the root's 2: lands at -1, beneath the parent's own drawing
 		fill(r, n)
-	for x in [0, RX]:
-		var p := panel(r.sheet, x, 0, 78, 360)
+	for t in [[r.left, 0, left], [r.right, RX, right]]:
+		var p := panel(t[0], t[1], 0, 78, 360)
 		p.mouse_filter = Control.MOUSE_FILTER_STOP  # clicks on a column never reach the field
 		var rail := TextureRect.new()
 		rail.texture = tex("ui_rail")
 		rail.stretch_mode = TextureRect.STRETCH_TILE
-		rail.flip_h = x > 0
-		rail.position.x = 78 if x == 0 else RX - 2
+		rail.flip_h = t[1] > 0
+		rail.position.x = 78 if t[1] == 0 else RX - 2
 		rail.size = Vector2(2, 360)
 		rail.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		r.sheet.add_child(rail)
-		r.cols.append_array([p, rail])  # Root.fit sizes them
-	for t in [[r.left, 0, left], [r.right, RX, right]]:
+		t[0].add_child(rail)
+		r.cols.append_array([p, rail])  # Root.fit stretches them over the canvas height
 		if t[2]:
 			label(t[0], t[2], t[1], 6, Tuning.COLORS.rivet, 1, 78, HORIZONTAL_ALIGNMENT_CENTER)
 			rect(t[0], t[1] + 3, 14, 72, 1, Tuning.COLORS.rivet)

@@ -11,18 +11,18 @@ var zoom := 0.0  # the cabinet's scale k: a sprite px is 2k screen px
 
 func _ready() -> void:
 	get_tree().auto_accept_quit = false  # the window's close button goes through Sfx.quit too
-	get_window().min_size = Vector2i(1280, 720)  # the field between the columns must always hold Tuning.ARENA
 	get_window().size_changed.connect(_scale)
 	_scale()
 	_show_menu()
 
 
-## The scale at which 1280x720 just fits, with the canvas covering the whole window: the cabinet grows with the arena and a
-## wider window shows more board beside it. Godot's own stretch modes letterbox instead. The cursor follows: it is in screen
-## px, not sprite px.
+## The scale at which 1280x720 just fits, with the canvas covering the whole window: the cabinet grows with the window and
+## the padding beside the columns is drawn sheet, not bars. Godot's own stretch modes letterbox instead. Below 1280x720
+## (a tiling window manager ignores any minimum size) the canvas keeps its 720 height, so the 2x columns always fit, and
+## Ui.Root.content shrinks the field to the width left between them. The cursor follows: it is in screen px, not sprite px.
 func _scale() -> void:
 	var w := get_window()
-	var k := maxf(1, minf(w.size.x / 1280.0, w.size.y / 720.0))
+	var k := minf(w.size.y / 720.0, maxf(1, w.size.x / 1280.0))
 	if k == zoom:
 		return
 	zoom = k

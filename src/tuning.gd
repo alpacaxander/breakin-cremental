@@ -1,7 +1,7 @@
 ## Every tunable number and per-kind table lives here. Edit, rerun.
 
 # Game px are 2x sprite px. The arena's origin is its top-left corner; the cabinet (ui.gd) centres it between the columns.
-const ARENA := Vector2(960, 720)  # default arena size and the largest allowed: what fits between the columns at the 1280x720 minimum window
+const ARENA := Vector2(960, 720)  # default arena size and the largest allowed: the cabinet's 4:3 field; other ratios scale down into it
 
 # Paddle / ball feel
 const PADDLE_WIDTH := 120.0

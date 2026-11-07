@@ -6,6 +6,7 @@ const Tuning = preload("res://src/tuning.gd")
 
 
 func _ready() -> void:
+	get_window().size = Vector2i(1280, 720)  # headless starts 64x64; at that size the arena is a 100 px thumbnail and physics misses collisions
 	# The round saves at the end; put the real save back afterwards.
 	var saved := FileAccess.get_file_as_string(Game.SAVE_PATH) if FileAccess.file_exists(Game.SAVE_PATH) else ""
 	# Own one of everything and enough capacity to place it all.
@@ -35,7 +36,7 @@ func _ready() -> void:
 	# Pause menu: open, swap to settings and back, resume.
 	a._pause(true)
 	assert(get_tree().paused and a.pause != null, "paused with a menu")
-	assert(a.pause.sheet.size * a.pause.scale == get_viewport().get_visible_rect().size, "pause overlay covers the whole canvas")
+	assert(a.pause.sheet.size * a.pause.sheet.scale == get_viewport().get_visible_rect().size, "pause overlay covers the whole canvas")
 	a._pause_settings()
 	a._pause(true)
 	a._pause(false)
