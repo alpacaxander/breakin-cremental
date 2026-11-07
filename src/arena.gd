@@ -69,7 +69,6 @@ var field: Rect2  # the arena in its own px: origin top-left. _fit centres the n
 func _ready() -> void:
 	field = Rect2(Vector2.ZERO, Game.arena_size(level))
 	get_viewport().size_changed.connect(_fit)
-	_fit()
 	# Walls: left, right, top. Bottom is open, that's the drop. Then the level's own walls, if any.
 	box("wall", Vector2(100, field.size.y * 3), Vector2(-50, field.size.y / 2))
 	box("wall", Vector2(100, field.size.y * 3), Vector2(field.size.x + 50, field.size.y / 2))
@@ -108,15 +107,21 @@ func _ready() -> void:
 	place = Place.new(self, ui)
 	place.started.connect(_on_start)
 	add_child(place)
+	_fit()  # after the cabinet exists, so its columns move in to the frame
 
 
-## Centres the arena between the cabinet columns, on whole sprite px, and re-fits the cabinet screens riding on this node.
+## Scales the arena to the largest that fits between the cabinet columns, centres it on whole sprite px, and moves the
+## columns of the cabinet screens riding on this node in against its frame.
 func _fit() -> void:
 	var canvas := get_viewport().get_visible_rect().size
 	var inset := Ui.FIELD_X * Fx.SCALE  # a column, in game px
-	position = (Vector2(inset, 0) + (Vector2(canvas.x - 2 * inset, canvas.y) - field.size) / 2).snapped(Vector2.ONE * Fx.SCALE)
+	# ponytail: free scale, so sprite px go uneven above 1x; floor s to 0.5 steps (whole screen px) if the shimmer bothers
+	var s := minf((canvas.x - 2 * inset) / field.size.x, canvas.y / field.size.y)
+	scale = Vector2.ONE * s
+	position = ((canvas - field.size * s) / 2).snapped(Vector2.ONE * Fx.SCALE)
 	for c in get_children():
 		if c is Ui.Root:
+			c.edge = maxf(0, position.x / Fx.SCALE - Ui.FIELD_X)
 			c.fit()
 
 
@@ -608,7 +613,7 @@ func _process(_delta: float) -> void:
 
 func _draw() -> void:
 	# Base and dots come from the cabinet (ui, drawn beneath this). Here: the frame and level walls, the placement line,
-	# the bottom lamps and the balls. The frame sits just outside the arena, under the rails when the arena fills the field.
+	# the bottom lamps and the balls. The frame sits just outside the arena, under the rails.
 	var w := field.size.x
 	var h := field.size.y
 	draw_polyline([Vector2(-2, h), Vector2(-2, -2), Vector2(w + 2, -2), Vector2(w + 2, h)], Tuning.COLORS.trim_hi, 4)

@@ -10,7 +10,7 @@
     in {
       devShells = forAllSystems (pkgs: {
         default = pkgs.mkShell {
-          packages = [ pkgs.godot ];
+          packages = [ pkgs.godot pkgs.xvfb-run ];  # xvfb-run: tests/shots.gd renders window sizes offscreen
         };
       });
     };

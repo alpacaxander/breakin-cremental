@@ -6,13 +6,30 @@ const Tuning = preload("res://src/tuning.gd")
 const Sfx = preload("res://src/sfx.gd")
 
 
+var zoom := 0.0  # the cabinet's scale k: a sprite px is 2k screen px
+
+
 func _ready() -> void:
-	var cursor := Ui.tex("ui_cursor").get_image()
-	cursor.resize(16, 16, Image.INTERPOLATE_NEAREST)  # the cursor is in screen px, not sprite px
-	Input.set_custom_mouse_cursor(ImageTexture.create_from_image(cursor))
 	get_tree().auto_accept_quit = false  # the window's close button goes through Sfx.quit too
 	get_window().min_size = Vector2i(1280, 720)  # the field between the columns must always hold Tuning.ARENA
+	get_window().size_changed.connect(_scale)
+	_scale()
 	_show_menu()
+
+
+## The scale at which 1280x720 just fits, with the canvas covering the whole window: the cabinet grows with the arena and a
+## wider window shows more board beside it. Godot's own stretch modes letterbox instead. The cursor follows: it is in screen
+## px, not sprite px.
+func _scale() -> void:
+	var w := get_window()
+	var k := maxf(1, minf(w.size.x / 1280.0, w.size.y / 720.0))
+	if k == zoom:
+		return
+	zoom = k
+	w.content_scale_factor = k
+	var cursor := Ui.tex("ui_cursor").get_image()
+	cursor.resize(roundi(16 * k), roundi(16 * k), Image.INTERPOLATE_NEAREST)
+	Input.set_custom_mouse_cursor(ImageTexture.create_from_image(cursor))
 
 
 func _notification(what: int) -> void:

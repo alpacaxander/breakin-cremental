@@ -1,8 +1,9 @@
 ## Cabinet UI: every screen is a 640x360 sprite-space layout shown at 2x, centred in a canvas that grows with the window
-## (project.godot: expand aspect, integer scale, so there are no bars and every sprite px stays whole). A score/stats column
-## sits at the canvas's left edge, a pieces/menu column at its right edge, the field between them; the columns stretch over
-## the canvas height. Layout coordinates work unchanged: centred content goes on the Root, column content on Root.left /
-## Root.right (origins at the edges, so x 0..77 and RX..639 land in the columns). Look: src/theme.tres, assets/pixel/preview/ui_*.png.
+## (main.gd scales the window so 1280x720 just fits, so there are no bars). A score/stats column sits at the canvas's left
+## edge, a pieces/menu column at its right edge, the field between them; the columns stretch over the canvas height. In a
+## round the arena moves both columns in against its frame (edge), leaving board outside them. Layout coordinates work
+## unchanged: centred content goes on the Root, column content on Root.left / Root.right (origins at the columns' outer
+## edges, so x 0..77 and RX..639 land in the columns). Look: src/theme.tres, assets/pixel/preview/ui_*.png.
 extends Node
 
 const Tuning = preload("res://src/tuning.gd")
@@ -20,13 +21,16 @@ const FIELD_W := 480
 class Root extends Control:
 	signal back
 	var sheet := Control.new()  # covers the whole canvas: base, dots and the columns anchor to it
-	var left := Control.new()  # column content, origin at the canvas's left edge
-	var right := Control.new()  # column content, origin SIZE.x left of the canvas's right edge, so RX coordinates land in it
+	var left := Control.new()  # column content, origin at the left column's outer edge
+	var right := Control.new()  # column content, origin SIZE.x left of the right column's outer edge, so RX coordinates land in it
 	var field := Control.new()  # the canvas between the columns, full height; the shop pans its web inside it
+	var edge := 0.0  # board left outside each column, in sprite px; the arena sets it so the columns meet its frame
+	var cols: Array[Control] = []  # chassis' left panel, left rail, right panel, right rail
 
 	func _init() -> void:
 		size = SIZE
 		scale = Vector2.ONE * Fx.SCALE
+		top_level = true  # the arena scales itself to fit; the cabinet keeps its own 2x
 		z_index = 2  # above the arena's effect sprites (z 1), so overlays dim them too
 		mouse_filter = MOUSE_FILTER_IGNORE
 		process_mode = Node.PROCESS_MODE_ALWAYS  # keeps working over a paused tree
@@ -41,14 +45,20 @@ class Root extends Control:
 	## Centres the layout in the canvas and lays the sheet, columns and field over all of it. A parent that moves
 	## (the arena) calls this again after moving.
 	func fit() -> void:
-		var canvas := get_viewport().get_visible_rect().size / Fx.SCALE
+		var exact := get_viewport().get_visible_rect().size / Fx.SCALE  # sprite px, fractional at odd window sizes
+		var canvas := exact.floor()  # layout stays on whole sprite px; the sheet and columns reach the exact edge
 		global_position = ((canvas - SIZE) / 2).floor() * Fx.SCALE
 		sheet.position = -global_position / Fx.SCALE
-		sheet.size = canvas
-		left.position.x = sheet.position.x
-		right.position.x = sheet.position.x + canvas.x - SIZE.x
+		sheet.size = exact
+		left.position.x = sheet.position.x + edge
+		right.position.x = sheet.position.x + canvas.x - SIZE.x - edge
 		field.position = Vector2(left.position.x + FIELD_X, sheet.position.y)
-		field.size = Vector2(canvas.x - 2 * FIELD_X, canvas.y)
+		field.size = Vector2(canvas.x - 2 * (FIELD_X + edge), exact.y)
+		var xs := [edge, edge + FIELD_X - 2, canvas.x - edge - FIELD_X + 2, canvas.x - edge - FIELD_X]
+		var ws := [FIELD_X - 2.0, 2.0, (exact.x - canvas.x if edge == 0 else 0.0) + FIELD_X - 2, 2.0]  # flush panels reach the exact edge
+		for i in cols.size():
+			cols[i].position = Vector2(xs[i], 0)
+			cols[i].size = Vector2(ws[i], exact.y)
 
 	func _unhandled_input(e: InputEvent) -> void:
 		if e is InputEventKey and e.pressed and e.keycode == KEY_ESCAPE and back.has_connections():
@@ -79,20 +89,6 @@ static func fill(r: Root, c: Control) -> void:
 	c.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
 
-## Stretches a column control over the canvas height at its layout x; anything at the right column follows the right edge.
-static func pin(c: Control) -> void:
-	var right := c.position.x >= RX - 2
-	var x := c.position.x - (SIZE.x if right else 0.0)
-	var w := c.size.x
-	c.anchor_left = 1.0 if right else 0.0
-	c.anchor_right = c.anchor_left
-	c.anchor_bottom = 1.0
-	c.offset_left = x
-	c.offset_right = x + w
-	c.offset_top = 0
-	c.offset_bottom = 0
-
-
 ## Base, dots, both columns (titled when given) and rails. under: base and dots draw beneath the parent's own drawing (the arena's balls).
 static func chassis(left := "", right := "", under := false) -> Root:
 	var r := Root.new()
@@ -114,8 +110,7 @@ static func chassis(left := "", right := "", under := false) -> Root:
 		rail.size = Vector2(2, 360)
 		rail.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		r.sheet.add_child(rail)
-		for c in [p, rail]:
-			pin(c)
+		r.cols.append_array([p, rail])  # Root.fit sizes them
 	for t in [[r.left, 0, left], [r.right, RX, right]]:
 		if t[2]:
 			label(t[0], t[2], t[1], 6, Tuning.COLORS.rivet, 1, 78, HORIZONTAL_ALIGNMENT_CENTER)
