@@ -88,7 +88,7 @@ func _ready() -> void:
 		var id := brick.get_instance_id()  # not the box itself: a lambda holding a freed object logs an engine error
 		create_tween().tween_callback(func():
 			if instance_from_id(id):
-				Fx.play(self, "blue_spawn" if b.kind in Tuning.ICON_KINDS else "mag_spawn", 30, 12, b.pos).animation_finished.connect(func(): if instance_from_id(id): instance_from_id(id).show())
+				Fx.play(self, "%s_spawn" % Tuning.hue(b.kind), 30, 12, b.pos).animation_finished.connect(func(): if instance_from_id(id): instance_from_id(id).show())
 		).set_delay(0.08 * row)
 	paddle = box("paddle", Vector2(Game.paddle_width(), Tuning.PADDLE_HEIGHT), Vector2(field.size.x / 2, field.size.y - Tuning.PADDLE_UP))
 	target_x = paddle.position.x
@@ -385,21 +385,22 @@ func _damage(b: Box, ball: Ball) -> void:
 	if b.hp <= 0:
 		_break(b)
 		return
+	var hit := "%s_hit" % Tuning.hue(b.kind)
 	match b.kind:
 		"multi":
 			b.face("brick_multi_cracked")
-			b.flash("mag_hit", 30)
+			b.flash(hit, 30)
 			Sfx.play("multi_crack")
 		"multi3":
 			b.face(["multi3_crack", 30, 4 if b.hp == 2 else 8])
-			b.flash("pips_shrink" if b.hp == 2 else "mag_hit", 30)
+			b.flash("pips_shrink" if b.hp == 2 else hit, 30)
 			Sfx.play("multi_crack", 0.8 + 0.1 * b.hp)  # lower each crack
 		"shield":
-			b.face("brick_plain_lit")
+			b.face(["shield_pop", 44, 5])  # the bare orange brick the pop leaves
 			b.flash("shield_pop", 44)
 			Sfx.play("shield_pop")
 		_:
-			b.flash("mag_hit", 30)
+			b.flash(hit, 30)
 			Sfx.play("brick_hit")
 
 
@@ -436,9 +437,8 @@ func _break(b: Box) -> void:
 	if over or b.is_queued_for_deletion():
 		return
 	b.queue_free()
-	var sky := b.kind in ["cond", "cgate", "timed", "seq1", "seq2", "seq3"]
-	Fx.play(self, "blue_break" if b.kind in Tuning.ICON_KINDS else "mag_break", 44, 12, b.position)  # icon bricks are unlocks: blue
-	Fx.play(self, "spark_burst_sky" if sky else "spark_burst", 16, 12, b.position)
+	Fx.play(self, "%s_break" % Tuning.hue(b.kind), 44, 12, b.position)  # the brick's colour group; sparks stay payout yellow
+	Fx.play(self, "spark_burst", 16, 12, b.position)
 	combo = combo + 1 if combo > 0 else 1
 	combo_timer = Game.combo_window(combo)
 	Sfx.play("brick_break")

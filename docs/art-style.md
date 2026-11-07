@@ -38,14 +38,14 @@ A lit object uses exactly one set. Never mix swatches across sets.
 
 | Set | Tube | Ring | Deep | Highlight | Used for |
 |---|---|---|---|---|---|
-| Magenta | `ff4aff` | `a200a2` | `350035` | `ffcaff` | plain bricks, multi-hit, Blocks web nodes |
-| Blue | `3d6bff` | `1f3bc4` | `0b1658` | `bccbff` | unlocks: icon bricks and their web nodes. Off-palette, deeper than sky |
-| Mint | `15f2b0` | `02936b` | `01563f` | `b7fbe7` | bumpers, placeables, valid ghost, Placement web nodes |
-| Sky | `4fc7ff` | `186fb6` | `0e3556` | `cefaff` | paddle extras and Paddle web nodes; conditional bricks borrow it until they get their own hue |
-| Orange | `ff7500` | `c44f00` | `791800` | `ffb975` | Round web nodes |
-| Violet | `7f16ff` | `48009f` | `240051` | `c799ff` | reserved: a future brick colour (docs/design.md) |
+| Magenta | `ff4aff` | `a200a2` | `350035` | `ffcaff` | basic bricks (plain, multi-hit: the glass steps `350035`, `550055`, `790079` for 1, 2, 3 hits left), Blocks web nodes |
+| Blue | `3d6bff` | `1f3bc4` | `0b1658` | `bccbff` | unlocks: icon bricks with a web node, their halo, those nodes and the nodes that modify them. Off-palette, deeper than sky |
+| Mint | `15f2b0` | `02936b` | `01563f` | `b7fbe7` | bumpers, placeables, portal ring, valid ghost, Placement web nodes |
+| Sky | `4fc7ff` | `186fb6` | `0e3556` | `cefaff` | paddle stripe and hit flash, paddle extras, Paddle web nodes |
+| Orange | `ff7500` | `c44f00` | `791800` | `ffb975` | level specials: the gated and conditional bricks, the shield brick, and the icon kinds no upgrade adds (slowdown, x3, jackpot). Dim is locked, lit is open |
+| Violet | `7f16ff` | `48009f` | `240051` | `c799ff` | Round web nodes and the shield floor |
 | Gold | `ebdb57` | `9b5b13` | `2b1a06` | `fff5a8` | the gold brick (docs/ideas.md) |
-| Yellow | `ffff00` | `887809` | `000020` | `ffff73` | payout, combo, ball edge, web links and costs |
+| Yellow | `ffff00` | `887809` | `000020` | `ffff73` | payout, combo, ball edge, sparks and break effects, web links and costs |
 
 The sets are `SETS` in `gen.mjs`; a new one takes top, mid, near-bottom and tint from one palette ramp.
 
@@ -62,7 +62,7 @@ Shape never changes between states. Only swatches do.
 | Lit | set tube | set ring | set deep | on | |
 | Dim | set deep-ish dim (`790079` for magenta) | one step darker | base `000020` | off | |
 | Flash | `ffffff` | `ffffcf` | `ffffcf` | `ffffff` | 1 frame |
-| Cracked | lit | lit | lit | on | 1px crack in `ffffcf`, one lit pip goes dim |
+| Cracked | lit | lit | one step darker | on | 1px crack in `ffffcf`, one lit pip goes dim |
 | Ghost | dashed 2 on 2 off in set tube | none | set tube at alpha 50 | off | invalid uses `ff0000` and an X |
 
 ## Text

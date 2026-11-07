@@ -73,18 +73,20 @@ const LEVELS := [
 # Icon kinds (multiball..mystery) fire an effect on break and draw their icon_<kind>_pulse strip, so they carry no face here.
 # cond breaks only from a ball at FAST_SPEED. cgate only at combo >= GATE_COMBO. timed only while lit.
 # seq1..3 only in order. shield loses its shield first. Behaviour: arena.gd _hit, _damage, _effect (adding a kind: CLAUDE.md).
+# hue: the colour group (docs/palette.md), which picks the <hue>_hit/_break/_spawn strips. mag = basic (glass brightens per hit left),
+# ora = a level special the player never buys, blue = an unlock (a kind with an UPGRADES node). See hue().
 const BRICKS := {
 	plain = {hp = 1, pay = 1, face = "brick_plain_lit"}, solid = {hp = -1, pay = 0, face = "brick_solid"},
 	hole = {hp = -1, pay = 0, thru = true, face = "brick_hole"},  # the ball flies through, but it still blocks placement, so a level's footprint is the same every round
 	multi = {hp = 2, pay = 2, face = "brick_multi_full"}, multi3 = {hp = 3, pay = 3, face = ["multi3_crack", 30, 0]},
-	shield = {hp = 2, pay = 2, face = ["shield_pop", 44, 0]},
-	cond = {hp = 1, pay = 3, face = "brick_cond_speed_idle"}, cgate = {hp = 1, pay = 3, face = ["combo_gate", 30, 0]},
-	timed = {hp = 1, pay = 2, face = ["timed_blink", 30, 0], idle = ["timed_blink", 30, 8]},
-	seq1 = {hp = 1, pay = 1, face = ["sequence_step1", 30, 0]}, seq2 = {hp = 1, pay = 2, face = ["sequence_step2", 30, 0]},
-	seq3 = {hp = 1, pay = 5, face = ["sequence_step3", 30, 0]},
-	multiball = {hp = 1, pay = 1}, speedup = {hp = 1, pay = 1}, slowdown = {hp = 1, pay = 1},
-	x2 = {hp = 1, pay = 1}, x3 = {hp = 1, pay = 1}, combo = {hp = 1, pay = 1}, timer = {hp = 1, pay = 1},
-	chain = {hp = 1, pay = 1}, bomb = {hp = 1, pay = 1}, bolt = {hp = 1, pay = 1}, jackpot = {hp = 1, pay = 1}, mystery = {hp = 1, pay = 1},
+	shield = {hp = 2, pay = 2, hue = "ora", face = ["shield_pop", 44, 0]},
+	cond = {hp = 1, pay = 3, hue = "ora", face = "brick_cond_speed_idle"}, cgate = {hp = 1, pay = 3, hue = "ora", face = ["combo_gate", 30, 0]},
+	timed = {hp = 1, pay = 2, hue = "ora", face = ["timed_blink", 30, 0], idle = ["timed_blink", 30, 8]},
+	seq1 = {hp = 1, pay = 1, hue = "ora", face = ["sequence_step1", 30, 0]}, seq2 = {hp = 1, pay = 2, hue = "ora", face = ["sequence_step2", 30, 0]},
+	seq3 = {hp = 1, pay = 5, hue = "ora", face = ["sequence_step3", 30, 0]},
+	multiball = {hp = 1, pay = 1}, speedup = {hp = 1, pay = 1}, slowdown = {hp = 1, pay = 1, hue = "ora"},
+	x2 = {hp = 1, pay = 1}, x3 = {hp = 1, pay = 1, hue = "ora"}, combo = {hp = 1, pay = 1}, timer = {hp = 1, pay = 1},
+	chain = {hp = 1, pay = 1}, bomb = {hp = 1, pay = 1}, bolt = {hp = 1, pay = 1}, jackpot = {hp = 1, pay = 1, hue = "ora"}, mystery = {hp = 1, pay = 1},
 }
 const ICON_KINDS := ["multiball", "speedup", "slowdown", "x2", "x3", "combo", "timer", "chain", "bomb", "bolt", "jackpot", "mystery"]
 
@@ -181,19 +183,20 @@ const UPGRADES := {
 	"timer": {cat = "unlock", name = "Timer", desc = "+1 hourglass brick per board", amount = 1, cost = 25, cost_mult = 2.0, ranks = 3, links = ["speedup", "longtimer"], pos = Vector2(320, 100)},
 	"speedup": {cat = "unlock", name = "Speedup", desc = "+1 speedup brick per board", amount = 1, cost = 20, cost_mult = 2.0, ranks = 3, links = ["bolt", "combo"], pos = Vector2(250, 100)},
 	"bolt": {cat = "unlock", name = "Bolt", desc = "+1 bolt brick per board", amount = 1, cost = 25, cost_mult = 2.0, ranks = 3, links = ["mystery"], pos = Vector2(180, 100)},
-	"bigbomb": {cat = "block", icon = "bomb", name = "Bigger Bomb", desc = "+40 bomb radius", amount = 40, cost = 30, cost_mult = 2.0, ranks = 2, links = [], pos = Vector2(110, 100)},
-	"longtimer": {cat = "block", icon = "timer", name = "Longer Timer", desc = "+3s per hourglass brick", amount = 3, cost = 20, cost_mult = 2.0, ranks = 3, links = ["combo"], pos = Vector2(320, 50)},
+	"bigbomb": {cat = "unlock", icon = "bomb", name = "Bigger Bomb", desc = "+40 bomb radius", amount = 40, cost = 30, cost_mult = 2.0, ranks = 2, links = [], pos = Vector2(110, 100)},
+	"longtimer": {cat = "unlock", icon = "timer", name = "Longer Timer", desc = "+3s per hourglass brick", amount = 3, cost = 20, cost_mult = 2.0, ranks = 3, links = ["combo"], pos = Vector2(320, 50)},
 	"combo": {cat = "unlock", name = "Combo", desc = "+1 C+ brick per board", amount = 1, cost = 25, cost_mult = 2.0, ranks = 3, links = ["mystery"], pos = Vector2(250, 50)},
 	"mystery": {cat = "unlock", name = "Mystery", desc = "+1 mystery brick per board", amount = 1, cost = 20, cost_mult = 2.0, ranks = 3, links = ["twin"], pos = Vector2(180, 50)},
-	"twin": {cat = "block", name = "Twin Unlock", desc = "+1 more of every unlocked brick", amount = 1, cost = 150, cost_mult = 1.0, ranks = 1, links = [], pos = Vector2(110, 50)},
+	"twin": {cat = "unlock", name = "Twin Unlock", desc = "+1 more of every unlocked brick", amount = 1, cost = 150, cost_mult = 1.0, ranks = 1, links = [], pos = Vector2(110, 50)},
 }
 # Node colours per category: docs/palette.md. The lamp sprites are node_<cat>_<state>; the icons and pips use these.
+# A node takes the hue of the arena thing it adds or changes: paddle sky, placeables mint, basic bricks magenta, unlock bricks blue.
 const CATS := {
 	paddle = {lit = Color("4fc7ff"), dim = Color("155386")},
-	round = {lit = Color("ff7500"), dim = Color("9f3800")},
+	round = {lit = Color("7f16ff"), dim = Color("5b00c9")},  # time, shield floor, extra ball: nothing on the board, so violet is only here and on the shield floor
 	place = {lit = Color("15f2b0"), dim = Color("027354")},
 	block = {lit = Color("ff4aff"), dim = Color("790079")},
-	unlock = {lit = Color("3d6bff"), dim = Color("1a2f8f")},  # the ICON_KINDS nodes, blue like their bricks
+	unlock = {lit = Color("3d6bff"), dim = Color("1a2f8f")},  # the ICON_KINDS nodes and the nodes that modify them, blue like their bricks
 }
 
 const COLORS := {  # docs/palette.md. Brick, bumper and paddle colors live in their sprites; these are the cabinet and text.
@@ -217,3 +220,8 @@ const COLORS := {  # docs/palette.md. Brick, bumper and paddle colors live in th
 ## The row describing a kind, whichever table holds it.
 static func spec(kind: String) -> Dictionary:
 	return BRICKS.get(kind, PLACEABLES.get(kind, PIECES.get(kind, {})))
+
+
+## A board brick's colour group: "mag" basic, "ora" level special, "blue" unlock (an icon kind with a web node of the same id).
+static func hue(kind: String) -> String:
+	return BRICKS[kind].get("hue", "blue" if kind in ICON_KINDS and kind in UPGRADES else "mag")

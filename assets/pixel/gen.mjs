@@ -79,8 +79,8 @@ function lamp(w, h, { tube, ring, deep, hi }, lit = true) {
 }
 const MAG = { tube: C.brick, ring: C.brickRing, deep: C.brickDeep, hi: C.brickHi };
 const MAG_DIM = { tube: C.brickDim, ring: C.brickDimRing, deep: C.base, hi: null };
-const SKY = { tube: C.sky, ring: C.skyRing, deep: C.skyDeep, hi: C.skyHi };
-const SKY_DIM = { tube: "155386", ring: C.skyDeep, deep: C.base, hi: null };
+// Basic bricks read hits left as glass intensity: hp 1 is the plain glass, each extra hit fills the glass a step brighter.
+const glow = (n) => lamp(30, 12, { ...MAG, deep: [C.brickDeep, C.brickDimRing, C.brickDim][n] });
 
 const A = {};
 A.brick_plain_lit = lamp(30, 12, MAG);
@@ -88,17 +88,11 @@ A.brick_plain_dim = lamp(30, 12, MAG_DIM, false);
 A.brick_plain_flash = (() => { const b = lamp(30, 12, { tube: C.pureWhite, ring: C.white, deep: C.white, hi: C.pureWhite }); b.rect(2, 2, 26, 8, C.pureWhite); b.rect(3, 3, 24, 6, C.white); return b; })();
 
 const pips = (b, lit2) => { b.rect(12, 8, 2, 2, C.pay); b.rect(16, 8, 2, 2, lit2 ? C.pay : C.payDim); };
-A.brick_multi_full = lamp(30, 12, MAG); pips(A.brick_multi_full, true);
-A.brick_multi_cracked = lamp(30, 12, MAG); pips(A.brick_multi_cracked, false);
+A.brick_multi_full = glow(1); pips(A.brick_multi_full, true);
+A.brick_multi_cracked = glow(0); pips(A.brick_multi_cracked, false);
 for (const [x, y] of [[9, 1], [10, 2], [11, 3], [11, 4], [10, 5], [11, 6], [12, 7], [12, 8], [13, 9], [20, 1], [19, 2], [19, 3], [18, 4], [19, 5], [19, 6], [20, 7], [19, 8], [19, 9]]) A.brick_multi_cracked.px(x, y, C.white);
 
-A.brick_icon_multiball = lamp(30, 12, MAG);
-for (const [cx, cy] of [[11, 7], [17, 7], [14, 4]]) A.brick_icon_multiball.ascii(cx, cy, [".#.", "###", ".#."], { "#": C.white });
-A.brick_icon_x2 = lamp(30, 12, MAG); text(A.brick_icon_x2, 12, 4, "x2", C.pay);
-
 const chevrons = (b, c) => { for (const x of [10, 14, 18]) b.ascii(x, 3, ["#..", ".#.", "..#", ".#.", "#.."], { "#": c }); };
-A.brick_cond_speed_idle = lamp(30, 12, SKY_DIM, false); chevrons(A.brick_cond_speed_idle, "186fb6");
-A.brick_cond_speed_primed = lamp(30, 12, SKY); chevrons(A.brick_cond_speed_primed, C.white);
 
 A.brick_solid = (() => {
 	const b = new Img(30, 12);
@@ -152,19 +146,20 @@ A.ball = (() => {
 A.paddle = (() => {
 	const b = new Img(60, 8);
 	[C.chromeHi, C.chromeMid, C.rivet, C.rivet, "7777bb", C.trimHi, C.trimHi, C.chromeLo].forEach((c, y) => b.hline(0, y, 60, c));
-	b.hline(6, 4, 48, C.pay);
+	b.hline(6, 4, 48, C.sky);  // sky is the paddle's hue, like its web nodes
 	b.corners();
 	return b;
 })();
 
-A.fx_halo = (() => {
+const halo = (c) => {
 	const b = new Img(60, 30);
 	for (let y = 0; y < 30; y++) for (let x = 0; x < 60; x++) {
 		const d = ((x - 29.5) / 30) ** 2 + ((y - 14.5) / 15) ** 2, dith = (x + y) % 2 === 0;
-		if (d < .25) b.px(x, y, C.blue, 110); else if (d < .5 && dith) b.px(x, y, C.blue, 90); else if (d < .8 && dith && x % 2 === 0) b.px(x, y, C.blue, 60);
+		if (d < .25) b.px(x, y, c, 110); else if (d < .5 && dith) b.px(x, y, c, 90); else if (d < .8 && dith && x % 2 === 0) b.px(x, y, c, 60);
 	}
 	return b;
-})();
+};
+A.fx_halo = halo(C.blue);
 A.fx_spark = (() => { const b = new Img(5, 5); b.ascii(0, 0, ["..#..", "..#..", "#####", "..#..", "..#.."], { "#": C.pay }); b.px(2, 2, C.pureWhite); return b; })();
 A.fx_debris = (() => { const b = new Img(4, 3); b.rect(0, 0, 4, 3, C.brick); b.rect(1, 1, 2, 1, C.brickDeep); return b; })();
 A.fx_payout_tag = (() => { const b = new Img(17, 8); b.rect(0, 0, 17, 8, C.pay); b.outline(0, 0, 17, 8, C.cream); b.corners(); text(b, 3, 2, "+12", C.base); return b; })();
@@ -240,7 +235,7 @@ const ICONS = {
 const ANIM = {}, AGROUPS = [];
 const def = (group, name, fps, frames) => { ANIM[name] = { fps, frames }; (AGROUPS.find((g) => g[0] === group) || AGROUPS[AGROUPS.push([group, []]) - 1])[1].push(name); };
 
-// -- Brick states per brick hue set (mag plain, ora and vio reserved for future brick colours), plus gold and sky for the level blocks in docs/ideas.md --
+// -- Brick states per brick hue set: mag basic, ora level specials, blue unlocks; vio (Round), gold and sky for the docs/ideas.md blocks --
 for (const id of ["mag", "ora", "vio", "gold", "sky", "blue"]) {
 	const s = SETS[id], L = lit(s), H = hot(s), D = dim(s);
 	def("Brick states", `${id}_hit`, 12, [FLASH, H, ...hold(L, 4)]);
@@ -263,16 +258,20 @@ for (const id of ["mag", "ora", "vio", "gold", "sky", "blue"]) {
 
 // -- Multi-hit and armor --
 const M = SETS.mag, ML = lit(M), MH = hot(M);
-const UL = lit(SETS.blue);  // icon bricks are unlocks: blue body, like their web nodes
+const UL = lit(SETS.blue);  // unlock bricks (icon kinds with a web node): blue body, like their web nodes
+const SPECIAL_ICONS = ["slowdown", "x3", "jackpot"];  // icon kinds a level places and no upgrade adds: orange, like the other level specials
+const iconBody = (id) => SPECIAL_ICONS.includes(id) ? lit(SETS.ora) : UL;
+A.brick_icon_multiball = withIcon(UL, ICONS.multiball, C.white);
+A.brick_icon_x2 = withIcon(UL, ICONS.x2, C.pay);
 const crack = (b, pts) => { for (const [x, y] of pts) b.px(x, y, C.white); return b; };
 const CRACK_L = [[9, 1], [10, 2], [11, 3], [11, 4], [10, 5], [11, 6], [12, 7], [12, 8], [13, 9]], CRACK_R = [[20, 1], [19, 2], [19, 3], [18, 4], [19, 5], [19, 6], [20, 7], [19, 8], [19, 9]];
 const pips3 = (b, n, blink = null) => { [10, 14, 18].forEach((x, i) => b.rect(x, 8, 2, 2, i === blink ? C.pureWhite : i < n ? C.pay : C.payDim)); return b; };
 def("Multi-hit and armor", "multi_crack", 12, [...hold(A.brick_multi_full, 3), FLASH, ...hold(A.brick_multi_cracked, 4)]);
 def("Multi-hit and armor", "multi3_crack", 12, (() => {
-	const f = pips3(ML.crop(0, 0, 30, 12), 3), c1 = crack(pips3(ML.crop(0, 0, 30, 12), 2), CRACK_L), c2 = crack(crack(pips3(ML.crop(0, 0, 30, 12), 1), CRACK_L), CRACK_R);
+	const f = pips3(glow(2), 3), c1 = crack(pips3(glow(1), 2), CRACK_L), c2 = crack(crack(pips3(glow(0), 1), CRACK_L), CRACK_R);
 	return [...hold(f, 3), FLASH, ...hold(c1, 3), FLASH, ...hold(c2, 4)];
 })());
-def("Multi-hit and armor", "pips_shrink", 12, [pips3(ML.crop(0, 0, 30, 12), 3), pips3(ML.crop(0, 0, 30, 12), 3, 2), pips3(ML.crop(0, 0, 30, 12), 3), pips3(ML.crop(0, 0, 30, 12), 3, 2), ...hold(pips3(ML.crop(0, 0, 30, 12), 2), 2)]);
+def("Multi-hit and armor", "pips_shrink", 12, [pips3(glow(2), 3), pips3(glow(2), 3, 2), pips3(glow(2), 3), pips3(glow(2), 3, 2), ...hold(pips3(glow(1), 2), 2)]);
 def("Multi-hit and armor", "armor_pop", 12, (() => {
 	const W = 44, Hh = 20, P = A.brick_solid, PF = (() => { const b = P.crop(0, 0, 30, 12); b.rect(1, 0, 28, 2, C.pureWhite); return b; })();
 	const f2 = frame(W, Hh, center(ML, W, Hh), center(P, W, Hh, 0, -2)); sparks(f2, 8, C.pay);
@@ -289,12 +288,12 @@ def("Solid", "solid_bounce", 12, (() => {
 
 // -- Icon bricks --
 for (const id of ["multiball", "speedup", "slowdown", "x2", "x3", "combo", "timer", "chain", "bomb", "bolt", "wild", "jackpot", "mystery", "magnet", "split", "pierce", "rewind"])
-	def("Icon bricks", `icon_${id}_pulse`, 8, [C.pay, C.white, C.pureWhite, C.white].map((c) => withIcon(UL, ICONS[id], c)));
+	def("Icon bricks", `icon_${id}_pulse`, 8, [C.pay, C.white, C.pureWhite, C.white].map((c) => withIcon(iconBody(id), ICONS[id], c)));
 def("Icon bricks", "wild_cycle", 8, [SETS.mag, SETS.mag, SETS.ora, SETS.ora, SETS.vio, SETS.vio].map((s) => withIcon(lit(s), ICONS.wild, null)));
 def("Icon bricks", "mystery_cycle", 8, ["mystery", "multiball", "mystery", "bolt", "mystery", "x2"].map((k) => withIcon(UL, ICONS[k], C.white)));
 def("Icon bricks", "chain_arc", 12, [0, 1, 2, 3].map((f) => {
 	const b = new Img(64, 12), ys = [6, 3, 8, 4, 9, 2, 7, 3, 9, 5, 8, 2, 7, 4, 9, 3, 6].map((y, i) => f === 3 ? 6 : (y + (f * (i + 1)) % 3 - 1 + 12) % 12);
-	for (let i = 0; i < 16; i++) b.line(i * 4, ys[i], i * 4 + 4, ys[i + 1], C.brick);
+	for (let i = 0; i < 16; i++) b.line(i * 4, ys[i], i * 4 + 4, ys[i + 1], C.blue);
 	ys.forEach((y, i) => b.px(i * 4, y, C.pureWhite));
 	return f === 3 ? b.fade(110) : b;
 }));
@@ -308,11 +307,13 @@ def("Icon bricks", "jackpot_rays", 8, [8, 12, 16, 20, 16, 12].map((len, f) => {
 	for (let i = 0; i < 8; i++) { const t = i * Math.PI / 4 + (f & 1 ? Math.PI / 8 : 0), l = i & 1 ? len * .6 : len; b.line(24, 24, Math.round(24 + l * Math.cos(t)), Math.round(24 + l * Math.sin(t)), i & 1 ? C.payDim : C.pay); }
 	b.rect(23, 23, 2, 2, C.pureWhite); return b;
 }));
-def("Icon bricks", "magnet_field", 8, [21, 17, 13, 9].map((rx) => { const b = new Img(44, 20); oval(b, 22, 10, rx, Math.round(rx * .45), C.brick, 1); return b; }));
+def("Icon bricks", "magnet_field", 8, [21, 17, 13, 9].map((rx) => { const b = new Img(44, 20); oval(b, 22, 10, rx, Math.round(rx * .45), C.blue, 1); return b; }));
 def("Icon bricks", "pierce_trail", 12, [0, 1, 2, 3].map((f) => frame(24, 8, [A.ball, 1 - (f & 1), 0, 40], [A.ball, 6, 0, 90 + f * 10], [A.ball, 11 - (f & 1), 0, 150], [A.ball, 16, 0])));
 
-// -- Conditional bricks --
-const S = SETS.sky, SL = lit(S), SD = dim(S), SM = mid(S), SH = hot(S);
+// -- Level specials: the gated and conditional bricks a level places. Orange, and the player never buys one. --
+const S = SETS.ora, SL = lit(S), SD = dim(S), SM = mid(S), SH = hot(S);
+A.brick_cond_speed_idle = withIcon(SD, ICONS.speedup, S.ring);
+A.brick_cond_speed_primed = withIcon(SL, ICONS.speedup, C.white);
 const prime = (icon) => [...hold(withIcon(SD, icon, S.ring), 3), withIcon(SM, icon, S.tube), withIcon(SH, icon, C.pureWhite), ...hold(withIcon(SL, icon, C.white), 5)];
 def("Conditional bricks", "cond_prime", 8, prime(ICONS.speedup));
 def("Conditional bricks", "angle_prime", 8, prime(ICONS.wedge));
@@ -323,16 +324,16 @@ def("Conditional bricks", "cond_too_slow", 12, [[-1, 1], [1, 1], [0, 0], [-1, 1]
 }));
 def("Conditional bricks", "combo_gate", 8, [withIcon(SD, label("3"), S.tube), withIcon(SD, label("2"), S.tube), withIcon(SD, label("1"), S.tube), FLASH, withIcon(SH, label("1"), C.pureWhite), withIcon(SL, label("1"), C.white)]);
 for (const n of [1, 2, 3]) def("Conditional bricks", `sequence_step${n}`, 12, (() => {
-	const done = withIcon(SD, glyph(["....#", "...#.", "#.#..", ".#..."]), C.bump);
+	const done = withIcon(SD, glyph(["....#", "...#.", "#.#..", ".#..."]), C.white);
 	return [...hold(withIcon(SL, label(String(n)), C.white), 2), FLASH, ...hold(done, 3)];
 })());
 def("Conditional bricks", "timed_blink", 8, [...hold(SL, 3), SM, ...hold(SD, 3), SM]);
 def("Conditional bricks", "shield_pop", 12, (() => {
-	const W = 44, Hh = 20, base = () => frame(W, Hh, center(ML, W, Hh));
+	const W = 44, Hh = 20, base = () => frame(W, Hh, center(SL, W, Hh));
 	const sh = (c, gaps = [], off = 0, a = 255) => { const f = base(), s = new Img(W, Hh); s.outline(5 - off, 2 - off, 34 + off * 2, 16 + off * 2, c); s.corners(); for (const [x, y] of gaps) s.clear(x, y); f.blit(a < 255 ? s.fade(a) : s, 0, 0); return f; };
 	const gaps = [[12, 2], [13, 2], [30, 17], [31, 17], [5, 8], [38, 11]];
-	const pieces = (off, a) => { const f = base(); const s = new Img(W, Hh); s.outline(5 - off, 2 - off, 34 + off * 2, 16 + off * 2, C.sky); for (let i = 0; i < W; i++) for (let j = 0; j < Hh; j++) if ((i + j) % 5 < 2) s.clear(i, j); f.blit(s.fade(a), 0, 0); return f; };
-	return [sh(C.sky), sh(C.sky, gaps), sh(C.pureWhite, gaps), pieces(2, 200), pieces(4, 100), base()];
+	const pieces = (off, a) => { const f = base(); const s = new Img(W, Hh); s.outline(5 - off, 2 - off, 34 + off * 2, 16 + off * 2, S.tube); for (let i = 0; i < W; i++) for (let j = 0; j < Hh; j++) if ((i + j) % 5 < 2) s.clear(i, j); f.blit(s.fade(a), 0, 0); return f; };
+	return [sh(S.hi), sh(S.hi, gaps), sh(C.pureWhite, gaps), pieces(2, 200), pieces(4, 100), base()];
 })());
 
 // -- Placeables --
@@ -362,7 +363,7 @@ def("Placeables", "sticky_hold", 8, (() => {
 	const pad = (h) => lamp(30, h, SETS.mint), P6 = pad(6), P5 = pad(5);
 	return [frame(30, 16, [A.ball, 11, 2], [P6, 0, 10]), frame(30, 16, [A.ball, 11, 3], [P5, 0, 11]), frame(30, 16, [A.ball, 10, 3], [P5, 0, 11]), frame(30, 16, [A.ball, 12, 3], [P5, 0, 11]), frame(30, 16, [A.ball, 11, 2], [P6, 0, 10]), frame(30, 16, [A.ball, 11, 2], [P6, 0, 10])];
 })());
-const portal = (ballSize, flashRing) => { const b = new Img(16, 16); ring(b, 7.5, 7.5, 7, flashRing ? C.pureWhite : SETS.vio.tube); if (ballSize) b.blit(ellipse(ballSize, ballSize), 8 - ballSize / 2, 8 - ballSize / 2); return b; };
+const portal = (ballSize, flashRing) => { const b = new Img(16, 16); ring(b, 7.5, 7.5, 7, flashRing ? C.pureWhite : C.bump); if (ballSize) b.blit(ellipse(ballSize, ballSize), 8 - ballSize / 2, 8 - ballSize / 2); return b; };
 def("Placeables", "teleport_in", 12, [portal(8), portal(6), portal(4), portal(2, true)]);
 A.place_sticky = lamp(30, 6, SETS.mint);
 A.place_magnet = withIcon(lit(SETS.mint), ICONS.magnet, C.white);
@@ -413,16 +414,16 @@ A.place_flipper = (() => {
 })();
 // Frame 32x28 with the pivot at (4, 22): rest, half up, up (hold), back. Rotation about the pivot by centring it on a big canvas first.
 def("Ideas", "flipper_flick", 12, [0, -25, -50, -50, -25, 0].map((deg) => { const big = new Img(64, 64); big.blit(A.place_flipper, 32, 28); const r = big.rotated(deg); return r.crop(Math.round(r.w / 2) - 4, Math.round(r.h / 2) - 22, 32, 28); }));
-// Paddle: a mini paddle that rides with the main one, and the one-use shield floor (tileable strip, then its pop).
-A.paddle_mini = (() => { const b = new Img(24, 6); [C.chromeHi, C.chromeMid, C.rivet, "7777bb", C.trimHi, C.chromeLo].forEach((c, y) => b.hline(0, y, 24, c)); b.hline(3, 3, 18, C.pay); b.corners(); return b; })();
-def("Ideas", "shield_floor", 8, [0, 1, 2, 3].map((f) => { const b = new Img(32, 4); for (let x = 0; x < 32; x++) if ((x + f * 2) % 8 < 5) { b.px(x, 1, C.sky); b.px(x, 2, C.skyRing); } return b; }));
+// Paddle: a mini paddle that rides with the main one (sky stripe). The one-use shield floor is a Round upgrade: violet, like its web node.
+A.paddle_mini = (() => { const b = new Img(24, 6); [C.chromeHi, C.chromeMid, C.rivet, "7777bb", C.trimHi, C.chromeLo].forEach((c, y) => b.hline(0, y, 24, c)); b.hline(3, 3, 18, C.sky); b.corners(); return b; })();
+def("Ideas", "shield_floor", 8, [0, 1, 2, 3].map((f) => { const b = new Img(32, 4); for (let x = 0; x < 32; x++) if ((x + f * 2) % 8 < 5) { b.px(x, 1, V.tube); b.px(x, 2, V.ring); } return b; }));
 def("Ideas", "shield_floor_pop", 12, (() => {
 	const line = (c1, c2) => { const b = new Img(32, 8); b.hline(0, 3, 32, c1); b.hline(0, 4, 32, c2); return b; };
-	const dots = (dy, a) => { const b = new Img(32, 8); for (let x = 1; x < 32; x += 4) { b.px(x, 3 - dy, C.sky); b.px(x + 2, 4 + dy, C.skyRing); } return b.fade(a); };
-	return [line(C.pureWhite, C.white), line(C.skyHi, C.sky), dots(1, 255), dots(2, 170), dots(3, 90), blank(32, 8)];
+	const dots = (dy, a) => { const b = new Img(32, 8); for (let x = 1; x < 32; x += 4) { b.px(x, 3 - dy, V.tube); b.px(x + 2, 4 + dy, V.ring); } return b.fade(a); };
+	return [line(C.pureWhite, C.white), line(V.hi, V.tube), dots(1, 255), dots(2, 170), dots(3, 90), blank(32, 8)];
 })());
-// Level blocks (sky, like the other conditionals; gold for the gold brick, violet for the teleport pair).
-def("Ideas", "ghost_phase", 8, [...hold(withIcon(SL, ICONS.ghost, C.white), 3), withIcon(SM, ICONS.ghost, S.tube), ...hold(ghost(C.sky, 0, 30, 12), 3), withIcon(SM, ICONS.ghost, S.tube)]);
+// Level blocks (orange, like the other level specials; gold for the gold brick, violet for the teleport pair).
+def("Ideas", "ghost_phase", 8, [...hold(withIcon(SL, ICONS.ghost, C.white), 3), withIcon(SM, ICONS.ghost, S.tube), ...hold(ghost(S.tube, 0, 30, 12), 3), withIcon(SM, ICONS.ghost, S.tube)]);
 A.brick_ghost = ANIM.ghost_phase.frames[0];
 const pips5 = (b, n) => { for (let i = 0; i < 5; i++) b.rect(8 + i * 3, 8, 2, 2, i < n ? C.pureWhite : G.ring); return b; };
 def("Ideas", "gold_crack", 12, (() => {
@@ -444,7 +445,6 @@ def("Ideas", "lock_open", 12, [...hold(A.brick_lock, 2), FLASH, ...hold(withIcon
 const burst = (s) => { const f0 = frame(16, 16, center(A.fx_spark, 16, 16)); const r = (rr, c, dot) => { const b = new Img(16, 16); sparks(b, rr, c); if (dot) b.px(8, 8, C.pureWhite); return b; }; return [f0, r(3, s.hi, 1), r(5, s.tube, 0), r(7, s.ring, 0), blank(16, 16), blank(16, 16)]; };
 def("Effects", "spark_burst", 12, burst({ hi: C.payHi, tube: C.pay, ring: C.payDim }));
 def("Effects", "spark_burst_mint", 12, burst(SETS.mint));
-def("Effects", "spark_burst_sky", 12, burst(SETS.sky));
 // Blank tag, static in frame: the node rises by tween in-engine so a number label can ride on it.
 const tagBlank = (() => { const b = new Img(25, 8); b.rect(0, 0, 25, 8, C.pay); b.outline(0, 0, 25, 8, C.cream); b.corners(); return b; })();
 def("Effects", "payout_rise", 12, [255, 255, 255, 255, 255, 255, 170, 110, 60, 0].map((a) => tagBlank.fade(a)));
@@ -453,13 +453,14 @@ def("Effects", "combo_chase", 8, (() => {
 	return [0, 1, 2, 3, 4, 5, 6, 7].map((f) => { const b = ML.crop(0, 0, 30, 12), p = Math.floor(f * path.length / 8); [[0, C.pureWhite], [1, C.brickHi], [2, C.brickHi], [3, C.brickHi]].forEach(([k, c]) => { const [x, y] = path[(p - k + path.length) % path.length]; b.px(x, y, c); }); return b; });
 })());
 def("Effects", "halo_pulse", 8, [255, 200, 150, 200].map((a) => A.fx_halo.fade(a)));
+def("Effects", "halo_pulse_ora", 8, [255, 200, 150, 200].map((a) => halo(S.tube).fade(a)));  // behind the orange icon bricks
 def("Effects", "hazard_strip", 8, [0, 1, 2, 3].map((f) => { const b = new Img(32, 4); b.hline(0, 0, 32, C.trimLo); b.hline(0, 3, 32, C.trimLo); for (let i = 0; i < 8; i++) { const k = (i + f) % 4; b.rect(i * 4 + 1, 1, 2, 2, k === 0 ? C.pay : k === 1 ? C.cream : C.payDim); } return b; }));
 
 // -- Ball and paddle --
 def("Ball and paddle", "ball_bounce", 12, (() => { const n = A.ball, sq = ellipse(10, 6), st = ellipse(6, 10); return [frame(12, 12, [n, 2, 2]), frame(12, 12, [n, 2, 4]), frame(12, 12, [sq, 1, 6]), frame(12, 12, [st, 3, 0]), frame(12, 12, [n, 2, 0]), frame(12, 12, [n, 2, 0])]; })());
 def("Ball and paddle", "ball_trail", 12, [0, 1, 2, 3].map((f) => frame(24, 8, [A.ball, 4 - (f & 1), 0, 60], [A.ball, 10 - (f >> 1), 0, 120], [A.ball, 16, 0])));
 def("Ball and paddle", "ball_lost", 12, [frame(12, 12, [A.ball, 2, 2]), frame(12, 12, [ellipse(8, 8, C.danger, C.white), 2, 2]), frame(12, 12, [ellipse(6, 6, C.danger, "7f0000"), 3, 3]), frame(12, 12, [ellipse(4, 4, C.danger, "7f0000"), 4, 4]), frame(12, 12, [ellipse(2, 2, C.danger, C.danger), 5, 5]), blank(12, 12)]);
-def("Ball and paddle", "paddle_hit", 12, [C.pureWhite, C.white, C.payHi, C.pay].map((c) => { const b = A.paddle.crop(0, 0, 60, 8); b.hline(6, 4, 48, c); return b; }));
+def("Ball and paddle", "paddle_hit", 12, [C.pureWhite, C.white, C.skyHi, C.sky].map((c) => { const b = A.paddle.crop(0, 0, 60, 8); b.hline(6, 4, 48, c); return b; }));
 
 const strip = (frames) => { const s = new Img(frames[0].w * frames.length, frames[0].h); frames.forEach((f, i) => s.blit(f, i * f.w, 0)); return s; };
 
@@ -571,7 +572,7 @@ const UICONS = {
 	reroll: nglyph(["#####", "#.#.#", "#...#", "#.#.#", "#####"]), twin: (b, c) => text(b, 12, 3, "2X", c),
 };
 Object.assign(UICONS, { speedup: UICONS.accel, timer: UICONS.time, bolt: UICONS.power, cooldown: UICONS.time, piececombo: UICONS.combo, ab_magnet: UICONS.magnet });
-const NODE_SETS = { paddle: SETS.sky, round: SETS.ora, place: SETS.mint, block: SETS.mag, unlock: SETS.blue };
+const NODE_SETS = { paddle: SETS.sky, round: SETS.vio, place: SETS.mint, block: SETS.mag, unlock: SETS.blue };
 const node = (state, icon, rank, ranks, set = SETS.pay) => {
 	const b = state === "lit" ? lit(set) : state === "hot" ? hot(set) : dim(set);
 	if (icon) icon(b, state === "dim" ? C.payDim : state === "hot" ? C.pureWhite : C.white);

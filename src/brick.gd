@@ -31,7 +31,7 @@ func _ready() -> void:
 	if kind in Tuning.ICON_KINDS:
 		face(["icon_%s_pulse" % kind, 30, 0])
 		idle(["icon_%s_pulse" % kind, 30, 8])
-		Fx.play(self, "halo_pulse", 60, 8, Vector2.ZERO, 0, true).show_behind_parent = true
+		Fx.play(self, "halo_pulse" if Tuning.hue(kind) == "blue" else "halo_pulse_ora", 60, 8, Vector2.ZERO, 0, true).show_behind_parent = true
 	else:
 		face(p.get("face"))
 		idle(p.get("idle"))

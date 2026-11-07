@@ -136,7 +136,7 @@ func _ready() -> void:
 	await get_tree().create_timer(1.1).timeout
 	sb.queue_free()
 	Game.leave_sandbox()
-	assert(not Game.sandbox and Game.rank("twin") == 0, "leaving the sandbox forgets it")
+	assert(not Game.sandbox and Game.rank("capacity") == 10, "leaving the sandbox forgets it")  # capacity 10 is this test's own mark on the real slot; no save or sandbox has it
 	for p in saved:
 		if saved[p]:
 			FileAccess.open(p, FileAccess.WRITE).store_string(saved[p])

@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://b1llgrcyexiao"
-path="res://.godot/imported/anim_spark_burst_sky.png-b1ac0736e8465475f5e3108e5e40b28f.ctex"
+uid="uid://c460h4ehpkmh5"
+path="res://.godot/imported/anim_halo_pulse_ora.png-73c34e8844484a01df411501910ab22b.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/pixel/png/anim_spark_burst_sky.png"
-dest_files=["res://.godot/imported/anim_spark_burst_sky.png-b1ac0736e8465475f5e3108e5e40b28f.ctex"]
+source_file="res://assets/pixel/png/anim_halo_pulse_ora.png"
+dest_files=["res://.godot/imported/anim_halo_pulse_ora.png-73c34e8844484a01df411501910ab22b.ctex"]
 
 [params]
 

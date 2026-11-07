@@ -12,7 +12,23 @@ Theme: pachinko / slot-machine cabinet. Near-black surface, a few saturated lit 
 - Unbreakable and inactive things are dim and desaturated so lit things pop on dense boards.
 - Warm white for text, ball, chrome. Never cold white.
 - Text over base needs ~7:1 contrast. Red fails; don't use it for numbers.
-- There is one currency, shown in payout yellow. Violet is held back for the coloured bricks in `docs/design.md` that would pay a second one.
+- There is one currency, shown in payout yellow. Effects (sparks, blasts, beams) stay in it too, so a break never introduces a hue.
+
+## Groups
+
+Every board object belongs to one group, and the group owns one hue in the arena and in the upgrade web alike. A brick's group is `Tuning.hue(kind)`: `mag`, `ora` or `blue`.
+
+| Group | Hue | Idx | Hex | Dim state | In the arena | In the web |
+|---|---|---|---|---|---|---|
+| Basic bricks | magenta | 180 | `ff4aff` | 185 `790079` | plain, multi, multi3. Glass brightens a step per hit left and drops a step on each hit; hp 1 is the plain glass | Blocks |
+| Level specials | orange | 54 | `ff7500` | 58 `9f3800` | what a level places and no upgrade adds: shield, cond, cgate, timed, seq1..3, slowdown, x3, jackpot (`hue = "ora"` on the row). Locked state is the dim lamp, open is lit | no nodes |
+| Unlocks | blue | off-palette | `3d6bff` | `1a2f8f` | icon kinds with a web node of the same id, and their halo | Unlocks: the kind's node and every node that modifies it (Bigger Bomb, Longer Timer, Twin) |
+| Placeables | mint | 122 | `15f2b0` | 126 `027354` | bumpers, pads, gates, launchers, magnets, portals, spawners, the valid ghost and placement line | Placement, including modifiers (Pop Power, Hotter Launch, Magnet Reach, Fast Spawner) |
+| Paddle | sky | 132 | `4fc7ff` | `155386` | the paddle's stripe and its hit flash over chrome | Paddle |
+| Round | violet | 164 | `7f16ff` | `5b00c9` | only the shield floor; time and extra balls have no board object | Round |
+| Dead | slate | 172 | `5454a7` | | solid, hole, walls: unlit chrome and trim, the ball ignores or bounces | |
+
+Blue is off-palette, picked deeper than sky so the paddle stays apart. Violet was held for a brick colour paying a second currency (`docs/design.md`); that idea now needs a new hue, since the palette has no spare neon ramp (cyan 255 is a single).
 
 ## Game assignment
 
@@ -21,28 +37,14 @@ Theme: pachinko / slot-machine cabinet. Near-black surface, a few saturated lit 
 | Base | 254 | `000020` | |
 | Cabinet trim | 174 | `2e2e5c` | |
 | Dead / unbreakable | 172 | `5454a7` | |
-| Payout | 73 | `ffff00` | 77 `887809` |
+| Payout / sparks | 73 | `ffff00` | 77 `887809` |
 | Gold trim | 64 | `ebdb57` | 68 `9b5b13` |
-| Plain brick | 180 | `ff4aff` | 185 `790079` |
-| Bumper / placement | 122 | `15f2b0` | 126 `027354` |
-| Danger / timer low | 35 | `ff0000` | 43 `7f0000` |
+| Danger / timer low / invalid ghost | 35 | `ff0000` | 43 `7f0000` |
 | Ball / text / chrome | 80 | `ffffcf` | 84 `ebde81` |
-
-Reserved: violet 164 `7f16ff`, for a future brick colour.
-
-Sky means paddle. The conditional-brick strips (`docs/animations.md`) borrow it, but no conditional kind is in `tuning.gd` yet; when one lands it needs its own hue or the Paddle nodes move, since the palette has no spare ramp (cyan 255 is a single).
 
 ## Upgrade web
 
-A node's lamp takes its category's hue (`tuning.gd` `CATS`, sprites `node_<cat>_<state>`). Placement and Blocks reuse the hue of the thing they buy; Paddle takes sky, already the paddle-extras hue in `gen.mjs`; Round takes orange. Unlocks (the brick kinds in `ICON_KINDS`) take blue, which the icon bricks share in the arena: a blue thing is an unlock. It is off-palette, picked deeper than sky so the paddle stays apart. Links and costs stay payout yellow.
-
-| Category | Idx | Hex | Dim state |
-|---|---|---|---|
-| Paddle | 132 | `4fc7ff` | `155386` |
-| Round | 54 | `ff7500` | `9f3800` |
-| Placement | 122 | `15f2b0` | 126 `027354` |
-| Blocks | 180 | `ff4aff` | 185 `790079` |
-| Unlocks | off-palette | `3d6bff` | `1a2f8f` |
+A node's lamp takes its category's hue (`tuning.gd` `CATS`, sprites `node_<cat>_<state>`): the hue of the arena thing it adds or changes, per the Groups table. Links and costs stay payout yellow.
 
 Known gaps: no true gold neon (64–71 is bronze, tops at 0.63 sat). No cyan ramp, only the single 255 `00ffff`.
 
@@ -61,14 +63,14 @@ Known gaps: no true gold neon (64–71 is bronze, tops at 0.63 sat). No cyan ram
 | Idx | Ramp | Top | Use |
 |---|---|---|---|
 | 32–47 | Red, 16 | `ff0000` | Danger, timer. |
-| 48–63 | Orange, 16 | `ff7500` | Round upgrades. |
+| 48–63 | Orange, 16 | `ff7500` | Level specials. |
 | 72–79 | Yellow, 8 | `ffff00` | Lamps, payout. |
 | 112–119 | Pure green, 8 | `00ff00` | Harsh. Short flashes only. |
 | 120–127 | Mint, 8 | `15f2b0` | Bumpers, placement. |
 | 128–139 | Sky → navy, 12 | `4fc7ff` | Paddle. |
 | 144–159 | Lavender → blue, 16 | `0000ff` | Backgrounds. Unlock blue `3d6bff` sits just off this ramp. |
-| 160–169 | Violet, 10 | `7f16ff` | Reserved for a future brick colour. |
-| 176–187 | Magenta, 12 | `ff00ff` | Plain bricks. |
+| 160–169 | Violet, 10 | `7f16ff` | Round upgrades and the shield floor. |
+| 176–187 | Magenta, 12 | `ff00ff` | Basic bricks. |
 | 255 | Cyan single | `00ffff` | No ramp. |
 
 ### Gold and warm mids
