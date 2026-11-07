@@ -38,9 +38,12 @@ func _ready() -> void:
 	assert(get_tree().paused and a.pause != null, "paused with a menu")
 	assert(a.pause.sheet.size * a.pause.sheet.scale == get_viewport().get_visible_rect().size, "pause overlay covers the whole canvas")
 	a._pause_settings()
+	assert(await _click(a.pause, "BACK") and a.pause and _button(a.pause, "RESUME"), "settings BACK clicks back to the pause menu")
+	assert(await _click(a.pause, "RESUME") and not get_tree().paused and a.pause == null, "RESUME clicks through")
 	a._pause(true)
-	a._pause(false)
-	assert(not get_tree().paused and a.pause == null, "resumed")
+	_key(KEY_ESCAPE)
+	await get_tree().process_frame
+	assert(not get_tree().paused and a.pause == null, "Esc resumes")
 
 	# Icon effects and area breaks, each on a real brick.
 	var ball = a.balls[0]
@@ -82,6 +85,15 @@ func _ready() -> void:
 		total += v
 	assert(total == a.earned, "tally lines sum to earned")
 	assert(a.combos.all(func(c): return c[0] > 1), "combo runs are 2+")
+	var hit := [false, false]
+	a.again.connect(func(): hit[0] = true)
+	a.done.connect(func(): hit[1] = true)
+	var res: Node = a.hud.get_child(a.hud.get_child_count() - 1)
+	assert(await _click(res, "PLAY AGAIN") and hit[0], "result PLAY AGAIN clicks through")
+	assert(await _click(res, "UPGRADES") and hit[1], "result UPGRADES clicks through")
+	hit[1] = false
+	_key(KEY_ESCAPE)
+	assert(hit[1], "Esc on the result goes to upgrades")
 	var fx: int = a.get_children().filter(func(c): return c is AnimatedSprite2D).size()
 	print("smoke ok: over=%s earned=%d balls=%d placed=%d fx=%d" % [a.over, a.earned, a.balls.size(), a.placed.size(), fx])
 
@@ -114,3 +126,34 @@ func _ready() -> void:
 		DirAccess.remove_absolute(Game.SAVE_PATH)
 	Game.load_save()
 	load("res://src/sfx.gd").quit()  # not get_tree().quit(): a cue still mixing at exit logs a leak
+
+
+func _button(root: Node, text: String) -> Button:
+	for b in root.find_children("*", "Button", true, false):
+		if b.text == text:
+			return b
+	return null
+
+
+## A real mouse press and release at the button's centre, through the viewport's GUI picking. True when it was found.
+func _click(root: Node, text: String) -> bool:
+	var b := _button(root, text)
+	if not b:
+		return false
+	var at := get_viewport().get_final_transform() * b.get_global_rect().get_center()
+	for down in [true, false]:
+		var e := InputEventMouseButton.new()
+		e.button_index = MOUSE_BUTTON_LEFT
+		e.pressed = down
+		e.position = at
+		e.global_position = at
+		get_viewport().push_input(e)
+		await get_tree().process_frame
+	return true
+
+
+func _key(k: Key) -> void:
+	var e := InputEventKey.new()
+	e.keycode = k
+	e.pressed = true
+	get_viewport().push_input(e)

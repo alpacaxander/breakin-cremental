@@ -72,6 +72,12 @@ class Root extends Control:
 			col.position.y = -top
 			col.size.y = exact.y
 
+	## The whole canvas, so an overlay (mouse_filter STOP) swallows every click its own controls miss. Not its sheet: a
+	## top_level child is picked before the Root's own children (GUI picking is tree order, not z_index), so a sheet
+	## that stops the mouse eats the clicks meant for the buttons.
+	func _has_point(_p: Vector2) -> bool:
+		return true
+
 	func _unhandled_input(e: InputEvent) -> void:
 		if e is InputEventKey and e.pressed and e.keycode == KEY_ESCAPE and back.has_connections():
 			get_viewport().set_input_as_handled()
@@ -231,8 +237,10 @@ static func bulbs(parent: Node, y: float) -> void:
 ## A translucent full-screen sheet that swallows clicks, for panels over the arena.
 static func overlay(alpha: float) -> Root:
 	var r := Root.new()
+	r.mouse_filter = Control.MOUSE_FILTER_STOP  # see Root._has_point
 	var c := ColorRect.new()
 	c.color = Color(Tuning.COLORS.bg, alpha)
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	fill(r, c)
 	return r
 
