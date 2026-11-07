@@ -100,5 +100,6 @@ func result(msg: String, cleared: bool, unlocked: bool) -> void:
 		y += 10
 	if runs.is_empty():
 		Ui.label(r, "NONE", 330, 150, C.rivet)
-	Ui.button(r, "CONTINUE", 272, 222, 96, 20, arena.done.emit, true)
+	Ui.button(r, "PLAY AGAIN", 214, 222, 96, 20, arena.again.emit, true, 2, "ui_start")
+	Ui.button(r, "UPGRADES", 330, 222, 96, 20, arena.done.emit)
 	add_child(r)

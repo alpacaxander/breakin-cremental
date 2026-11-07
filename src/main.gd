@@ -57,6 +57,7 @@ func _play(level: int) -> void:
 	var a = preload("res://src/arena.gd").new()
 	a.level = level
 	a.done.connect(_show_shop)
+	a.again.connect(_play.bind(level))
 	_swap(a)
 
 

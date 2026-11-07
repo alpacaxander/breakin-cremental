@@ -2,6 +2,7 @@ extends Node2D
 ## One round: placement (place.gd), then play: paddle, ball physics, brick rules and effects, then the result (hud.gd).
 
 signal done
+signal again  # the result's PLAY AGAIN: same level, fresh round
 
 const Tuning = preload("res://src/tuning.gd")
 const Box = preload("res://src/brick.gd")
@@ -159,15 +160,15 @@ func _input(e: InputEvent) -> void:
 
 ## Placement input is handled (and consumed) by place.gd first.
 func _unhandled_input(e: InputEvent) -> void:
-	if over or place.placing:
+	if over:
 		return
-	if e is InputEventMouseButton and e.pressed and not launched:
+	var key: bool = e is InputEventKey and e.pressed and not e.echo
+	if key and e.keycode == KEY_ESCAPE:
+		_pause(true)  # in placement too: the dialog's MENU then leaves the round without a result
+	elif place.placing:
+		return
+	elif not launched and (e is InputEventMouseButton and e.pressed or key and e.keycode == KEY_SPACE):
 		_launch()
-	elif e is InputEventKey and e.pressed and not e.echo:
-		if e.keycode == KEY_SPACE and not launched:
-			_launch()
-		elif e.keycode == KEY_ESCAPE:
-			_pause(true)
 
 
 # --- Pause ---
