@@ -76,6 +76,7 @@ func refresh() -> void:
 	var hints := ["LMB PICK/DROP", "WHEEL/A/D ROTATE", "RMB REMOVE", "ESC PAUSE"]
 	for i in hints.size():
 		Ui.label(tray, hints[i], 6, y + 24 + i * 8, C.rivet)
+	Ui.button(tray, "SHOP", 6, 272, 66, 24, arena._quit, false, 2, "ui_back")  # back to the upgrade web; the round never started, so no result
 	Ui.button(tray, "START", 6, 300, 66, 24, _start, true, 2, "")
 	Ui.label(tray, "SPACE", 0, 328, C.rivet, 1, 78, HORIZONTAL_ALIGNMENT_CENTER)
 

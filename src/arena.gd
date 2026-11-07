@@ -182,7 +182,7 @@ func _pause(on: bool) -> void:
 		pause = null
 	if not on:
 		return
-	pause = Ui.dialog("PAUSED", [["RESUME", true, _pause.bind(false)], ["SETTINGS", false, _pause_settings], ["MENU", false, _quit]])
+	pause = Ui.dialog("PAUSED", [["RESUME", true, _pause.bind(false)], ["SETTINGS", false, _pause_settings], ["SHOP" if place.placing else "MENU", false, _quit]])
 	pause.back.connect(_pause.bind(false))
 	add_child(pause)
 
