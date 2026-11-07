@@ -209,7 +209,7 @@ Variations any row can carry once the blocks exist:
 
 Not upgrades. Presentation and scope changes that make the cap, the payout and the retry read the way the comparables do.
 
-- **Time bar**: the HUD timer as a bar whose full length is the upgraded maximum, so each Round length rank visibly lengthens it. The shop node shows before and after.
-- **Payout screen**: the result panel headline is the money, counted up with bricks, best combo and multiplier. The reason the round ended ("Ball dropped", "Time's up") is a subline. A lost round is a payout, never a verdict.
-- **Best clear percent**: shown per level on level select, so a retry reads as closing a gap.
+- **Time bar (in)**: the HUD timer as a bar at a fixed px per second, so each Round length rank visibly lengthens it. Not yet: a before/after preview on the shop node.
+- **Payout screen (in)**: the result panel headline is the money, counted up with bricks, best combo and multiplier. The reason the round ended ("Ball dropped", "Time's up") is a subline. A lost round is a payout, never a verdict.
+- **Best broken share (in)**: best share of bricks broken per level, shown on level select as "BROKE 72/100", so a retry reads as closing a gap. Deliberately not a clear or win condition; the unlock rule may change.
 - **Scope**: two to four hours at $3 to $5. Build Round and one or two placeable kinds first. The abilities bar and most of the Blocks list wait for playtests.

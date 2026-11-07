@@ -12,6 +12,7 @@ var combo_l: Label
 var bar: ColorRect
 var mult_l: Label
 var time_l: Label
+var tbar: ColorRect
 var best_l: Label
 var shield_l: Label
 
@@ -31,6 +32,8 @@ func _init(a: Node2D, ui: Ui.Root) -> void:
 	mult_l = Ui.label(ui.left, "", 6, 98, C.rivet)
 	Ui.label(ui.left, "TIME", 6, 108, C.rivet)
 	time_l = Ui.label(ui.left, "", 6, 116, C.cream, 3)
+	Ui.rect(ui.left, 6, 132, minf(68, arena.time_max * Tuning.TIME_BAR_PX), 3, C.trim_lo)
+	tbar = Ui.rect(ui.left, 6, 132, 0, 3, C.cream)
 	best_l = Ui.label(ui.left, "", 6, 138, C.rivet)
 	Ui.label(ui.left, "LEVEL %d" % (a.level + 1), 6, 146, C.rivet)
 	shield_l = Ui.label(ui.left, "", 6, 154, Tuning.CATS.round.lit)
@@ -50,6 +53,8 @@ func _process(_delta: float) -> void:
 	var t := maxf(arena.time_left, 0)
 	time_l.text = "%d:%02d" % [int(t) / 60, int(t) % 60]
 	time_l.add_theme_color_override("font_color", C.danger if arena.launched and t < 5 else C.cream)
+	tbar.size.x = minf(68, t * Tuning.TIME_BAR_PX)
+	tbar.color = time_l.get_theme_color("font_color")
 	best_l.text = "BEST x%d" % arena.best_combo if arena.best_combo > 1 else ""
 	shield_l.text = "SHIELD x%d" % arena.shields if arena.shields else ""
 
@@ -64,13 +69,16 @@ func result(msg: String, cleared: bool, unlocked: bool) -> void:
 	var r := Ui.overlay(0.6)
 	Ui.bulbs(r, 4)
 	Ui.panel(r, 160, 70, 320, 180)
-	Ui.centre(r, msg, 80, C.cream)
-	Ui.centre(r, "+$%s" % Ui.money(arena.earned), 92, C.pay, 4)
-	Ui.centre(r, "x%d BEST COMBO" % arena.best_combo, 116, C.white)
+	# The payout is the headline, counted up; how the round ended is the subline. A lost round is still a payout.
+	var pay := Ui.centre(r, "+$0", 78, C.pay, 4)
+	var id := pay.get_instance_id()
+	create_tween().tween_method(func(v: int): if instance_from_id(id): instance_from_id(id).text = "+$%s" % Ui.money(v), 0, arena.earned, 0.8)
+	Ui.centre(r, msg, 102, C.cream)
+	Ui.centre(r, "x%d BEST COMBO" % arena.best_combo, 114, C.white)
 	if cleared and arena.level == Tuning.LEVELS.size() - 1:
-		Ui.centre(r, "YOU WIN!", 126, C.mint)
+		Ui.centre(r, "YOU WIN!", 124, C.mint)
 	elif unlocked:
-		Ui.centre(r, "LEVEL %d UNLOCKED" % (arena.level + 2), 126, C.mint)
+		Ui.centre(r, "LEVEL %d UNLOCKED" % (arena.level + 2), 124, C.mint)
 	# Left column: where the money came from. Right column: the biggest combo runs.
 	Ui.label(r, "SOURCES", 170, 140, C.rivet)
 	var y := 150

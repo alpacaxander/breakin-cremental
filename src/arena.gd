@@ -41,10 +41,12 @@ var paddle: Box
 var balls: Array[Ball] = []
 var target_x := 0.0
 var time_left := 0.0
+var time_max := 0.0  # the round's starting clock, the HUD bar's full length
 var combo := 0
 var combo_timer := 0.0
 var earned := 0
 var breakable := 0
+var total := 0  # breakable bricks at the start
 var boost_mult := 1.0
 var boost_hits := 0
 var was_fast := false
@@ -94,6 +96,8 @@ func _ready() -> void:
 	_add_ball(Vector2.ZERO)
 	_rest_ball()
 	time_left = Game.round_time(level, breakable)
+	time_max = time_left
+	total = breakable
 	shields = Game.rank("shield")
 
 	ui = Ui.chassis("SCORE", "PIECES", true)
@@ -563,6 +567,7 @@ func _end(msg: String, cleared := false) -> void:
 		Game.clear_level(level)
 	Game.runs += 1
 	Game.best = maxi(Game.best, earned)
+	Game.note_broken(level, total - breakable, total)
 	Game.save()
 	Sfx.play({"Cleared!": "round_clear", "Time's up": "time_up", "Ball dropped": "round_fail"}.get(msg, "ui_back"))
 	if earned:

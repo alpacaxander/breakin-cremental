@@ -16,6 +16,7 @@ const MIN_VERTICAL := 0.25  # min |vy| as a fraction of speed, stops near-horizo
 # Round
 const ROUND_TIME_BASE := 15.0
 const ROUND_TIME_PER_BRICK := 0.4  # seconds added per breakable brick on the board
+const TIME_BAR_PX := 0.75  # HUD time bar px per second, so a longer round shows as a longer bar; capped at the column width
 
 # Combo: window(n) = START + upgrades - SHRINK * (n - 1), floored at MIN
 const COMBO_WINDOW_START := 1.5

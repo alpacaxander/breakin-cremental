@@ -173,6 +173,8 @@ func _build() -> void:
 	var L: Dictionary = Tuning.LEVELS[level]
 	Ui.label(right, "LEVEL %d" % (level + 1), Ui.RX + 6, y, C.white)
 	Ui.label(right, "%d x %d %s" % [L.cols, L.rows, L.shape], Ui.RX + 6, y + 8, C.rivet)
+	if Game.broken.get(str(level), 0):  # best share of bricks broken, so a retry reads as closing a gap
+		Ui.label(right, "BROKE %d/100" % Game.broken[str(level)], Ui.RX + 6, y + 16, C.rivet)
 	Ui.button(right, "PLAY", Ui.RX + 6, 300, 66, 24, play.emit.bind(level), true, 2, "ui_start")
 	Ui.label(right, "SPACE", Ui.RX, 328, C.rivet, 1, 78, HORIZONTAL_ALIGNMENT_CENTER)
 

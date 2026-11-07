@@ -10,6 +10,7 @@ var unlocked := 0  # highest playable level index
 var won := false
 var best := 0  # most earned in one round
 var runs := 0
+var broken := {}  # level index (as a string, JSON keys) -> best share of bricks broken in one round, 0..100. Not a win condition
 var ranks := {}  # upgrade id -> rank
 var sandbox := false  # every node maxed, every level open, nothing saved (enter_sandbox / leave_sandbox)
 var settings := {fullscreen = false, volume = 1.0}
@@ -47,7 +48,7 @@ func save() -> void:
 	if sandbox:
 		return
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
-	f.store_string(JSON.stringify({currency = currency, unlocked = unlocked, won = won, best = best, runs = runs, ranks = ranks}))
+	f.store_string(JSON.stringify({currency = currency, unlocked = unlocked, won = won, best = best, runs = runs, ranks = ranks, broken = broken}))
 
 
 func load_save() -> void:
@@ -61,6 +62,8 @@ func load_save() -> void:
 	won = bool(d.get("won", false))
 	best = int(d.get("best", 0))
 	runs = int(d.get("runs", 0))
+	for k in d.get("broken", {}):
+		broken[k] = int(d.broken[k])
 	for k in d.get("ranks", {}):
 		if k in Tuning.UPGRADES:
 			ranks[k] = int(d.ranks[k])
@@ -78,6 +81,12 @@ func wipe() -> void:
 	best = 0
 	runs = 0
 	ranks = {}
+	broken = {}
+
+
+## Best share of bricks broken on a level, kept across rounds. A retry stat, not a win condition.
+func note_broken(level: int, done: int, total: int) -> void:
+	broken[str(level)] = maxi(broken.get(str(level), 0), 100 * done / maxi(total, 1))
 
 
 func clear_level(level: int) -> void:
