@@ -74,7 +74,7 @@ Every screen is a 640x360 sprite-space Control shown at 2x (`src/ui.gd`): score/
 | ui_slot, ui_slot_hover | 36x18 | Piece slot in the tray; piece face centred, ui_badge (9x7) with the count at (30,-3) |
 | ui_pip_on/off/pay | 4x4 | Capacity and rank pips at 5px pitch |
 | coin | 8x8 | Beside CASH and costs |
-| node_dim/lit/max | 30x12 | Upgrade web lamp by rank; icon_<upgrade> (12x5) overlaid at (9,3), rank pips drawn at row 8. One icon per `UICONS` key in gen.mjs, including every node proposed in docs/ideas.md (paddle, ability `ab_*`, placement, block unlock and block upgrade ids) |
+| node_<cat>_dim/lit/max | 30x12 | Upgrade web lamp per category (paddle sky, round orange, place mint, block magenta) by rank; icon_<upgrade> (12x5) overlaid at (9,3), rank pips drawn at row 8. One icon per `UICONS` key in gen.mjs, including every node proposed in docs/ideas.md (paddle, ability `ab_*`, placement, block unlock and block upgrade ids) |
 | ui_toggle_on/off, ui_slider_track, ui_slider_knob | 16x8, 1x4, 6x8 | CheckButton icons and HSlider styles in theme.tres |
 | ui_cursor | 8x8 | Mouse cursor, scaled 2x at runtime |
 | title_logo | 177x63 | Menu logo (gen.mjs `LOGOS.split_mag_pay`) |

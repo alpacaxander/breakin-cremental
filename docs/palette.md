@@ -28,7 +28,18 @@ Theme: pachinko / slot-machine cabinet. Near-black surface, a few saturated lit 
 | Danger / timer low | 35 | `ff0000` | 43 `7f0000` |
 | Ball / text / chrome | 80 | `ffffcf` | 84 `ebde81` |
 
-Reserved for future currencies: orange 54 `ff7500`, violet 164 `7f16ff`, sky 132 `4fc7ff`.
+Reserved for a future currency: violet 164 `7f16ff`.
+
+## Upgrade web
+
+A node's lamp takes its category's hue (`tuning.gd` `CATS`, sprites `node_<cat>_<state>`). Placement and Blocks reuse the hue of the thing they buy; Paddle takes sky, already the paddle-extras hue in `gen.mjs`; Round takes orange, the cap. Links and costs stay payout yellow.
+
+| Category | Idx | Hex | Dim state |
+|---|---|---|---|
+| Paddle | 132 | `4fc7ff` | `155386` |
+| Round | 54 | `ff7500` | `9f3800` |
+| Placement | 122 | `15f2b0` | 126 `027354` |
+| Blocks | 180 | `ff4aff` | 185 `790079` |
 
 Known gaps: no true gold neon (64–71 is bronze, tops at 0.63 sat). No cyan ramp, only the single 255 `00ffff`.
 

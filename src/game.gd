@@ -11,6 +11,7 @@ var won := false
 var best := 0  # most earned in one round
 var runs := 0
 var ranks := {}  # upgrade id -> rank
+var sandbox := false  # every node maxed, every level open, nothing saved (enter_sandbox / leave_sandbox)
 var settings := {fullscreen = false, volume = 1.0}
 
 
@@ -43,6 +44,8 @@ func apply_settings() -> void:
 
 
 func save() -> void:
+	if sandbox:
+		return
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	f.store_string(JSON.stringify({currency = currency, unlocked = unlocked, won = won, best = best, runs = runs, ranks = ranks}))
 
@@ -64,13 +67,17 @@ func load_save() -> void:
 
 
 func reset() -> void:
+	wipe()
+	save()
+
+
+func wipe() -> void:
 	currency = 0
 	unlocked = 0
 	won = false
 	best = 0
 	runs = 0
 	ranks = {}
-	save()
 
 
 func clear_level(level: int) -> void:
@@ -79,14 +86,34 @@ func clear_level(level: int) -> void:
 		won = true
 
 
+# --- Sandbox ---
+
+## Max rank on every node, every level open, deep pockets. The real run is untouched and comes back with leave_sandbox.
+func enter_sandbox() -> void:
+	sandbox = true
+	currency = 999999
+	unlocked = Tuning.LEVELS.size() - 1
+
+
+func leave_sandbox() -> void:
+	sandbox = false
+	wipe()
+	load_save()
+
+
 # --- Upgrades ---
 
 func rank(id: String) -> int:
-	return ranks.get(id, 0)
+	return Tuning.UPGRADES[id].ranks if sandbox else ranks.get(id, 0)
 
 
 func bonus(id: String) -> float:
 	return rank(id) * Tuning.UPGRADES[id].amount
+
+
+## A tuning number plus an upgrade's bonus. Most nodes are one of these at their call site.
+func stat(base: float, id: String) -> float:
+	return base + bonus(id)
 
 
 func cost(id: String) -> int:
@@ -117,7 +144,11 @@ func buy(id: String) -> void:
 # --- Derived stats ---
 
 func paddle_width() -> float:
-	return Tuning.PADDLE_WIDTH + bonus("paddle")
+	return stat(Tuning.PADDLE_WIDTH, "paddle")
+
+
+func paddle_speed() -> float:
+	return stat(Tuning.PADDLE_SPEED, "speed")
 
 
 func capacity() -> int:
@@ -129,13 +160,30 @@ func owned(kind: String) -> int:
 	return Tuning.PLACEABLES[kind].get("start", 0) + rank(kind)
 
 
+func piece_cost(kind: String) -> int:
+	return maxi(1, Tuning.PLACEABLES[kind].cost - int(bonus("cheaper")))
+
+
+## How far above the arena floor placed pieces must stay.
+func place_up() -> float:
+	return stat(Tuning.PLACE_UP, "floor")
+
+
+func rotate_deg() -> float:
+	return Tuning.ROTATE_DEG / (1 + rank("rotate"))
+
+
+func base_pay(level: int) -> int:
+	return Tuning.LEVELS[level].payout + int(bonus("payout"))
+
+
 ## The arena's size for a level, game px. ponytail: an upgrade that widens the arena adds its bonus here, capped at Tuning.ARENA.
 func arena_size(level: int) -> Vector2:
 	return Tuning.LEVELS[level].get("arena", Tuning.ARENA)
 
 
 func round_time(level: int, breakable: int) -> float:
-	return (Tuning.ROUND_TIME_BASE + breakable * Tuning.ROUND_TIME_PER_BRICK) * Tuning.LEVELS[level].get("time", 1.0)
+	return (stat(Tuning.ROUND_TIME_BASE, "time") + breakable * Tuning.ROUND_TIME_PER_BRICK) * Tuning.LEVELS[level].get("time", 1.0)
 
 
 func combo_window(combo: int) -> float:
@@ -147,7 +195,7 @@ func combo_mult(combo: int) -> float:
 
 
 func payout(level: int, combo: int) -> int:
-	return roundi(Tuning.LEVELS[level].payout * combo_mult(combo))
+	return roundi(base_pay(level) * combo_mult(combo))
 
 
 # --- Board generation ---
@@ -158,14 +206,19 @@ func generate(level: int, seed: int) -> Array:
 	rng.seed = seed
 	var L: Dictionary = Tuning.LEVELS[level]
 	var step := Tuning.BRICK_SIZE + Vector2.ONE * Tuning.BRICK_GAP
+	# Extra rows stop where the board would reach the placement line (the same bound test.gd checks).
+	var max_rows := int((arena_size(level).y - Tuning.PLACE_UP - Tuning.BOARD_TOP - Tuning.BRICK_SIZE.y / 2 - 1) / step.y) + 1
+	var rows: int = mini(L.rows + int(bonus("row")), max_rows)
+	var holes: float = maxf(0, stat(L.holes, "holes"))
+	var solid: float = maxf(0, stat(L.solid, "solids"))
 	var out := []
-	for r in L.rows:
-		var cols: int = L.cols - (2 * (L.rows - 1 - r) if L.shape == "triangle" else (r % 2 if L.shape == "honey" else 0))
+	for r in rows:
+		var cols: int = L.cols - (2 * (rows - 1 - r) if L.shape == "triangle" else (r % 2 if L.shape == "honey" else 0))
 		for c in cols:
-			if c in L.get("skip", []) or rng.randf() < L.holes:
+			if c in L.get("skip", []) or rng.randf() < holes:
 				continue
 			var pos := Vector2(arena_size(level).x / 2 + (c - (cols - 1) / 2.0) * step.x, Tuning.BOARD_TOP + r * step.y)
-			var kind := "solid" if rng.randf() < L.solid else "plain"
+			var kind := "solid" if rng.randf() < solid else "plain"
 			if kind == "plain":
 				var roll := rng.randf()
 				for k in L.get("special", {}):
@@ -194,4 +247,12 @@ func generate(level: int, seed: int) -> Array:
 	if L.get("jackpot", false):
 		var free := breakable.filter(func(b): return not b.kind.begins_with("seq"))
 		free[rng.randi() % free.size()].kind = "jackpot"
+	# Unlocked icon kinds: each rank (plus twin) turns one plain brick into that kind, while plain bricks last.
+	for k in Tuning.ICON_KINDS:
+		if k in Tuning.UPGRADES and rank(k) > 0:
+			for i in rank(k) + rank("twin"):
+				var plain := out.filter(func(b): return b.kind == "plain")
+				if plain.is_empty():
+					break
+				plain[rng.randi() % plain.size()].kind = k
 	return out

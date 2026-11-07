@@ -529,7 +529,7 @@ A.ui_button_chrome_hot = chromeBtn(true);
 A.ui_panel = (() => { const b = new Img(24, 24); b.rect(0, 0, 24, 24, C.trimLo); b.outline(0, 0, 24, 24, C.rivet); b.outline(1, 1, 22, 22, C.trim); b.hline(3, 2, 18, C.trimHi); b.corners(); return b; })();
 A.ui_rail = (() => { const b = new Img(2, 8); b.rect(0, 0, 1, 8, C.rivet); b.rect(1, 0, 1, 8, C.trimHi); return b; })();
 
-// Web node: yellow lamp, icon in rows 3-7, rank pips on row 9. UI never borrows a brick hue.
+// Web node: a lamp per category (NODE_SETS, docs/palette.md), icon in rows 3-7, rank pips on row 9.
 const nglyph = (rows) => (b, c) => b.ascii(15 - (rows[0].length >> 1), 3 + ((5 - rows.length) >> 1), rows, { "#": c });
 const UICONS = {
 	paddle: nglyph(["#.....#", "##...##", "#######", "##...##", "#.....#"]), time: nglyph(["#####", ".#.#.", "..#..", ".#.#.", "#####"]), combo: (b, c) => text(b, 12, 3, "C+", c),
@@ -557,14 +557,15 @@ const UICONS = {
 	reroll: nglyph(["#####", "#.#.#", "#...#", "#.#.#", "#####"]), twin: (b, c) => text(b, 12, 3, "2X", c),
 };
 Object.assign(UICONS, { speedup: UICONS.accel, timer: UICONS.time, bolt: UICONS.power, cooldown: UICONS.time, piececombo: UICONS.combo, ab_magnet: UICONS.magnet });
-const node = (state, icon, rank, ranks) => {
-	const b = state === "lit" ? lit(SETS.pay) : state === "hot" ? hot(SETS.pay) : dim(SETS.pay);
+const NODE_SETS = { paddle: SETS.sky, round: SETS.ora, place: SETS.mint, block: SETS.mag };
+const node = (state, icon, rank, ranks, set = SETS.pay) => {
+	const b = state === "lit" ? lit(set) : state === "hot" ? hot(set) : dim(set);
 	if (icon) icon(b, state === "dim" ? C.payDim : state === "hot" ? C.pureWhite : C.white);
 	for (let i = 0; i < ranks; i++) b.rect(15 - ((ranks * 3 - 1) >> 1) + i * 3, 8, 2, 2, i < rank ? (state === "dim" ? C.payDim : C.payHi) : state === "dim" ? "443a05" : C.payDim);
 	return b;
 };
 // Shipped nodes are blank lamps: the game overlays icon_<id> and draws rank pips itself.
-A.node_lit = node("lit"); A.node_dim = node("dim"); A.node_max = node("hot");
+for (const cat in NODE_SETS) for (const [state, name] of [["lit", "lit"], ["dim", "dim"], ["hot", "max"]]) A[`node_${cat}_${name}`] = node(state, null, 0, 0, NODE_SETS[cat]);
 for (const id in UICONS) A[`icon_${id}`] = (() => { const b = new Img(30, 12); UICONS[id](b, C.white); return b.crop(9, 3, 12, 5); })();
 
 const pip = (s, on) => { const b = new Img(4, 4); if (on) { b.rect(0, 0, 4, 4, s.tube); b.rect(1, 1, 2, 2, s.hi); } else { b.rect(0, 0, 4, 4, s.deep); b.outline(0, 0, 4, 4, s.dimTube); } b.corners(); return b; };
@@ -868,7 +869,7 @@ const UI_GROUPS = [
 	["Font", ["font_3x5"]],
 	["Buttons (24x16 nine-patch, 3px margins)", ["ui_button_mint", "ui_button_mint_hot", "ui_button_mint_dim", "ui_button_chrome", "ui_button_chrome_hot"]],
 	["Chassis", ["ui_rail", "ui_panel"]],
-	["Web", ["node_dim", "node_lit", "node_max", ...Object.keys(UICONS).map((k) => `icon_${k}`)]],
+	["Web", [...Object.keys(NODE_SETS).flatMap((c) => [`node_${c}_dim`, `node_${c}_lit`, `node_${c}_max`]), ...Object.keys(UICONS).map((k) => `icon_${k}`)]],
 	["Tray and HUD", ["ui_slot", "ui_slot_hover", "ui_badge", "ui_pip_on", "ui_pip_off", "ui_pip_pay", "coin", "ui_cursor"]],
 	["Settings", ["ui_toggle_on", "ui_toggle_off", "ui_slider_track", "ui_slider_knob"]],
 	["Menu", ["title_logo"]],

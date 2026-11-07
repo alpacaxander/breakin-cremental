@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cdsca0oytnx2w"
-path="res://.godot/imported/node_max.png-295d31fd79c4b5e943b70f6774b0872c.ctex"
+uid="uid://bq8t3bjalwbfp"
+path="res://.godot/imported/node_paddle_max.png-ac8720169c8b042726599f5778c472ca.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/pixel/png/node_max.png"
-dest_files=["res://.godot/imported/node_max.png-295d31fd79c4b5e943b70f6774b0872c.ctex"]
+source_file="res://assets/pixel/png/node_paddle_max.png"
+dest_files=["res://.godot/imported/node_paddle_max.png-ac8720169c8b042726599f5778c472ca.ctex"]
 
 [params]
 

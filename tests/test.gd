@@ -42,6 +42,47 @@ func _init() -> void:
 		check(k in Tuning.BRICKS, "icon kind %s is a brick kind" % k)
 	for k in Tuning.PLACEABLES:
 		check(k in Tuning.UPGRADES, "placeable %s has an upgrade node" % k)
+
+	# The web: every node has a category with lamps, an icon, real links, its own spot, and a path from the seed.
+	var seen := {}
+	var reach := {Tuning.SEED_UPGRADE: true}
+	var frontier := [Tuning.SEED_UPGRADE]
+	while frontier:
+		for l in Tuning.UPGRADES[frontier.pop_back()].links:
+			if not l in reach:
+				reach[l] = true
+				frontier.append(l)
+	for id in Tuning.UPGRADES:
+		var u: Dictionary = Tuning.UPGRADES[id]
+		check(u.cat in Tuning.CATS, "node %s has a category" % id)
+		check(FileAccess.file_exists("res://assets/pixel/png/icon_%s.png" % u.get("icon", id)), "node %s has an icon" % id)
+		check(u.links.all(func(l): return l in Tuning.UPGRADES), "node %s links to real nodes" % id)
+		check(not u.pos in seen, "node %s has its own spot" % id)
+		seen[u.pos] = true
+		check(id in reach, "node %s is reachable from the seed" % id)
+	for cat in Tuning.CATS:
+		for state in ["dim", "lit", "max"]:
+			check(FileAccess.file_exists("res://assets/pixel/png/node_%s_%s.png" % [cat, state]), "%s %s lamp exists" % [cat, state])
+	# Maxed generation upgrades still fit every level and the unlocks land.
+	g.sandbox = true
+	check(g.rank("tele") == Tuning.UPGRADES.tele.ranks and g.is_revealed("tele") and not g.can_buy("tele"), "sandbox owns everything")
+	for lvl in Tuning.LEVELS.size():
+		var arena := Rect2(Vector2.ZERO, g.arena_size(lvl))
+		for s in 50:
+			var bricks: Array = g.generate(lvl, s)
+			check(bricks.size() >= g.generate(lvl, s).size(), "generate is deterministic")
+			for b in bricks:
+				var r := Rect2(b.pos - Tuning.BRICK_SIZE / 2, Tuning.BRICK_SIZE)
+				check(arena.encloses(r) and r.end.y < arena.size.y - Tuning.PLACE_UP, "level %d maxed board inside the arena, above placement line" % lvl)
+			# multiball converts first (ICON_KINDS order); later kinds may run out of plain bricks on small boards
+			check(bricks.filter(func(b): return b.kind == "multiball").size() >= Tuning.UPGRADES.multiball.ranks + 1, "level %d has every unlocked multiball plus the twin" % lvl)
+	var fresh = load("res://src/game.gd").new()
+	check(g.generate(0, 1).size() > fresh.generate(0, 1).size(), "fewer holes and an extra row make a bigger board")
+	check(g.round_time(0, 10) == fresh.round_time(0, 10) + Tuning.UPGRADES.time.amount * Tuning.UPGRADES.time.ranks, "round length adds its seconds")
+	fresh.free()
+	check(g.piece_cost("spawner") == Tuning.PLACEABLES.spawner.cost - 1 and g.piece_cost("accel") == 1, "cheaper pieces floor at 1")
+	g.sandbox = false
+	check(g.rank("tele") == 0, "leaving sandbox forgets nothing it never saved")
 	check(g.generate(1, 1).size() > g.generate(0, 1).size(), "level 2 board is bigger")
 	check(g.generate(3, 1).filter(func(b): return b.pos.y == Tuning.BOARD_TOP + 28).all(func(b): return int(b.pos.x) % 64 == 0), "honey odd rows sit half a step over (even rows are at 32)")
 	check(g.generate(8, 1).all(func(b): return b.pos.x != 480), "double wide leaves the divider column empty")
@@ -82,7 +123,7 @@ func _init() -> void:
 			["cond_prime", 30, 10], ["cond_too_slow", 30, 6], ["combo_gate", 30, 6], ["sequence_step3", 30, 6], ["timed_blink", 30, 8],
 			["chain_arc", 64, 4], ["bomb_ring", 60, 4], ["bolt_sweep", 60, 4], ["jackpot_rays", 48, 6], ["mystery_cycle", 30, 6], ["halo_pulse", 60, 4],
 			["pop_bumper_hit", 24, 6], ["gate_flow", 30, 4], ["accel_chevrons", 30, 4], ["magnet_pull", 44, 4], ["spawner_charge", 30, 8], ["sticky_hold", 30, 6],
-			["teleport_in", 16, 4], ["teleport_out", 16, 4], ["spark_burst_mint", 16, 6], ["spark_burst_sky", 16, 6], ["payout_rise", 25, 10],
+			["teleport_in", 16, 4], ["teleport_out", 16, 4], ["spark_burst_mint", 16, 6], ["spark_burst_sky", 16, 6], ["payout_rise", 25, 10], ["shield_floor_pop", 32, 6],
 			["ghost_march_45x7", 45, 4], ["ghost_invalid_shake_30x6", 30, 4], ["hover_outline_28x28", 28, 4]]:
 		var holder := Node2D.new()
 		var s: AnimatedSprite2D = Fx.play(holder, a[0], a[1], 12, Vector2.ZERO)

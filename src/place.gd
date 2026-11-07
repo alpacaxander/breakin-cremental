@@ -35,12 +35,12 @@ func _count(kind: String) -> int:
 func _used() -> int:
 	var n := 0
 	for b in placed:
-		n += Tuning.PLACEABLES[b.kind].cost
+		n += Game.piece_cost(b.kind)
 	return n
 
 
 func _can_take(kind: String) -> bool:
-	return holding == null and _count(kind) < Game.owned(kind) and _used() + Tuning.PLACEABLES[kind].cost <= Game.capacity()
+	return holding == null and _count(kind) < Game.owned(kind) and _used() + Game.piece_cost(kind) <= Game.capacity()
 
 
 ## Rebuilds the pieces column: a slot per owned piece with its count left, capacity pips, hints and the start button.
@@ -201,5 +201,5 @@ func _unhandled_input(e: InputEvent) -> void:
 
 func _rotate(dir: int) -> void:
 	Sfx.play("ui_rotate")
-	holding.rotation += dir * deg_to_rad(Tuning.ROTATE_DEG)
+	holding.rotation += dir * deg_to_rad(Game.rotate_deg())
 	_drag()

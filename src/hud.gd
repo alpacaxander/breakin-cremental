@@ -13,6 +13,7 @@ var bar: ColorRect
 var mult_l: Label
 var time_l: Label
 var best_l: Label
+var shield_l: Label
 
 
 ## Positions are sprite px inside the score column (see ui.gd).
@@ -32,6 +33,9 @@ func _init(a: Node2D, ui: Ui.Root) -> void:
 	time_l = Ui.label(ui.left, "", 6, 116, C.cream, 3)
 	best_l = Ui.label(ui.left, "", 6, 138, C.rivet)
 	Ui.label(ui.left, "LEVEL %d" % (a.level + 1), 6, 146, C.rivet)
+	shield_l = Ui.label(ui.left, "", 6, 154, Tuning.CATS.round.lit)
+	if Game.sandbox:
+		Ui.label(ui.left, "SANDBOX", 6, 162, C.rivet)
 
 
 func _process(_delta: float) -> void:
@@ -47,6 +51,7 @@ func _process(_delta: float) -> void:
 	time_l.text = "%d:%02d" % [int(t) / 60, int(t) % 60]
 	time_l.add_theme_color_override("font_color", C.danger if arena.launched and t < 5 else C.cream)
 	best_l.text = "BEST x%d" % arena.best_combo if arena.best_combo > 1 else ""
+	shield_l.text = "SHIELD x%d" % arena.shields if arena.shields else ""
 
 
 ## The combo counter jumps on each break.

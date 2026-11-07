@@ -13,6 +13,7 @@ const Hud = preload("res://src/hud.gd")
 const BALL_TEX := preload("res://assets/pixel/png/ball.png")
 const TRAIL_TEX := preload("res://assets/pixel/png/anim_ball_trail.png")
 const HAZARD_TEX := preload("res://assets/pixel/png/anim_hazard_strip.png")
+const SHIELD_TEX := preload("res://assets/pixel/png/anim_shield_floor.png")
 
 
 class Ball extends CharacterBody2D:
@@ -47,11 +48,12 @@ var breakable := 0
 var boost_mult := 1.0
 var boost_hits := 0
 var was_fast := false
+var shields := 0  # shield floors left this round (Shield Floor upgrade)
 var mode := ""  # plain brick idle: "", "pulse", "chase"
 
 var placed: Array[Box] = []  # the player's pieces, handed over by place.gd at start
 var best_combo := 0
-var tally := {bricks = 0, combo = 0, specials = 0, boost = 0, jackpot = 0}  # earned, split by what each factor added
+var tally := {bricks = 0, combo = 0, specials = 0, boost = 0, jackpot = 0, pieces = 0}  # earned, split by what each factor added
 var combos: Array = []  # every combo run of 2+: [length, pay]
 var run_pay := 0  # paid during the current combo run
 var ui: Ui.Root  # the cabinet: score column left (hud.gd), pieces column right (place.gd)
@@ -92,6 +94,7 @@ func _ready() -> void:
 	_add_ball(Vector2.ZERO)
 	_rest_ball()
 	time_left = Game.round_time(level, breakable)
+	shields = Game.rank("shield")
 
 	ui = Ui.chassis("SCORE", "PIECES", true)
 	add_child(ui)
@@ -114,7 +117,7 @@ func _fit() -> void:
 
 ## The line placed pieces must stay above.
 func place_y() -> float:
-	return field.size.y - Tuning.PLACE_UP
+	return field.size.y - Game.place_up()
 
 
 func box(kind: String, size: Vector2, pos: Vector2) -> Box:
@@ -197,7 +200,13 @@ func _quit() -> void:
 func _launch() -> void:
 	launched = true
 	Sfx.play("ball_launch")
-	balls[0].vel = Vector2.UP.rotated(randf_range(-0.3, 0.3)) * Tuning.BALL_SPEED
+	var dir := Vector2.UP.rotated(randf_range(-0.3, 0.3))
+	if Game.rank("aim"):  # Aim: toward the mouse, no flatter than a paddle-edge bounce
+		var a := clampf(balls[0].position.angle_to_point(get_local_mouse_position()) + PI / 2, -deg_to_rad(Tuning.MAX_BOUNCE_DEG), deg_to_rad(Tuning.MAX_BOUNCE_DEG))
+		dir = Vector2.UP.rotated(a)
+	balls[0].vel = dir * Tuning.BALL_SPEED
+	for i in Game.rank("balls"):  # Extra Ball: fanned out beside the first
+		_add_ball(balls[0].position).vel = dir.rotated((i + 1) * 0.35 * (1 if i % 2 == 0 else -1)) * Tuning.BALL_SPEED
 
 
 func _rest_ball() -> void:
@@ -226,7 +235,13 @@ func _physics_process(delta: float) -> void:
 		_move_ball(b, delta)
 		if over:
 			return
-		if b.position.y > field.size.y + Tuning.BALL_RADIUS:
+		if b.position.y > field.size.y - Tuning.BALL_RADIUS and shields > 0:
+			shields -= 1
+			b.position.y = field.size.y - Tuning.BALL_RADIUS
+			b.vel.y = -absf(b.vel.y)
+			Fx.play(self, "shield_floor_pop", 32, 12, Vector2(b.position.x, field.size.y - 12))
+			Sfx.play("shield_floor")
+		elif b.position.y > field.size.y + Tuning.BALL_RADIUS:
 			Fx.play(self, "ball_lost", 12, 12, Vector2(b.position.x, field.size.y - 12))
 			Sfx.play("ball_lost")
 			balls.erase(b)
@@ -251,8 +266,9 @@ func _physics_process(delta: float) -> void:
 
 func _charge(p: Box, delta: float) -> void:
 	p.charge += delta
-	if p.charge < Tuning.SPAWN_EVERY:
-		p.face(["spawner_charge", 30, int(p.charge / Tuning.SPAWN_EVERY * 4)])
+	var every := maxf(1.0, Game.stat(Tuning.SPAWN_EVERY, "fastspawn"))
+	if p.charge < every:
+		p.face(["spawner_charge", 30, int(p.charge / every * 4)])
 		return
 	p.charge = 0
 	p.face(["spawner_charge", 30, 0])
@@ -264,11 +280,12 @@ func _charge(p: Box, delta: float) -> void:
 
 func _move_paddle(delta: float) -> void:
 	var dir := float(Input.is_key_pressed(KEY_RIGHT) or Input.is_key_pressed(KEY_D)) - float(Input.is_key_pressed(KEY_LEFT) or Input.is_key_pressed(KEY_A))
+	var speed := Game.paddle_speed()
 	if dir != 0:
-		target_x = paddle.position.x + dir * Tuning.PADDLE_SPEED * delta
+		target_x = paddle.position.x + dir * speed * delta
 	var half := paddle.size.x / 2
 	# ponytail: paddle teleports, so a fast sideways swipe can clip into the ball. Use AnimatableBody2D if it shows up.
-	paddle.position.x = clampf(move_toward(paddle.position.x, target_x, Tuning.PADDLE_SPEED * delta), half, field.size.x - half)
+	paddle.position.x = clampf(move_toward(paddle.position.x, target_x, speed * delta), half, field.size.x - half)
 
 
 func _move_ball(ball: Ball, delta: float) -> void:
@@ -281,7 +298,7 @@ func _move_ball(ball: Ball, delta: float) -> void:
 		return
 	ball.grace -= delta
 	for m in placed:
-		if m.kind == "magnet" and ball.position.distance_to(m.position) < Tuning.MAGNET_RADIUS:
+		if m.kind == "magnet" and ball.position.distance_to(m.position) < Game.stat(Tuning.MAGNET_RADIUS, "reach"):
 			ball.vel += ball.position.direction_to(m.position) * Tuning.MAGNET_PULL * delta
 			ball.set_speed(ball.speed)
 	var motion := ball.vel * delta
@@ -318,8 +335,9 @@ func _move_ball(ball: Ball, delta: float) -> void:
 func _pass(p: Box, ball: Ball) -> void:
 	match p.kind:
 		"accel":
-			if ball.speed < Tuning.ACCEL_SPEED:
-				ball.set_speed(Tuning.ACCEL_SPEED)
+			var exit := Game.stat(Tuning.ACCEL_SPEED, "hotlaunch")
+			if ball.speed < exit:
+				ball.set_speed(exit)
 				Sfx.play("accel_zip")
 				Fx.play(self, "spark_burst_mint", 16, 12, ball.position)
 		"oneway":
@@ -353,13 +371,20 @@ func _hit(b: Box, ball: Ball) -> void:
 		"solid":
 			Fx.play(self, "solid_bounce", 44, 12, b.position)
 			Sfx.play("solid_bounce")
-		"bumper":
-			Fx.play(self, "bumper_hit", 45, 12, b.position, b.rotation)
-			Sfx.play("bumper_hit")
-		"pop":
-			Fx.play(self, "pop_bumper_hit", 24, 12, b.position)
-			Sfx.play("pop_bumper_hit")
-			ball.set_speed(ball.speed + Tuning.POP_SPEED)
+		"bumper", "pop":
+			if b.kind == "pop":
+				Fx.play(self, "pop_bumper_hit", 24, 12, b.position)
+				Sfx.play("pop_bumper_hit")
+				ball.set_speed(ball.speed + Game.stat(Tuning.POP_SPEED, "poppower"))
+			else:
+				Fx.play(self, "bumper_hit", 45, 12, b.position, b.rotation)
+				Sfx.play("bumper_hit")
+			if combo > 0:  # Piece Combo: a bumper keeps a running combo alive, never starts one
+				combo_timer += Game.bonus("piececombo")
+			var tip := int(Game.bonus("piecepay"))  # Piece Pay
+			if tip:
+				tally.pieces += tip
+				_pay(b.position, tip)
 		_:
 			if b.hp > 0:
 				_damage(b, ball)
@@ -430,7 +455,7 @@ func _break(b: Box) -> void:
 		Sfx.play("combo_up")
 	elif combo < Tuning.GATE_COMBO and _bricks("cgate"):
 		Sfx.play("gate_tick", 0.7 + 0.1 * combo)
-	var base: int = Tuning.LEVELS[level].payout
+	var base := Game.base_pay(level)
 	var with_combo := Game.payout(level, combo)
 	var with_kind := roundi(with_combo * Tuning.BRICKS[b.kind].pay)
 	var pay := roundi(with_kind * boost_mult)
@@ -483,8 +508,9 @@ func _effect(kind: String, b: Box) -> void:
 			combo_timer += Tuning.COMBO_EXTEND
 		"timer":
 			Sfx.play("timer_extend")
-			time_left += Tuning.TIME_EXTEND
-			_tag(b.position + Vector2(0, -24), "+%ds" % int(Tuning.TIME_EXTEND))
+			var extend := Game.stat(Tuning.TIME_EXTEND, "longtimer")
+			time_left += extend
+			_tag(b.position + Vector2(0, -24), "+%ds" % int(extend))
 		"chain":
 			Sfx.play("chain_zap")
 			for n in _near(b, Tuning.CHAIN_DIST):
@@ -494,7 +520,7 @@ func _effect(kind: String, b: Box) -> void:
 		"bomb":
 			Fx.play(self, "bomb_ring", 60, 12, b.position)
 			Sfx.play("bomb_boom")
-			for n in _near(b, Tuning.BOMB_RADIUS):
+			for n in _near(b, Game.stat(Tuning.BOMB_RADIUS, "bigbomb")):
 				_break(n)
 		"bolt":
 			Sfx.play("bolt_sweep")
@@ -588,6 +614,8 @@ func _draw() -> void:
 	for x in range(0, int(w), 64):
 		var cw := minf(64, w - x)  # the last chunk stops at the arena's edge
 		draw_texture_rect_region(HAZARD_TEX, Rect2(x, h - 8, cw, 8), Rect2(f * 32, 0, cw / 2, 4))
+		if shields > 0:  # the shield floor rides just above the hazard strip
+			draw_texture_rect_region(SHIELD_TEX, Rect2(x, h - 16, cw, 8), Rect2(f * 32, 0, cw / 2, 4))
 	var r := Tuning.BALL_RADIUS
 	for b in balls:
 		if b.hold > 0:

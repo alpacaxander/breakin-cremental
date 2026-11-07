@@ -107,19 +107,22 @@ func _build() -> void:
 	# Left: cash, owned upgrades, reset and menu.
 	var left := root.left
 	Ui.cash(left, 0, Game.currency)
-	if Game.won:
+	if Game.sandbox:
+		Ui.label(left, "SANDBOX", 6, 44, C.mint)
+	elif Game.won:
 		Ui.label(left, "YOU WIN!", 6, 44, C.pay)
 	Ui.label(left, "OWNED", 6, 52, C.rivet)
-	var i := 0
-	for id in Tuning.UPGRADES:
-		if Game.rank(id) == 0:
-			continue
+	var owned: Array = Tuning.UPGRADES.keys().filter(func(id): return Game.rank(id) > 0)
+	for i in mini(owned.size(), 30):  # ponytail: 30 rows fit above the buttons; past that, a count
+		var id: String = owned[i]
 		var maxed: bool = Game.rank(id) >= Tuning.UPGRADES[id].ranks
-		Ui.label(left, Tuning.UPGRADES[id].name, 6, 60 + i * 8, C.white)
+		Ui.label(left, Tuning.UPGRADES[id].name, 6, 60 + i * 8, Tuning.CATS[Tuning.UPGRADES[id].cat].lit)
 		Ui.label(left, "%d/%d" % [Game.rank(id), Tuning.UPGRADES[id].ranks], 60, 60 + i * 8, C.pay if maxed else C.cream)
-		i += 1
-	# ponytail: instant wipe, no confirm. It's a tuning tool.
-	Ui.button(left, "RESET", 6, 316, 66, 14, func(): Game.reset(); _build(), false, 1, "ui_back")
+	if owned.size() > 30:
+		Ui.label(left, "+%d MORE" % (owned.size() - 30), 6, 300, C.rivet)
+	# ponytail: instant wipe, no confirm. It's a tuning tool. Sandbox has nothing to wipe.
+	if not Game.sandbox:
+		Ui.button(left, "RESET", 6, 316, 66, 14, func(): Game.reset(); _build(), false, 1, "ui_back")
 	Ui.button(left, "MENU", 6, 334, 66, 14, menu.emit, false, 1, "ui_back")
 
 	# Field: the web, panned and zoomed inside the clipped cabinet field. Node lamps, icons, then rank pips on top.
@@ -137,9 +140,10 @@ func _build() -> void:
 			continue
 		var u: Dictionary = Tuning.UPGRADES[id]
 		var dim := Game.rank(id) == 0
+		var cat: Dictionary = Tuning.CATS[u.cat]
 		for p in u.ranks:
 			var on: bool = p < Game.rank(id)
-			Ui.rect(web, u.pos.x - ((u.ranks * 3 - 1) >> 1) + p * 3, u.pos.y + 2, 2, 2, (C.pay_dim if dim else C.pay_hi) if on else (C.pay_off if dim else C.pay_dim))
+			Ui.rect(web, u.pos.x - ((u.ranks * 3 - 1) >> 1) + p * 3, u.pos.y + 2, 2, 2, C.white if on else (Color(cat.dim, 0.5) if dim else cat.dim))
 	Fx.play(web, "hover_outline_34x16", 34, 8, Tuning.UPGRADES[selected].pos, 0, true).scale = Vector2.ONE
 	_place_web()
 
@@ -173,16 +177,17 @@ func _build() -> void:
 	Ui.label(right, "SPACE", Ui.RX, 328, C.rivet, 1, 78, HORIZONTAL_ALIGNMENT_CENTER)
 
 
-## A node lamp with its icon, as a button. Look from rank: dim, lit, max.
+## A node lamp with its icon, as a button. Hue from the category, look from rank: dim, lit, max.
 func _node(parent: Node, id: String, at: Vector2) -> TextureButton:
+	var u: Dictionary = Tuning.UPGRADES[id]
 	var r := Game.rank(id)
-	var maxed: bool = r >= Tuning.UPGRADES[id].ranks
+	var maxed: bool = r >= u.ranks
 	var b := TextureButton.new()
-	b.texture_normal = Ui.tex("node_max" if maxed else "node_lit" if r else "node_dim")
+	b.texture_normal = Ui.tex("node_%s_%s" % [u.cat, "max" if maxed else "lit" if r else "dim"])
 	b.position = at
 	b.focus_mode = Control.FOCUS_NONE
 	parent.add_child(b)
-	Ui.icon(b, "icon_" + id, 9, 3).modulate = Tuning.COLORS.pure_white if maxed else Tuning.COLORS.white if r else Tuning.COLORS.pay_dim
+	Ui.icon(b, "icon_" + u.get("icon", id), 9, 3).modulate = Tuning.COLORS.pure_white if maxed else Tuning.COLORS.white if r else Tuning.CATS[u.cat].dim
 	return b
 
 

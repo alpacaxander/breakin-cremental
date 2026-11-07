@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dnborhtlatx20"
-path="res://.godot/imported/node_dim.png-9b307e588d1288126e2a4e1f8b2e017c.ctex"
+uid="uid://dc15gncfpql8p"
+path="res://.godot/imported/node_place_lit.png-51b6989075932c638321193569c25817.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/pixel/png/node_dim.png"
-dest_files=["res://.godot/imported/node_dim.png-9b307e588d1288126e2a4e1f8b2e017c.ctex"]
+source_file="res://assets/pixel/png/node_place_lit.png"
+dest_files=["res://.godot/imported/node_place_lit.png-51b6989075932c638321193569c25817.ctex"]
 
 [params]
 

@@ -83,6 +83,30 @@ func _ready() -> void:
 	assert(a.combos.all(func(c): return c[0] > 1), "combo runs are 2+")
 	var fx: int = a.get_children().filter(func(c): return c is AnimatedSprite2D).size()
 	print("smoke ok: over=%s earned=%d balls=%d placed=%d fx=%d" % [a.over, a.earned, a.balls.size(), a.placed.size(), fx])
+
+	# Sandbox: the shop builds with every node lit, a round starts with every upgrade on, and leaving forgets it all.
+	Game.enter_sandbox()
+	var shop = load("res://src/shop.gd").new()
+	add_child(shop)
+	await get_tree().process_frame
+	assert(Tuning.UPGRADES.keys().all(Game.is_revealed) and Game.rank("twin") == 1, "sandbox reveals and maxes the web")
+	shop.queue_free()
+	var sb = load("res://src/arena.gd").new()
+	add_child(sb)
+	await get_tree().process_frame
+	assert(sb.shields == Tuning.UPGRADES.shield.ranks and sb.place_y() == sb.field.size.y - (Tuning.PLACE_UP + Tuning.UPGRADES.floor.amount * Tuning.UPGRADES.floor.ranks), "sandbox round has shield floors and a lower floor")
+	sb.place._start()
+	sb._launch()
+	assert(sb.balls.size() == 1 + Tuning.UPGRADES.balls.ranks, "extra balls launch")
+	sb.balls[0].position.y = sb.field.size.y + 1  # drop one onto the shield floor
+	await get_tree().physics_frame  # fires before the step runs, so wait out a whole one
+	await get_tree().physics_frame
+	assert(sb.shields == Tuning.UPGRADES.shield.ranks - 1 and sb.balls.size() == 1 + Tuning.UPGRADES.balls.ranks, "shield floor catches a dropped ball")
+	sb._end("Abandoned")
+	await get_tree().create_timer(1.1).timeout
+	sb.queue_free()
+	Game.leave_sandbox()
+	assert(not Game.sandbox and Game.rank("twin") == 0, "leaving the sandbox forgets it")
 	if saved:
 		FileAccess.open(Game.SAVE_PATH, FileAccess.WRITE).store_string(saved)
 	else:

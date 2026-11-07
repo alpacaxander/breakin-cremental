@@ -1,6 +1,6 @@
 # Upgrade ideas
 
-Working list for the upgrade web. Three categories; every node in `tuning.gd` `UPGRADES` belongs to one.
+Working list for the upgrade web. Four categories; every node in `tuning.gd` `UPGRADES` belongs to one.
 Existing nodes are marked **(in)**. Rules the ideas must respect:
 
 - Losing a ball does nothing on its own. The round ends when no ball is left on the stage.
@@ -10,10 +10,8 @@ Existing nodes are marked **(in)**. Rules the ideas must respect:
 ## Paddle
 
 - **Wider Paddle (in)**: +width per rank.
-- **Faster Paddle**: +speed cap.
-- **Aim on first shot**: the launch angle follows the mouse instead of firing straight up.
-- **Starting ball count**: the round opens with more balls in play.
-- **Shield floor**: a one-use floor per round that bounces a dropped ball back. Later ranks add uses.
+- **Faster Paddle (in)**: +speed cap.
+- **Aim on first shot (in)**: the launch angle follows the mouse instead of firing straight up.
 - **Mini paddles**: a small paddle that moves with the main one. Sub-upgrades:
   - count: +1 mini paddle, mirrored left and right, then above.
   - width: mini paddles grow.
@@ -31,6 +29,15 @@ Existing nodes are marked **(in)**. Rules the ideas must respect:
   - *Ghost*: balls pass through placed pieces while held, for clearing a jam.
   - *Recall*: pulls the lowest ball back up to the paddle, costs energy per use rather than per second.
 
+## Round
+
+The cap. In a capped-session upgrade game (Motherload, Digseum, A Game About Digging A Hole) the first and most-bought upgrade widens the cap, so this category sits at or next to the seed node. See the market fit report.
+
+- **Round length (in)**: +seconds per round. Restored from the 2026-11-06 cut; it fits here.
+- **Shield floor (in)**: a one-use floor per round that bounces a dropped ball back. Later ranks add uses.
+- **Starting ball count (in)**: the round opens with more balls in play.
+- **Timer brick** and **Rewind brick** (under Blocks) are the in-round version: fuel cans found mid-dig. Keep them common.
+
 ## Placement
 
 ### Placeable items
@@ -42,10 +49,10 @@ Each item is a `PLACEABLES` row and an `UPGRADES` node of the same id, so +1 own
   - Long bumper: wider bar.
 - **Pop bumper (in)**: a round bumper that speeds the ball up, then goes on cooldown. While cooling it acts as a plain bumper.
   - Cooldown: shorter cooldown per hit.
-  - Pop power: more speed per hit.
+  - Pop power (in): more speed per hit.
   - Pop pay: a hit pays, like a pinball pop.
 - **Launcher (in)**: a strip the ball flies through and leaves at fast speed.
-  - Hotter launch: higher exit speed.
+  - Hotter launch (in): higher exit speed.
   - Aimed launch: exit follows the strip's rotation exactly, no spread.
 - **One-way gate (in)**: ball passes up, bounces down, then goes on cooldown. While cooling it collides with nothing.
   - Cooldown: shorter cooldown per pass.
@@ -58,11 +65,11 @@ Each item is a `PLACEABLES` row and an `UPGRADES` node of the same id, so +1 own
   - Quick release: shorter hold.
   - Charged release: the longer the hold, the faster the shot.
 - **Spawner (in)**: spits out an extra ball every few seconds.
-  - Fast spawner: shorter interval.
+  - Fast spawner (in): shorter interval.
   - Burst: spawns two at once.
   - Warm start: the first ball comes out at round start.
 - **Magnet (in)**: bends the ball toward it.
-  - Magnet reach: larger radius.
+  - Magnet reach (in): larger radius.
   - Magnet pull: stronger pull.
   - Repel: a rotated magnet pushes instead.
 - **Splitter (new)**: pass-through piece that forks the ball into two.
@@ -82,13 +89,13 @@ Each item is a `PLACEABLES` row and an `UPGRADES` node of the same id, so +1 own
 Upgrades that apply to placement as a whole or to every piece.
 
 - **Capacity (in)**: +arena capacity.
-- **Cheaper pieces**: every piece costs one less capacity, floored at 1.
+- **Cheaper pieces (in)**: every piece costs one less capacity, floored at 1.
 - **Cheaper kind**: one chosen kind costs less.
-- **Lower floor**: pieces may sit closer to the paddle.
+- **Lower floor (in)**: pieces may sit closer to the paddle.
 - **Tight fit**: smaller gap required between pieces.
-- **Free rotate**: finer rotation steps.
-- **Piece pay**: every piece contact pays a flat amount.
-- **Piece combo**: piece contacts count as combo hits.
+- **Free rotate (in)**: finer rotation steps.
+- **Piece pay (in)**: every bumper contact pays a flat amount.
+- **Piece combo (in)**: a bumper contact extends a running combo window; it never starts one.
 - **Shared cooldown**: every cooldown piece cools faster.
 - **Overlap**: pieces may overlap bricks, the brick sits behind.
 - **Mirror**: place a piece and its mirror image for one capacity extra.
@@ -109,12 +116,12 @@ Each is an unlock node. Rank 1 guarantees one of that block on every board, and 
 - **Combo (in)**: pauses the combo window for N seconds. The window does not shrink, but the combo keeps counting and paying.
   - Longer pause: more seconds.
 - **Timer (in)**: adds seconds to the round.
-  - Longer timer: more seconds.
+  - Longer timer (in): more seconds.
 - **Shocker (in, replaces chain)**: a multi-hit brick. Each hit fires chain lightning that damages nearby bricks.
   - More charges: more hits before it breaks.
   - Wider arc: the lightning hits more bricks per hit.
 - **Bomb (in)**: breaks everything in a 3x3 and pays for every brick blown up.
-  - Bigger bomb: wider radius.
+  - Bigger bomb (in): wider radius.
 - **Bolt (in)**: breaks a line in a random direction: up, down, left, right or diagonal.
   - Twin bolt: fires in two directions.
 - **Rewind (new)**: pauses the arena briefly, restores every brick broken so far, and resets the round clock to its start. Balls in flight keep going when play resumes. A ball inside a restored brick must be pushed out or that brick left broken.
@@ -153,19 +160,19 @@ Native to level design, never unlocked. A level row places them by chance or by 
 
 Upgrades that apply to generation as a whole, to every unlockable block, or to every level block.
 
-- **Payout**: +base payout per brick.
+- **Payout (in)**: +base payout per brick.
 - **Special pay**: every special block pays more.
-- **Fewer solids**: lower solid brick rate.
-- **Fewer holes**: denser boards.
-- **Extra row**: one more board row.
+- **Fewer solids (in)**: lower solid brick rate.
+- **Fewer holes (in)**: denser boards.
+- **Extra row (in)**: one more board row, capped where the board would reach the placement line.
 - **Special spread**: specials are placed apart rather than clumped.
 - **Low specials**: specials favour the bottom rows, reached sooner.
 - **Reroll**: reroll the board once per round before placement.
-- **Twin unlock**: one extra of every unlocked kind.
+- **Twin unlock (in)**: one extra of every unlocked kind.
 
 ## Removed
 
-- **More Time** and **Combo Window**: cut on 2026-11-06, neither fit a category.
+- **Combo Window**: cut on 2026-11-06, fits no category. **More Time** was cut with it and came back as Round length.
 
 ## Level design
 
@@ -197,3 +204,12 @@ Variations any row can carry once the blocks exist:
 - **Gold run**: a few gold bricks in the top row, five hits each, so a swarm of fast balls is the only way to reach them in time.
 - **Rewind round**: a rewind brick mid-board puts the whole board back under a running combo. The level that asks for the biggest combo count rather than the biggest clear.
 - **Bonus level**: a short round of only icon bricks, no solids, between two hard levels. Pure screen fireworks to show what the next scale looks like.
+
+## Leaning into the loop
+
+Not upgrades. Presentation and scope changes that make the cap, the payout and the retry read the way the comparables do.
+
+- **Time bar**: the HUD timer as a bar whose full length is the upgraded maximum, so each Round length rank visibly lengthens it. The shop node shows before and after.
+- **Payout screen**: the result panel headline is the money, counted up with bricks, best combo and multiplier. The reason the round ended ("Ball dropped", "Time's up") is a subline. A lost round is a payout, never a verdict.
+- **Best clear percent**: shown per level on level select, so a retry reads as closing a gap.
+- **Scope**: two to four hours at $3 to $5. Build Round and one or two placeable kinds first. The abilities bar and most of the Blocks list wait for playtests.
