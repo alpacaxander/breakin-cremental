@@ -15,6 +15,7 @@ func _ready() -> void:
 	for k in Tuning.PLACEABLES:
 		Game.ranks[k] = 1
 	Game.ranks["capacity"] = 10  # ranks are not capped here; all pieces together cost more than max capacity
+	Game.layouts = {}  # a layout left by a real run would fill the slots before _take below
 	var Ui = load("res://src/ui.gd")  # needs the Game autoload, so it is checked here and not in test.gd
 	assert(Ui.money(0) == "0" and Ui.money(999) == "999" and Ui.money(1248) == "1,248" and Ui.money(1234567) == "1,234,567", "cash gets thousands separators")
 	var a = load("res://src/arena.gd").new()
@@ -26,13 +27,22 @@ func _ready() -> void:
 	for k in Tuning.PLACEABLES:
 		a.place._take(k)
 		assert(a.place.holding != null and a.place.holding.kind == k, "took %s" % k)
-		a.place.holding.position = Vector2(x, a.place_y() - 60)
+		a.place.holding.position = Vector2(x, a.place_y() - 28)  # just under the finale board, above the line: a spot the restore below accepts
 		x += 120
 		a.place.holding.overlay(null)
 		a.place.holding = null
 	a.place._hover(a.place.placed[0])
 	a.place._start()
 	assert(a.placed.size() == Tuning.PLACEABLES.size() and not a.place.placing, "all placed and handed to the arena")
+	assert(Game.layouts[str(a.level)].size() == Tuning.PLACEABLES.size(), "the layout is recorded for the level")
+	var again = load("res://src/arena.gd").new()  # a second round on the level starts from that layout; CLEAR empties it
+	again.level = a.level
+	add_child(again)
+	await get_tree().process_frame
+	assert(again.place.placed.size() == Tuning.PLACEABLES.size(), "the saved layout is put back")
+	again.place.clear()
+	assert(again.place.placed.is_empty() and Game.layouts[str(a.level)].is_empty(), "CLEAR removes every piece and the record")
+	again.queue_free()
 	a._launch()
 	await get_tree().physics_frame
 	# Pause menu: open, swap to settings and back, resume.

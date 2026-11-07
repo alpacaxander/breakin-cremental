@@ -72,6 +72,7 @@ func _init() -> void:
 		for s in 50:
 			var bricks: Array = g.generate(lvl, s)
 			check(bricks.size() >= g.generate(lvl, s).size(), "generate is deterministic")
+			check(bricks.size() == g.generate(lvl, 0).size(), "level %d fills the same slots every seed (holes are bricks), so saved layouts always fit" % lvl)
 			for b in bricks:
 				var r := Rect2(b.pos - Tuning.BRICK_SIZE / 2, Tuning.BRICK_SIZE)
 				check(arena.encloses(r) and r.end.y < arena.size.y - Tuning.PLACE_UP, "level %d maxed board inside the arena, above placement line" % lvl)

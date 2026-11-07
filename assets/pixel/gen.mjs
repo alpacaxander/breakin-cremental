@@ -110,6 +110,14 @@ A.brick_solid = (() => {
 	return b;
 })();
 
+// Hole: an empty slot in the board. A dotted trim outline on bare sheet, so the player sees the slot placement must avoid.
+A.brick_hole = (() => {
+	const b = new Img(30, 12);
+	for (let x = 1; x < 29; x += 2) { b.px(x, 0, C.trimHi); b.px(x, 11, C.trimHi); }
+	for (let y = 2; y < 10; y += 2) { b.px(0, y, C.trimHi); b.px(29, y, C.trimHi); }
+	return b;
+})();
+
 A.bumper = (() => {
 	const b = new Img(45, 7);
 	b.rect(0, 0, 45, 7, C.bumpDeep);

@@ -28,6 +28,7 @@ const COMBO_MULT_PER_HIT := 0.25  # mult = 1 + this * (combo - 1)
 const BRICK_SIZE := Vector2(60, 24)
 const BRICK_GAP := 4.0
 const BOARD_TOP := 100.0  # 44 + two brick rows (2 * (24 + 4))
+# holes: chance a slot is a hole brick (no ball contact, blocks placement). solid: chance of an unbreakable brick.
 # special: kind -> chance per brick (see BRICKS). jackpot: one 777 brick per board. seq: one 1-2-3 run per board.
 # arena: size, default ARENA (never larger). walls: extra Rect2s in arena px for other shapes; the board must still fit (test.gd).
 # skip: column indices left empty (room for a wall). time: round time scale, default 1. Fit at 960x720: cols <= 15, rows <= 16.
@@ -74,6 +75,7 @@ const LEVELS := [
 # seq1..3 only in order. shield loses its shield first. Behaviour: arena.gd _hit, _damage, _effect (adding a kind: CLAUDE.md).
 const BRICKS := {
 	plain = {hp = 1, pay = 1, face = "brick_plain_lit"}, solid = {hp = -1, pay = 0, face = "brick_solid"},
+	hole = {hp = -1, pay = 0, thru = true, face = "brick_hole"},  # the ball flies through, but it still blocks placement, so a level's footprint is the same every round
 	multi = {hp = 2, pay = 2, face = "brick_multi_full"}, multi3 = {hp = 3, pay = 3, face = ["multi3_crack", 30, 0]},
 	shield = {hp = 2, pay = 2, face = ["shield_pop", 44, 0]},
 	cond = {hp = 1, pay = 3, face = "brick_cond_speed_idle"}, cgate = {hp = 1, pay = 3, face = ["combo_gate", 30, 0]},

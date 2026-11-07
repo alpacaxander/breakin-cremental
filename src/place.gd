@@ -25,6 +25,16 @@ func _init(a: Node2D, ui: Ui.Root) -> void:
 
 
 func _ready() -> void:
+	# Put back the layout saved for this level, piece by piece, skipping any that no longer fits (sold back, capacity, board).
+	for e in Game.layouts.get(str(arena.level), []):
+		if not (e.kind in Tuning.PLACEABLES and _can_take(e.kind)):
+			continue
+		var b: Box = arena.box(e.kind, Tuning.PLACEABLES[e.kind].size, Vector2(e.x, e.y))
+		b.rotation = e.rot
+		if _valid(b):
+			placed.append(b)
+		else:
+			b.queue_free()
 	refresh()
 
 
@@ -44,7 +54,10 @@ func _can_take(kind: String) -> bool:
 
 
 ## Rebuilds the pieces column: a slot per owned piece with its count left, capacity pips, hints and the start button.
+## Also records the layout (every piece down, not the one in hand) so the next round on this level starts from it.
 func refresh() -> void:
+	Game.layouts[str(arena.level)] = placed.filter(func(b): return b != holding).map(func(b): return {kind = b.kind, x = b.position.x, y = b.position.y, rot = b.rotation})
+	Game.save()  # ponytail: a full save per click; batch it if the file ever grows
 	for c in tray.get_children():
 		c.queue_free()
 	var C := Tuning.COLORS
@@ -76,6 +89,7 @@ func refresh() -> void:
 	var hints := ["LMB PICK/DROP", "WHEEL/A/D ROTATE", "RMB REMOVE", "ESC PAUSE"]
 	for i in hints.size():
 		Ui.label(tray, hints[i], 6, y + 24 + i * 8, C.rivet)
+	Ui.button(tray, "CLEAR", 6, 244, 66, 24, clear, false, 2, "ui_back").disabled = placed.is_empty()
 	Ui.button(tray, "SHOP", 6, 272, 66, 24, arena._quit, false, 2, "ui_back")  # back to the upgrade web; the round never started, so no result
 	Ui.button(tray, "START", 6, 300, 66, 24, _start, true, 2, "")
 	Ui.label(tray, "SPACE", 0, 328, C.rivet, 1, 78, HORIZONTAL_ALIGNMENT_CENTER)
@@ -150,6 +164,16 @@ func _place_click(button: int) -> void:
 			placed.erase(b)
 			b.queue_free()
 			holding = null
+	refresh()
+
+
+## Takes every piece off the board, the held one included.
+func clear() -> void:
+	_hover(null)
+	for b in placed:
+		b.queue_free()
+	placed.clear()
+	holding = null
 	refresh()
 
 

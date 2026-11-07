@@ -13,6 +13,7 @@ var best := 0  # most earned in one round
 var runs := 0
 var broken := {}  # level index (as a string, JSON keys) -> best share of bricks broken in one round, 0..100. Not a win condition
 var ranks := {}  # upgrade id -> rank
+var layouts := {}  # level index (as a string) -> [{kind, x, y, rot}]: the pieces placed last time, put back at the next placement
 var slot := SAVE_PATH  # which file holds the run in memory: SAVE_PATH or SANDBOX_PATH (enter_sandbox / leave_sandbox)
 var sandbox: bool:
 	get: return slot == SANDBOX_PATH
@@ -51,7 +52,7 @@ func apply_settings() -> void:
 
 func save() -> void:
 	var f := FileAccess.open(slot, FileAccess.WRITE)
-	f.store_string(JSON.stringify({currency = currency, unlocked = unlocked, won = won, best = best, runs = runs, ranks = ranks, broken = broken}))
+	f.store_string(JSON.stringify({currency = currency, unlocked = unlocked, won = won, best = best, runs = runs, ranks = ranks, broken = broken, layouts = layouts}))
 
 
 func load_save() -> void:
@@ -71,6 +72,7 @@ func load_save() -> void:
 	for k in d.get("ranks", {}):
 		if k in Tuning.UPGRADES:
 			ranks[k] = int(d.ranks[k])
+	layouts = d.get("layouts", {})  # place.gd drops any entry that no longer fits (unowned kind, over capacity, off the board)
 
 
 func reset() -> void:
@@ -87,6 +89,7 @@ func wipe() -> void:
 	runs = 0
 	ranks = {}
 	broken = {}
+	layouts = {}
 	if sandbox:
 		for id in Tuning.UPGRADES:
 			ranks[id] = Tuning.UPGRADES[id].ranks
@@ -230,10 +233,11 @@ func generate(level: int, seed: int) -> Array:
 	for r in rows:
 		var cols: int = L.cols - (2 * (rows - 1 - r) if L.shape == "triangle" else (r % 2 if L.shape == "honey" else 0))
 		for c in cols:
-			if c in L.get("skip", []) or rng.randf() < holes:
+			if c in L.get("skip", []):
 				continue
 			var pos := Vector2(arena_size(level).x / 2 + (c - (cols - 1) / 2.0) * step.x, Tuning.BOARD_TOP + r * step.y)
-			var kind := "solid" if rng.randf() < solid else "plain"
+			# A hole is a brick kind, not a gap: every seed fills the same slots, so a saved layout always fits (place.gd).
+			var kind := "hole" if rng.randf() < holes else "solid" if rng.randf() < solid else "plain"
 			if kind == "plain":
 				var roll := rng.randf()
 				for k in L.get("special", {}):
@@ -254,7 +258,8 @@ func generate(level: int, seed: int) -> Array:
 			var b: Dictionary = out[(start + i) % out.size()]
 			var n1: Array = at.call(b.pos + Vector2(step.x, 0))
 			var n2: Array = at.call(b.pos + Vector2(step.x * 2, 0))
-			if b.kind != "solid" and n1 and n2 and n1[0].kind != "solid" and n2[0].kind != "solid":
+			var soft := func(x: Dictionary): return Tuning.BRICKS[x.kind].hp > 0  # not solid, not a hole
+			if soft.call(b) and n1 and n2 and soft.call(n1[0]) and soft.call(n2[0]):
 				b.kind = "seq1"
 				n1[0].kind = "seq2"
 				n2[0].kind = "seq3"
