@@ -19,6 +19,9 @@ func _init() -> void:
 	check(g.combo_mult(5) > g.combo_mult(2), "multiplier ramps")
 	check(g.combo_window(1) == Tuning.COMBO_WINDOW_START, "window starts at START")
 	check(g.combo_window(1000) == Tuning.COMBO_WINDOW_MIN, "window floors at MIN")
+	g.ranks["combos"] = 1
+	check(g.combo_window(1) == Tuning.COMBO_WINDOW_START + Tuning.UPGRADES.combos.amount, "the first Combos rank already widens the window")
+	g.ranks.erase("combos")
 
 	for lvl in Tuning.LEVELS.size():
 		var arena := Rect2(Vector2.ZERO, g.arena_size(lvl))
@@ -92,6 +95,9 @@ func _init() -> void:
 	g.wipe()
 	check(not g.sandbox and g.rank("tele") == 0 and g.currency == 0, "the real slot starts from zero, not the sandbox's state")
 	check(g.generate(1, 1).size() > g.generate(0, 1).size(), "level 2 board is bigger")
+	var l1: Array = g.generate(0, 1)
+	check(l1.size() == 24 and l1.all(func(b): return b.pos.y in [96.0, 124.0]), "level 1 is two rows, three brick rows below the ceiling")
+	check(l1.any(func(b): return b.pos.x - Tuning.BRICK_SIZE.x / 2 == Tuning.BRICK_GAP) and l1.any(func(b): return b.pos.x + Tuning.BRICK_SIZE.x / 2 == g.arena_size(0).x - Tuning.BRICK_GAP), "level 1 rows run wall to wall, one brick gap at each edge")
 	check(g.generate(3, 1).filter(func(b): return b.pos.y == Tuning.BOARD_TOP + 28).all(func(b): return int(b.pos.x) % 64 == 0), "honey odd rows sit half a step over (even rows are at 32)")
 	check(g.generate(8, 1).all(func(b): return b.pos.x != 480), "double wide leaves the divider column empty")
 	check(g.round_time(11, 100) < g.round_time(2, 100), "finale clock is shorter per brick")
@@ -110,8 +116,9 @@ func _init() -> void:
 	g.buy(seed_id)
 	check(g.rank(seed_id) == 1 and g.currency == 10000 - Tuning.UPGRADES[seed_id].cost, "buy charges cost")
 	check(g.is_revealed("paddle"), "neighbours revealed")
-	check(g.owned("bumper") == 1 and g.owned("pop") == 0, "the seed is the first bumper, nothing else")
-	check(g.cost(seed_id) > Tuning.UPGRADES[seed_id].cost, "cost rises per rank")
+	check(g.paddle_speed() == Tuning.PADDLE_SPEED + Tuning.UPGRADES.speed.amount, "the seed speeds the paddle up")
+	check(g.is_revealed("bomb") and g.is_revealed("combos") and g.is_revealed("time") and not g.is_revealed("bumper"), "the seed opens left, right, down and up only")
+	check(g.cost(seed_id) == Tuning.UPGRADES[seed_id].cost * Tuning.COST_MULT, "each rank costs COST_MULT times the last")
 	for i in 10:
 		g.buy(seed_id)
 	check(g.rank(seed_id) == Tuning.UPGRADES[seed_id].ranks, "rank caps")

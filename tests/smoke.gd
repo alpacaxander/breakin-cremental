@@ -113,6 +113,8 @@ func _ready() -> void:
 	assert(await _click(res, "UPGRADES") and hit[1], "result UPGRADES clicks through")
 	var fx: int = a.get_children().filter(func(c): return c is AnimatedSprite2D).size()
 	print("smoke ok: over=%s earned=%d balls=%d placed=%d fx=%d" % [a.over, a.earned, a.balls.size(), a.placed.size(), fx])
+	a.queue_free()  # its walls and paddle share the physics world; the sandbox round below must not bounce off them
+	await get_tree().process_frame
 
 	# Sandbox: the shop builds with every node lit, a round starts with every upgrade on, and leaving forgets it all.
 	Game.enter_sandbox()

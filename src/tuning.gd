@@ -7,7 +7,7 @@ const ARENA := Vector2(960, 720)  # default arena size and the largest allowed: 
 const PADDLE_WIDTH := 120.0
 const PADDLE_HEIGHT := 16.0
 const PADDLE_UP := 40.0  # paddle centre above the arena floor
-const PADDLE_SPEED := 1400.0  # px/s cap for both mouse-follow and keys
+const PADDLE_SPEED := 500.0  # px/s cap for both mouse-follow and keys; the seed upgrade raises it (1400 at max rank)
 const BALL_SPEED := 480.0
 const BALL_RADIUS := 8.0
 const MAX_BOUNCE_DEG := 60.0  # angle off vertical when the ball hits the paddle edge
@@ -18,8 +18,8 @@ const ROUND_TIME_BASE := 15.0
 const ROUND_TIME_PER_BRICK := 0.4  # seconds added per breakable brick on the board
 const TIME_BAR_PX := 0.75  # HUD time bar px per second, so a longer round shows as a longer bar; capped at the column width
 
-# Combo: window(n) = START + upgrades - SHRINK * (n - 1), floored at MIN
-const COMBO_WINDOW_START := 1.5
+# Combo: window(n) = START + upgrades - SHRINK * (n - 1), floored at MIN. No combo at all until the combos node is bought (arena.gd _break).
+const COMBO_WINDOW_START := 1.0  # the combos node adds its amount from rank 1, so the first rank gives 1.5
 const COMBO_WINDOW_SHRINK := 0.1
 const COMBO_WINDOW_MIN := 0.4
 const COMBO_MULT_PER_HIT := 0.25  # mult = 1 + this * (combo - 1)
@@ -27,15 +27,16 @@ const COMBO_MULT_PER_HIT := 0.25  # mult = 1 + this * (combo - 1)
 # Board generation. shape: "grid", "triangle" (rows narrow by 2 going up) or "honey" (odd rows one brick short, so offset half a step).
 const BRICK_SIZE := Vector2(60, 24)
 const BRICK_GAP := 4.0
-const BOARD_TOP := 100.0  # 44 + two brick rows (2 * (24 + 4))
+const BOARD_TOP := 100.0  # 44 + two brick rows (2 * (24 + 4)); a level row's top overrides it
 # holes: chance a slot is a hole brick (no ball contact, blocks placement). solid: chance of an unbreakable brick.
 # special: kind -> chance per brick (see BRICKS). jackpot: one 777 brick per board. seq: one 1-2-3 run per board.
-# arena: size, default ARENA (never larger). walls: extra Rect2s in arena px for other shapes; the board must still fit (test.gd).
+# arena: size, default ARENA (never larger). top: first row centre y, default BOARD_TOP. walls: extra Rect2s in arena px for other shapes; the board must still fit (test.gd).
 # skip: column indices left empty (room for a wall). time: round time scale, default 1. Fit at 960x720: cols <= 15, rows <= 16.
 # unlock: how the previous level opens this one; default clear its board, {combo = n} a combo of n in one round (game.gd finish_level).
 # The ramp: each level puts more on screen and needs a bigger combo than the last (docs/ideas.md, Level design).
 const LEVELS := [
-	{shape = "grid", cols = 8, rows = 3, holes = 0, solid = 0, payout = 1, arena = Vector2(800, 640)},  # plain bricks only: what the player unlocks is all that shows
+	# 1: low ceiling, two rows wall to wall (12 * 64 + 4: the edge margin is one brick gap), three rows of air above. Plain bricks only: what the player unlocks is all that shows.
+	{shape = "grid", cols = 12, rows = 2, holes = 0, solid = 0, payout = 1, arena = Vector2(772, 508), top = 96.0},
 	{shape = "columns", cols = 14, rows = 14, holes = 0, solid = 0, payout = 2, unlock = {combo = 10}},  # plain bricks only, like level 1
 	{shape = "grid", cols = 15, rows = 7, holes = 0.08, solid = 0.1, payout = 3, jackpot = true, seq = true,
 		special = {multi = 0.1, multi3 = 0.05, shield = 0.05, cond = 0.06, timed = 0.05, cgate = 0.04, x2 = 0.03, x3 = 0.02, combo = 0.03, timer = 0.02, multiball = 0.03, speedup = 0.03, slowdown = 0.02, chain = 0.04, bomb = 0.03, bolt = 0.02, mystery = 0.03}},
@@ -135,59 +136,62 @@ const MAGNET_RADIUS := 160.0
 const MAGNET_PULL := 700.0  # px/s^2
 const SPAWN_EVERY := 6.0  # seconds per spawner ball
 
-# Upgrade web. amount = effect per rank. cost(rank) = cost * cost_mult ^ rank.
+# Upgrade web. amount = effect per rank. cost(rank) = cost * COST_MULT ^ rank.
 # links are undirected: a node shows once any linked node has rank >= 1. pos: node centre in sprite px on the 640x360 layout;
 # the web pans and zooms (shop.gd), so positions may run past the field (80-559) once it fills up.
 # Names fit the 66px upgrade column at 2x when wrapped by word; descs use only glyphs the 3x5 font has (no ; or lowercase-only marks).
 # cat: the category (CATS) that colours the node. icon: the icon_<name> sprite, default the id. A node whose id is a brick kind
 # in ICON_KINDS is an unlock: each rank guarantees one more of that brick on every board (game.gd generate).
-# Layout: paddle and round nodes along the bottom-left, placement right, blocks top-left; the web is one tree from the seed.
-const SEED_UPGRADE := "bumper"  # the first buy is the first placeable: nothing to place until then
+# Layout: the seed sits at the bottom centre. Left of it the paddle, right the bomb, below it the combos node, and everything else
+# hangs above it off Round Length: round bottom-left, placement right, blocks top-left. The web is one tree from the seed.
+const COST_MULT := 10.0  # each rank costs this times the one before
+const SEED_UPGRADE := "speed"  # the paddle starts slow: the first buy is the one every run feels
 const UPGRADES := {
 	# Paddle
-	"paddle": {cat = "paddle", name = "Wider Paddle", desc = "+25 paddle width", amount = 25, cost = 5, cost_mult = 1.8, ranks = 3, links = ["speed", "time"], pos = Vector2(320, 310)},
-	"speed": {cat = "paddle", name = "Faster Paddle", desc = "+300 paddle speed", amount = 300, cost = 8, cost_mult = 1.8, ranks = 3, links = ["aim"], pos = Vector2(320, 260)},
-	"aim": {cat = "paddle", name = "Aim", desc = "the launch follows the mouse", amount = 1, cost = 12, cost_mult = 1.0, ranks = 1, links = [], pos = Vector2(250, 260)},
-	# Round: the cap, beside the seed
-	"time": {cat = "round", name = "Round Length", desc = "+5s per round", amount = 5, cost = 6, cost_mult = 1.8, ranks = 5, links = ["shield"], pos = Vector2(250, 310)},
-	"shield": {cat = "round", name = "Shield Floor", desc = "+1 floor per round that bounces a dropped ball back", amount = 1, cost = 30, cost_mult = 2.5, ranks = 2, links = ["balls"], pos = Vector2(180, 310)},
-	"balls": {cat = "round", name = "Extra Ball", desc = "+1 ball at launch", amount = 1, cost = 25, cost_mult = 2.5, ranks = 2, links = [], pos = Vector2(110, 310)},
+	"paddle": {cat = "paddle", name = "Wider Paddle", desc = "+25 paddle width", amount = 25, cost = 5, ranks = 3, links = ["aim"], pos = Vector2(250, 360)},
+	"speed": {cat = "paddle", name = "Faster Paddle", desc = "+300 paddle speed", amount = 300, cost = 5, ranks = 3, links = ["paddle", "bomb", "combos", "time"], pos = Vector2(320, 360)},
+	"aim": {cat = "paddle", name = "Aim", desc = "the launch follows the mouse", amount = 1, cost = 12, ranks = 1, links = [], pos = Vector2(180, 360)},
+	# Round: the cap, straight above the seed; the rest of the web hangs off it
+	"time": {cat = "round", name = "Round Length", desc = "+5s per round", amount = 5, cost = 6, ranks = 5, links = ["shield", "bumper"], pos = Vector2(320, 310)},
+	"shield": {cat = "round", name = "Shield Floor", desc = "+1 floor per round that bounces a dropped ball back", amount = 1, cost = 30, ranks = 2, links = ["balls"], pos = Vector2(250, 310)},
+	"balls": {cat = "round", name = "Extra Ball", desc = "+1 ball at launch", amount = 1, cost = 25, ranks = 2, links = [], pos = Vector2(180, 310)},
+	"combos": {cat = "round", name = "Combos", desc = "turns combos on, +0.5s combo window per rank", amount = 0.5, cost = 10, ranks = 4, links = [], pos = Vector2(320, 410)},
 	# Placement
-	"bumper": {cat = "place", name = "Bumper", desc = "+1 placeable bumper", amount = 1, cost = 10, cost_mult = 2.0, ranks = 3, links = ["paddle", "capacity", "sticky", "piecepay"], pos = Vector2(400, 310)},
-	"sticky": {cat = "place", name = "Sticky Pad", desc = "+1 pad that catches the ball and fires it up", amount = 1, cost = 14, cost_mult = 2.0, ranks = 2, links = ["spawner"], pos = Vector2(470, 310)},
-	"spawner": {cat = "place", name = "Spawner", desc = "+1 lamp that spits out an extra ball every few seconds", amount = 1, cost = 30, cost_mult = 2.0, ranks = 2, links = ["fastspawn"], pos = Vector2(540, 310)},
-	"fastspawn": {cat = "place", icon = "spawner", name = "Fast Spawner", desc = "spawners fire 1s sooner", amount = -1, cost = 25, cost_mult = 2.0, ranks = 3, links = [], pos = Vector2(540, 260)},
-	"piecepay": {cat = "place", name = "Piece Pay", desc = "+1 cash per bumper hit", amount = 1, cost = 15, cost_mult = 2.0, ranks = 3, links = ["piececombo"], pos = Vector2(400, 260)},
-	"piececombo": {cat = "place", name = "Piece Combo", desc = "a bumper hit adds 0.25s to a running combo", amount = 0.25, cost = 20, cost_mult = 2.0, ranks = 2, links = [], pos = Vector2(470, 260)},
-	"capacity": {cat = "place", name = "Capacity", desc = "+2 arena capacity", amount = 2, cost = 15, cost_mult = 2.0, ranks = 5, links = ["pop", "cheaper", "accel", "payout"], pos = Vector2(400, 210)},
-	"pop": {cat = "place", name = "Pop Bumper", desc = "+1 round bumper that speeds the ball up", amount = 1, cost = 12, cost_mult = 2.0, ranks = 3, links = ["poppower", "oneway"], pos = Vector2(470, 210)},
-	"poppower": {cat = "place", icon = "pop", name = "Pop Power", desc = "+0.05 speed per pop bumper hit", amount = 0.05, cost = 15, cost_mult = 2.0, ranks = 3, links = [], pos = Vector2(540, 210)},
-	"cheaper": {cat = "place", name = "Cheaper Pieces", desc = "every piece costs 1 less capacity, min 1", amount = 1, cost = 40, cost_mult = 1.0, ranks = 1, links = ["floor"], pos = Vector2(400, 160)},
-	"floor": {cat = "place", name = "Lower Floor", desc = "pieces may sit 30px closer to the paddle", amount = -30, cost = 15, cost_mult = 2.0, ranks = 3, links = ["rotate"], pos = Vector2(400, 110)},
-	"rotate": {cat = "place", name = "Free Rotate", desc = "finer rotation steps", amount = 1, cost = 10, cost_mult = 2.0, ranks = 2, links = [], pos = Vector2(400, 60)},
-	"accel": {cat = "place", name = "Launcher", desc = "+1 strip that launches the ball to fast speed", amount = 1, cost = 10, cost_mult = 2.0, ranks = 3, links = ["hotlaunch"], pos = Vector2(470, 160)},
-	"hotlaunch": {cat = "place", icon = "accel", name = "Hotter Launch", desc = "+0.15 launcher exit speed", amount = 0.15, cost = 15, cost_mult = 2.0, ranks = 3, links = [], pos = Vector2(540, 160)},
-	"oneway": {cat = "place", name = "One-way Gate", desc = "+1 gate: ball passes up, bounces down", amount = 1, cost = 15, cost_mult = 2.0, ranks = 3, links = ["tele", "magnet"], pos = Vector2(470, 110)},
-	"tele": {cat = "place", name = "Portal", desc = "+1 portal: the ball jumps to the next one placed", amount = 1, cost = 15, cost_mult = 2.0, ranks = 4, links = [], pos = Vector2(540, 110)},
-	"magnet": {cat = "place", name = "Magnet", desc = "+1 magnet that bends the ball toward it", amount = 1, cost = 20, cost_mult = 2.0, ranks = 2, links = ["reach"], pos = Vector2(470, 60)},
-	"reach": {cat = "place", icon = "magnet", name = "Magnet Reach", desc = "+40 magnet radius", amount = 40, cost = 20, cost_mult = 2.0, ranks = 3, links = [], pos = Vector2(540, 60)},
+	"bumper": {cat = "place", name = "Bumper", desc = "+1 placeable bumper", amount = 1, cost = 10, ranks = 3, links = ["capacity", "sticky", "piecepay"], pos = Vector2(400, 310)},
+	"sticky": {cat = "place", name = "Sticky Pad", desc = "+1 pad that catches the ball and fires it up", amount = 1, cost = 14, ranks = 2, links = ["spawner"], pos = Vector2(470, 310)},
+	"spawner": {cat = "place", name = "Spawner", desc = "+1 lamp that spits out an extra ball every few seconds", amount = 1, cost = 30, ranks = 2, links = ["fastspawn"], pos = Vector2(540, 310)},
+	"fastspawn": {cat = "place", icon = "spawner", name = "Fast Spawner", desc = "spawners fire 1s sooner", amount = -1, cost = 25, ranks = 3, links = [], pos = Vector2(540, 260)},
+	"piecepay": {cat = "place", name = "Piece Pay", desc = "+1 cash per bumper hit", amount = 1, cost = 15, ranks = 3, links = ["piececombo"], pos = Vector2(400, 260)},
+	"piececombo": {cat = "place", name = "Piece Combo", desc = "a bumper hit adds 0.25s to a running combo", amount = 0.25, cost = 20, ranks = 2, links = [], pos = Vector2(470, 260)},
+	"capacity": {cat = "place", name = "Capacity", desc = "+2 arena capacity", amount = 2, cost = 15, ranks = 5, links = ["pop", "cheaper", "accel", "payout"], pos = Vector2(400, 210)},
+	"pop": {cat = "place", name = "Pop Bumper", desc = "+1 round bumper that speeds the ball up", amount = 1, cost = 12, ranks = 3, links = ["poppower", "oneway"], pos = Vector2(470, 210)},
+	"poppower": {cat = "place", icon = "pop", name = "Pop Power", desc = "+0.05 speed per pop bumper hit", amount = 0.05, cost = 15, ranks = 3, links = [], pos = Vector2(540, 210)},
+	"cheaper": {cat = "place", name = "Cheaper Pieces", desc = "every piece costs 1 less capacity, min 1", amount = 1, cost = 40, ranks = 1, links = ["floor"], pos = Vector2(400, 160)},
+	"floor": {cat = "place", name = "Lower Floor", desc = "pieces may sit 30px closer to the paddle", amount = -30, cost = 15, ranks = 3, links = ["rotate"], pos = Vector2(400, 110)},
+	"rotate": {cat = "place", name = "Free Rotate", desc = "finer rotation steps", amount = 1, cost = 10, ranks = 2, links = [], pos = Vector2(400, 60)},
+	"accel": {cat = "place", name = "Launcher", desc = "+1 strip that launches the ball to fast speed", amount = 1, cost = 10, ranks = 3, links = ["hotlaunch"], pos = Vector2(470, 160)},
+	"hotlaunch": {cat = "place", icon = "accel", name = "Hotter Launch", desc = "+0.15 launcher exit speed", amount = 0.15, cost = 15, ranks = 3, links = [], pos = Vector2(540, 160)},
+	"oneway": {cat = "place", name = "One-way Gate", desc = "+1 gate: ball passes up, bounces down", amount = 1, cost = 15, ranks = 3, links = ["tele", "magnet"], pos = Vector2(470, 110)},
+	"tele": {cat = "place", name = "Portal", desc = "+1 portal: the ball jumps to the next one placed", amount = 1, cost = 15, ranks = 4, links = [], pos = Vector2(540, 110)},
+	"magnet": {cat = "place", name = "Magnet", desc = "+1 magnet that bends the ball toward it", amount = 1, cost = 20, ranks = 2, links = ["reach"], pos = Vector2(470, 60)},
+	"reach": {cat = "place", icon = "magnet", name = "Magnet Reach", desc = "+40 magnet radius", amount = 40, cost = 20, ranks = 3, links = [], pos = Vector2(540, 60)},
 	# Blocks. Unlocks (brick kind ids) guarantee that brick per board; the rest tune generation and effects.
-	"payout": {cat = "block", name = "Payout", desc = "+1 base pay per brick", amount = 1, cost = 30, cost_mult = 2.2, ranks = 5, links = ["solids", "x2"], pos = Vector2(320, 200)},
-	"solids": {cat = "block", name = "Fewer Solids", desc = "-2 in 100 solid bricks", amount = -0.02, cost = 20, cost_mult = 2.0, ranks = 3, links = ["holes", "multiball"], pos = Vector2(250, 200)},
-	"holes": {cat = "block", name = "Fewer Holes", desc = "-3 in 100 holes", amount = -0.03, cost = 20, cost_mult = 2.0, ranks = 3, links = ["row", "chain"], pos = Vector2(180, 200)},
-	"row": {cat = "block", name = "Extra Row", desc = "+1 board row when the arena has room", amount = 1, cost = 50, cost_mult = 2.5, ranks = 2, links = ["bomb"], pos = Vector2(110, 200)},
-	"x2": {cat = "unlock", name = "Multiplier", desc = "+1 x2 brick per board", amount = 1, cost = 25, cost_mult = 2.0, ranks = 3, links = ["multiball", "timer"], pos = Vector2(320, 150)},
-	"multiball": {cat = "unlock", name = "Multiball", desc = "+1 multiball brick per board", amount = 1, cost = 25, cost_mult = 2.0, ranks = 3, links = ["chain", "speedup"], pos = Vector2(250, 150)},
-	"chain": {cat = "unlock", name = "Shocker", desc = "+1 chain brick per board", amount = 1, cost = 25, cost_mult = 2.0, ranks = 3, links = ["bomb", "bolt"], pos = Vector2(180, 150)},
-	"bomb": {cat = "unlock", name = "Bomb", desc = "+1 bomb brick per board", amount = 1, cost = 25, cost_mult = 2.0, ranks = 3, links = ["bigbomb"], pos = Vector2(110, 150)},
-	"timer": {cat = "unlock", name = "Timer", desc = "+1 hourglass brick per board", amount = 1, cost = 25, cost_mult = 2.0, ranks = 3, links = ["speedup", "longtimer"], pos = Vector2(320, 100)},
-	"speedup": {cat = "unlock", name = "Speedup", desc = "+1 speedup brick per board", amount = 1, cost = 20, cost_mult = 2.0, ranks = 3, links = ["bolt", "combo"], pos = Vector2(250, 100)},
-	"bolt": {cat = "unlock", name = "Bolt", desc = "+1 bolt brick per board", amount = 1, cost = 25, cost_mult = 2.0, ranks = 3, links = ["mystery"], pos = Vector2(180, 100)},
-	"bigbomb": {cat = "unlock", icon = "bomb", name = "Bigger Bomb", desc = "+40 bomb radius", amount = 40, cost = 30, cost_mult = 2.0, ranks = 2, links = [], pos = Vector2(110, 100)},
-	"longtimer": {cat = "unlock", icon = "timer", name = "Longer Timer", desc = "+3s per hourglass brick", amount = 3, cost = 20, cost_mult = 2.0, ranks = 3, links = ["combo"], pos = Vector2(320, 50)},
-	"combo": {cat = "unlock", name = "Combo", desc = "+1 C+ brick per board", amount = 1, cost = 25, cost_mult = 2.0, ranks = 3, links = ["mystery"], pos = Vector2(250, 50)},
-	"mystery": {cat = "unlock", name = "Mystery", desc = "+1 mystery brick per board", amount = 1, cost = 20, cost_mult = 2.0, ranks = 3, links = ["twin"], pos = Vector2(180, 50)},
-	"twin": {cat = "unlock", name = "Twin Unlock", desc = "+1 more of every unlocked brick", amount = 1, cost = 150, cost_mult = 1.0, ranks = 1, links = [], pos = Vector2(110, 50)},
+	"payout": {cat = "block", name = "Payout", desc = "+1 base pay per brick", amount = 1, cost = 30, ranks = 5, links = ["solids", "x2"], pos = Vector2(320, 200)},
+	"solids": {cat = "block", name = "Fewer Solids", desc = "-2 in 100 solid bricks", amount = -0.02, cost = 20, ranks = 3, links = ["holes", "multiball"], pos = Vector2(250, 200)},
+	"holes": {cat = "block", name = "Fewer Holes", desc = "-3 in 100 holes", amount = -0.03, cost = 20, ranks = 3, links = ["row", "chain"], pos = Vector2(180, 200)},
+	"row": {cat = "block", name = "Extra Row", desc = "+1 board row when the arena has room", amount = 1, cost = 50, ranks = 2, links = [], pos = Vector2(110, 200)},
+	"x2": {cat = "unlock", name = "Multiplier", desc = "+1 x2 brick per board", amount = 1, cost = 25, ranks = 3, links = ["multiball", "timer"], pos = Vector2(320, 150)},
+	"multiball": {cat = "unlock", name = "Multiball", desc = "+1 multiball brick per board", amount = 1, cost = 25, ranks = 3, links = ["chain", "speedup"], pos = Vector2(250, 150)},
+	"chain": {cat = "unlock", name = "Shocker", desc = "+1 chain brick per board", amount = 1, cost = 25, ranks = 3, links = ["bolt"], pos = Vector2(180, 150)},
+	"bomb": {cat = "unlock", name = "Bomb", desc = "+1 bomb brick per board", amount = 1, cost = 25, ranks = 3, links = ["bigbomb"], pos = Vector2(390, 360)},
+	"timer": {cat = "unlock", name = "Timer", desc = "+1 hourglass brick per board", amount = 1, cost = 25, ranks = 3, links = ["speedup", "longtimer"], pos = Vector2(320, 100)},
+	"speedup": {cat = "unlock", name = "Speedup", desc = "+1 speedup brick per board", amount = 1, cost = 20, ranks = 3, links = ["bolt", "combo"], pos = Vector2(250, 100)},
+	"bolt": {cat = "unlock", name = "Bolt", desc = "+1 bolt brick per board", amount = 1, cost = 25, ranks = 3, links = ["mystery"], pos = Vector2(180, 100)},
+	"bigbomb": {cat = "unlock", icon = "bomb", name = "Bigger Bomb", desc = "+40 bomb radius", amount = 40, cost = 30, ranks = 2, links = [], pos = Vector2(460, 360)},
+	"longtimer": {cat = "unlock", icon = "timer", name = "Longer Timer", desc = "+3s per hourglass brick", amount = 3, cost = 20, ranks = 3, links = ["combo"], pos = Vector2(320, 50)},
+	"combo": {cat = "unlock", name = "Combo", desc = "+1 C+ brick per board", amount = 1, cost = 25, ranks = 3, links = ["mystery"], pos = Vector2(250, 50)},
+	"mystery": {cat = "unlock", name = "Mystery", desc = "+1 mystery brick per board", amount = 1, cost = 20, ranks = 3, links = ["twin"], pos = Vector2(180, 50)},
+	"twin": {cat = "unlock", name = "Twin Unlock", desc = "+1 more of every unlocked brick", amount = 1, cost = 150, ranks = 1, links = [], pos = Vector2(110, 50)},
 }
 # Node colours per category: docs/palette.md. The lamp sprites are node_<cat>_<state>; the icons and pips use these.
 # A node takes the hue of the arena thing it adds or changes: paddle sky, placeables mint, basic bricks magenta, unlock bricks blue.

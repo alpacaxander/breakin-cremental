@@ -571,7 +571,7 @@ const UICONS = {
 	row: nglyph(["#####", "#####", ".....", "..#..", ".###."]), spread: nglyph([".#.#.", "#...#", ".....", "#...#", ".#.#."]), low: nglyph(["..#..", "..#..", "#.#.#", ".###.", "..#.."]),
 	reroll: nglyph(["#####", "#.#.#", "#...#", "#.#.#", "#####"]), twin: (b, c) => text(b, 12, 3, "2X", c),
 };
-Object.assign(UICONS, { speedup: UICONS.accel, timer: UICONS.time, bolt: UICONS.power, cooldown: UICONS.time, piececombo: UICONS.combo, ab_magnet: UICONS.magnet });
+Object.assign(UICONS, { speedup: UICONS.accel, timer: UICONS.time, bolt: UICONS.power, cooldown: UICONS.time, piececombo: UICONS.combo, combos: UICONS.combo, ab_magnet: UICONS.magnet });
 const NODE_SETS = { paddle: SETS.sky, round: SETS.vio, place: SETS.mint, block: SETS.mag, unlock: SETS.blue };
 const node = (state, icon, rank, ranks, set = SETS.pay) => {
 	const b = state === "lit" ? lit(set) : state === "hot" ? hot(set) : dim(set);

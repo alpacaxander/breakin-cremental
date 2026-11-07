@@ -81,7 +81,7 @@ func _ready() -> void:
 			breakable += 1
 		# Spawn-in, one row after another. The brick shows once its spawn strip ends.
 		brick.hide()
-		var row := int((b.pos.y - Tuning.BOARD_TOP) / (Tuning.BRICK_SIZE.y + Tuning.BRICK_GAP))
+		var row := int((b.pos.y - Game.board_top(level)) / (Tuning.BRICK_SIZE.y + Tuning.BRICK_GAP))
 		if not row in rows:  # one tick per row as it lands
 			rows[row] = true
 			Sfx.play("count_tick", 1.0 + 0.06 * row, 0.08 * row)
@@ -439,12 +439,13 @@ func _break(b: Box) -> void:
 	b.queue_free()
 	Fx.play(self, "%s_break" % Tuning.hue(b.kind), 44, 12, b.position)  # the brick's colour group; sparks stay payout yellow
 	Fx.play(self, "spark_burst", 16, 12, b.position)
-	combo = combo + 1 if combo > 0 else 1
-	combo_timer = Game.combo_window(combo)
+	if Game.rank("combos") > 0:  # until the Combos node is bought every break pays base
+		combo = combo + 1 if combo > 0 else 1
+		combo_timer = Game.combo_window(combo)
 	Sfx.play("brick_break")
 	if combo > 1:
 		Sfx.play("combo_tick", Sfx.st(mini(combo - 2, 7)))
-	if combo == Tuning.GATE_COMBO or combo % 5 == 0:
+	if combo == Tuning.GATE_COMBO or (combo > 0 and combo % 5 == 0):
 		Sfx.play("combo_up")
 	elif combo < Tuning.GATE_COMBO and _bricks("cgate"):
 		Sfx.play("gate_tick", 0.7 + 0.1 * combo)

@@ -32,7 +32,7 @@ Feel like a jackpot engineer: clever brick placement turns a chaotic arena into 
   - Multi-hit bricks (health > 1).
   - Conditional bricks: only break at a certain ball speed or angle.
 - **Placeable bricks:** the arena has a capacity (upgradable). Each brick type has a capacity cost, e.g. Brick A uses 3. Unlocking a brick type in the upgrade web adds one copy to your inventory; unlocking it again adds another, so unlocking Brick A three times lets you place up to three. Before each round you place any inventory bricks you like, as long as the total capacity cost fits. Placement is freeform (not cell-snapped), free, and redone each round. Most brick types cannot overlap other bricks; a few can. Examples: one-way pass-through, unbreakable, magnetic, ball-spawning-over-time.
-- **Upgrade web:** starts from one seed node. A node is visible only if a connected node is unlocked. Each node has a cost and 1-5 ranks with increasing cost per rank. Early nodes are cheap and high-impact so a new player gets past the drop-and-retry phase quickly.
+- **Upgrade web:** starts from one seed node, paddle speed (the paddle starts slow). Left of it paddle width, right the bomb brick, below Combos (rank 1 turns combos on, later ranks widen the window), above Round Length and everything else. A node is visible only if a connected node is unlocked. Each node has a cost and 1-5 ranks, each rank ten times the last. Early nodes are cheap and high-impact so a new player gets past the drop-and-retry phase quickly.
 - **Paddle upgrades:** size, speed, small sibling paddles, charge multiplier, vertical movement unlock.
 - **Currencies:** keep to 2-3 colors total. Each extra currency is a UI tab and a balance axis.
 

@@ -150,7 +150,7 @@ func stat(base: float, id: String) -> float:
 
 func cost(id: String) -> int:
 	var u: Dictionary = Tuning.UPGRADES[id]
-	return roundi(u.cost * pow(u.cost_mult, rank(id)))
+	return roundi(u.cost * pow(Tuning.COST_MULT, rank(id)))
 
 
 func is_revealed(id: String) -> bool:
@@ -214,12 +214,17 @@ func arena_size(level: int) -> Vector2:
 	return Tuning.LEVELS[level].get("arena", Tuning.ARENA)
 
 
+## Centre y of the first brick row, arena px.
+func board_top(level: int) -> float:
+	return Tuning.LEVELS[level].get("top", Tuning.BOARD_TOP)
+
+
 func round_time(level: int, breakable: int) -> float:
 	return (stat(Tuning.ROUND_TIME_BASE, "time") + breakable * Tuning.ROUND_TIME_PER_BRICK) * Tuning.LEVELS[level].get("time", 1.0)
 
 
 func combo_window(combo: int) -> float:
-	return maxf(Tuning.COMBO_WINDOW_MIN, Tuning.COMBO_WINDOW_START - Tuning.COMBO_WINDOW_SHRINK * (combo - 1))
+	return maxf(Tuning.COMBO_WINDOW_MIN, stat(Tuning.COMBO_WINDOW_START, "combos") - Tuning.COMBO_WINDOW_SHRINK * (combo - 1))
 
 
 func combo_mult(combo: int) -> float:
@@ -239,7 +244,7 @@ func generate(level: int, seed: int) -> Array:
 	var L: Dictionary = Tuning.LEVELS[level]
 	var step := Tuning.BRICK_SIZE + Vector2.ONE * Tuning.BRICK_GAP
 	# Extra rows stop where the board would reach the placement line (the same bound test.gd checks).
-	var max_rows := int((arena_size(level).y - Tuning.PLACE_UP - Tuning.BOARD_TOP - Tuning.BRICK_SIZE.y / 2 - 1) / step.y) + 1
+	var max_rows := int((arena_size(level).y - Tuning.PLACE_UP - board_top(level) - Tuning.BRICK_SIZE.y / 2 - 1) / step.y) + 1
 	var rows: int = mini(L.rows + int(bonus("row")), max_rows)
 	var holes: float = maxf(0, stat(L.holes, "holes"))
 	var solid: float = maxf(0, stat(L.solid, "solids"))
@@ -252,7 +257,7 @@ func generate(level: int, seed: int) -> Array:
 			# columns: 2-wide pairs a one-brick gap apart; the centre pair is a row short at both ends, each pair out one row shorter again.
 			if L.shape == "columns" and (c % 3 == 2 or absf(r - (rows - 1) / 2.0) > (rows - 1) / 2.0 - 1 - absi(c / 3 - cols / 3 / 2)):
 				continue
-			var pos := Vector2(arena_size(level).x / 2 + (c - (cols - 1) / 2.0) * step.x, Tuning.BOARD_TOP + r * step.y)
+			var pos := Vector2(arena_size(level).x / 2 + (c - (cols - 1) / 2.0) * step.x, board_top(level) + r * step.y)
 			# A hole is a brick kind, not a gap: every seed fills the same slots, so a saved layout always fits (place.gd).
 			var kind := "hole" if rng.randf() < holes else "solid" if rng.randf() < solid else "plain"
 			if kind == "plain":

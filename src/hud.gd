@@ -24,7 +24,7 @@ func _init(a: Node2D, ui: Ui.Root) -> void:
 	cash_l = Ui.cash(ui.left, 0, Game.currency)
 	extra_l = Ui.label(ui.left, "", 6, 44, C.cream)
 	boost_l = Ui.label(ui.left, "", 6, 52, C.cream)
-	Ui.label(ui.left, "COMBO", 6, 60, C.rivet)
+	Ui.label(ui.left, "COMBO" if Game.rank("combos") else "COMBO LOCKED", 6, 60, C.rivet)  # the Combos node turns combos on (arena.gd _break)
 	combo_l = Ui.label(ui.left, "-", 6, 68, C.rivet, 4)
 	combo_l.pivot_offset = Vector2(0, 10)
 	Ui.rect(ui.left, 6, 92, 68, 3, C.trim_lo)
