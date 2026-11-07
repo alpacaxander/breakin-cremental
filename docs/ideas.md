@@ -166,3 +166,34 @@ Upgrades that apply to generation as a whole, to every unlockable block, or to e
 ## Removed
 
 - **More Time** and **Combo Window**: cut on 2026-11-06, neither fit a category.
+
+## Level design
+
+Levels are a ramp of scale. Each one puts more bricks, more balls and more pieces on screen than the last, and each one asks for a bigger combo than the last to clear in time. The puzzle is never "how do I get in", it is "how do I keep the chain going". Existing rows are **(in)**. Numbers assume a run of about twelve levels; the count is TBD (`design.md`), so read them as an order. Rules:
+
+- A level row is data only: shape, size, hole and solid rates, payout, specials, optional `arena` size and `walls`. A new shape or block is a code change first.
+- Every level must fit its arena (`test.gd` checks this), and `arena` never exceeds `Tuning.ARENA`.
+- Each level's board, timer and special mix are tuned so that clearing it needs roughly the combo size the previous level taught. Failing still pays, so the retry buys the upgrade that closes the gap.
+- Solids are rare and never form walls. They are there to bank the ball into a good run, not to block one.
+
+The ramp, with the combo each level is built around:
+
+- **Open grid (in, level 1, combo 3)**: a small N x M grid, almost no specials. The player learns that two bricks in a row inside the window pay more than two bricks apart.
+- **Triangle (in, level 2, combo 5)**: rows narrow going up, so a ball that gets above the bottom row rattles between the slanted edges and breaks several bricks per trip. The shape itself makes the first real combos. Multiball and the first multiplier appear.
+- **Full grid (in, level 3, combo 8)**: the full arena and the whole special table. Dense enough that a fast ball chains on its own; the timer is tight enough that one ball cannot clear it. Teaches that the second ball is the engine.
+- **Honeycomb (level 4, combo 10)**: offset rows with a hole pattern that leaves diagonal corridors. A ball entering a corridor breaks the whole diagonal, so bolt and speedup bricks sit at corridor mouths. First level where a launcher aimed at a corridor is the obvious play.
+- **Multiball rain (level 5, combo 12)**: a normal grid with a high multiball rate and a lower timer. Three or four balls in play is the expected state, not a bonus. Combo bricks pause the window so the swarm can keep one chain alive.
+- **Tall stack (level 6, combo 15)**: more rows than any level before, a taller arena. The top rows are plain, the bottom rows are packed with speedups and bolts, so the ball is fast by the time it gets high and the long trip up pays the whole way.
+- **Pinball (level 7, combo 20)**: a few solids placed like pinball posts between brick clusters. The ball ricochets cluster to cluster; pop bumpers and magnets between the posts turn every bounce into bricks. The first level where placed pieces should outnumber what the player has, so capacity is the upgrade it sells.
+- **Chain field (level 8, combo 25)**: shocker and bomb bricks on a tight lattice. One hit sets off a cascade that counts every brick toward the combo. The level that shows the combo counter climbing on its own.
+- **Double wide (level 9, combo 30)**: the widest arena, two full grids side by side, a short solid divider in the middle from `walls` that the ball flies over. One paddle cannot cover both halves, so the player spawns balls on the far side and lets portals carry the chain across.
+- **Storm (level 10, combo 40)**: everything that makes action, all at once: high multiball, speedup, bolt and multiplier rates on a dense tall grid. Spawners earn their cost here. The timer is short; the clear comes from one run that never drops.
+- **Open sky (level 11, combo 50)**: a full-size arena with the board pushed to the top and a large empty middle. Nothing below the bricks but the player's pieces, so the chain between trips is whatever the player built: bumper to launcher to portal to the next cluster. The level that is mostly the player's own machine.
+- **Finale (level 12, combo 75)**: the biggest board the arena holds, every special kind, the jackpot in the middle, the shortest timer per brick. Clear it in one combo to win. Every ball, piece and multiplier the run has unlocked should be on screen at once.
+
+Variations any row can carry once the blocks exist:
+
+- **Regrowth**: regrow bricks in the bottom rows keep a chain fed between trips up.
+- **Gold run**: a few gold bricks in the top row, five hits each, so a swarm of fast balls is the only way to reach them in time.
+- **Rewind round**: a rewind brick mid-board puts the whole board back under a running combo. The level that asks for the biggest combo count rather than the biggest clear.
+- **Bonus level**: a short round of only icon bricks, no solids, between two hard levels. Pure screen fireworks to show what the next scale looks like.

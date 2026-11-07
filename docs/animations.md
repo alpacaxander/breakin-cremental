@@ -4,7 +4,7 @@ One row per animation, matched to the full asset list. All are horizontal strips
 
 Hue sets: mag (currency 1), ora (currency 2), vio (currency 3), mint (placeables), sky (conditional), yellow (payout).
 
-## Brick states, per currency set (mag, ora, vio)
+## Brick states, per hue set (mag, ora, vio currencies; gold and sky for the level blocks below)
 
 | Name | Frame | Frames | fps | What |
 |---|---|---|---|---|
@@ -32,7 +32,7 @@ Hue sets: mag (currency 1), ora (currency 2), vio (currency 3), mint (placeables
 
 | Name | Frame | Frames | fps | What |
 |---|---|---|---|---|
-| icon_<id>_pulse | 30x12 | 4 | 8 | icon cycles yellow, white, bright, white. ids: multiball, speedup, slowdown, x2, x3, combo, timer, chain, bomb, bolt, wild, jackpot, mystery, magnet, split, pierce |
+| icon_<id>_pulse | 30x12 | 4 | 8 | icon cycles yellow, white, bright, white. ids: multiball, speedup, slowdown, x2, x3, combo, timer, chain, bomb, bolt, wild, jackpot, mystery, magnet, split, pierce, rewind |
 | wild_cycle | 30x12 | 6 | 8 | tube and ring cycle mag, ora, vio |
 | mystery_cycle | 30x12 | 6 | 8 | "?" swaps through other icons |
 | chain_arc | 64x12 | 4 | 12 | zigzag arc between two bricks, white core, magenta edge |
@@ -72,7 +72,7 @@ Hue sets: mag (currency 1), ora (currency 2), vio (currency 3), mint (placeables
 
 | Name | Frame | Frames | fps | What |
 |---|---|---|---|---|
-| ghost_march_WxH | W x H | 4 | 8 | valid ghost dashes march (loop). One per footprint: 30x12, 45x7, 24x24, 16x16, 30x6 |
+| ghost_march_WxH | W x H | 4 | 8 | valid ghost dashes march (loop). One per footprint: 30x12, 45x7, 24x24, 16x16, 30x6, 12x12 (wedge), 24x8 (flipper) |
 | ghost_invalid_shake_WxH | W x H | 4 | 12 | red ghost shakes, X blinks. Same footprints |
 | hover_outline_WxH | W+4 x H+4 | 4 | 8 | white dashed outline marches around a placed piece (loop). Same footprints plus 4 |
 
@@ -96,6 +96,25 @@ Hue sets: mag (currency 1), ora (currency 2), vio (currency 3), mint (placeables
 | ball_trail | 24x8 | 4 | 12 | ball with two afterimages for the fast tier |
 | ball_lost | 12x12 | 6 | 12 | ball flashes red, shrinks to a dot |
 | paddle_hit | 60x8 | 4 | 12 | yellow strip flashes white, then bright, then settles |
+
+## Ideas (docs/ideas.md, not yet in tuning.gd)
+
+Faces for these kinds are the statics `place_splitter`, `place_flipper`, `place_wedge`, `place_ramp`, `place_toll`, `paddle_mini`, `brick_ghost`, `brick_gold`, `brick_mirror`, `brick_tele`, `brick_regrow`, `brick_key`, `brick_lock`. Rewind is an icon kind (`icon_rewind_pulse`); the magnet brick already has `icon_magnet_pulse` and `magnet_field`. The wedge bounces with `dust_puff`, gold and sky bricks break with `gold_break` / `sky_break`.
+
+| Name | Frame | Frames | fps | What |
+|---|---|---|---|---|
+| splitter_fork | 30x20 | 6 | 12 | mint lamp flashes, the ball above forks into two that fly apart |
+| ramp_flow | 30x12 | 4 | 8 | dashes travel along a curved arrow (loop) |
+| toll_pay | 30x12 | 6 | 12 | flash, hot, "$" blinks yellow and white, settle |
+| flipper_flick | 32x28 | 6 | 12 | flipper rotates about its left pivot at (4,22): rest, half up, up (hold), back |
+| shield_floor | 32x4 | 4 | 8 | sky dashed floor line scrolls, tileable (loop) |
+| shield_floor_pop | 32x8 | 6 | 12 | the floor flashes, breaks into dots that drift apart and fade |
+| ghost_phase | 30x12 | 8 | 8 | lit 3, half-lit, dashed outline only 3, half-lit (loop) |
+| gold_crack | 30x12 | 14 | 12 | 5-pip gold brick: each flash drops a pip, cracks appear at 3 and 1 left (hold) |
+| mirror_flash | 30x12 | 6 | 12 | sky hit with the mirror icon going bright |
+| tele_brick_pulse | 30x12 | 4 | 8 | violet ring icon cycles tint, white, bright, white (loop) |
+| regrow_rise | 30x12 | 8 | 8 | empty, outline, dim, half, flash, hot, lit (hold) |
+| lock_open | 30x12 | 8 | 12 | dim padlock, flash, hot open padlock, lit open padlock (hold) |
 
 ## Drawn in-engine, no strip
 

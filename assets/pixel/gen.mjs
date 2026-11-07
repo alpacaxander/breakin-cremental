@@ -174,6 +174,7 @@ const SETS = {
 	vio: { tube: "7f16ff", ring: "48009f", deep: "240051", hi: "c799ff", dimTube: "5b00c9", dimRing: "330071" },
 	mint: { tube: C.bump, ring: C.bumpRing, deep: C.bumpDeep, hi: C.bumpHi, dimTube: "027354", dimRing: C.bumpDeep },
 	sky: { tube: C.sky, ring: C.skyRing, deep: C.skyDeep, hi: C.skyHi, dimTube: "155386", dimRing: C.skyDeep },
+	gold: { tube: "ebdb57", ring: "9b5b13", deep: "2b1a06", hi: "fff5a8", dimTube: "9b5b13", dimRing: "4e2d0a" }, // palette 64-71, the gold brick
 };
 const lit = (s, w = 30, h = 12) => lamp(w, h, s);
 const dim = (s, w = 30, h = 12) => lamp(w, h, { tube: s.dimTube, ring: s.dimRing, deep: C.base, hi: null }, false);
@@ -214,13 +215,23 @@ const ICONS = {
 	pierce: glyph(["...#...", "#..##..", "#######", "#..##..", "...#..."]),
 	wedge: glyph(["#....", "##...", "###..", "####.", "#####"]),
 	gate: glyph(["..#..", ".###.", "#.#.#", "..#..", "..#.."]),
+	// docs/ideas.md kinds
+	rewind: glyph(["..#.#", ".#.#.", "#.#..", ".#.#.", "..#.#"]),
+	ghost: glyph([".###.", "#.#.#", "#####", "#####", "#.#.#"]),
+	mirror: glyph(["#..#..#", ".#.#.#.", "..###..", ".#.#.#.", "#..#..#"]),
+	tele: glyph([".###.", "#...#", "#.#.#", "#...#", ".###."]),
+	regrow: glyph(["..#..", "#.#.#", ".###.", "..#..", "..#.."]),
+	key: glyph([".##....", "#..####", "#..#.#.", ".##..#."]),
+	lock: glyph([".###.", "#...#", "#####", "##.##", "#####"]),
+	unlock: glyph([".###.", "#....", "#####", "##.##", "#####"]),
+	ramp: (b, c) => { for (let i = 0; i <= 20; i++) { const t = i / 20 * Math.PI / 2; b.px(Math.round(5 + 20 * Math.sin(t)), Math.round(9 - 6 * (1 - Math.cos(t))), c); } b.ascii(23, 2, ["###", "..#", "..#"], { "#": c }); },
 };
 
 const ANIM = {}, AGROUPS = [];
 const def = (group, name, fps, frames) => { ANIM[name] = { fps, frames }; (AGROUPS.find((g) => g[0] === group) || AGROUPS[AGROUPS.push([group, []]) - 1])[1].push(name); };
 
-// -- Brick states per currency set --
-for (const id of ["mag", "ora", "vio"]) {
+// -- Brick states per currency set, plus gold and sky for the level blocks in docs/ideas.md --
+for (const id of ["mag", "ora", "vio", "gold", "sky"]) {
 	const s = SETS[id], L = lit(s), H = hot(s), D = dim(s);
 	def("Brick states", `${id}_hit`, 12, [FLASH, H, ...hold(L, 4)]);
 	def("Brick states", `${id}_break`, 12, (() => {
@@ -266,7 +277,7 @@ def("Solid", "solid_bounce", 12, (() => {
 })());
 
 // -- Icon bricks --
-for (const id of ["multiball", "speedup", "slowdown", "x2", "x3", "combo", "timer", "chain", "bomb", "bolt", "wild", "jackpot", "mystery", "magnet", "split", "pierce"])
+for (const id of ["multiball", "speedup", "slowdown", "x2", "x3", "combo", "timer", "chain", "bomb", "bolt", "wild", "jackpot", "mystery", "magnet", "split", "pierce", "rewind"])
 	def("Icon bricks", `icon_${id}_pulse`, 8, [C.pay, C.white, C.pureWhite, C.white].map((c) => withIcon(ML, ICONS[id], c)));
 def("Icon bricks", "wild_cycle", 8, [SETS.mag, SETS.mag, SETS.ora, SETS.ora, SETS.vio, SETS.vio].map((s) => withIcon(lit(s), ICONS.wild, null)));
 def("Icon bricks", "mystery_cycle", 8, ["mystery", "multiball", "mystery", "bolt", "mystery", "x2"].map((k) => withIcon(ML, ICONS[k], C.white)));
@@ -345,8 +356,8 @@ A.place_tele = portal(0);
 def("Placeables", "teleport_out", 12, [portal(2, true), portal(4), portal(6), portal(8)]);
 
 // -- Placement and selection --
-// One ghost pair and hover outline per placeable footprint (native px): brick, bumper, pop bumper, teleporter, sticky pad.
-const FOOTPRINTS = [[30, 12], [45, 7], [24, 24], [16, 16], [30, 6]];
+// One ghost pair and hover outline per placeable footprint (native px): brick, bumper, pop bumper, teleporter, sticky pad, wedge, flipper.
+const FOOTPRINTS = [[30, 12], [45, 7], [24, 24], [16, 16], [30, 6], [12, 12], [24, 8]];
 for (const [w, h] of FOOTPRINTS) {
 	def("Placement and selection", `ghost_march_${w}x${h}`, 8, [0, 1, 2, 3].map((o) => ghost(C.bump, o, w, h)));
 	def("Placement and selection", `ghost_invalid_shake_${w}x${h}`, 12, [-1, 1, -1, 1].map((dx, i) => { const f = frame(w, h, [ghost(C.danger, 0, w, h), dx, 0]); if (!(i & 1)) cross(f, w, h, C.danger); return f; }));
@@ -357,6 +368,63 @@ for (const [w, h] of FOOTPRINTS) {
 		return f;
 	}));
 }
+
+// -- Ideas: faces and strips for the kinds proposed in docs/ideas.md. Nothing in-engine plays them yet. --
+const NL = lit(SETS.mint), NH = hot(SETS.mint), G = SETS.gold, V = SETS.vio, VL = lit(V);
+// Placeables (mint). Splitter forks the ball, ramp bends it, toll pays a pass, wedge is a chrome 45 degree wall, flipper flicks about its left pivot.
+A.place_splitter = withIcon(NL, ICONS.split, C.white);
+def("Ideas", "splitter_fork", 12, (() => {
+	const at = (b, ...rest) => frame(30, 20, [b, 0, 8], ...rest);
+	return [at(FLASH, [A.ball, 11, 2]), at(NH, [A.ball, 8, 1], [A.ball, 14, 1]), at(A.place_splitter, [A.ball, 4, 0], [A.ball, 18, 0]), at(A.place_splitter, [A.ball, 0, 0, 120], [A.ball, 22, 0, 120]), at(A.place_splitter), at(A.place_splitter)];
+})());
+def("Ideas", "ramp_flow", 8, glassScroll((g, f) => {
+	for (let i = 0; i < 32; i++) { if (((i >> 1) - f + 8) % 4 >= 2) continue; const t = i / 31 * Math.PI / 2; g.px(Math.round(3 + 20 * Math.sin(t)), Math.round(6 - 5 * (1 - Math.cos(t))), C.white); }
+	g.ascii(21, 0, ["###", "..#", "..#"], { "#": C.white });
+}));
+A.place_ramp = ANIM.ramp_flow.frames[0];
+A.place_toll = withIcon(NL, label("$"), C.pay);
+def("Ideas", "toll_pay", 12, [FLASH, withIcon(NH, label("$"), C.pureWhite), withIcon(NL, label("$"), C.payHi), withIcon(NL, label("$"), C.pureWhite), A.place_toll, A.place_toll]);
+A.place_wedge = (() => {
+	const b = new Img(12, 12), band = [C.chromeHi, C.chromeMid, C.rivet, C.rivet, "7777bb", "7777bb", C.trimHi, C.trimHi, C.chromeLo, C.chromeLo, C.trimLo, C.trimLo];
+	for (let y = 0; y < 12; y++) for (let x = 0; x <= y; x++) b.px(x, y, x === y ? C.chromeMid : x === 0 ? C.trim : band[y]);
+	b.px(0, 11, C.trim); return b;
+})();
+A.place_flipper = (() => {
+	const b = new Img(24, 8);
+	for (let x = 0; x < 24; x++) { const h = 8 - (x >> 3) * 2, y0 = (8 - h) >> 1; b.rect(x, y0, 1, h, C.bumpDeep); b.rect(x, y0 + 1, 1, h - 2, C.bumpRing); b.rect(x, y0 + 2, 1, h - 4, C.bumpDeep); b.px(x, y0, C.bump); b.px(x, y0 + h - 1, C.bump); }
+	b.hline(4, 2, 12, C.bumpHi);
+	[C.chromeHi, C.chromeMid, C.chromeMid, C.rivet, C.rivet, C.trimHi, C.trimHi, C.chromeLo].forEach((c, y) => b.hline(0, y, 4, c));
+	for (const [x, y] of [[0, 0], [0, 7], [23, 2], [23, 5]]) b.clear(x, y);
+	return b;
+})();
+// Frame 32x28 with the pivot at (4, 22): rest, half up, up (hold), back. Rotation about the pivot by centring it on a big canvas first.
+def("Ideas", "flipper_flick", 12, [0, -25, -50, -50, -25, 0].map((deg) => { const big = new Img(64, 64); big.blit(A.place_flipper, 32, 28); const r = big.rotated(deg); return r.crop(Math.round(r.w / 2) - 4, Math.round(r.h / 2) - 22, 32, 28); }));
+// Paddle: a mini paddle that rides with the main one, and the one-use shield floor (tileable strip, then its pop).
+A.paddle_mini = (() => { const b = new Img(24, 6); [C.chromeHi, C.chromeMid, C.rivet, "7777bb", C.trimHi, C.chromeLo].forEach((c, y) => b.hline(0, y, 24, c)); b.hline(3, 3, 18, C.pay); b.corners(); return b; })();
+def("Ideas", "shield_floor", 8, [0, 1, 2, 3].map((f) => { const b = new Img(32, 4); for (let x = 0; x < 32; x++) if ((x + f * 2) % 8 < 5) { b.px(x, 1, C.sky); b.px(x, 2, C.skyRing); } return b; }));
+def("Ideas", "shield_floor_pop", 12, (() => {
+	const line = (c1, c2) => { const b = new Img(32, 8); b.hline(0, 3, 32, c1); b.hline(0, 4, 32, c2); return b; };
+	const dots = (dy, a) => { const b = new Img(32, 8); for (let x = 1; x < 32; x += 4) { b.px(x, 3 - dy, C.sky); b.px(x + 2, 4 + dy, C.skyRing); } return b.fade(a); };
+	return [line(C.pureWhite, C.white), line(C.skyHi, C.sky), dots(1, 255), dots(2, 170), dots(3, 90), blank(32, 8)];
+})());
+// Level blocks (sky, like the other conditionals; gold for the gold brick, violet for the teleport pair).
+def("Ideas", "ghost_phase", 8, [...hold(withIcon(SL, ICONS.ghost, C.white), 3), withIcon(SM, ICONS.ghost, S.tube), ...hold(ghost(C.sky, 0, 30, 12), 3), withIcon(SM, ICONS.ghost, S.tube)]);
+A.brick_ghost = ANIM.ghost_phase.frames[0];
+const pips5 = (b, n) => { for (let i = 0; i < 5; i++) b.rect(8 + i * 3, 8, 2, 2, i < n ? C.pureWhite : G.ring); return b; };
+def("Ideas", "gold_crack", 12, (() => {
+	const f = (n, cr) => { const b = pips5(lit(G), n); if (cr >= 1) crack(b, CRACK_L); if (cr >= 2) crack(b, CRACK_R); return b; };
+	return [...hold(f(5, 0), 2), FLASH, ...hold(f(4, 0), 2), FLASH, ...hold(f(3, 1), 2), FLASH, ...hold(f(2, 1), 2), FLASH, ...hold(f(1, 2), 2)];
+})());
+A.brick_gold = ANIM.gold_crack.frames[0];
+A.brick_mirror = withIcon(SL, ICONS.mirror, C.white);
+def("Ideas", "mirror_flash", 12, [FLASH, withIcon(SH, ICONS.mirror, C.pureWhite), withIcon(SL, ICONS.mirror, C.pureWhite), ...hold(A.brick_mirror, 3)]);
+def("Ideas", "tele_brick_pulse", 8, [V.hi, C.white, C.pureWhite, C.white].map((c) => withIcon(VL, ICONS.tele, c)));
+A.brick_tele = ANIM.tele_brick_pulse.frames[0];
+A.brick_regrow = withIcon(SL, ICONS.regrow, C.white);
+def("Ideas", "regrow_rise", 8, (() => { const o = new Img(30, 12); o.outline(0, 0, 30, 12, S.dimTube); o.corners(); return [blank(30, 12), o, SD, SM, FLASH, withIcon(SH, ICONS.regrow, C.pureWhite), A.brick_regrow, A.brick_regrow]; })());
+A.brick_key = withIcon(SL, ICONS.key, C.pay);
+A.brick_lock = withIcon(SD, ICONS.lock, S.tube);
+def("Ideas", "lock_open", 12, [...hold(A.brick_lock, 2), FLASH, ...hold(withIcon(SH, ICONS.unlock, C.pureWhite), 2), ...hold(withIcon(SL, ICONS.unlock, C.white), 3)]);
 
 // -- Effects --
 const burst = (s) => { const f0 = frame(16, 16, center(A.fx_spark, 16, 16)); const r = (rr, c, dot) => { const b = new Img(16, 16); sparks(b, rr, c); if (dot) b.px(8, 8, C.pureWhite); return b; }; return [f0, r(3, s.hi, 1), r(5, s.tube, 0), r(7, s.ring, 0), blank(16, 16), blank(16, 16)]; };
@@ -468,7 +536,27 @@ const UICONS = {
 	bumper: nglyph(["##...##", "#######", "##...##"]), capacity: nglyph(["##.##.##", "##.##.##", "........", "##.##.##", "##.##.##"]), pop: nglyph([".###.", "#...#", "#...#", "#...#", ".###."]),
 	accel: (b, c) => chevrons(b, c), oneway: nglyph(["..#..", ".###.", "#.#.#", "..#..", "#####"]), tele: nglyph([".###.", "#...#", "#.#.#", "#...#", ".###."]),
 	sticky: nglyph(["..#..", "..#..", ".....", "#####", "#####"]), spawner: nglyph([".#...", "###..", ".#.#.", "..###", "...#."]), magnet: nglyph(["#...#", "#...#", "#...#", "##.##", ".###."]),
+	// docs/ideas.md nodes. Paddle:
+	speed: nglyph(["#.#..", ".#.#.", "..#.#", ".#.#.", "#.#.."]), aim: nglyph(["..#..", ".###.", "##.##", ".###.", "..#.."]), balls: nglyph(["##.##", "##.##", ".....", "..##.", "..##."]),
+	shield: nglyph(["#...#", "#...#", ".###.", ".....", "#####"]), mini: nglyph(["###.###", ".......", ".......", ".#####.", "......."]), vertical: nglyph(["..#..", ".###.", "..#..", ".###.", "..#.."]),
+	power: nglyph(["..##.", "..#..", ".####", "...#.", "..#.."]), energy: nglyph(["####.", "#..##", "#..##", "#..##", "####."]),
+	// Abilities:
+	ab_stick: nglyph(["..#..", ".###.", "..#..", ".....", "#####"]), ab_grow: nglyph(["#.#.#.#", ".......", "#######", ".......", "#.#.#.#"]), ab_slow: nglyph([".###.", "#.#.#", "#.##.", "#...#", ".###."]),
+	ab_flipper: nglyph(["....#", "...##", "..##.", ".##..", "###.."]), ab_blast: nglyph(["#.#.#", ".###.", "#####", ".###.", "#.#.#"]), ab_ghost: nglyph([".###.", "#.#.#", "#####", "#####", "#.#.#"]),
+	ab_recall: nglyph(["..#..", ".#.#.", "#.#.#", "..#..", "#####"]),
+	// New placeables and placement upgrades:
+	splitter: nglyph(["#...#", ".#.#.", "..#..", "..#..", "..#.."]), flipper: nglyph(["....#", "...##", "..##.", ".##..", "###.."]), wedge: nglyph(["#....", "##...", "###..", "####.", "#####"]),
+	ramp: nglyph(["....#", "...##", "....#", "#...#", ".###."]), toll: (b, c) => text(b, 14, 3, "$", c), cheaper: (b, c) => text(b, 12, 3, "-1", c),
+	floor: nglyph(["..#..", ".....", "#.#.#", ".....", "#####"]), tight: nglyph(["##...##", "##...##", "##.#.##", "##...##", "##...##"]), rotate: nglyph(["..###", ".#..#", "#...#", ".#...", "..###"]),
+	piecepay: (b, c) => text(b, 12, 3, "$+", c), overlap: nglyph(["####..", "#..#..", "#.####", "####.#", "..####"]), mirror: nglyph(["#..#..#", "##.#.##", "###.###", "##.#.##", "#..#..#"]),
+	// Block unlocks (ids are brick kinds) and block upgrades:
+	multiball: nglyph([".#...#.", "###.###", ".#.#.#.", "..###..", "...#..."]), x2: (b, c) => text(b, 12, 3, "x2", c), chain: nglyph(["###.###", "#.###.#", "###.###"]),
+	bomb: nglyph([".#...", "..#..", ".###.", "#####", ".###."]), rewind: nglyph(["..#.#", ".#.#.", "#.#..", ".#.#.", "..#.#"]), mystery: (b, c) => text(b, 14, 3, "?", c), jackpot: (b, c) => text(b, 10, 3, "777", c),
+	payout: (b, c) => text(b, 12, 3, "$+", c), solids: nglyph(["######", "######", "......", ".#..#.", "..##.."]), holes: nglyph(["#####", "#####", "#####", ".....", "..#.."]),
+	row: nglyph(["#####", "#####", ".....", "..#..", ".###."]), spread: nglyph([".#.#.", "#...#", ".....", "#...#", ".#.#."]), low: nglyph(["..#..", "..#..", "#.#.#", ".###.", "..#.."]),
+	reroll: nglyph(["#####", "#.#.#", "#...#", "#.#.#", "#####"]), twin: (b, c) => text(b, 12, 3, "2X", c),
 };
+Object.assign(UICONS, { speedup: UICONS.accel, timer: UICONS.time, bolt: UICONS.power, cooldown: UICONS.time, piececombo: UICONS.combo, ab_magnet: UICONS.magnet });
 const node = (state, icon, rank, ranks) => {
 	const b = state === "lit" ? lit(SETS.pay) : state === "hot" ? hot(SETS.pay) : dim(SETS.pay);
 	if (icon) icon(b, state === "dim" ? C.payDim : state === "hot" ? C.pureWhite : C.white);
@@ -691,6 +779,7 @@ const GROUPS = [
 	["Conditional", ["brick_cond_speed_idle", "brick_cond_speed_primed"]],
 	["Solid", ["brick_solid"]],
 	["Placeables", ["bumper", "place_sticky", "place_magnet", "place_tele", "ghost_valid", "ghost_invalid"]],
+	["Ideas (docs/ideas.md)", ["place_splitter", "place_flipper", "place_wedge", "place_ramp", "place_toll", "paddle_mini", "brick_ghost", "brick_gold", "brick_mirror", "brick_tele", "brick_regrow", "brick_key", "brick_lock"]],
 	["Ball and paddle", ["ball", "paddle"]],
 	["Effects", ["fx_halo", "fx_spark", "fx_debris", "fx_payout_tag"]],
 ];

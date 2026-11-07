@@ -144,6 +144,26 @@ const CUES = {
 	round_fail: { g: "Round flow", d: "ball dropped, sad descend", gen: () => notes([[392, 0.15], [370, 0.15], [349, 0.15], [330, 0.4]], { k: 8 }, 0.02) },
 	result_roll: { g: "Round flow", d: "earned total rolls up (loop)", gen: () => layer(...[...Array(16).keys()].map(i => [click(1800, 0.006), i / 16, 0.7])), gain: 0.6, loop: true },
 
+	// --- Ideas (docs/ideas.md): cues for proposed kinds, nothing plays them yet. Splitter reuses split_pop, wedge solid_bounce, gold break coin_cascade. ---
+	flipper_flick: { g: "Ideas", d: "pinball flipper snaps up", gen: () => layer([tone({ f: 180, f1: 520, dur: 0.05, duty: 0.3 })], [noise({ dur: 0.03, lp: 3000 }), 0.01, 0.5], [click(2500, 0.008), 0.04, 0.6]) },
+	ramp_whoosh: { g: "Ideas", d: "ramp bends the ball sideways", gen: () => layer([noise({ dur: 0.18, lp: 1500, lp1: 5000, hp: 400, a: 0.03 })], [tone({ f: 500, f1: 900, dur: 0.15, wave: "sin" }), 0, 0.5]) },
+	toll_ding: { g: "Ideas", d: "toll lamp pays a pass", gen: () => layer([click(1500, 0.01)], [bell(2637, 0.12), 0.01]) },
+	rewind: { g: "Ideas", d: "rewind brick: tape squeal back to the start", gen: () => layer([tone({ f: 1400, f1: 300, dur: 0.45, wave: "saw", lp: 3000, vib: 0.08, vibf: 14, k: 5 })], ...[0, 0.08, 0.15, 0.21, 0.26, 0.3].map(t => [click(700, 0.01), t, 0.5])) },
+	ghost_phase: { g: "Ideas", d: "ghost brick fades in or out", gen: () => layer([noise({ dur: 0.2, lp: 300, lp1: 3000, a: 0.05 })], [tone({ f: 440, f1: 880, dur: 0.2, wave: "sin", a: 0.05 }), 0, 0.4]) },
+	gold_hit: { g: "Ideas", d: "gold brick takes a hit; ladder = hits left 5..1", gen: () => layer([bell(1568, 0.2)], [bell(2093, 0.15), 0.01, 0.5], [click(3000, 0.006), 0, 0.6]), ladder: [1, st(2), st(4), st(5), st(7)] },
+	mirror_ping: { g: "Ideas", d: "mirror brick sends the ball straight back", gen: () => layer([tone({ f: 3200, f1: 2600, dur: 0.05, wave: "sin" })], [bell(2637, 0.1, 0.6), 0.02]) },
+	regrow: { g: "Ideas", d: "regrow brick comes back", gen: () => tone({ f: 300, f1: 900, dur: 0.3, wave: "tri", k: 6, vib: 0.03, vibf: 8 }) },
+	key_pick: { g: "Ideas", d: "key brick breaks, locks turn", gen: () => notes([[1047, 0.04], [1319, 0.04], [1568, 0.1]], { k: 12 }) },
+	lock_open: { g: "Ideas", d: "lock brick opens", gen: () => layer([click(400, 0.015)], [click(600, 0.015), 0.06], [bell(1319, 0.2), 0.1]) },
+	shield_floor: { g: "Ideas", d: "shield floor catches a dropped ball", gen: () => layer([tone({ f: 300, f1: 700, dur: 0.1, wave: "sin" })], [bell(1047, 0.2, 0.6), 0.03]) },
+	ability_on: { g: "Ideas", d: "right-click ability starts", gen: () => tone({ f: 400, f1: 800, dur: 0.06, duty: 0.25 }) },
+	ability_off: { g: "Ideas", d: "ability released", gen: () => tone({ f: 800, f1: 400, dur: 0.06, duty: 0.25 }) },
+	energy_empty: { g: "Ideas", d: "ability wanted, no energy", gen: () => tone({ f: 110, dur: 0.1, trem: 1, tremf: 30, k: 10 }) },
+	slow_time: { g: "Ideas", d: "slow time held (loop)", gen: () => layer([tone({ f: 82, dur: 1, wave: "tri", a: 0, k: 0, trem: 0.4, tremf: 1 })], [tone({ f: 123, dur: 1, wave: "sin", a: 0, k: 0 }), 0, 0.4]), gain: 0.3, loop: true },
+	blast: { g: "Ideas", d: "paddle shockwave breaks the lowest row", gen: () => layer([noise({ dur: 0.25, lp: 4000, lp1: 200 })], [tone({ f: 200, f1: 60, dur: 0.2, wave: "sin" }), 0, 1]) },
+	grow: { g: "Ideas", d: "paddle grows", gen: () => tone({ f: 200, f1: 500, dur: 0.15, wave: "tri" }) },
+	recall: { g: "Ideas", d: "lowest ball yanked back to the paddle", gen: () => tone({ f: 1000, f1: 400, dur: 0.2, wave: "sin", vib: 0.05, vibf: 30 }) },
+
 	// --- Ambient ---
 	lamp_hum: { g: "Ambient", d: "electrical lamp hum (loop)", gen: () => layer([tone({ f: 120, dur: 1, wave: "sin", a: 0, k: 0 })], [tone({ f: 240, dur: 1, wave: "sin", a: 0, k: 0 }), 0, 0.3], [noise({ dur: 1, lp: 3000, hp: 2000, k: 0 }), 0, 0.04]), gain: 0.15, loop: true },
 	tube_flicker: { g: "Ambient", d: "a tube crackles", gen: () => layer(...[0, 0.03, 0.09, 0.1, 0.17].map(t => [noise({ dur: 0.02, lp: 8000, hp: 2500 }), t, 0.5 + Math.random() * 0.5])), gain: 0.5 },
