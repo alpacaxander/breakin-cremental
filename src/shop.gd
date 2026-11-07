@@ -24,6 +24,7 @@ var drag := false
 class Web extends Control:
 	func _init() -> void:
 		mouse_filter = MOUSE_FILTER_IGNORE
+		size = Vector2(640, 360)  # a zero-size control panned above the clipped field's top edge gets culled, links and all
 
 	func _draw() -> void:
 		for id in Tuning.UPGRADES:
