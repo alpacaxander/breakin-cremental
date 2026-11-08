@@ -90,11 +90,11 @@ func _ready() -> void:
 			if instance_from_id(id):
 				Fx.play(self, "%s_spawn" % Tuning.hue(b.kind), 30, 12, b.pos).animation_finished.connect(func(): if instance_from_id(id): instance_from_id(id).show())
 		).set_delay(0.08 * row)
-	paddle = box("paddle", Vector2(Game.paddle_width(), Tuning.PADDLE_HEIGHT), Vector2(field.size.x / 2, field.size.y - Tuning.PADDLE_UP))
+	paddle = box("paddle", Vector2(Tuning.PADDLE_WIDTH, Tuning.PADDLE_HEIGHT), Vector2(field.size.x / 2, field.size.y - Tuning.PADDLE_UP))
 	target_x = paddle.position.x
 	_add_ball(Vector2.ZERO)
 	_rest_ball()
-	time_left = Game.round_time(level, breakable)
+	time_left = Game.round_time(level)
 	time_max = time_left
 	total = breakable
 	shields = Game.rank("shield")

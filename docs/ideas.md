@@ -9,7 +9,7 @@ Existing nodes are marked **(in)**. Rules the ideas must respect:
 
 ## Paddle
 
-- **Wider Paddle (in)**: +width per rank.
+- **Wider Paddle (cut 2026-11-07)**: +width per rank. Its spot left of the seed went to the Timer unlock.
 - **Faster Paddle (in)**: +speed cap.
 - **Aim on first shot (in)**: the launch angle follows the mouse instead of firing straight up.
 - **Mini paddles**: a small paddle that moves with the main one. Sub-upgrades:
@@ -115,7 +115,7 @@ Each is an unlock node. Rank 1 guarantees one of that block on every board, and 
   - Stacking: two multipliers in one run multiply instead of replacing.
 - **Combo (in)**: pauses the combo window for N seconds. The window does not shrink, but the combo keeps counting and paying.
   - Longer pause: more seconds.
-- **Timer (in)**: adds seconds to the round.
+- **Timer (in)**: adds 10 seconds to the round. Its unlock sits left of the seed.
   - Longer timer (in): more seconds.
 - **Shocker (in, replaces chain)**: a multi-hit brick. Each hit fires chain lightning that damages nearby bricks.
   - More charges: more hits before it breaks.

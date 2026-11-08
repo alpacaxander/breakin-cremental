@@ -23,7 +23,7 @@ Feel like a jackpot engineer: clever brick placement turns a chaotic arena into 
 
 - **Base layer:** horizontal paddle bounces a ball around the arena and breaks bricks.
 - **Ball drop:** if the ball passes the paddle, the round ends early. You keep currency for bricks broken so far but forfeit the remaining time. Paddle skill matters because dropping costs you the rest of the round.
-- **Timer:** fixed per level, scales with board size, extendable via upgrades.
+- **Timer:** 20s base, scaled per level (`time` in the level row), extendable via upgrades and hourglass bricks. It does not grow with board size.
 - **Combos:** each brick broken within the combo window extends the combo and ramps a multiplier on currency per brick. The window shrinks as the combo grows, so long combos demand dense hits. If the window lapses, the combo hard-resets. Combos are the central reward; placed bricks make them likelier, not guaranteed.
 - **Generated arena:** each level has a semi-custom layout template. Default is an N x M grid of bricks that grows each level; other levels use clusters, triangles, and similar shapes. Which brick types appear depends on the level and what's been unlocked. Brick types:
   - Colored bricks that pay different currencies.
@@ -32,7 +32,7 @@ Feel like a jackpot engineer: clever brick placement turns a chaotic arena into 
   - Multi-hit bricks (health > 1).
   - Conditional bricks: only break at a certain ball speed or angle.
 - **Placeable bricks:** the arena has a capacity (upgradable). Each brick type has a capacity cost, e.g. Brick A uses 3. Unlocking a brick type in the upgrade web adds one copy to your inventory; unlocking it again adds another, so unlocking Brick A three times lets you place up to three. Before each round you place any inventory bricks you like, as long as the total capacity cost fits. Placement is freeform (not cell-snapped), free, and redone each round. Most brick types cannot overlap other bricks; a few can. Examples: one-way pass-through, unbreakable, magnetic, ball-spawning-over-time.
-- **Upgrade web:** starts from one seed node, paddle speed (the paddle starts slow). Left of it paddle width, right the bomb brick, below Combos (rank 1 turns combos on, later ranks widen the window), above Round Length and everything else. A node is visible only if a connected node is unlocked. Each node has a cost and 1-5 ranks, each rank ten times the last. Early nodes are cheap and high-impact so a new player gets past the drop-and-retry phase quickly.
+- **Upgrade web:** starts from one seed node, paddle speed (the paddle starts slow). Left of it the Timer unlock (+10s hourglass bricks), right the bomb brick, below Combos (rank 1 turns combos on, later ranks widen the window), above Round Length and everything else. A node is visible only if a connected node is unlocked. Each node has a cost and 1-5 ranks, each rank ten times the last. Early nodes are cheap and high-impact so a new player gets past the drop-and-retry phase quickly.
 - **Paddle upgrades:** size, speed, small sibling paddles, charge multiplier, vertical movement unlock.
 - **Currencies:** keep to 2-3 colors total. Each extra currency is a UI tab and a balance axis.
 

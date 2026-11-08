@@ -76,9 +76,9 @@ func _field_input(e: InputEvent) -> void:
 		_place_web()
 
 
-## Where the web sits with no pan: the layout's field centre (320, 180) in the middle of the cabinet field.
+## Where the web sits with no pan: the seed upgrade in the middle of the cabinet field.
 func _home() -> Vector2:
-	return root.field.size / 2 - Vector2(320, 180) * zoom
+	return root.field.size / 2 - Tuning.UPGRADES[Tuning.SEED_UPGRADE].pos * zoom
 
 
 ## Applies pan and zoom, keeping at least 40 px of the revealed nodes' box inside the field.

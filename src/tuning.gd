@@ -14,8 +14,7 @@ const MAX_BOUNCE_DEG := 60.0  # angle off vertical when the ball hits the paddle
 const MIN_VERTICAL := 0.25  # min |vy| as a fraction of speed, stops near-horizontal loops
 
 # Round
-const ROUND_TIME_BASE := 15.0
-const ROUND_TIME_PER_BRICK := 0.4  # seconds added per breakable brick on the board
+const ROUND_TIME_BASE := 20.0
 const TIME_BAR_PX := 0.75  # HUD time bar px per second, so a longer round shows as a longer bar; capped at the column width
 
 # Combo: window(n) = START + upgrades - SHRINK * (n - 1), floored at MIN. No combo at all until the combos node is bought (arena.gd _break).
@@ -30,13 +29,13 @@ const BRICK_GAP := 4.0
 const BOARD_TOP := 100.0  # 44 + two brick rows (2 * (24 + 4)); a level row's top overrides it
 # holes: chance a slot is a hole brick (no ball contact, blocks placement). solid: chance of an unbreakable brick.
 # special: kind -> chance per brick (see BRICKS). jackpot: one 777 brick per board. seq: one 1-2-3 run per board.
-# arena: size, default ARENA (never larger). top: first row centre y, default BOARD_TOP. walls: extra Rect2s in arena px for other shapes; the board must still fit (test.gd).
+# arena: size in standard bricks, cols x rows (game.gd arena_size), default ARENA px (never larger). top: first row centre y, default BOARD_TOP. walls: extra Rect2s in arena px for other shapes; the board must still fit (test.gd).
 # skip: column indices left empty (room for a wall). time: round time scale, default 1. Fit at 960x720: cols <= 15, rows <= 16.
 # unlock: how the previous level opens this one; default clear its board, {combo = n} a combo of n in one round (game.gd finish_level).
 # The ramp: each level puts more on screen and needs a bigger combo than the last (docs/ideas.md, Level design).
 const LEVELS := [
-	# 1: low ceiling, two rows wall to wall (12 * 64 + 4: the edge margin is one brick gap), three rows of air above. Plain bricks only: what the player unlocks is all that shows.
-	{shape = "grid", cols = 12, rows = 2, holes = 0, solid = 0, payout = 1, arena = Vector2(772, 508), top = 96.0},
+	# 1: low ceiling, three rows wall to wall (the edge margin is one brick gap), three rows of air above. Plain bricks only: what the player unlocks is all that shows.
+	{shape = "grid", cols = 10, rows = 3, holes = 0, solid = 0, payout = 1, arena = Vector2(10, 18), top = 96.0},
 	{shape = "columns", cols = 14, rows = 14, holes = 0, solid = 0, payout = 2, unlock = {combo = 10}},  # plain bricks only, like level 1
 	{shape = "grid", cols = 15, rows = 7, holes = 0.08, solid = 0.1, payout = 3, jackpot = true, seq = true,
 		special = {multi = 0.1, multi3 = 0.05, shield = 0.05, cond = 0.06, timed = 0.05, cgate = 0.04, x2 = 0.03, x3 = 0.02, combo = 0.03, timer = 0.02, multiball = 0.03, speedup = 0.03, slowdown = 0.02, chain = 0.04, bomb = 0.03, bolt = 0.02, mystery = 0.03}},
@@ -47,7 +46,7 @@ const LEVELS := [
 	{shape = "grid", cols = 14, rows = 8, holes = 0.08, solid = 0.04, payout = 5, time = 0.8, jackpot = true,
 		special = {multi = 0.06, shield = 0.03, cond = 0.04, cgate = 0.04, x2 = 0.04, x3 = 0.02, combo = 0.06, timer = 0.02, multiball = 0.1, speedup = 0.03, chain = 0.02, bomb = 0.02, bolt = 0.02, mystery = 0.02}},
 	# 6 Tall stack: the most rows yet, a long trip up that pays the whole way.
-	{shape = "grid", cols = 13, rows = 12, holes = 0.1, solid = 0.05, payout = 6, arena = Vector2(900, 720), jackpot = true, seq = true,
+	{shape = "grid", cols = 13, rows = 12, holes = 0.1, solid = 0.05, payout = 6, arena = Vector2(14, 25), jackpot = true, seq = true,
 		special = {multi = 0.08, multi3 = 0.03, shield = 0.03, cond = 0.05, timed = 0.03, cgate = 0.04, x2 = 0.03, x3 = 0.02, combo = 0.04, timer = 0.03, multiball = 0.04, speedup = 0.06, chain = 0.03, bomb = 0.03, bolt = 0.05, mystery = 0.02}},
 	# 7 Pinball: holes and solids as posts between clusters, the ball ricochets cluster to cluster. Sells capacity.
 	{shape = "grid", cols = 15, rows = 9, holes = 0.16, solid = 0.1, payout = 7, jackpot = true, seq = true,
@@ -99,7 +98,7 @@ const SPEEDUP := 1.25
 const SLOWDOWN := 0.8
 const BOOST_HITS := 5  # x2/x3 apply to this many breaks
 const COMBO_EXTEND := 1.0  # seconds, C+ brick
-const TIME_EXTEND := 5.0  # seconds, hourglass brick
+const TIME_EXTEND := 10.0  # seconds, hourglass brick
 const CHAIN_DIST := 66.0  # orthogonal neighbours only (step is 64 x 28)
 const BOMB_RADIUS := 72.0  # 3x3 block
 const FUSED := ["chain", "bomb", "bolt"]  # area kinds that arm on a trigger and go off FUSE later; each needs an anim_<id>_fuse strip
@@ -142,14 +141,13 @@ const SPAWN_EVERY := 6.0  # seconds per spawner ball
 # Names fit the 66px upgrade column at 2x when wrapped by word; descs use only glyphs the 3x5 font has (no ; or lowercase-only marks).
 # cat: the category (CATS) that colours the node. icon: the icon_<name> sprite, default the id. A node whose id is a brick kind
 # in ICON_KINDS is an unlock: each rank guarantees one more of that brick on every board (game.gd generate).
-# Layout: the seed sits at the bottom centre. Left of it the paddle, right the bomb, below it the combos node, and everything else
+# Layout: the seed sits at the bottom centre. Left of it the timer unlock (then aim, and longer timer below), right the bomb, below it the combos node, and everything else
 # hangs above it off Round Length: round bottom-left, placement right, blocks top-left. The web is one tree from the seed.
 const COST_MULT := 10.0  # each rank costs this times the one before
 const SEED_UPGRADE := "speed"  # the paddle starts slow: the first buy is the one every run feels
 const UPGRADES := {
 	# Paddle
-	"paddle": {cat = "paddle", name = "Wider Paddle", desc = "+25 paddle width", amount = 25, cost = 5, ranks = 3, links = ["aim"], pos = Vector2(250, 360)},
-	"speed": {cat = "paddle", name = "Faster Paddle", desc = "+300 paddle speed", amount = 300, cost = 5, ranks = 3, links = ["paddle", "bomb", "combos", "time"], pos = Vector2(320, 360)},
+	"speed": {cat = "paddle", name = "Faster Paddle", desc = "+300 paddle speed", amount = 300, cost = 5, ranks = 3, links = ["timer", "bomb", "combos", "time"], pos = Vector2(320, 360)},
 	"aim": {cat = "paddle", name = "Aim", desc = "the launch follows the mouse", amount = 1, cost = 12, ranks = 1, links = [], pos = Vector2(180, 360)},
 	# Round: the cap, straight above the seed; the rest of the web hangs off it
 	"time": {cat = "round", name = "Round Length", desc = "+5s per round", amount = 5, cost = 6, ranks = 5, links = ["shield", "bumper"], pos = Vector2(320, 310)},
@@ -180,15 +178,15 @@ const UPGRADES := {
 	"solids": {cat = "block", name = "Fewer Solids", desc = "-2 in 100 solid bricks", amount = -0.02, cost = 20, ranks = 3, links = ["holes", "multiball"], pos = Vector2(250, 200)},
 	"holes": {cat = "block", name = "Fewer Holes", desc = "-3 in 100 holes", amount = -0.03, cost = 20, ranks = 3, links = ["row", "chain"], pos = Vector2(180, 200)},
 	"row": {cat = "block", name = "Extra Row", desc = "+1 board row when the arena has room", amount = 1, cost = 50, ranks = 2, links = [], pos = Vector2(110, 200)},
-	"x2": {cat = "unlock", name = "Multiplier", desc = "+1 x2 brick per board", amount = 1, cost = 25, ranks = 3, links = ["multiball", "timer"], pos = Vector2(320, 150)},
+	"x2": {cat = "unlock", name = "Multiplier", desc = "+1 x2 brick per board", amount = 1, cost = 25, ranks = 3, links = ["multiball"], pos = Vector2(320, 150)},
 	"multiball": {cat = "unlock", name = "Multiball", desc = "+1 multiball brick per board", amount = 1, cost = 25, ranks = 3, links = ["chain", "speedup"], pos = Vector2(250, 150)},
 	"chain": {cat = "unlock", name = "Shocker", desc = "+1 chain brick per board", amount = 1, cost = 25, ranks = 3, links = ["bolt"], pos = Vector2(180, 150)},
 	"bomb": {cat = "unlock", name = "Bomb", desc = "+1 bomb brick per board", amount = 1, cost = 25, ranks = 3, links = ["bigbomb"], pos = Vector2(390, 360)},
-	"timer": {cat = "unlock", name = "Timer", desc = "+1 hourglass brick per board", amount = 1, cost = 25, ranks = 3, links = ["speedup", "longtimer"], pos = Vector2(320, 100)},
+	"timer": {cat = "unlock", name = "Timer", desc = "+1 hourglass brick per board, +10s each", amount = 1, cost = 25, ranks = 3, links = ["aim", "longtimer"], pos = Vector2(250, 360)},
 	"speedup": {cat = "unlock", name = "Speedup", desc = "+1 speedup brick per board", amount = 1, cost = 20, ranks = 3, links = ["bolt", "combo"], pos = Vector2(250, 100)},
 	"bolt": {cat = "unlock", name = "Bolt", desc = "+1 bolt brick per board", amount = 1, cost = 25, ranks = 3, links = ["mystery"], pos = Vector2(180, 100)},
 	"bigbomb": {cat = "unlock", icon = "bomb", name = "Bigger Bomb", desc = "+40 bomb radius", amount = 40, cost = 30, ranks = 2, links = [], pos = Vector2(460, 360)},
-	"longtimer": {cat = "unlock", icon = "timer", name = "Longer Timer", desc = "+3s per hourglass brick", amount = 3, cost = 20, ranks = 3, links = ["combo"], pos = Vector2(320, 50)},
+	"longtimer": {cat = "unlock", icon = "timer", name = "Longer Timer", desc = "+3s per hourglass brick", amount = 3, cost = 20, ranks = 3, links = [], pos = Vector2(250, 410)},
 	"combo": {cat = "unlock", name = "Combo", desc = "+1 C+ brick per board", amount = 1, cost = 25, ranks = 3, links = ["mystery"], pos = Vector2(250, 50)},
 	"mystery": {cat = "unlock", name = "Mystery", desc = "+1 mystery brick per board", amount = 1, cost = 20, ranks = 3, links = ["twin"], pos = Vector2(180, 50)},
 	"twin": {cat = "unlock", name = "Twin Unlock", desc = "+1 more of every unlocked brick", amount = 1, cost = 150, ranks = 1, links = [], pos = Vector2(110, 50)},

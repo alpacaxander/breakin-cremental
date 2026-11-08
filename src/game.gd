@@ -175,10 +175,6 @@ func buy(id: String) -> void:
 
 # --- Derived stats ---
 
-func paddle_width() -> float:
-	return stat(Tuning.PADDLE_WIDTH, "paddle")
-
-
 func paddle_speed() -> float:
 	return stat(Tuning.PADDLE_SPEED, "speed")
 
@@ -209,9 +205,13 @@ func base_pay(level: int) -> int:
 	return Tuning.LEVELS[level].payout + int(bonus("payout"))
 
 
-## The arena's size for a level, game px. ponytail: an upgrade that widens the arena adds its bonus here, capped at Tuning.ARENA.
+## The arena's size for a level, game px, from the row's size in standard bricks (each brick plus a gap, and one more gap).
+## ponytail: an upgrade that widens the arena adds its bonus here, capped at Tuning.ARENA.
 func arena_size(level: int) -> Vector2:
-	return Tuning.LEVELS[level].get("arena", Tuning.ARENA)
+	if not Tuning.LEVELS[level].has("arena"):
+		return Tuning.ARENA
+	var gap := Vector2.ONE * Tuning.BRICK_GAP
+	return Tuning.LEVELS[level].arena * (Tuning.BRICK_SIZE + gap) + gap
 
 
 ## Centre y of the first brick row, arena px.
@@ -219,8 +219,8 @@ func board_top(level: int) -> float:
 	return Tuning.LEVELS[level].get("top", Tuning.BOARD_TOP)
 
 
-func round_time(level: int, breakable: int) -> float:
-	return (stat(Tuning.ROUND_TIME_BASE, "time") + breakable * Tuning.ROUND_TIME_PER_BRICK) * Tuning.LEVELS[level].get("time", 1.0)
+func round_time(level: int) -> float:
+	return stat(Tuning.ROUND_TIME_BASE, "time") * Tuning.LEVELS[level].get("time", 1.0)
 
 
 func combo_window(combo: int) -> float:
