@@ -2,6 +2,21 @@
 
 One row per asset in `assets/pixel/png/`. Sizes are native 1x canvas pixels (2x on screen). Anchor is where the game positions it. Hue sets and states are defined in `docs/art-style.md`. Regenerate with `node assets/pixel/gen.mjs`.
 
+The inventory is the incremental build's. The Peglin direction (`docs/design.md`) keeps bricks, ball, paddle, effects and the cabinet, retires the placement and upgrade-web sprites (kept as relic and card candidates), and adds the rows under "Needed for the Peglin direction".
+
+## Needed for the Peglin direction (todo)
+
+| Name | Size | Anchor | Set | Notes |
+|---|---|---|---|---|
+| brick_crit | 30x12 | center | blue | ball icon in the glass; the strip `icon_multiball_pulse` is the closest existing face |
+| brick_refresh | 30x12 | center | mint | ring-arrow icon |
+| brick_red, brick_fuse | 30x12 | center | red | red set; fuse shows a 3x5 countdown digit |
+| ball_enemy | 8x8 | center | red edge, `3a0000` body | the shape of `ball`, so the player has to read colour |
+| enemy_<id> | 48x48 or 64x48 | bottom center | dark body, red accent | one per enemy; stands above the top wall, behind the bricks |
+| ui_hp_bar, ui_intent | 2x4 tiles, 12x12 | left, center | red | HP pips and the intent icons (attack, hazard, shield, summon) |
+| card_ball, card_relic | 36x48 | center | violet frame | reward and shop cards; face centred, name in 3x5 below |
+| map_node_<kind> | 12x12 | center | trim, lit when reachable | fight, elite, treasure, shop, event, boss |
+
 ## Bricks (30x12, anchor center)
 
 | Name | Set | State | Frames | Notes | Status |
@@ -16,7 +31,7 @@ One row per asset in `assets/pixel/png/`. Sizes are native 1x canvas pixels (2x 
 | brick_cond_speed_idle | orange | dim | 1 | chevrons in ring color | done |
 | brick_cond_speed_primed | orange | lit | 1 | chevrons in warm white | done |
 | brick_solid | chrome | unlit | 1 | bevel bands, two rivets | done |
-| brick_plain_* per extra currency | a new hue | lit, dim, flash | 1 each | when coloured bricks paying new currencies exist (docs/design.md); orange and violet are taken | todo |
+| brick_plain_* per extra currency | a new hue | lit, dim, flash | 1 each | incremental idea, dropped: the Peglin direction has one currency | dropped |
 
 ## Placeables
 
@@ -29,11 +44,11 @@ One row per asset in `assets/pixel/png/`. Sizes are native 1x canvas pixels (2x 
 | place_tele | 16x16 | center | mint | ring | 1 | empty portal ring; teleport_in/out add the ball | done |
 | ghost_valid | 30x12 | center | mint | ghost | 1 | dashed, alpha fill | done |
 | ghost_invalid | 30x12 | center | red | ghost | 1 | dashed, X | done |
-| place_splitter, place_ramp, place_toll | 30x12 | center | mint | lit | 1 each | ideas.md placeables: fork icon, curved arrow, "$" | done, unused |
+| place_splitter, place_ramp, place_toll | 30x12 | center | mint | lit | 1 each | legacy placeables: fork icon, curved arrow, "$"; relic candidates | done, unused |
 | place_flipper | 24x8 | left pivot (0,4) | mint, chrome cap | lit | 1 | tapers toward the tip; flipper_flick rotates it | done, unused |
 | place_wedge | 12x12 | center | chrome | unlit | 1 | bottom-left right triangle, hypotenuse is the bounce face | done, unused |
-| paddle_mini | 24x6 | center | chrome, sky strip | 1 | mini paddle for the ideas.md upgrade | done, unused |
-| brick_ghost, brick_mirror, brick_regrow, brick_key, brick_lock | 30x12 | center | orange | lit (lock dim) | 1 each | ideas.md level blocks; key icon in payout yellow | done, unused |
+| paddle_mini | 24x6 | center | chrome, sky strip | 1 | mini paddle; a relic or starting-paddle candidate | done, unused |
+| brick_ghost, brick_mirror, brick_regrow, brick_key, brick_lock | 30x12 | center | orange | lit (lock dim) | 1 each | legacy level blocks; act-special candidates; key icon in payout yellow | done, unused |
 | brick_gold | 30x12 | center | gold | lit | 1 | five white pips, gold_crack takes them away | done, unused |
 | brick_tele | 30x12 | center | violet | lit | 1 | ring icon, pairs with place_tele's hue | done, unused |
 
@@ -73,7 +88,7 @@ Every screen is a 640x360 sprite-space Control shown at 2x (`src/ui.gd`): score/
 | ui_slot, ui_slot_hover | 36x18 | Piece slot in the tray; piece face centred, ui_badge (9x7) with the count at (30,-3) |
 | ui_pip_on/off/pay | 4x4 | Capacity and rank pips at 5px pitch |
 | coin | 8x8 | Beside CASH and costs |
-| node_<cat>_dim/lit/max | 30x12 | Upgrade web lamp per category (paddle sky, round violet, place mint, block magenta, unlock blue) by rank; icon_<upgrade> (12x5) overlaid at (9,3), rank pips drawn at row 8. One icon per `UICONS` key in gen.mjs, including every node proposed in docs/ideas.md (paddle, ability `ab_*`, placement, block unlock and block upgrade ids) |
+| node_<cat>_dim/lit/max | 30x12 | Upgrade web lamp per category (paddle sky, round violet, place mint, block magenta, unlock blue) by rank; icon_<upgrade> (12x5) overlaid at (9,3), rank pips drawn at row 8. One icon per `UICONS` key in gen.mjs, including the legacy upgrade ideas (paddle, ability `ab_*`, placement, block unlock and block upgrade ids). Incremental build only; the icons are relic-icon candidates |
 | ui_toggle_on/off, ui_slider_track, ui_slider_knob | 16x8, 1x4, 6x8 | CheckButton icons and HSlider styles in theme.tres |
 | ui_cursor | 8x8 | Mouse cursor, scaled 2x at runtime |
 | title_logo | 177x63 | Menu logo (gen.mjs `LOGOS.split_mag_pay`) |

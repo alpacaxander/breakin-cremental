@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-BreakIn cremental: a breakout-style incremental game in Godot 4.7 (GDScript). Between timed rounds the player buys upgrades and places pieces on a generated board, then plays the round to cash in. Design, status and open risks: `docs/design.md`.
+BreakIn cremental: a breakout game in Godot 4.7 (GDScript). The code still implements the original incremental loop described below: between timed rounds the player buys upgrades and places pieces on a generated board, then plays the round to cash in. The design was redirected on 2026-11-09 to "Peglin, but breakout" (a run-based roguelike where bricks are pegs, balls are the deck and enemies act on the board); `docs/design.md` describes that target and what survives, and the docs under `docs/` carry both meanings until the code follows. Design, status and open risks: `docs/design.md`.
 
 ## Commands
 

@@ -2,6 +2,8 @@
 
 Pixel art, pachinko lamp look. Reference implementation: `assets/pixel/gen.mjs`. When this doc and the code disagree, the code wins and this doc gets fixed. Colors: `docs/palette.md`. Inventory: `docs/sprite-spec.md`.
 
+The look survives the Peglin redirect (`docs/design.md`): an arcade cabinet that has wandered into a dungeon. What changes is what each hue means (the Groups table in `docs/palette.md`) and that enemies, hazards and HP join the board. Enemies are the one place a non-lamp style is allowed: a dark creature sprite with a single lit accent in red, so it reads as the thing that is not part of the machine.
+
 ## Canvas
 
 - Game canvas 640x360, shown at 2x with nearest filtering (1280x720 window). One sprite pixel is two screen pixels.
@@ -38,14 +40,15 @@ A lit object uses exactly one set. Never mix swatches across sets.
 
 | Set | Tube | Ring | Deep | Highlight | Used for |
 |---|---|---|---|---|---|
-| Magenta | `ff4aff` | `a200a2` | `350035` | `ffcaff` | basic bricks (plain, multi-hit: the glass steps `350035`, `550055`, `790079` for 1, 2, 3 hits left), Blocks web nodes |
-| Blue | `3d6bff` | `1f3bc4` | `0b1658` | `bccbff` | unlocks: icon bricks with a web node, their halo, those nodes and the nodes that modify them. Off-palette, deeper than sky |
-| Mint | `15f2b0` | `02936b` | `01563f` | `b7fbe7` | bumpers, placeables, portal ring, valid ghost, Placement web nodes |
-| Sky | `4fc7ff` | `186fb6` | `0e3556` | `cefaff` | paddle stripe and hit flash, paddle extras, Paddle web nodes |
-| Orange | `ff7500` | `c44f00` | `791800` | `ffb975` | level specials: the gated and conditional bricks, the shield brick, and the icon kinds no upgrade adds (slowdown, x3, jackpot). Dim is locked, lit is open |
-| Violet | `7f16ff` | `48009f` | `240051` | `c799ff` | Round web nodes and the shield floor |
-| Gold | `ebdb57` | `9b5b13` | `2b1a06` | `fff5a8` | the gold brick (docs/ideas.md) |
-| Yellow | `ffff00` | `887809` | `000020` | `ffff73` | payout, combo, ball edge, sparks and break effects, web links and costs |
+| Magenta | `ff4aff` | `a200a2` | `350035` | `ffcaff` | basic bricks (plain, multi-hit: the glass steps `350035`, `550055`, `790079` for 1, 2, 3 hits left). Incremental build also: Blocks web nodes |
+| Blue | `3d6bff` | `1f3bc4` | `0b1658` | `bccbff` | crit bricks and their halo. Incremental build: unlocks (icon bricks with a web node) and those nodes. Off-palette, deeper than sky |
+| Mint | `15f2b0` | `02936b` | `01563f` | `b7fbe7` | refresh bricks and the refresh wave. Incremental build: bumpers, placeables, portal ring, valid ghost, Placement web nodes |
+| Sky | `4fc7ff` | `186fb6` | `0e3556` | `cefaff` | paddle stripe and hit flash, paddle extras, starting paddles. Incremental build also: Paddle web nodes |
+| Orange | `ff7500` | `c44f00` | `791800` | `ffb975` | bomb bricks and the board specials an act places (shield, conditional, timed). Dim is locked, lit is open. Incremental build: level specials and the icon kinds no upgrade adds |
+| Violet | `7f16ff` | `48009f` | `240051` | `c799ff` | relics and ball traits in the HUD and shop. Incremental build: Round web nodes and the shield floor |
+| Gold | `ebdb57` | `9b5b13` | `2b1a06` | `fff5a8` | gold: the run currency, shop prices, the gold brick |
+| Yellow | `ffff00` | `887809` | `000020` | `ffff73` | damage: the stored number on a ball, the paddle flash that fires it, sparks and break effects. Incremental build: payout, combo, web links and costs |
+| Red | `ff0000` | `a30000` | `3a0000` | `ff8a8a` | enemies and everything they put on the board: red bricks, fuse bricks, enemy balls, goo, lasers, debris, the HP bar. Proposed; not in `SETS` yet |
 
 The sets are `SETS` in `gen.mjs`; a new one takes top, mid, near-bottom and tint from one palette ramp.
 

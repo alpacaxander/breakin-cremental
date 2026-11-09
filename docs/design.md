@@ -1,81 +1,121 @@
 # BreakIn cremental
 
-**Logline:** A breakout-style incremental game where you build the board you're about to break. "Sir, We Have an Orc Problem" meets breakout.
+**Logline:** Peglin, but breakout. A run-based roguelike where every fight is a breakout board: the bricks you break are the damage you deal, the balls you collect are your deck, and the paddle is the skill that keeps a turn alive.
 
-*Status: WIP. Every decision below is provisional.*
+*Status: WIP. Redirected on 2026-11-09 from an incremental (currency, upgrade web, between-round brick placement) to a Peglin-style roguelike. The code still implements the old loop; see Migration below. Every decision below is provisional. The name is a leftover and will change.*
 
 ## Unique selling point
 
-Breakout where the player shapes the board. Between rounds you place special bricks on a generated arena, then play the round to cash in. Placed bricks are tools that make the ball hit more bricks, faster; combos follow from that. Placement cleverness is the engine-building hook (Balatro-style); paddle skill is the floor; generated boards are the variance.
+Peglin's loop (shoot an orb into a peg board, damage is the pegs you hit, collect orbs and relics across a branching map, die and start over) with breakout physics instead of pachinko. In Peglin a shot is a roll of the dice once it leaves the launcher and a phase is one orb; here a phase has no clock and can in principle last forever, because the paddle keeps the ball alive. What ends it is the player: crit bricks launch the next ball in the bag, so a good rally keeps adding balls until there are more than two hands can juggle. Paddle skill is the floor, the ball bag and relics are the engine, generated boards are the variance.
+
+## Peglin parts and their breakout counterparts
+
+| Peglin | Here |
+|---|---|
+| Orbs, bought and found, levelled up to three ranks | Balls, same |
+| Relics (passive rules) | Relics, same |
+| Crit pegs (damage multiplier for the shot) | Crit brick: launches the next ball in the bag |
+| Refresh pegs (restore every hit peg) | Refresh brick, same |
+| Bomb pegs | Bomb brick, same |
+| Slime-coated and special pegs (poison, etc.) | Brick coatings from enemies and relics, later |
+| Buckets at the bottom (bounce back, reload, pit) | The paddle |
+| Discard an orb | Discard a ball before launch |
+| Stone orbs (junk added by enemies and events) | Junk balls, same |
+| Status effects on orbs and enemies (poison, blind, spin, etc.) | Ball traits and enemy debuffs |
+| Enemy intents shown above their heads | Same |
+| Map nodes: fight, elite, treasure, peddler, mystery event, boss | Same |
+| Gold and HP | Same |
+| Classes (Peglin, Roundrel, Spinventor, Balladin) | Starting paddles |
+| Cruciball (ascension difficulty) | Out of scope for v1 |
 
 ## Core fantasy
 
-Feel like a jackpot engineer: clever brick placement turns a chaotic arena into bigger and bigger payouts. Paddle skill matters early and gets you by; placement and upgrades are what make the screen explode late.
+Feel like a juggler who is also an engineer: a desperate save at the paddle keeps a four-ball rally alive and deletes the enemy, and the right ball-and-relic combination makes that happen more and more often. Early you survive on reflexes; late the board explodes on its own.
 
 ## Core loop
 
-1. Play a timed round. Every brick broken pays currency, whether or not the round is cleared.
-2. Spend currency on upgrades (permanent) or placeable bricks.
-3. Place bricks on the next generated board to set up combos.
-4. Play the next round.
+1. Pick a node on a branching map: fight, elite, treasure, shop, event, boss.
+2. In a fight, take turns. On your turn the next ball in your bag launches onto the board. Every brick a ball breaks deals that ball's damage to the enemy. Crit bricks launch the next ball in the bag, so several balls can be in play at once, each dealing its own damage. The turn ends when every ball in play has dropped past the paddle.
+3. Enemies act: damage to your HP, debuffs, changes to the board.
+4. Win the fight and pick one of three rewards: a new ball, a rank-up for a ball you own, a relic, or gold.
+5. Run ends on death or on the final boss. Meta-unlocks (new balls, relics, starting paddles) carry over; nothing else does.
 
 ## Key mechanics
 
-- **Base layer:** horizontal paddle bounces a ball around the arena and breaks bricks.
-- **Ball drop:** if the ball passes the paddle, the round ends early. You keep currency for bricks broken so far but forfeit the remaining time. Paddle skill matters because dropping costs you the rest of the round.
-- **Timer:** 20s base, scaled per level (`time` in the level row), extendable via upgrades and hourglass bricks. It does not grow with board size.
-- **Combos:** each brick broken within the combo window extends the combo and ramps a multiplier on currency per brick. The window shrinks as the combo grows, so long combos demand dense hits. If the window lapses, the combo hard-resets. Combos are the central reward; placed bricks make them likelier, not guaranteed.
-- **Generated arena:** each level has a semi-custom layout template. Default is an N x M grid of bricks that grows each level; other levels use clusters, triangles, and similar shapes. Which brick types appear depends on the level and what's been unlocked. Brick types:
-  - Colored bricks that pay different currencies.
-  - Icon bricks with effects on break: spawn balls, speed up balls, multiply payout, etc.
-  - Unbreakable bricks.
-  - Multi-hit bricks (health > 1).
-  - Conditional bricks: only break at a certain ball speed or angle.
-- **Placeable bricks:** the arena has a capacity (upgradable). Each brick type has a capacity cost, e.g. Brick A uses 3. Unlocking a brick type in the upgrade web adds one copy to your inventory; unlocking it again adds another, so unlocking Brick A three times lets you place up to three. Before each round you place any inventory bricks you like, as long as the total capacity cost fits. Placement is freeform (not cell-snapped), free, and redone each round. Most brick types cannot overlap other bricks; a few can. Examples: one-way pass-through, unbreakable, magnetic, ball-spawning-over-time.
-- **Upgrade web:** starts from one seed node, paddle speed (the paddle starts slow). Left of it the Timer unlock (+10s hourglass bricks), right the bomb brick, below Combos (rank 1 turns combos on, later ranks widen the window), above Round Length and everything else. A node is visible only if a connected node is unlocked. Each node has a cost and 1-5 ranks, each rank ten times the last. Early nodes are cheap and high-impact so a new player gets past the drop-and-retry phase quickly.
-- **Paddle upgrades:** size, speed, small sibling paddles, charge multiplier, vertical movement unlock.
-- **Currencies:** keep to 2-3 colors total. Each extra currency is a UI tab and a balance axis.
+- **Bricks are pegs.** Each fight generates a board. Basic bricks deal the ball's per-brick damage. Crit bricks launch the next ball in the bag, so a rally that keeps finding crits keeps adding balls. Refresh bricks respawn every broken brick. Bomb bricks break their neighbours and deal direct damage. Unbreakable bricks shape the bounces. Most of these exist in `tuning.gd` already; `hourglass` and the payout kinds need new meanings or get cut.
+- **Phase end.** A phase has no timer. It ends when every ball in play has dropped past the paddle, with no HP cost: like a wasted shot in Peglin, the penalty is the damage you did not deal. The natural limiter is the player's own success: each crit adds a ball to juggle, and an empty board stops the damage until a refresh brick appears. If play shows phases that never end, the fallback is a speed ramp on balls that stay alive too long.
+- **Damage.** In Peglin damage is stored as the orb hits pegs and fired when the orb leaves the board. Here each ball stores damage as it breaks bricks and fires it when it hits the paddle. The paddle hit is the shot: a ball shows its stored total as it flies, lands it on contact, and starts again from zero. A ball that drops past the paddle loses whatever it was carrying. Balls target the front enemy by default; some hit every enemy.
+- **Enemy damage.** Peglin's enemies act once per shot. Here they act on the board: hazards that hurt you when they touch the paddle or cross the paddle line. See Enemy attacks below. What times them is still open.
+- **Ball bag (the deck).** Start with four or five basic balls. A ball has per-brick damage and one trait: heavy (bigger, slower, more damage), split (becomes two on the first bounce), piercing (passes through bricks), sticky (first paddle catch holds it for an aimed relaunch), poison (damage over the next turns), and so on. Balls launch in bag order, both at the start of a phase and from crit bricks; a discard action skips one before launch. When the bag runs out mid-phase, crit bricks do nothing more. Three ranks per ball. Some enemies and events add junk stone balls.
+- **Paddle.** One paddle. Size, speed and extras come from relics, not an upgrade tree. Vertical movement and sibling paddles from the old upgrade ideas become relics or starting paddles.
+- **Relics.** Passive rules picked up at treasures, elites and shops: wider paddle, crit bricks launch two balls, the first brick each phase counts as a crit, a dropped ball returns to the bag, bricks drop gold, every tenth brick is a bomb. The old upgrade ideas (sibling paddles, vertical paddle movement, splitter, flipper, toll and ghost bricks) are relic candidates; their faces already exist in `docs/sprite-spec.md`.
+- **Enemies.** HP, an attack value and a countdown of turns. Some touch the board: add unbreakable bricks, remove refresh bricks, shrink the paddle, speed the ball. Elites and bosses have a gimmick each.
+- **Map.** Slay the Spire style branching, three acts, a boss at the end of each.
+- **Gold.** One currency, spent at shops on balls, relics, ball removal and healing.
+- **HP.** One pool. Zero ends the run.
+
+## Enemy attacks
+
+Enemies hurt you through things on the board, not through a number that lands at the end of a turn. One rule ties them together: anything hostile that touches the paddle or crosses the paddle line costs HP. The paddle lane is then shared by balls you want to catch and hazards you want to miss, which is the fight's core tension. What times the attacks (seconds, paddle hits, bricks broken) is still open; each enemy has an intent that says which hazard is coming.
+
+Hazard pool, roughly by build cost:
+
+- **Red bricks.** Breaking one deals damage to you. The ball does not care, so steering it around them is the skill. Variant: a fuse brick counts down and blows up on its own unless you break it first, so one kind must be hit and the other avoided.
+- **Enemy balls.** The enemy lobs balls down the board. They look like yours but carry the enemy's damage: catching one on the paddle takes the hit, letting it drop is free. Variants: homing, spread of three, slow heavy ones that must be dodged early.
+- **Advancing bricks.** Rows march toward the paddle, Space Invaders style. A row reaching the paddle line deals damage per brick and vanishes. Breaking bricks slows the front; refresh bricks add rows at the top.
+- **Drifting invaders.** Arkanoid-style critters wander the board, deflect balls unpredictably and sink toward the paddle. A ball kills them for bonus damage; one touching the paddle costs HP.
+- **Laser sweep.** A telegraphed beam across a lane or column fires after a beat. A paddle or ball in the beam takes it; a ball hit by the beam is pushed or loses its stored damage.
+- **Debris.** The enemy slams the board and shakes loose bricks that fall straight down. Dodge them; they are not worth catching.
+- **Floor goo.** A hazard zone grows along the paddle line from one side, shrinking the safe lane. The paddle standing in goo takes damage per second. Breaking bricks of a certain kind, or a timer, clears it.
+- **Cursed ball.** The enemy swaps the next ball in your bag for one that stores damage against you instead of the enemy. Catch it once and it hurts; the counter is to let it drop, which costs you a turn of the bag.
+- **Parasite bricks.** A brick turns hostile and spreads to a neighbour every few seconds. Hostile bricks heal the enemy when broken, or hurt you. Break the source fast or the board turns against you.
+- **Shield rows.** The enemy raises a layer of unbreakable or high-HP bricks in front of itself. Damage still lands, but the ball spends more time behind the shield and less near the paddle.
+- **Thieves.** Small enemies run onto the board and grab a ball mid-flight or steal gold, then leave by the top. Hitting one with a ball drops the loot.
+- **Paddle debuffs delivered as objects.** Ice slicks the paddle lane (slide), a weight shrinks it, a mirror reverses controls for a few seconds. Each is a thing to dodge, not a status applied from nowhere.
+- **Boss as the board.** The boss is the top wall. It slams down a row at a time, opens a mouth that eats balls, or tilts the arena so gravity bends every ball.
 
 ## Progression
 
-- Clearing all breakable bricks within the timer advances to the next level (a level row's `unlock` can ask for something else: level 2 opens on a combo of 10). Cleared levels produce bigger boards with more combo potential.
-- New brick colors (= new currencies) only generate after certain levels, which gates the upgrades that cost them.
-- A new level is typically too hard on the first try; failed attempts still pay out, so upgrades make the retry easier.
-- Replaying earlier levels is allowed, but earlier levels pay less (no new colors, smaller boards), so grinding is possible but slow.
-- Level count: twelve, a ramp of scale and combo size (`docs/ideas.md`, Level design). No prestige/reset layer; out of scope for v1.
+- Within a run: balls, ball ranks, relics, gold. No permanent stats.
+- Across runs: unlocks that widen the ball and relic pools, plus a few starting paddles (archetypes). Nothing that makes the next run numerically easier.
+- Enemies scale per act; the pool of boards and brick kinds widens per act.
 
 ## Win / lose
 
-Win by clearing the final level. There is no loss state: a round that times out or ends on a ball drop still pays out for bricks broken, and you retry with upgrades.
+Win by beating the act three boss. Lose when HP hits zero. Both end the run; a run should take 30-45 minutes.
 
 ## Controls
 
-- In round: arrows / WASD or mouse. Paddle moves toward the mouse or in the arrow direction. Once vertical movement is unlocked, mouse control becomes 2D.
-- Between rounds: click and drag UI (upgrade web, brick placement).
+- In a fight: arrows / WASD or mouse move the paddle; click or space launches and relaunches a sticky catch.
+- Between fights: click on map nodes, rewards and shop items.
 
 ## Target audience & platform
 
-Steam players who like incremental games, especially bright, flashy, casual ones. Inspirations: Balatro, "Sir, We Have an Orc Problem".
-
-## Art & audio
-
-Casino flash and pop. Every milestone should feel like a bigger jackpot than the last.
+Steam roguelike players who like Peglin, Slay the Spire and Balatro: short runs, build variety, visible numbers. Tone: an arcade cabinet that has wandered into a dungeon. The pixel art pipeline and cabinet layout stay.
 
 ## MVP
 
-- 1 paddle, 1 ball, timer, ball drop ends round
-- Generated board with 2 brick types (plain, unbreakable)
-- 1 currency
-- ~5 upgrades in a tiny web
-- 1 placeable brick type, small arena capacity
-- 2 levels, retry on fail
-- Combo multiplier
+- One act: six fights and a boss on a linear path, no branching.
+- One enemy kind plus a boss, with HP and a flat attack.
+- A bag of five basic balls plus two trait balls (heavy, piercing).
+- Bricks: basic, crit, refresh, unbreakable.
+- Reward after each fight: pick one of three balls. No relics, shop, gold or events.
+- Crit bricks launch the next ball; the phase ends when every ball has dropped.
 
-Deliberately out of MVP: animations, audio, extra currencies, icon/conditional bricks. The MVP exists to test whether placement + combos is fun and whether board generation can be tuned.
+Deliberately out: map branching, relics, events, meta-unlocks, multiple enemies, starting paddles, the speed-ramp fallback. The MVP exists to answer two questions: is a multi-ball breakout rally more fun than a pachinko shot, and do phases end on their own at a length that feels right?
+
+## Migration from the incremental build
+
+- **Survives:** `arena.gd` ball and paddle physics, `brick.gd`, `generate()` boards, `fx.gd`, `sfx.gd`, the `ui.gd` cabinet, the `tuning.gd` tables as the home for numbers.
+- **Repurposed:** the combo window and multiplier are cut from the base rules and may return as a relic (damage ramps while bricks keep breaking). The HUD score column becomes enemy HP, damage this phase, balls in play and the bag.
+- **Cut:** currency, the upgrade web and level select in `shop.gd`, placement mode in `place.gd`, the round timer, level unlock rules. Placement may return as a relic (place one brick before each fight).
+- **New:** map screen, fight screen with enemies, bag and relic state in `game.gd`, reward picks, shop.
 
 ## Risks
 
-1. **Tuning generated boards.** "Too hard first try, doable after upgrades" is a balance target that procedural generation makes hard to hit consistently. Biggest risk; the MVP is built to probe it.
-2. **Late-game screen density.** The overwhelming-jackpot feel wants hundreds of bricks and effects on screen. Nice to have, not required, and a performance concern.
-3. **Art, audio, animation feel.** Simple scope, but nailing the casino feel is the part most likely to fall flat.
-4. **Paddle feel.** Breakout lives or dies on ball physics and paddle response. Prototype early. Ball drop ending the round raises the stakes here: if the paddle feels bad, every drop feels unfair.
+1. **Phase length.** A Peglin shot is finite by physics; a breakout phase is as long as the player can hold it. Too short and there is no agency; unbounded and there is no threat. The bet is that crit bricks adding balls ends phases by overload, with crit density and bag size as the levers. If a skilled player with a small bag can rally forever, the speed ramp comes in.
+2. **Damage legibility.** Peglin shows damage ticking up per peg; bricks break fast and many at once. The running counter on the enemy has to read at a glance.
+3. **Enemy turns in an arcade game.** Waiting while an enemy swings kills flow. Enemy turns stay around a second, with the board visible throughout.
+4. **Generated boards.** Peglin boards are hand-laid. Generated boards must give every ball a fair rally and never trap the ball.
+5. **Paddle feel.** Still the base of everything; a bad drop still feels unfair.
+6. **Rewrite cost.** Shop and placement are about a third of the code, and `game.gd` is built around ranks and currency. Rebuilding it is the first job.
