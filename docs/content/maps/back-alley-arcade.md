@@ -1,6 +1,6 @@
 # Map 1: Back Alley Arcade
 
-Proposal, 2026-11-10. Nothing here is in `tuning.gd` yet; the placeholder map and its `ENEMIES` rows (glob, lobber, mason, warden, maw) are the only ones that exist. When a row lands in `tuning.gd`, `docs/content.md` wins over this file.
+Proposal, 2026-11-10; landed in `tuning.gd` the same day, so `docs/content.md` now wins over this file. Deviations on landing: the map joined the existing pools (mason, event_vendor and event_spring stay); the token's trait key is `pays` (`every` is the blaster's) and the magnet ball's is `magnet` (`pull` is the hazard); `bootleg_cabinet`'s board is a drawn cabinet, not a mirrored generator board; the ticket printer advances by sliding its whole layout; `attract_mode`'s needle copy flies plain (nothing to pierce on the enemy side); the reward roll does not prefer map balls, only the shop's first slot does.
 
 Street-level scrap tech: bootleg cabinets, coin-op pests, things that got into the wiring. Hazards are physical. Stuff falls, stuff bounces, nothing is subtle. This is the first map, so every enemy teaches one hazard and the board shapes are readable at a glance.
 

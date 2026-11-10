@@ -338,6 +338,35 @@ func _ready() -> void:
 	a.queue_free()
 	await get_tree().process_frame
 
+	# Map 1 (docs/content/maps/back-alley-arcade.md): jam halves the paddle for its hits, pull lifts the balls, coin_junk
+	# tops the bag with stones; below half HP the attract mode's enemy balls copy the run bag.
+	a = load("res://src/arena.gd").new()
+	a.enemy_id = "attract_mode"
+	add_child(a)
+	await get_tree().process_frame
+	a.enemy.cd_left = 999  # no intent fires mid-check
+	var w0: float = a.paddle.size.x
+	a._hazard("jam", 1)
+	assert(a.jam_left == H.jam.hits and is_equal_approx(a.paddle.size.x, w0 * H.jam.width), "jam halves the paddle")
+	for i in H.jam.hits:
+		a._paddle_hit(a.rest)
+	assert(a.jam_left == 0 and is_equal_approx(a.paddle.size.x, w0), "the paddle grows back after its hits")
+	a._hazard("pull", 1)
+	assert(a.pull_t == H.pull.secs, "pull lifts for its seconds")
+	var queue0: int = a.bag.size()
+	var run_bag0: int = Game.run.bag.size()
+	a._hazard("coin_junk", 2)
+	assert(a.bag.size() == queue0 + 2 and a.bag[0].id == H.coin_junk.junk and Game.run.bag.size() == run_bag0 + 2, "coin junk puts stones on top of the bag and in the run")
+	a._land(a.enemy.hp_max / 2 + 1)
+	assert(a.enemy.cd == Tuning.ENEMIES.attract_mode.enraged.cd and a.enemy.mimic, "below half HP the attract mode enrages")
+	Game.run.bag = [{id = "ball_split", rank = 1}]
+	var spat0: int = a.hazards.size()
+	a._enemy_ball(0)
+	assert(a.hazards.size() == spat0 + Tuning.BALLS.ball_split.split[0], "a mimicked splitter spits its fan")
+	await get_tree().create_timer(1.2).timeout  # the cues and the pull strips, else they leak at quit
+	a.queue_free()
+	await get_tree().process_frame
+
 	# The run's screens through main.gd (docs/content.md "Screens"): CONTINUE resumes the pending fight; a won fight shows
 	# the reward over the arena and SKIP returns to the map; the shop heals once and removes a ball; an event choice shows
 	# its result and CONTINUE returns to the map; the end screen deletes the save and MENU leaves.

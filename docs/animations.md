@@ -72,7 +72,7 @@ Sections headed Legacy belong to the cut incremental build: still generated, kep
 | laser_sweep_fire | 30x6 | 6 | 12 | beam bands, tiles vertically |
 | paddle_hurt | 60x8 | 4 | 12 | red twin of `paddle_hit` |
 
-## Enemies: Back Alley Arcade (`parts/arcade.mjs`, `parts/arcade_bosses.mjs`; proposal, docs/content/maps/back-alley-arcade.md)
+## Enemies: Back Alley Arcade (`parts/arcade.mjs`, `parts/arcade_bosses.mjs`; landed, docs/content.md Enemies)
 
 Every id gets the four strips of the Enemies section: `<id>_idle` x4 @8 (loop), `_hit` x6 @12, `_attack` x6 @12 (hazard on frame 3), `_die` x8 @12 (ends blank).
 
@@ -148,7 +148,7 @@ Extra strips:
 | trojan_reveal | 64x48 | 8 | 12 | at 50% HP: green seam spreads, the glob shell splits and slides off fading while the horse fades in; ends on the horse (trojan_true_idle frame 0) |
 | compiler_rewrite | 160x48 | 8 | 12 | at each 75/50/25% step: the carriage sweeps the beam left to right and every column behind it turns green; ends with all cells green, carriage parked right |
 
-## Hazards and bricks: maps (`parts/map_hazards.mjs`; proposal)
+## Hazards and bricks: maps (`parts/map_hazards.mjs`; map 1 landed, the rest proposals)
 
 Statics: `intent_jam`, `intent_pull`, `intent_coin_junk`, `intent_wall_col`, `intent_blackout`, `intent_lockdown`, `intent_virus`, `intent_scramble`, `intent_mirror`, `intent_ghost`, `paddle_jam`, `brick_virus`, `brick_virus_player`. Intent icons are 12x12 in the icons.mjs grammar. `virus` and `virus_player` take the Green set (`SETS.green`); `<hue>_ghost` exists per hue except chrome (solids can't be ghosted). Lockdown reuses the dim state, blackout hides the tag and glow, and coin_junk reuses `ball_junk_rank`; none of the three has a strip.
 
@@ -175,7 +175,7 @@ Statics: `intent_jam`, `intent_pull`, `intent_coin_junk`, `intent_wall_col`, `in
 | green_break | 44x20 | 8 | 12 | <set>_break shape in green (virus_player's normal break) |
 | green_spawn | 30x12 | 6 | 12 | <set>_spawn shape in green |
 
-## Ball faces: maps (`parts/map_balls.mjs`; proposal, same contract as Ball faces)
+## Ball faces: maps (`parts/map_balls.mjs`; map 1 landed, the rest proposals; same contract as Ball faces)
 
 | Name | Frame | Frames | fps | What |
 |---|---|---|---|---|

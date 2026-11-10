@@ -2,7 +2,7 @@
 
 The single source for asset and code agents. It resolves the eight pool specs; where this file and a pool spec differ, this file wins. Numbers are game px (arena-local, 960x720) unless a column says sprite px (half). Strips are `assets/pixel/png/anim_<name>.png`; a strip column reads `name WxH xN @fps` with W,H in sprite px. Cues are `assets/audio/wav/<name>.wav`; a cue column reads `name rate` (`st(n)` = n semitones). Statics are plain sprites (`<name>.png`), one frame. "exists" means the asset is already generated; everything else is new.
 
-Map proposals (not yet in `tuning.gd`; this file wins where they overlap): `docs/content/maps/back-alley-arcade.md`, `docs/content/maps/corp-tower.md`, `docs/content/maps/deep-net.md`.
+Maps: map 1, Back Alley Arcade (`docs/content/maps/back-alley-arcade.md`), landed on 2026-11-10; its rows below win over the proposal. Still proposals, not in `tuning.gd`: `docs/content/maps/corp-tower.md`, `docs/content/maps/deep-net.md`. The run is still one five-layer map; map 1's enemies, hazards, events, shop and balls joined the existing pools rather than replacing them.
 
 Vocabulary: a **fight** is one enemy on one board. A **phase** is one launch from the bag until every ball in play has dropped (design.md's "turn"). A **paddle hit** is a player ball touching a paddle; it is the one clock in a fight.
 
@@ -37,13 +37,14 @@ Vocabulary: a **fight** is one enemy on one board. A **phase** is one launch fro
 | `gold` | 0 | one integer currency | `coin` 8x8 (exists) | `coin 1.0` on any gain; `count_tick 1.0` while the number rolls |
 | `bag` | start `ball_basic` x4, `ball_heavy`, `ball_pierce`, all rank 1 | list of `{id, rank}`; launch order; shuffled at fight start | faces per ball | |
 | `relics` | `[]` | ids, no duplicates | `relic_<id>` 12x12 | |
+| `removed` | `""` | the id of the last ball removed this run (the shop's REMOVE, the mod shop's SELL ONE), for the shop's BUY BACK; cleared when bought back | | |
 | `seed` | `randi()` at run start | one `RandomNumberGenerator` seeded `seed + node index` per roll site, so a reload replays map, shop and rewards | | |
 | `stats` | `fights`, `elites`, `damage`, `bricks`, `best_fire`, `drops`, `gold_earned`, `seconds`, `killer` | end-screen lines | | |
 | `enemy_turn` | 0.8 s | between-phase beat | | `combo_drop 0.8` at phase end |
 | `regen_below` | 10 | breakables left at phase start that trigger a free refresh | `refresh_wave` | `regrow 1.0` |
 | `ramp_on`, `ramp_after`, `ramp_per_s`, `ramp_max` | false, 20 s, 0.02, 1.6 | speed ramp on long-lived balls (design.md fallback, off by default); a sticky catch or re-bagging resets it | `ball_trail` at >= `FAST_SPEED` | |
 
-Save: `user://run.json` `{version, seed, hp, hp_max, gold, bag, relics, map{layers, enemies, events, path, layer, node}, stats}`; written on map entry, after a reward pick, an event choice and each shop purchase; never mid-fight (a fight restarts on load: `# ponytail: one re-rolled fight per quit`). Deleted when an end screen opens or NEW RUN is pressed. Present file = CONTINUE on the menu. `tests/smoke.tscn` saves and restores it. The dev `sandbox.json` slot is cut.
+Save: `user://run.json` `{version, seed, hp, hp_max, gold, bag, relics, removed, map{layers, enemies, events, path, layer, node}, stats}`; written on map entry, after a reward pick, an event choice and each shop purchase; never mid-fight (a fight restarts on load: `# ponytail: one re-rolled fight per quit`). Deleted when an end screen opens or NEW RUN is pressed. Present file = CONTINUE on the menu. `tests/smoke.tscn` saves and restores it. The dev `sandbox.json` slot is cut.
 
 ### Map (`Tuning.MAP`)
 
@@ -69,12 +70,15 @@ Save: `user://run.json` `{version, seed, hp, hp_max, gold, bag, relics, map{laye
 | `reward_gold` | weight 20, +30 | gold card | card + `coin` x2 | `coin_cascade 1.0` |
 | reward screen | 3 cards of distinct kinds, SKIP (`ui_click`) | after a regular or elite win; elite then shows 3 relic cards with no skip | panel open: `card_frame_hot` on hover | `round_clear 1.0` on win, `mystery_reel 1.3` as cards show |
 | `treasure` | 3 relic cards, no skip, no gold | | same | `lock_open 1.0` on open |
-| `shop_ball` | 3 distinct unlocked balls, 15 each | adds to the bottom of the bag | cards at y 40, centres x 90/170/250 | `ui_buy 1.0`; refused `ui_cant_afford 1.0` |
-| `shop_relic` | 2 distinct unowned relics, 40 / 60 / 80 by rarity | adds the relic | cards at centres x 370/450 | `ui_buy 1.0` |
-| `shop_remove` | 12, repeatable | REMOVE enters pick mode on the bag column (`ui_slot_hover`, exists); deletes one copy, junk included; refused (`ui_invalid`) when it would leave no non-junk ball | | `teleport_in 0.8` |
+| `shop_ball` | 3 distinct unlocked balls of `SHOP.rarities` (common, uncommon; never rare), 15 each; the first slot is a `map` = `SHOP.map` ball when one fits | adds to the bottom of the bag | cards at y 40, centres x 90/170/250 | `ui_buy 1.0`; refused `ui_cant_afford 1.0` |
+| `shop_relic` | 2 distinct unowned relics, 40 / 60 / 80 by rarity, drawn by `SHOP.relic_weights` 5 / 2 / 1 (the reward roll keeps 3 / 2 / 1) | adds the relic | cards at centres x 370/450 | `ui_buy 1.0` |
+| `shop_remove` | 12, repeatable | REMOVE enters pick mode on the bag column (`ui_slot_hover`, exists); deletes one copy, junk included; refused (`ui_invalid`) when it would leave no non-junk ball; the id goes to `run.removed` | | `teleport_in 0.8` |
 | `shop_heal` | 20 gold, +20 HP, once per visit | disabled at full HP | | `grow 1.0`, `coin 0.8` at delay 0.1 |
-| shop screen | | `lamp_hum` loop while open; LEAVE in the right column | | `ui_unpause 1.0` on enter, `ui_back` on leave |
-| `event_forge` | A: random owned ball rank < 3 gains a rank, `hp -= 6` (floor 1); B: `gold += 20` | A COLD FORGE / THE COALS STILL GLOW. A HAMMER WAITS. / HAMMER A BALL / TAKE THE SCRAP | | open `mystery_reel 1.0`, choice `ui_click 1.0`, good `ui_unlock 1.0`, bad `ui_cant_afford 0.8` |
+| `shop_buy_back` | `buy_back` 7 (half the ball price) | BUY BACK returns `run.removed` to the bottom of the bag at rank 1 and clears it; dimmed with nothing removed ("BUY BACK NOTHING") | row y 208 under HEAL | `ui_buy 1.0`; refused `ui_cant_afford 1.0` |
+| shop screen | PAWN SHOP | `lamp_hum` loop while open; LEAVE in the right column | | `ui_unpause 1.0` on enter, `ui_back` on leave |
+| `event_coin_return` | A: `gold += 25` and a `ball_junk` joins the bag; B: nothing | COIN RETURN / A DEAD CABINET. THE COIN BOX RATTLES. / PRY IT OPEN / WALK ON | | open `mystery_reel 1.0`, choice `ui_click 1.0`, good `ui_unlock 1.0`, bad `ui_cant_afford 0.8`; junk added `teleport_out 0.5` |
+| `event_mod_shop` | A: random owned ball rank < 3 gains a rank, `hp -= 6` (floor 1); B: sells one ball for `gold += 15`: a `ball_junk` if the bag holds one, else a random ball; refused (text only) when the bag invariant would break; the id goes to `run.removed`. Replaces `event_forge` | THE MOD SHOP / A KID WITH A SOLDERING IRON LOOKS UP. / MOD A BALL / SELL ONE | | as above |
+| `event_fried_cabinet` | A (10 gold): `hp += 10`, dimmed if unaffordable; B: the node's relic (as the vendor's: random unowned common/uncommon, dimmed if none), `hp -= 8` (floor 1) | FRIED CABINET / SMOKE. THE SCREEN STILL FLICKERS. / PULL THE PLUG / PLAY IT | | as above |
 | `event_vendor` | A (20 gold): random unowned common/uncommon relic, dimmed if unaffordable or none; B: 50% the relic free, 50% a `ball_junk` joins the bag | A GHOST VENDOR / IT HOLDS OUT A RELIC AND SAYS NOTHING. / BUY IT (20) / HAGGLE | | junk added `teleport_out 0.5` |
 | `event_spring` | A: `hp += 15`; B: `gold += 25`, `hp -= 5` (floor 1) | A HOT SPRING / STEAM. SOMETHING SHINES UNDER THE WATER. / BATHE / DIVE FOR COINS | | |
 
@@ -112,7 +116,10 @@ Common: `dmg` is per brick broken, `size` and `speed` multiply `BALL_RADIUS` 8 a
 | `ball_sticky` | GUM | uncommon | 2/3/4 | 1.0 | 1.0 | the first `catches` = 1/2/3 paddle contacts per phase catch it: damage fires, the ball sits `STICKY_HOLD` 1.5 s or until click/space, relaunches toward the mouse clamped to `MAX_BOUNCE_DEG` | `ball_sticky_rank` 8x8 x3; `sticky_hold` 30x16 x6 @8 (exists, holds its last frame) | `sticky_catch 1.0`, `sticky_fire 1.0` |
 | `ball_bomb` | BLASTER | uncommon | 1/2/3 | 1.0 | 1.0 | every `every` = 5/4/3rd brick it breaks (per fight) also fires a `BOMB_RADIUS` blast at that brick through `_trigger`; blast-broken bricks are credited to this ball, no direct damage | `ball_bomb_rank` 8x8 x3; `bomb_ring` 60x60 x4 @12 (exists) | `bomb_boom 1.0` |
 | `ball_poison` | SPORE | rare | 0/0/1 | 1.0 | 1.0 | each brick also stores `poison` = 1/2/3 stacks; stacks land with the damage; tick at phase end (above) | `ball_poison_rank` 8x8 x3; `ball_poison_land` 12x12 x4 @12 on the paddle | tick `pips_shrink 0.8` |
-| `ball_junk` | STONE | none | 0 | 1.0 | 0.9 | breaks bricks, stores nothing, a crit it breaks does not launch; no ranks, never a card, removable at the shop, added by `event_vendor` | `ball_junk_rank` 8x8 x1 | launch `ball_launch 0.6`, its breaks `brick_break 0.6` |
+| `ball_junk` | STONE | none | 0 | 1.0 | 0.9 | breaks bricks, stores nothing, a crit it breaks does not launch; no ranks, never a card, removable at the shop, added by `event_vendor`, `event_coin_return` and the `coin_junk` hazard | `ball_junk_rank` 8x8 x1 | launch `ball_launch 0.6`, its breaks `brick_break 0.6` |
+| `ball_token` | TOKEN | common, `map` 1 | 1/2/3 | 1.0 | 1.0 | every `pays` = 8/6/4th brick it breaks (per fight, counted on the bag entry like the blaster's) pays `gold` 1 (relic `toll`'s path, `_pay`) | `ball_token_rank` 8x8 x3; `toll_pay` on the brick | `coin 1.0` |
+| `ball_rubber` | RUBBER | uncommon, `map` 1 | 1/2/3 | 1.0 | 1.0 | the first `floor` = 1/2/3 drops per phase bounce it straight up off the floor (relic `shield_floor`'s `_save`, the ball's own count first) | `ball_rubber_rank` 8x8 x3; `shield_floor_pop` | `shield_pop 1.0` |
+| `ball_magnet` | MAGNET | uncommon, `map` 1 | 2/3/4 | 1.0 | 1.0 | pulled toward the paddle within `MAGNET_RADIUS` at `magnet` = 0.5/1.0/1.5 x `MAGNET_PULL`, added to relic `magnet_paddle`'s 1.0 | `ball_magnet_rank` 8x8 x3 | |
 
 Locked: `ball_bomb` until `finished_run`, `ball_poison` until `killed_elite`. Invariant: the bag always holds at least one non-junk ball (removal refuses). Every ball reuses `ball_bounce` 12x12 x6 @12 and `ball_trail` 24x8 x4 @12 at >= `FAST_SPEED` (exist); `ball_bounce 1.0` on walls.
 
@@ -128,10 +135,11 @@ Locked: `ball_bomb` until `finished_run`, `ball_poison` until `killed_elite`. In
 | `solid` | -1 | 0 | chrome | unbreakable | face `brick_solid`, `solid_bounce` 44x20 x6 @12 (exist) | `solid_bounce 1.0` |
 | `bomb` | 1 | 0 | ora | on break, at once: `blast` = 8 direct damage to the enemy, then break every brick with its centre within `BOMB_RADIUS` 72 through `_trigger` (chained bombs each blast); neighbours' `dmg` goes to the breaking ball | `icon_bomb_pulse` 30x12 x4 @8 (exists, body recoloured orange), `halo_pulse_ora` 60x30 x4 @8, `bomb_ring` 60x60 x4 @12; `ora_hit`, `ora_break`, `ora_spawn` (exist) | `bomb_boom 1.0` |
 | `red` | 1 | 0 | red | a ball breaking it costs the player `hurt` = 3 HP at the moment of the break; a blast just removes it | static `brick_red` 30x12; `red_hit` 30x12 x6 @12, `red_break` 44x20 x8 @12 (debris falls), `red_spawn` 30x12 x6 @12 | `brick_break 0.7`, `hp_lose` (ladder) at delay 0.05 |
+| `gold` | 1 | 1 | gold | on break pays `gold` 5; under an enemy with `jackpot` it pays nothing by itself and the phase that breaks every gold brick of the layout pays `jackpot` once | static `brick_gold` 30x12 (exists); `gold_hit`, `gold_break`, `gold_spawn` (exist); `toll_pay` on the pay | `gold_hit 1.0`, pay `coin 1.0`, jackpot `jackpot 1.0` |
 
 ### Generator (`Game.generate(cls, seed, board)`)
 
-Every enemy draws its own board: `board.rows` in `tuning.gd` `ENEMIES`, one glyph per brick from `BOARD_KEYS`: `.` empty, `x` plain, `?` rolled, `#` solid, `b` bomb, `R` red, `c` crit, `r` refresh. Each row centres on the arena, so a row one shorter than its neighbours sits half a step over (honeycomb). Drawn kinds stand as drawn; each `?` rolls `solid`, `bomb`, `red` at the class's per-brick chance under its hard `max`, in that order; then plain bricks convert until the board holds at least `crit` and `refresh` of each (drawn ones count).
+Every enemy draws its own board: `board.rows` in `tuning.gd` `ENEMIES`, one glyph per brick from `BOARD_KEYS`: `.` empty, `x` plain, `?` rolled, `#` solid, `b` bomb, `R` red, `c` crit, `r` refresh, `g` gold. Each row centres on the arena, so a row one shorter than its neighbours sits half a step over (honeycomb). Drawn kinds stand as drawn; each `?` rolls `solid`, `bomb`, `red` at the class's per-brick chance under its hard `max`, in that order; then plain bricks convert until the board holds at least `crit` and `refresh` of each (drawn ones count).
 
 Arena is always `Tuning.ARENA`. `BOARD_TOP = 168`, `BOARD_FLOOR = 240`, step 64x28, max rows 11 (boss 10, it sits 32 lower). `test.gd` asserts every brick fits, the widest row is exactly the class's `cols` (the lane grid for `laser_sweep` and `shield_row`), and every non-solid glyph is reachable from outside the layout past the drawn solids.
 
@@ -150,6 +158,16 @@ Placement rules for `?` rolls (a failing roll stays `plain`): `solid` never touc
 | `mason` | a solid ring around a vault of 3 drawn crits, a 3-plain door at the bottom | break in; the shield row seals the top |
 | `warden` | two solid pillars full height (zigzag on the honeycomb), 4 drawn crits in the middle chamber | three lanes, and the laser sweeps lanes |
 | `maw` | jaws of plain, two rows of solid teeth with one-brick gaps, 3 drawn crits floating in the throat | shoot between the teeth |
+| `rat_king` | 6-row nest of plains, a drawn crit in each corner | the crits are at the edges, where the ball goes last |
+| `coin_slug` | 7-row blob with one drawn gold brick in the middle | dig for the coin |
+| `fuse_box` | plain walls top and bottom, a diagonal fuse of 5 drawn bombs (each 69.8 px from the next, inside `BOMB_RADIUS`) | light one end and the whole fuse goes: 40 of its 45 HP |
+| `claw_rig` | two drawn solid pillars, 4 drawn crits in the open lane between them | the prize lane |
+| `ticket_printer` | 5 rows, plain lines between rows of rolled bricks with 3 drawn crits; `advance` 1: the whole layout slides a row toward the paddle each phase while the lowest row stays above `BOARD_FLOOR` (5 phases) | the paper feeds out |
+| `bootleg_cabinet` | a drawn solid case around a cracked screen (2 drawn reds beside a crit), a plain shelf, an open row and a coin door | break the case or go in by the door |
+| `repo_man` | a solid vault of 3 drawn crits with a 3-wide door at the bottom; `shield_start`: the shield row stands at fight start | the vault opens from below; the shield row seals the top first |
+| `arcade_bouncer` | two drawn solid rope lines narrowing toward the top (a V), plains across the bottom | the lane tightens where the crits convert |
+| `jackpot_reel` | three 3-wide reels of plains with a drawn gold brick in each, a plain line below | all three golds in one phase pays the jackpot |
+| `attract_mode` | a solid screen frame, open at the bottom; inside, a high-score table of plains with 5 drawn crits as the top score, `BOARD_TOP` +32, no `refresh` in rows 0-1 | play the table from the bottom up |
 
 ### Every existing `tuning.gd` kind and constant
 
@@ -182,6 +200,18 @@ One enemy per fight. `tier` = earliest layer. Intents cycle in order; each entry
 | `mason` | regular | 3 | 55 | 6 | solid-ringed vault of crits | `shield_row`, `debris` x6 | `mason_*` 64 | -4 |
 | `warden` | elite | 4 | 120 | 5 | two solid pillars, crits in the middle lane; **riposte**: a paddle hit landing 10+ drops `cd` by 2 | `laser_sweep` x1, `enemy_balls` x3, `shield_row` | `warden_*` 64 | -5 |
 | `maw` | boss | 5 | 240 | 4 | jaws with solid teeth, crits in the throat, `BOARD_TOP` +32, no `refresh` in rows 0-1; below 50% HP `cd` 3 and the mouth holds 6 hits | `debris` x8, `mouth`, `laser_sweep` x2 | `maw_*` 160; `maw_mouth_open` 48x16 x6 @12 (hold last), `maw_mouth_close` 48x16 x6 @12 | -7 |
+| `rat_king` | regular | 1 | 35 | 6 | nest, crits in the corners | `coin_junk` x1, `debris` x3 | `rat_king_*` 64 | +3 |
+| `coin_slug` | regular | 1 | 40 | 5 | one gold brick mid blob | `coin_junk` x2, `red_bricks` x2 | `coin_slug_*` 48 | -1 |
+| `fuse_box` | regular | 2 | 45 | 6 | a diagonal fuse of bombs | `red_bricks` x2, `debris` x6 | `fuse_box_*` 48 | +1 |
+| `claw_rig` | regular | 2 | 50 | 5 | two pillars, a lane of crits | `pull` x1, `enemy_balls` x2 | `claw_rig_*` 64 | -3 |
+| `ticket_printer` | regular | 2 | 45 | 6 | rows that feed toward the paddle; **advance** 1 row per phase | `jam` x1, `red_bricks` x4 | `ticket_printer_*` 48 | +2 |
+| `bootleg_cabinet` | regular | 3 | 55 | 5 | a solid case, a cracked screen | `enemy_balls` x3, `debris` x4 | `bootleg_cabinet_*` 48 | -2 |
+| `repo_man` | elite | 4 | 110 | 5 | a vault, the shield row up at fight start; **steal** 1: every ball that drops costs 1 gold (not below 0) | `shield_row`, `coin_junk` x2, `debris` x6 | `repo_man_*` 64 | -6 |
+| `arcade_bouncer` | elite | 4 | 130 | 5 | solid rope lines narrowing upward; **twice** 0.3: a phase's first intent fires again 0.3 s later | `jam` x2, `enemy_balls` x4 | `arcade_bouncer_*` 64 | -5 |
+| `jackpot_reel` | elite | 4 | 115 | 6 | three reels with a gold brick each; **jackpot** 30: its gold bricks pay only when all three break in one phase | `pull` x1, `red_bricks` x3, `debris` x8 | `jackpot_reel_*` 64 | -3 |
+| `attract_mode` | boss | 5 | 220 | 4 | a screen frame, a high-score table of crits, `BOARD_TOP` +32, no `refresh` in rows 0-1; below 50% HP **mimic**: each `enemy_balls` ball copies the run bag's next ball in order (its size and speed; a splitter's fan of `split` copies; a needle has nothing to pass and flies plain) | `jam` x1, `enemy_balls` x5, `pull` x1 | `attract_mode_*` 160 | -8 |
+
+Enrage is one rule: a row's `enraged` fields (`cd`, `mouth`, `mimic`) merge into the enemy once its HP is at or below `enraged.at` of its max (`_land`).
 
 Shared: the enemy sprite sits behind balls and bricks, bottom centre at sprite (240,54), in the bare band above the top wall body (y 112). The hazard spawns on frame 3 of `<id>_attack`; `<id>_hit` on every landed shot; `<id>_die` then outward board break. Statics `enemy_<id>` are frame 0 of `<id>_idle` (no separate sprite). Cue per moment: hit `bumper_hit 0.6*st(off)`, attack `hit_refused 0.5*st(off)`, die `enemy_die` (`1.0`, maw `0.6`), enter `fast_whoosh 0.6` + `bumper_hit 0.5` d0.3.
 
@@ -199,7 +229,11 @@ Hazards are arena children on their own collision layer: they pass through brick
 | `laser_sweep` | lanes = `count` (1, or 2 = paddle column + its mirror); warn 1.0 s, beam 0.4 s, `hp` 6 once per beam | picks the 64-wide board column under the paddle centre at fire time; paddle centre inside during the beam pays; a ball inside has `stored` set to 0 once per beam; bricks untouched; telegraph persists across a phase end | `laser_sweep_warn` 30x6 x4 @8 tiled from the top wall to the floor, `laser_sweep_fire` 30x6 x6 @12 tiled | warn `ui_reveal 0.5`, beam `bolt_sweep 0.8`, ball zapped `combo_drop 1.2` |
 | `shield_row` | `shield_hits` 8 paddle hits; a refire resets to 8 | a full row of `solid` at centre y `SHIELD_Y` 140 (one per board column), balls bounce off it; crumbles when the hits run out or the fight ends; never part of the refresh layout | raise and crumble: `dust_puff` per brick; face `brick_solid` | raise `armor_pop 0.7`, crumble `solid_bounce 0.8` |
 
-Persistence: `red_bricks` and `shield_row` and a pending laser telegraph survive a phase end; `enemy_balls` and `debris` do not.
+| `jam` | `hits` 6, `width` 0.5; a refire resets the count | the paddle (not relic `mini_paddle`'s) draws and collides at half its built width for the next 6 paddle hits on it, then springs back; survives a phase end | `jam_clamp` 60x8 x6 @12 over the built width, ending on the half paddle; face `paddle_jam` 30x8 (stretched like `paddle`) | `paddle_jam 1.0` on fire and refire, `grow 1.0` when it wears off |
+| `pull` | `secs` 1.0 per count, `force` 490 px/s^2 (half gravity); no body, so `flight` only means a pull still pending dies with the phase | every player ball in flight gets `force` upward in `_move_ball` for `secs`; speed is kept, the heading bends up, so stored damage risks going back into the bricks | `pull_drift` 12x16 x4 @8 once over each ball in flight | `pull_lift 1.0` |
+| `coin_junk` | `count`, `junk` = `ball_junk` | per count a stone goes on top of the fight's bag and into the run's bag for good (autosaved with the next screen) | none; the bag column shows it | `coin 0.7` then `teleport_out 0.5` at delay 0.1 per stone, +2 st each further one |
+
+Persistence: `red_bricks`, `shield_row`, `jam` and a pending laser telegraph survive a phase end; `enemy_balls`, `debris` and `pull` do not; `coin_junk` is in the bag.
 
 ## Relics (`Tuning.RELICS`)
 
@@ -229,10 +263,10 @@ Every between-fight screen is a `Ui.chassis` with the run columns (left: you, ri
 | fight | per the Fight pipeline; HP icon `ui_hp` 8x8 beside the player bar | | `ui_hp`, `ui_next` statics | |
 | reward | panel (160,70) 320x180: VICTORY k2 `pay`, PICK ONE, three `card_frame` at centres x 240/320/400 tops y 108, name k1 at y 160, desc rivet y 170..188 wrapped 72, SKIP 96x20 at (272,224); "+N GOLD" top right | pick -> autosave -> map | `card_frame`, `card_frame_hot`, `card_frame_dim` 36x48; faces `<id>_rank` frame at 2x, `relic_<id>` at 2x, `coin` at 2x; `ui_badge` for rank-up | per Rewards; hover `ui_hover`, pick `ui_pickup 1.0` then the kind's cue |
 | treasure | the reward panel titled TREASURE, three relic cards, no SKIP | | same | `lock_open 1.0` |
-| shop | PEDDLER header; ball cards tops y 40 at x 90/170/250 with price under each; relic cards at x 370/450; rule at y 150; REMOVE row y 160, HEAL row y 184 (chrome 96x18 buttons at x 344); status line y 210; LEAVE in the right column | per Shop | `card_frame*`, `ui_slot_hover` | per Shop |
+| shop | PAWN SHOP header; ball cards tops y 40 at x 90/170/250 with price under each; relic cards at x 370/450; rule at y 150; REMOVE row y 160, HEAL row y 184, BUY BACK row y 208 (chrome 96x18 buttons at x 344); status line y 234; LEAVE in the right column | per Shop | `card_frame*`, `ui_slot_hover` | per Shop |
 | event | per Events | | none | per Events |
-| run over / run won | full chassis, no columns: title k4 at y 40 (white + red rule for RUN OVER, `pay` for RUN WON); line 2 "SLAIN BY <ENEMY> AT NODE n/5" or "THE MAW IS DOWN"; STATS at x 180 from y 102 pitch 10: FIGHTS WON, DAMAGE DEALT, BRICKS BROKEN, BIGGEST SHOT, BALLS DROPPED, GOLD EARNED, TIME m:ss; BAG faces at x 340 pitch 12 and RELICS icons pitch 14; "UNLOCKED: <NAME>" mint at y 180 when a flag was set this run; NEW RUN mint 96x20 at (214,220), MENU chrome at (330,220) | deletes `run.json` on open; numbers tick over 0.8 s | | `run_over 1.0` / `run_won 1.0` on open; `result_roll` while ticking; `ui_unlock 1.2` at delay 1.0 for the unlock line; NEW RUN `ui_start`, MENU `ui_back` |
-| catalog | from the menu, no columns: "CATALOG" k2; "BALLS n/8" over a 4x2 grid (face at 2x, name, card line, "DMG 1/2/3"); "ENEMIES n/5" over one row of `<id>_idle` frame 0 with name, TIER n / ELITE / BOSS, HP and intent icons; an id not in `meta.seen` is a `trim` silhouette named "???" (a ball still `locked` adds LOCKED); BACK | | | BACK `ui_back` |
+| run over / run won | full chassis, no columns: title k4 at y 40 (white + red rule for RUN OVER, `pay` for RUN WON); line 2 "SLAIN BY <ENEMY> AT NODE n/5" or "THE <BOSS> IS DOWN" (ids with `_` as spaces); STATS at x 180 from y 102 pitch 10: FIGHTS WON, DAMAGE DEALT, BRICKS BROKEN, BIGGEST SHOT, BALLS DROPPED, GOLD EARNED, TIME m:ss; BAG faces at x 340 pitch 12 and RELICS icons pitch 14; "UNLOCKED: <NAME>" mint at y 180 when a flag was set this run; NEW RUN mint 96x20 at (214,220), MENU chrome at (330,220) | deletes `run.json` on open; numbers tick over 0.8 s | | `run_over 1.0` / `run_won 1.0` on open; `result_roll` while ticking; `ui_unlock 1.2` at delay 1.0 for the unlock line; NEW RUN `ui_start`, MENU `ui_back` |
+| catalog | from the menu, no columns, two pages: "CATALOG: BALLS n/11" k2 over a 4-wide grid (face at 2x, name, card line, "DMG 1/2/3"); "CATALOG: ENEMIES n/15" over rows of `<id>_idle` frame 0 (wrapped at the field's width, pitch 84) with name, TIER n / ELITE / BOSS, HP and intent icons; an id not in `meta.seen` is a `trim` silhouette named "???" (a ball still `locked` adds LOCKED); BACK and the other page's button at y 330 | | | BACK `ui_back` |
 | pause | unchanged: RESUME / SETTINGS / MENU; MENU in a fight abandons it, the map autosave stands | | | `ui_pause`, `ui_unpause` |
 
 Drawn in-engine, no sprite: both HP bars, top wall line, map edges, damage pops, the red field flash, the shop rule, stat tables. Cut: `ui_hp_bar`, `hp_lose` strip, `card_ball`/`card_relic`/`card_gold`/`card_rank`, `map_here`, `ui_intent` generic set, turn bands, event art.
@@ -258,6 +292,8 @@ Reused statics: `ball`, `coin`, `paddle`, `paddle_mini`, `brick_plain_lit`, `bri
 New statics: `brick_crit`, `brick_refresh`, `brick_red` 30x12; `intent_red_bricks`, `intent_enemy_balls`, `intent_debris`, `intent_laser_sweep`, `intent_shield_row`, `intent_mouth` 12x12; `relic_<id>` x10 12x12; `ui_hp` 8x8; `ui_next` 4x5; `card_frame`, `card_frame_hot`, `card_frame_dim` 36x48; `map_node_fight`, `map_node_elite`, `map_node_treasure`, `map_node_shop`, `map_node_event` 12x12; `map_node_boss` 16x16.
 
 New cues (5): `damage_land`, `hp_lose`, `enemy_die`, `run_over`, `run_won` (recipes in sound.md). Existing cues the demo plays: `round_go`, `ball_launch`, `ball_bounce`, `paddle_hit`, `ball_lost`, `brick_hit`, `brick_break`, `multiball_pop`, `hit_refused`, `regrow`, `bomb_boom`, `solid_bounce`, `split_pop`, `pierce_swish`, `sticky_catch`, `sticky_fire`, `pips_shrink`, `bumper_hit`, `count_tick`, `combo_drop`, `timed_off`, `fast_whoosh`, `cond_primed`, `blast`, `ui_reveal`, `bolt_sweep`, `armor_pop`, `teleport_in`, `teleport_out`, `shield_pop`, `toll_ding`, `recall`, `coin`, `coin_cascade`, `round_clear`, `mystery_reel`, `lock_open`, `lamp_hum`, `grow`, `time_low`, `result_roll`, `ui_click`, `ui_back`, `ui_start`, `ui_hover`, `ui_pickup`, `ui_drop`, `ui_buy`, `ui_cant_afford`, `ui_unlock`, `ui_invalid`, `ui_pause`, `ui_unpause`. `gen.mjs` housekeeping: `regrow`, `lock_open`, `grow`, `blast`, `toll_ding` leave the Ideas group. Old cues the demo stops playing keep their wavs.
+
+Map 1 (Back Alley Arcade): strips `<id>_idle/_hit/_attack/_die` for `rat_king`, `claw_rig`, `repo_man`, `arcade_bouncer`, `jackpot_reel` 64x48, `coin_slug`, `fuse_box`, `ticket_printer`, `bootleg_cabinet` 48x48, `attract_mode` 160x48 (4/6/6/8); `ball_token_rank`, `ball_rubber_rank`, `ball_magnet_rank` 8x8 3 still; `jam_clamp` 60x8 6 @12; `pull_drift` 12x16 4 @8; reused `gold_hit`/`gold_break`/`gold_spawn`, `toll_pay`, `shield_floor_pop`. Statics `intent_jam`, `intent_pull`, `intent_coin_junk` 12x12, `paddle_jam` 30x8, reused `brick_gold`. New cues `paddle_jam`, `pull_lift`; reused `gold_hit`, `jackpot`, `grow`, `coin`, `teleport_out`, `split_pop`, `count_tick`, `shield_pop`. Art: `assets/pixel/parts/arcade.mjs`, `arcade_bosses.mjs`, `map_hazards.mjs`, `map_balls.mjs`; cues `assets/audio/parts/maps.mjs`.
 
 ## Code steps (history: all ten landed)
 

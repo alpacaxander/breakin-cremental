@@ -404,7 +404,7 @@ func roll_shop(r: RandomNumberGenerator) -> Dictionary:
 		var pool: Array = balls.filter(func(id): return Tuning.BALLS[id].get("map", 0) == S.map) if i == 0 else []
 		if pool.is_empty():
 			pool = balls
-		var id: String = pool[r.randi() % pool.size()]
+		var id = pool[r.randi() % pool.size()]  # untyped: BALLS keys are StringNames, and erase() of a String misses them
 		balls.erase(id)
 		stock.balls.append(id)
 	for i in S.relics:
