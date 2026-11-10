@@ -246,15 +246,19 @@ func _spawn(i: int, kind: String, delay := 0.0) -> void:
 	).set_delay(delay)
 
 
-## Every empty layout slot regrows its original brick.
-func _refresh() -> void:
+## Every empty layout slot regrows its original brick, except the slot of the refresh brick that fired it: regrown under
+## the ball that just broke it, a wedged ball breaks it again forever.
+func _refresh(from: Box = null) -> void:
 	Sfx.play("regrow")
 	for i in _empty_slots():
-		_spawn(i, layout[i].kind)
+		if from == null or slots[i] != from:
+			_spawn(i, layout[i].kind)
 
 
+## Layout slots with no live brick and no ball inside, so nothing regrows around a ball.
 func _empty_slots() -> Array:
-	return range(layout.size()).filter(func(i): return not is_instance_valid(slots[i]) or slots[i].is_queued_for_deletion())
+	return range(layout.size()).filter(func(i): return (not is_instance_valid(slots[i]) or slots[i].is_queued_for_deletion()) \
+			and not balls.any(func(b): return Rect2(layout[i].pos - Tuning.BRICK_SIZE / 2, Tuning.BRICK_SIZE).grow(b.radius).has_point(b.position)))
 
 
 func _add_ball(ball: Dictionary, pos: Vector2) -> Ball:
@@ -957,7 +961,7 @@ func _effect(kind: String, b: Box, ball: Ball = null, direct := true) -> void:
 		"crit":
 			_crit(b, ball)
 		"refresh":
-			_refresh()
+			_refresh(b)
 
 
 ## A crit at b: the bag's next ball launches from the paddle (two with relic twin_crit); an empty bag refuses, a stone's

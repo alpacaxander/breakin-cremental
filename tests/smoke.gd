@@ -90,6 +90,10 @@ func _ready() -> void:
 	a._trigger(a._bricks("plain").front())
 	a._refresh()
 	assert(a.breakable > before and a._empty_slots().is_empty(), "a refresh regrew every broken slot")
+	var fresh = a._bricks("refresh").front()
+	a._trigger(fresh)
+	assert(a._empty_slots().size() == 1 and fresh.is_queued_for_deletion(), "a refresh brick never regrows itself")
+	a._refresh()
 	a._launch_rest()
 	a.balls[0].position.x = 30  # off the board, so the live ball meets no brick while the test looks
 	a.bag = []  # so the crits broken below launch nothing
