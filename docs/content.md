@@ -2,6 +2,8 @@
 
 The single source for asset and code agents. It resolves the eight pool specs; where this file and a pool spec differ, this file wins. Numbers are game px (arena-local, 960x720) unless a column says sprite px (half). Strips are `assets/pixel/png/anim_<name>.png`; a strip column reads `name WxH xN @fps` with W,H in sprite px. Cues are `assets/audio/wav/<name>.wav`; a cue column reads `name rate` (`st(n)` = n semitones). Statics are plain sprites (`<name>.png`), one frame. "exists" means the asset is already generated; everything else is new.
 
+Map proposals (not yet in `tuning.gd`; this file wins where they overlap): `docs/content/maps/back-alley-arcade.md`, `docs/content/maps/corp-tower.md`, `docs/content/maps/deep-net.md`.
+
 Vocabulary: a **fight** is one enemy on one board. A **phase** is one launch from the bag until every ball in play has dropped (design.md's "turn"). A **paddle hit** is a player ball touching a paddle; it is the one clock in a fight.
 
 ## Decisions that cut across pools
