@@ -1,7 +1,7 @@
 // Pixel-art asset set on a 2x canvas (640x360 game view; a 60x24 brick is 30x12 px).
 // Generates assets/pixel/png/*.png at native size, look.png mockup (shown 2x), assets.html demo.
 // Run: node assets/pixel/gen.mjs   (needs ImageMagick `magick`). Colors from docs/palette.md.
-import { writeFileSync, mkdirSync, readFileSync } from "node:fs";
+import { writeFileSync, mkdirSync, readFileSync, rmSync, rmdirSync } from "node:fs";
 import { execSync } from "node:child_process";
 // Peglin-direction parts (docs/content.md). gen.mjs exports nothing, so each takes the helpers it needs as one object.
 import { emitBricks, RED } from "./parts/bricks.mjs";
@@ -12,6 +12,14 @@ import { emit as emitHazards } from "./parts/hazards.mjs";
 import { emit as emitIcons } from "./parts/icons.mjs";
 import { emit as emitScreens } from "./parts/screens.mjs";
 import { emit as emitFight } from "./parts/fight.mjs";
+import { emit as emitArcade } from "./parts/arcade.mjs";
+import { emit as emitArcadeBosses } from "./parts/arcade_bosses.mjs";
+import { emit as emitTower } from "./parts/tower.mjs";
+import { emit as emitTowerBosses } from "./parts/tower_bosses.mjs";
+import { emit as emitDeepnet } from "./parts/deepnet.mjs";
+import { emit as emitDeepnetBosses } from "./parts/deepnet_bosses.mjs";
+import { emit as emitMapHazards, GREEN } from "./parts/map_hazards.mjs";
+import { emit as emitMapBalls } from "./parts/map_balls.mjs";
 
 const C = {
 	base: "000020", trim: "2e2e5c", trimHi: "5454a7", trimLo: "21224e", rivet: "9797d5", chromeHi: "e7e7ff", chromeMid: "c6c6ff", chromeLo: "414183",
@@ -482,6 +490,17 @@ emitBoss({ Img, C, def, A, frame, hold, blank });
 emitHazards({ Img, C, A, def, frame, lamp, hot, ellipse, ring });
 emitIcons({ Img, C, text, A, def });
 emitFight({ Img, C, SETS, A, def, frame, center, blank, lit, dim, hot, ring });
+// -- Map proposals (docs/content/maps/): enemies per map, then the new hazards and the thematic balls --
+SETS.green = GREEN;  // docs/art-style.md Green set: virus bricks and the Deep Net balls
+const MAPH = { Img, C, SETS, A, def, frame, center, hold, blank, lit, dim, hot, FLASH, sparks, withIcon, glyph, ellipse, ring, lamp, text, ICONS };
+emitArcade(MAPH);
+emitArcadeBosses(MAPH);
+emitTower(MAPH);
+emitTowerBosses(MAPH);
+emitDeepnet(MAPH);
+emitDeepnetBosses(MAPH);
+emitMapHazards(MAPH);
+emitMapBalls(MAPH);
 
 // ---- Mockup 640x360 ----
 function board() {
@@ -790,11 +809,12 @@ MOCK.settings = (() => {
 })();
 
 mkdirSync("assets/pixel/png", { recursive: true });
+const TMP = `assets/pixel/tmp/${process.pid}.pam`;  // per process, so concurrent regens never share a temp file
 mkdirSync("assets/pixel/tmp", { recursive: true });
 mkdirSync("assets/pixel/preview", { recursive: true });
 const toPng = (img, out, scale = 1) => {
-	writeFileSync("assets/pixel/tmp/x.pam", img.pam());
-	execSync(`magick assets/pixel/tmp/x.pam ${scale > 1 ? `-scale ${scale * 100}%` : ""} -define png:color-type=6 -define png:exclude-chunks=date,time ${out}`);
+	writeFileSync(TMP, img.pam());
+	execSync(`magick ${TMP} ${scale > 1 ? `-scale ${scale * 100}%` : ""} -define png:color-type=6 -define png:exclude-chunks=date,time ${out}`);
 };
 for (const [n, img] of Object.entries(A)) toPng(img, `assets/pixel/png/${n}.png`);
 writeFileSync("assets/pixel/png/font_3x5.fnt", fnt);
@@ -804,7 +824,7 @@ for (const [n, img] of Object.entries(MOCK)) toPng(img, `assets/pixel/preview/ui
 emitScreens({ Img, C, SETS, A, ANIM, text, textW, nine, lit, dim, hot, ellipse, ring, chassis, col, btn, centreText, toPng });  // after MOCK: its ui_shop.png replaces the upgrade-web mock
 const logoCard = (l) => { const m = new Img(l.w + 32, l.h + 24); m.rect(0, 0, m.w, m.h, C.base); for (let y = 6; y < m.h; y += 10) for (let x = 6; x < m.w; x += 10) m.px(x, y, C.trim); m.blit(l, 16, 12); return m; };
 for (const [n, l] of Object.entries(LOGOS)) toPng(logoCard(l), `assets/pixel/preview/logo_${n}.png`, 3);
-execSync("rm -r assets/pixel/tmp");
+rmSync(TMP, { force: true }); try { rmdirSync("assets/pixel/tmp"); } catch {}  // another regen may still be using it
 
 // ---- Demo page ----
 const uri = (n) => `data:image/png;base64,${readFileSync(`assets/pixel/png/${n}.png`).toString("base64")}`;

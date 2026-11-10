@@ -86,7 +86,7 @@ func end_run(win: bool) -> void:
 
 func new_run(seed: int = randi()) -> void:
 	run = {version = RUN_VERSION, seed = seed, hp = Tuning.RUN.hp, hp_max = Tuning.RUN.hp, gold = Tuning.RUN.gold,
-		bag = Tuning.BAG_START.map(func(id): return {id = id, rank = 1}), relics = [], map = gen_map(seed), pending = "", unlocked = [],
+		bag = Tuning.BAG_START.map(func(id): return {id = id, rank = 1}), relics = [], map = gen_map(seed), pending = "", unlocked = [], removed = "",
 		stats = {fights = 0, elites = 0, damage = 0, bricks = 0, best_fire = 0, drops = 0, gold_earned = 0, seconds = 0, killer = ""}}
 	for id in Tuning.BAG_START:
 		see(id)
@@ -147,12 +147,14 @@ func add_ball(id: String, rank: int = 1) -> void:
 	see(id)
 
 
-## Removes bag[i] unless that would leave no non-junk ball (the bag invariant). True when removed.
+## Removes bag[i] unless that would leave no non-junk ball (the bag invariant). True when removed; the id stays in
+## run.removed for the shop's BUY BACK.
 func remove_ball(i: int) -> bool:
 	var rest: Array = run.bag.duplicate()
 	rest.remove_at(i)
 	if not rest.any(func(b): return b.id != "ball_junk"):
 		return false
+	run.removed = run.bag[i].id
 	run.bag = rest
 	return true
 
@@ -297,12 +299,14 @@ func roll_ball(r: RandomNumberGenerator) -> String:
 	return pool[r.randi() % pool.size()]
 
 
-## A random unowned unlocked relic weighted by rarity, from `rarities`, or "" when none is left.
-func roll_relic(r: RandomNumberGenerator, rarities: Array = Tuning.RELIC_RARITY.keys(), skip: Array = []) -> String:
+## A random unowned unlocked relic weighted by rarity (RELIC_RARITY's weights, or `weights` where it names the rarity),
+## from `rarities`, or "" when none is left.
+func roll_relic(r: RandomNumberGenerator, rarities: Array = Tuning.RELIC_RARITY.keys(), skip: Array = [], weights: Dictionary = {}) -> String:
 	var w := {}
 	for id in Tuning.RELICS:
-		if not has(id) and unlocked(id) and not id in skip and Tuning.RELICS[id].rarity in rarities:
-			w[id] = Tuning.RELIC_RARITY[Tuning.RELICS[id].rarity].weight
+		var rarity: String = Tuning.RELICS[id].rarity
+		if not has(id) and unlocked(id) and not id in skip and rarity in rarities:
+			w[id] = weights.get(rarity, Tuning.RELIC_RARITY[rarity].weight)
 	return _weighted(w, r) if w else ""
 
 
@@ -318,14 +322,19 @@ func roll_relics(r: RandomNumberGenerator, n: int) -> Array:
 
 # --- Events ---
 
-## The vendor's relic: a common or uncommon one, the same for this node's dim check and its choice; "" when none is left.
+## The node's relic (the vendor's, the fried cabinet's): a common or uncommon one, the same for this node's dim check and
+## its choice; "" when none is left.
 func event_relic() -> String:
 	return roll_relic(node_rng(3), ["common", "uncommon"])
 
 
-## False when a choice is dimmed: the vendor's buy needs its price and a relic.
+## False when a choice is dimmed: the vendor's buy needs its price and a relic, the fried cabinet's plug its gold and its play a relic.
 func event_can(id: String, which: String) -> bool:
-	return id != "event_vendor" or which != "a" or (run.gold >= Tuning.EVENTS[id].price and event_relic() != "")
+	match [id, which]:
+		["event_vendor", "a"]: return run.gold >= Tuning.EVENTS[id].price and event_relic() != ""
+		["event_fried_cabinet", "a"]: return run.gold >= Tuning.EVENTS[id].gold
+		["event_fried_cabinet", "b"]: return event_relic() != ""
+	return true
 
 
 ## Applies an event choice (docs/content.md "Gold, rewards, shop, events") and returns its result line. An HP cost floors at RUN.hp_floor.
@@ -334,17 +343,38 @@ func event_choice(id: String, which: String) -> String:
 	var r := node_rng()
 	var cost := func(n: int): run.hp = maxi(Tuning.RUN.hp_floor, run.hp - n)
 	match id:
-		"event_forge":
+		"event_coin_return":
 			if which == "b":
+				return "YOU WALK ON."
+			add_gold(E.gold)
+			add_ball(E.junk)
+			return "+%d GOLD. A STONE RATTLES INTO YOUR BAG." % E.gold
+		"event_mod_shop":
+			if which == "b":  # sells a stone when there is one, else any ball the invariant lets go
+				var junk := range(run.bag.size()).filter(func(i): return run.bag[i].id == "ball_junk")
+				var pool: Array = junk if junk else range(run.bag.size())
+				var i: int = pool[r.randi() % pool.size()]
+				var name: String = Tuning.BALLS[run.bag[i].id].name
+				if not remove_ball(i):
+					return "THE KID EYES YOUR LAST BALL. YOU KEEP IT."
 				add_gold(E.gold)
-				return "SCRAP SOLD. +%d GOLD." % E.gold
+				return "%s SOLD. +%d GOLD." % [name, E.gold]
 			var ok := range(run.bag.size()).filter(func(i): return run.bag[i].id != "ball_junk" and run.bag[i].rank < Tuning.MAX_RANK)
 			if ok.is_empty():
-				return "NOTHING LEFT TO HAMMER. YOU WALK ON."
+				return "NOTHING LEFT TO MOD. YOU WALK ON."
 			var b: Dictionary = run.bag[ok[r.randi() % ok.size()]]
 			b.rank += 1
 			cost.call(E.hp)
-			return "%s IS NOW RANK %d. THE HEAT COST %d HP." % [Tuning.BALLS[b.id].name, b.rank, E.hp]
+			return "%s IS NOW RANK %d. THE IRON COST %d HP." % [Tuning.BALLS[b.id].name, b.rank, E.hp]
+		"event_fried_cabinet":
+			if which == "a":
+				spend(E.gold)
+				heal(E.heal)
+				return "THE SMOKE CLEARS. +%d HP, -%d GOLD." % [E.heal, E.gold]
+			var relic := event_relic()
+			run.relics.append(relic)
+			cost.call(E.hp)
+			return "IT PLAYS YOU. %s IS YOURS. -%d HP." % [Tuning.RELICS[relic].name, E.hp]
 		"event_vendor":
 			var relic := event_relic()
 			if which == "a":
@@ -364,14 +394,21 @@ func event_choice(id: String, which: String) -> String:
 	return "+%d GOLD, AND A CHILL. -%d HP." % [E.gold, E.hp]
 
 
-## Shop stock: {balls = [3 distinct unlocked non-junk ids], relics = [up to 2 distinct unowned unlocked ids]}.
+## Shop stock: {balls = [3 distinct unlocked ids of SHOP.rarities, the first a SHOP.map ball when one fits], relics = [up to
+## 2 distinct unowned unlocked ids, weighted by SHOP.relic_weights]}.
 func roll_shop(r: RandomNumberGenerator) -> Dictionary:
-	var balls := Tuning.BALLS.keys().filter(func(id): return id != "ball_junk" and unlocked(id))
+	var S: Dictionary = Tuning.SHOP
+	var balls := Tuning.BALLS.keys().filter(func(id): return Tuning.BALLS[id].rarity in S.rarities and unlocked(id))
 	var stock := {balls = [], relics = []}
-	for i in Tuning.SHOP.balls:
-		stock.balls.append(balls.pop_at(r.randi() % balls.size()))
-	for i in Tuning.SHOP.relics:
-		var id := roll_relic(r, Tuning.RELIC_RARITY.keys(), stock.relics)
+	for i in S.balls:
+		var pool: Array = balls.filter(func(id): return Tuning.BALLS[id].get("map", 0) == S.map) if i == 0 else []
+		if pool.is_empty():
+			pool = balls
+		var id: String = pool[r.randi() % pool.size()]
+		balls.erase(id)
+		stock.balls.append(id)
+	for i in S.relics:
+		var id := roll_relic(r, Tuning.RELIC_RARITY.keys(), stock.relics, S.relic_weights)
 		if id:
 			stock.relics.append(id)
 	return stock

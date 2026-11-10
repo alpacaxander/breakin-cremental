@@ -87,50 +87,53 @@ func _show_menu() -> void:
 	_swap(r)
 
 
-## Every ball and enemy, the ones met in any run (Game.see) in full, the rest as a dark silhouette named "???".
-## Balls: a 4x2 grid of face at 2x, name, card line, damage per rank. Enemies: one row of idle frame 0, name, role, HP, intents.
-func _show_catalog() -> void:
+## Every ball and enemy, the ones met in any run (Game.see) in full, the rest as a dark silhouette named "???". Two pages:
+## balls, a 4-wide grid of face at 2x, name, card line, damage per rank; enemies, rows of idle frame 0, name, role, HP,
+## intents, wrapped to the field's width.
+func _show_catalog(enemies := false) -> void:
 	var C := Tuning.COLORS
 	var seen: Array = Game.settings.meta.get("seen", [])
 	var r := Ui.chassis()
-	Ui.centre(r, "CATALOG", 14, C.pay, 2)
-	var ids := Tuning.BALLS.keys()
-	Ui.label(r, "BALLS %d/%d" % [ids.filter(func(id): return id in seen).size(), ids.size()], 92, 34, C.rivet)
+	var ids: Array = Tuning.ENEMIES.keys() if enemies else Tuning.BALLS.keys()
+	Ui.centre(r, "CATALOG: %s %d/%d" % ["ENEMIES" if enemies else "BALLS", ids.filter(func(id): return id in seen).size(), ids.size()], 14, C.pay, 2)
+	var ex := 96.0
+	var ey := 40.0
 	for i in ids.size():
 		var id: String = ids[i]
-		var row: Dictionary = Tuning.BALLS[id]
 		var met: bool = id in seen
-		var x := 92 + 118 * (i % 4)
-		var y := 46 + 40 * (i / 4)
-		var t := Ui.face({id = id, rank = 1})
-		var f := Ui.icon(r, t, x + 12 - t.get_width(), y + 12 - t.get_height())
-		f.scale = Vector2.ONE * Fx.SCALE
-		if not met:
-			f.modulate = C.trim
-		Ui.label(r, row.name if met else "???", x + 28, y, C.white)
-		if met:
-			Ui.label(r, row.desc, x + 28, y + 7, C.rivet, 1, 80)
-			Ui.label(r, "DMG " + "/".join(row.dmg.map(func(d): return str(d))) if row.rarity != "none" else "DMG 0", x + 28, y + 25, C.pay)
-		elif not Game.unlocked(id):
-			Ui.label(r, "LOCKED", x + 28, y + 7, C.trim_hi)
-	ids = Tuning.ENEMIES.keys()
-	Ui.label(r, "ENEMIES %d/%d" % [ids.filter(func(id): return id in seen).size(), ids.size()], 92, 132, C.rivet)
-	var ex := 96.0  # widths 48+48+64+64+160 plus 4 gaps of 16 = 448, centred in the field
-	for id in ids:
+		if not enemies:
+			var row: Dictionary = Tuning.BALLS[id]
+			var x := 92 + 118 * (i % 4)
+			var y := 46 + 40 * (i / 4)
+			var t := Ui.face({id = id, rank = 1})
+			var f := Ui.icon(r, t, x + 12 - t.get_width(), y + 12 - t.get_height())
+			f.scale = Vector2.ONE * Fx.SCALE
+			if not met:
+				f.modulate = C.trim
+			Ui.label(r, row.name if met else "???", x + 28, y, C.white)
+			if met:
+				Ui.label(r, row.desc, x + 28, y + 7, C.rivet, 1, 80)
+				Ui.label(r, "DMG " + "/".join(row.dmg.map(func(d): return str(d))) if row.rarity != "none" else "DMG 0", x + 28, y + 25, C.pay)
+			elif not Game.unlocked(id):
+				Ui.label(r, "LOCKED", x + 28, y + 7, C.trim_hi)
+			continue
 		var e: Dictionary = Tuning.ENEMIES[id]
-		var met: bool = id in seen
-		var f := Ui.icon(r, Fx.frame("%s_idle" % id, e.w, 0), ex, 144)
+		if ex + e.w > Ui.FIELD_X + 480 - 16:  # past the field's right edge: the next row
+			ex = 96.0
+			ey += 84
+		var f := Ui.icon(r, Fx.frame("%s_idle" % id, e.w, 0), ex, ey)
 		if not met:
 			f.modulate = C.trim
-		Ui.label(r, id.to_upper() if met else "???", ex, 196, C.white, 1, e.w, HORIZONTAL_ALIGNMENT_CENTER)
+		Ui.label(r, id.to_upper().replace("_", " ") if met else "???", ex, ey + 52, C.white, 1, e.w, HORIZONTAL_ALIGNMENT_CENTER)
 		if met:
-			Ui.label(r, "TIER %d" % e.tier if e.role == "regular" else e.role.to_upper(), ex, 203, C.rivet, 1, e.w, HORIZONTAL_ALIGNMENT_CENTER)
-			Ui.label(r, "HP %d" % e.hp, ex, 210, C.pay, 1, e.w, HORIZONTAL_ALIGNMENT_CENTER)
+			Ui.label(r, "TIER %d" % e.tier if e.role == "regular" else e.role.to_upper(), ex, ey + 59, C.rivet, 1, e.w, HORIZONTAL_ALIGNMENT_CENTER)
+			Ui.label(r, "HP %d" % e.hp, ex, ey + 66, C.pay, 1, e.w, HORIZONTAL_ALIGNMENT_CENTER)
 			var n: int = e.intents.size()
 			for j in n:
-				Ui.icon(r, "intent_%s" % e.intents[j][0], ex + e.w / 2.0 - 6.5 * n + 13 * j, 218)
+				Ui.icon(r, "intent_%s" % e.intents[j][0], ex + e.w / 2.0 - 6.5 * n + 13 * j, ey + 74)
 		ex += e.w + 16
-	Ui.button(r, "BACK", 260, 330, 120, 18, _show_menu, false, 2, "ui_back")
+	Ui.button(r, "BACK", 200, 330, 112, 18, _show_menu, false, 2, "ui_back")
+	Ui.button(r, "BALLS" if enemies else "ENEMIES", 328, 330, 112, 18, _show_catalog.bind(not enemies))
 	r.back.connect(_show_menu)
 	_swap(r)
 
@@ -336,8 +339,9 @@ func _card_look(c: Dictionary) -> Array:
 
 # --- Shop ---
 
-## The peddler: the stock rolled once per visit (kept in run.shop, so a reload shows the same), ball and relic cards with
-## prices, REMOVE (pick a bag row), HEAL once, LEAVE. Rebuilt on every change; removing = the bag rows are pickable.
+## The pawn shop: the stock rolled once per visit (kept in run.shop, so a reload shows the same), ball and relic cards with
+## prices, REMOVE (pick a bag row), HEAL once, BUY BACK (the last ball removed this run, run.removed, at half price), LEAVE.
+## Rebuilt on every change; removing = the bag rows are pickable.
 func _show_shop(removing := false) -> void:
 	group = true
 	var C := Tuning.COLORS
@@ -348,7 +352,7 @@ func _show_shop(removing := false) -> void:
 		run.shop.healed = false
 	Game.save_run()
 	var shop: Dictionary = run.shop
-	var r := _run_chassis("SHOP", "PEDDLER", _remove_pick if removing else Callable())
+	var r := _run_chassis("SHOP", "PAWN SHOP", _remove_pick if removing else Callable())
 	Sfx.loop(r, "lamp_hum")
 	for i in shop.balls.size():
 		var row: Dictionary = Tuning.BALLS[shop.balls[i]]
@@ -368,7 +372,11 @@ func _show_shop(removing := false) -> void:
 	_price(r, 380, 188, S.heal)
 	var heal := Ui.button(r, "HEAL", Ui.FIELD_X + 344, 184, 96, 18, _heal, false, 1, "")
 	heal.disabled = shop.healed or run.hp >= run.hp_max
-	Ui.centre(r, "PICK A BALL TO REMOVE" if removing else "", 210, C.rivet)
+	var back: String = run.get("removed", "")  # get: a run.json saved before the pawn shop has no field
+	Ui.label(r, "BUY BACK %s" % (Tuning.BALLS[back].name if back else "NOTHING"), 90, 213, C.white)
+	_price(r, 380, 212, S.buy_back)
+	Ui.button(r, "BUY BACK", Ui.FIELD_X + 344, 208, 96, 18, _buy_back, false, 1, "").disabled = back == ""
+	Ui.centre(r, "PICK A BALL TO REMOVE" if removing else "", 234, C.rivet)
 	Ui.button(r.right, "LEAVE", Ui.RX + 6, 300, 66, 24, _back_to_map, true, 2, "ui_back")
 	_swap(r)
 
@@ -410,6 +418,16 @@ func _remove_pick(i: int) -> void:
 	_show_shop()
 
 
+func _buy_back() -> void:
+	if not Game.spend(Tuning.SHOP.buy_back):
+		Sfx.play("ui_cant_afford")
+		return
+	Game.add_ball(Game.run.removed)
+	Game.run.removed = ""
+	Sfx.play("ui_buy")
+	_show_shop()
+
+
 func _heal() -> void:
 	if not Game.spend(Tuning.SHOP.heal):
 		Sfx.play("ui_cant_afford")
@@ -440,7 +458,7 @@ func _show_event(result := "") -> void:
 	else:
 		var a := Ui.button(r, E.a, 136, 220, 368, 18, _choose.bind(id, "a"), false, 1)
 		a.disabled = not Game.event_can(id, "a")
-		Ui.button(r, E.b, 136, 244, 368, 18, _choose.bind(id, "b"), false, 1)
+		Ui.button(r, E.b, 136, 244, 368, 18, _choose.bind(id, "b"), false, 1).disabled = not Game.event_can(id, "b")
 	_swap(r)
 
 
@@ -478,7 +496,9 @@ func _show_end(win: bool) -> void:
 	Ui.centre(r, "RUN WON" if win else "RUN OVER", 40, C.pay if win else C.white, 4)
 	if not win:
 		Ui.rect(r, 256, 62, 128, 1, C.danger)
-	Ui.centre(r, "THE MAW IS DOWN" if win else "SLAIN BY %s AT NODE %d/%d" % [st.killer.to_upper(), run.map.layer + 1, Tuning.MAP.size()], 70, C.cream)
+	var name := func(id: String) -> String: return id.to_upper().replace("_", " ")
+	var boss: String = run.map.enemies[run.map.layer][run.map.node] if win else ""
+	Ui.centre(r, "THE %s IS DOWN" % name.call(boss) if win else "SLAIN BY %s AT NODE %d/%d" % [name.call(st.killer), run.map.layer + 1, Tuning.MAP.size()], 70, C.cream)
 	Ui.label(r, "STATS", 180, 92, C.rivet)
 	var rows := [["FIGHTS WON", st.fights], ["DAMAGE DEALT", st.damage], ["BRICKS BROKEN", st.bricks], ["BIGGEST SHOT", st.best_fire],
 		["BALLS DROPPED", st.drops], ["GOLD EARNED", st.gold_earned], ["TIME", "%d:%02d" % [int(st.seconds) / 60, int(st.seconds) % 60]]]

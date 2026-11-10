@@ -3,6 +3,7 @@
 // Run: node assets/audio/gen.mjs   (no dependencies). Played by src/sfx.gd.
 import { writeFileSync, mkdirSync } from "node:fs";
 import { demo } from "./parts/demo.mjs";
+import { maps } from "./parts/maps.mjs";
 
 const SR = 44100;
 const TAU = Math.PI * 2;
@@ -176,6 +177,8 @@ const CUES = {
 
 	// --- Peglin direction (docs/content.md): new cues; the reuse table is in parts/demo.mjs ---
 	...demo({ tone, noise, layer, notes, bell, click }),
+	// --- Map proposals (docs/content/maps/): hazard cues; reuse table in parts/maps.mjs ---
+	...maps({ tone, noise, layer, notes, bell, click }),
 };
 
 function finish(buf, gain = 1, loop = false) {

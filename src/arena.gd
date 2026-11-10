@@ -6,12 +6,16 @@ extends Node2D
 ## hits count down the enemy's intent; at 0 its attack strip plays and the hazard spawns on frame 3 (_act, _hazard): red
 ## bricks painted onto the board, enemy balls and debris that cost HP on paddle touch (Hazard nodes moved by hand, cleared
 ## at phase end), a laser lane snapped to the board column under the paddle (drawn in _draw), a shield row of solids that
-## crumbles after so many paddle hits, and the boss's mouth that eats balls and spits them back. The warden's riposte and
-## the maw's enrage live in _paddle_hit and _land. Ball traits (Tuning.BALLS) live here too: pierce in the collision loop,
-## split and the blaster's count in _break, the sticky catch in _paddle_hit, poison stacks landing with the damage and
-## ticking at phase end, the junk ball's silent crits. Relics (Tuning.RELICS) fire through _relics, one match by id at the
-## on_fight_start, on_break and on_phase_end sites; stat relics are Game.has reads where their number applies (paddle
-## width, the magnet in _move_ball, twin_crit in _crit, the mini paddle in _pads). won / lost fire as the fight ends and
+## crumbles after so many paddle hits, the boss's mouth that eats balls and spits them back, and map 1's three: jam (the
+## paddle at half width for so many hits, _paddle_fit), pull (an upward force on every ball in flight for a second,
+## _move_ball) and coin_junk (stones on top of the bag). The enemy signatures (Tuning.ENEMIES) live at their sites: the
+## riposte in _paddle_hit, enrage in _land (the row's enraged fields merge in; mimic makes _enemy_ball copy the bag's
+## balls), steal in _drop, twice in _act, the jackpot in _effect, shield_start in _ready, advance in _phase_start. Ball
+## traits (Tuning.BALLS) live here too: pierce in the collision loop, split, the blaster's and the token's counts in
+## _break, the sticky catch in _paddle_hit, poison stacks landing with the damage and ticking at phase end, the rubber
+## ball's floor bounces in _save, the magnet ball in _move_ball, the junk ball's silent crits. Relics (Tuning.RELICS)
+## fire through _relics, one match by id at the on_fight_start, on_break and on_phase_end sites; stat relics are Game.has
+## reads where their number applies (paddle width, the magnet in _move_ball, twin_crit in _crit, the mini paddle in _pads). won / lost fire as the fight ends and
 ## done(win) after the end beat, for main.gd's reward overlay or end screen; hud.gd draws the run columns.
 ## docs/content.md "Fight pipeline", "Balls", "Enemies", "Hazards" and "Relics" are the contract.
 
@@ -49,6 +53,7 @@ class Ball extends CharacterBody2D:
 	var pierce_left := 0  # bricks it still passes through since the last launch or paddle hit
 	var can_split := false  # forks on its next break (armed by a launch or paddle hit)
 	var catches_left := 0  # sticky paddle catches left this phase
+	var floor_left := 0  # rubber: floor bounces left this phase (a Ball lives one phase)
 	var hold := 0.0  # seconds a sticky catch keeps it on the paddle; 0 in flight
 	var hold_dx := 0.0  # where on the paddle it stuck
 	var age := 0.0  # seconds in flight, for the speed ramp
@@ -66,6 +71,7 @@ class Ball extends CharacterBody2D:
 		speed = base
 		radius = Tuning.BALL_RADIUS * row.size
 		catches_left = at_rank("catches")
+		floor_left = at_rank("floor")
 		tex = Fx.frame("%s_rank" % id, int(8 * row.size), rank - 1)
 		var c := CollisionShape2D.new()
 		c.shape = CircleShape2D.new()
@@ -146,6 +152,12 @@ var combo_t := 0.0  # seconds of window left
 var saves_left := 0  # relic shield_floor: floor bounces left this phase
 var dropped: Array = []  # non-junk bag entries dropped this phase, in order (relic recall)
 var mini: Box = null  # relic mini_paddle's second paddle, mirroring the main one
+var jam_left := 0  # hazard jam: paddle hits the paddle stays at half width; persists past a phase
+var pull_t := 0.0  # hazard pull: seconds left of the upward force on every ball in flight
+var phase_acts := 0  # intents fired this phase (the bouncer's first fires twice)
+var phase_gold := 0  # gold bricks broken this phase (the jackpot)
+var mimic_i := 0  # the bag index the next mimicked enemy ball copies
+var paddle_w := Tuning.PADDLE_WIDTH  # the paddle's built width, what a jam halves
 
 var paddle: Box
 var balls: Array[Ball] = []
@@ -181,11 +193,13 @@ func _ready() -> void:
 			rows[row] = true
 			Sfx.play("count_tick", 1.0 + 0.06 * row, 0.08 * row)
 		_spawn(i, layout[i].kind, 0.08 * row)
-	var width: float = Tuning.RELICS.wide_paddle.width if Game.has("wide_paddle") else Tuning.PADDLE_WIDTH
-	paddle = box("paddle", Vector2(width, Tuning.PADDLE_HEIGHT), Vector2(field.size.x / 2, field.size.y - Tuning.PADDLE_UP))
+	paddle_w = Tuning.RELICS.wide_paddle.width if Game.has("wide_paddle") else Tuning.PADDLE_WIDTH
+	paddle = box("paddle", Vector2(paddle_w, Tuning.PADDLE_HEIGHT), Vector2(field.size.x / 2, field.size.y - Tuning.PADDLE_UP))
 	target_x = paddle.position.x
 	if Game.has("magnet_paddle"):
 		Fx.play(paddle, "magnet_pull", 44, 8, Vector2(0, Tuning.PADDLE_HEIGHT), 0, true).show_behind_parent = true
+	if enemy.get("shield_start", false):
+		_shield_row()
 
 	foe = Fx.play(self, "%s_idle" % enemy_id, enemy.w, Tuning.ENEMY_FPS.idle, Tuning.ENEMY_FOOT - Vector2(0, 24 * Fx.SCALE), 0, true)
 	foe.z_index = 0
@@ -271,15 +285,26 @@ func _add_ball(ball: Dictionary, pos: Vector2) -> Ball:
 
 # --- Phases ---
 
-## Rests the bag's next ball on the paddle; a thin board regrows first.
+## Rests the bag's next ball on the paddle; a thin board regrows first, and an advancing board (ticket_printer) slides
+## its layout and live bricks a row toward the paddle while the lowest still fits above the floor line.
 func _phase_start() -> void:
 	phase += 1
 	phase_dmg = 0
 	phase_breaks = 0
+	phase_acts = 0
+	phase_gold = 0
 	combo = 0
 	dropped = []
 	discarded = false
 	refresh_in = 0
+	var dy: float = enemy.get("advance", 0) * (Tuning.BRICK_SIZE.y + Tuning.BRICK_GAP)
+	if dy and phase > 1 and layout.map(func(s): return s.pos.y).max() + dy + Tuning.BRICK_SIZE.y / 2 <= field.size.y - Tuning.BOARD_FLOOR:
+		for s in layout:
+			s.pos.y += dy
+		for b in slots:
+			if is_instance_valid(b) and not b.is_queued_for_deletion():
+				b.position.y += dy
+		Sfx.play("count_tick", 0.7)
 	if breakable < Tuning.RUN.regen_below:
 		_refresh()
 	_rest_next()
@@ -328,6 +353,7 @@ func _discard() -> void:
 func _phase_end() -> void:
 	Sfx.play("combo_drop", 0.8)
 	beat = Tuning.RUN.enemy_turn
+	pull_t = 0
 	_relics("on_phase_end")
 	_clear_hazards(true)
 	if enemy.poison > 0:
@@ -369,6 +395,7 @@ func _physics_process(delta: float) -> void:
 	_move_paddle(delta)
 	flash = maxf(0, flash - delta)
 	shake = maxf(0, shake - delta)
+	pull_t = maxf(0, pull_t - delta)
 	combo_t -= delta
 	if combo_t <= 0:
 		combo = 0
@@ -394,7 +421,7 @@ func _physics_process(delta: float) -> void:
 		if over:
 			return
 		if b.position.y > field.size.y + b.radius:
-			if saves_left > 0:
+			if saves_left > 0 or b.floor_left > 0:
 				_save(b)
 			else:
 				_drop(b)
@@ -413,11 +440,15 @@ func _physics_process(delta: float) -> void:
 				_phase_start()
 
 
-## Past the paddle line (or eaten by the mouth, quietly): the stored damage is lost and the ball goes to the discard pile.
+## Past the paddle line (or eaten by the mouth, quietly): the stored damage is lost and the ball goes to the discard pile;
+## the repo man takes `steal` gold for it.
 func _drop(b: Ball, quiet := false) -> void:
 	if not quiet:
 		Fx.play(self, "ball_lost", 12, 12, Vector2(b.position.x, field.size.y - 12))
 		Sfx.play("ball_lost", 1.0 if b.stored else 0.7)
+		if enemy.get("steal", 0) and Game.run.gold > 0:
+			Game.run.gold = maxi(0, Game.run.gold - enemy.steal)
+			Sfx.play("coin", 0.6)
 	Game.run.stats.drops += 1
 	if not b.copy:
 		discard.append(b.entry)
@@ -427,9 +458,13 @@ func _drop(b: Ball, quiet := false) -> void:
 	b.queue_free()
 
 
-## relic shield_floor: the ball bounces straight up off the floor instead of dropping, and the floor pops.
+## relic shield_floor, or the rubber ball's own bounce first: the ball bounces straight up off the floor instead of
+## dropping, and the floor pops.
 func _save(b: Ball) -> void:
-	saves_left -= 1
+	if b.floor_left > 0:
+		b.floor_left -= 1
+	else:
+		saves_left -= 1
 	b.position.y = field.size.y - b.radius
 	b.vel = Vector2.UP * Tuning.BALL_SPEED * b.speed
 	Fx.play(self, "shield_floor_pop", 32, 12, Vector2(b.position.x, field.size.y - 8))
@@ -457,9 +492,13 @@ func _move_ball(ball: Ball, delta: float) -> void:
 	ball.age += delta
 	if Tuning.RUN.ramp_on:  # design.md's fallback for phases that never end
 		ball.set_speed(minf(ball.base + Tuning.RUN.ramp_per_s * maxf(0, ball.age - Tuning.RUN.ramp_after), Tuning.RUN.ramp_max))
-	if Game.has("magnet_paddle") and ball.position.y < paddle.position.y and ball.position.distance_to(paddle.position) < Tuning.MAGNET_RADIUS:
-		ball.vel += (paddle.position - ball.position).normalized() * Tuning.MAGNET_PULL * delta
+	var magnet: float = float(Game.has("magnet_paddle")) + (ball.row.magnet[ball.rank - 1] if ball.row.has("magnet") else 0.0)  # the relic and the magnet ball stack
+	if magnet > 0 and ball.position.y < paddle.position.y and ball.position.distance_to(paddle.position) < Tuning.MAGNET_RADIUS:
+		ball.vel += (paddle.position - ball.position).normalized() * Tuning.MAGNET_PULL * magnet * delta
 		ball.set_speed(ball.speed)  # steers, never speeds up
+	if pull_t > 0:  # hazard pull: the heading bends upward
+		ball.vel.y -= Tuning.HAZARDS.pull.force * delta
+		ball.set_speed(ball.speed)
 	var motion := ball.vel * delta
 	for i in 4:  # a fast ball can hit several things in one tick
 		var c := ball.move_and_collide(motion)
@@ -529,6 +568,10 @@ func _paddle_hit(ball: Ball, pad: Box = null) -> void:
 		shield_left -= 1
 		if shield_left <= 0:
 			_shield_crumble()
+	if jam_left > 0 and pad == paddle:
+		jam_left -= 1
+		if jam_left == 0:
+			_paddle_fit()
 	if mouth_left > 0:
 		mouth_left -= 1
 		if mouth_left == 0:
@@ -549,7 +592,8 @@ func _sticky_fire(b: Ball) -> void:
 	Sfx.play("sticky_fire")
 
 
-## n damage lands on the enemy; the boss below its enrage mark hurries its countdown and holds its mouth longer.
+## n damage lands on the enemy; a boss below its enrage mark takes its enraged fields (the maw's faster countdown and
+## longer mouth, attract_mode's mimic).
 func _land(n: int) -> void:
 	enemy.hp = maxi(0, enemy.hp - n)
 	phase_dmg += n
@@ -562,8 +606,7 @@ func _land(n: int) -> void:
 		return
 	_enemy_play("hit")
 	if enemy.has("enraged") and enemy.hp <= enemy.hp_max * enemy.enraged.at:
-		enemy.cd = enemy.enraged.cd
-		enemy.mouth = enemy.enraged.mouth
+		enemy.merge(enemy.enraged, true)
 
 
 ## The enemy's hit, attack or die strip over its hidden idle; the idle returns when it ends (die holds). One at a time.
@@ -579,13 +622,19 @@ func _enemy_play(name: String) -> AnimatedSprite2D:
 	return acting
 
 
-## The countdown ran out: the attack strip plays and the intent fires on its spawn frame, the next intent shows and the
-## countdown resets. A flight hazard's spawn is part of the volley, so a phase end in that window cancels it.
+## The countdown ran out: the attack strip plays and the intent fires on its spawn frame (twice, `twice` seconds apart,
+## for the bouncer's first intent of a phase), the next intent shows and the countdown resets. A flight hazard's spawn is
+## part of the volley, so a phase end in that window cancels it.
 func _act() -> void:
 	var it: Array = enemy.intents[enemy.intent]
 	Sfx.play("hit_refused", 0.5 * Sfx.st(enemy.off))
 	_enemy_play("attack")
-	_later(Tuning.ENEMY_SPAWN_FRAME / float(Tuning.ENEMY_FPS.attack), _hazard.bind(it[0], it[1]), Tuning.HAZARDS.get(it[0], {}).get("flight", false))
+	var spawn := Tuning.ENEMY_SPAWN_FRAME / float(Tuning.ENEMY_FPS.attack)
+	var flight: bool = Tuning.HAZARDS.get(it[0], {}).get("flight", false)
+	_later(spawn, _hazard.bind(it[0], it[1]), flight)
+	if enemy.has("twice") and phase_acts == 0:
+		_later(spawn + enemy.twice, _hazard.bind(it[0], it[1]), flight)
+	phase_acts += 1
 	enemy.intent = (enemy.intent + 1) % enemy.intents.size()
 	enemy.cd_left = enemy.cd
 	_show_intent()
@@ -616,6 +665,9 @@ func _hazard(id: String, count: int) -> void:
 		"laser_sweep": _laser(count)
 		"shield_row": _shield_row()
 		"mouth": _mouth_open()
+		"jam": _jam()
+		"pull": _pull(count)
+		"coin_junk": _coin_junk(count)
 
 
 ## A Hazard node at pos, with a looping 8x8 strip when given.
@@ -724,12 +776,26 @@ func _enemy_balls(count: int) -> void:
 		_later(H.windup + i * H.gap, _enemy_ball.bind(deg_to_rad(off)), true)
 
 
-## One enemy ball from the enemy's centre toward the paddle, off radians from straight at it.
+## One enemy ball from the enemy's centre toward the paddle, off radians from straight at it. A mimicking boss copies
+## the run bag's next ball onto it: its size and speed, and a splitter's fan of copies.
+## ponytail: pierce has nothing to pass on the enemy side (no shield floor for hazards), so a needle copies as a plain ball
 func _enemy_ball(off: float) -> void:
 	var H: Dictionary = Tuning.HAZARDS.enemy_balls
-	var h := _hazard_node("enemy_balls", H.origin, "enemy_balls_fly")
-	h.r = H.radius
-	h.vel = (paddle.position - H.origin).normalized().rotated(off) * Tuning.BALL_SPEED * H.speed
+	var row := {}
+	var n := 1
+	if enemy.get("mimic", false) and Game.run.bag:
+		var e: Dictionary = Game.run.bag[mimic_i % Game.run.bag.size()]
+		mimic_i += 1
+		row = Tuning.BALLS[e.id]
+		if row.has("split"):
+			n = row.split[e.rank - 1]
+			Sfx.play("split_pop", 1.0, 0.05)
+	for i in n:
+		var h := _hazard_node("enemy_balls", H.origin, "enemy_balls_fly")
+		h.r = H.radius * row.get("size", 1.0)
+		h.scale = Vector2.ONE * row.get("size", 1.0)
+		var fan := 0.0 if n == 1 else deg_to_rad(lerpf(-Tuning.SPLIT_DEG, Tuning.SPLIT_DEG, i / float(n - 1)))
+		h.vel = (paddle.position - H.origin).normalized().rotated(off + fan) * Tuning.BALL_SPEED * H.speed * row.get("speed", 1.0)
 	Sfx.play("ball_launch", 0.5)
 
 
@@ -820,6 +886,47 @@ func _shield_crumble() -> void:
 		b.queue_free()
 	shield = []
 	shield_left = 0
+
+
+## jam: the paddle clamps to HAZARDS.jam.width of its build for `hits` paddle hits (counted in _paddle_hit); a refire only
+## resets the count. The clamp strip plays over the built width, ending on the half paddle.
+func _jam() -> void:
+	var H: Dictionary = Tuning.HAZARDS.jam
+	var fresh := jam_left == 0
+	jam_left = H.hits
+	Sfx.play("paddle_jam")
+	if fresh:
+		_paddle_fit()
+		Fx.play(paddle, "jam_clamp", 60, 12, Vector2.ZERO).scale = Vector2(paddle_w, Tuning.PADDLE_HEIGHT) / Vector2(60, 8)
+
+
+## The paddle's width and face for its jam state; the collider is its first child (brick.gd).
+func _paddle_fit() -> void:
+	var jammed := jam_left > 0
+	paddle.size.x = paddle_w * (Tuning.HAZARDS.jam.width if jammed else 1.0)
+	paddle.get_child(0).shape.size = paddle.size
+	paddle.face("paddle_jam" if jammed else "paddle")
+	if not jammed:
+		Sfx.play("grow")
+
+
+## pull: every ball in flight drifts upward (_move_ball) for `secs` per count; the drift strip rises off each one.
+func _pull(count: int) -> void:
+	pull_t = Tuning.HAZARDS.pull.secs * count
+	Sfx.play("pull_lift")
+	for b in balls:
+		if b != rest:
+			Fx.play(b, "pull_drift", 12, 8, Vector2(0, -b.radius - 12))
+
+
+## coin_junk: a stone goes on top of the bag per count, and into the run's bag for good.
+func _coin_junk(count: int) -> void:
+	var junk: String = Tuning.HAZARDS.coin_junk.junk
+	for i in count:
+		Game.add_ball(junk)
+		bag.push_front({id = junk, rank = 1})
+		Sfx.play("coin", 0.7 * Sfx.st(2 * i), 0.1 * i)
+		Sfx.play("teleport_out", 0.5 * Sfx.st(2 * i), 0.1 + 0.1 * i)
 
 
 ## The boss's mouth opens for `mouth` paddle hits: any ball inside is eaten (_physics_process), and on close every eaten
@@ -913,6 +1020,10 @@ func _break(b: Box, ball: Ball = null, direct := true) -> void:
 			ball.entry.breaks = ball.entry.get("breaks", 0) + 1
 			if ball.entry.breaks % ball.at_rank("every") == 0:
 				_blast(b, ball)
+		if ball.row.has("pays"):  # token: every nth break this fight pays its gold, the toll relic's count per ball
+			ball.entry.pays = ball.entry.get("pays", 0) + 1
+			if ball.entry.pays % ball.at_rank("pays") == 0:
+				_pay(ball.row.gold, b.position)
 	_effect(b.kind, b, ball, direct)
 	if breakable == 0 and refresh_in <= 0 and in_play() > 0:
 		refresh_in = Tuning.RUN.refresh_after  # the board is bare with a ball still live: a refresh brick grows
@@ -962,6 +1073,22 @@ func _effect(kind: String, b: Box, ball: Ball = null, direct := true) -> void:
 			_crit(b, ball)
 		"refresh":
 			_refresh(b)
+		"gold":  # pays its gold; under a jackpot enemy only the phase that breaks every gold brick pays, the jackpot
+			Sfx.play("gold_hit")
+			if not enemy.has("jackpot"):
+				_pay(Tuning.BRICKS.gold.gold, b.position)
+				return
+			phase_gold += 1
+			if phase_gold == layout.filter(func(s): return s.kind == "gold").size():
+				_pay(enemy.jackpot, b.position)
+				Sfx.play("jackpot")
+
+
+## n gold paid at pos: the token ball, a gold brick, relic toll.
+func _pay(n: int, pos: Vector2) -> void:
+	Game.add_gold(n)
+	Fx.play(self, "toll_pay", 30, 12, pos)
+	Sfx.play("coin")
 
 
 ## A crit at b: the bag's next ball launches from the paddle (two with relic twin_crit); an empty bag refuses, a stone's
@@ -1006,9 +1133,7 @@ func _relics(hook: String, ball: Ball = null, b: Box = null) -> void:
 					_crit(b, ball)
 			"toll":
 				if breaks % R.per == 0:
-					Game.add_gold(R.gold)
-					Fx.play(self, "toll_pay", 30, 12, b.position)
-					Sfx.play("coin")
+					_pay(R.gold, b.position)
 			"combo":
 				combo = combo + 1 if combo_t > 0 else 1
 				combo_t = Tuning.COMBO_WINDOW_START

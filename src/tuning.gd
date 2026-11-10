@@ -34,7 +34,7 @@ const BOARDS := {
 	elite = {cols = 13, solid = [0.05, 4], bomb = [0.04, 3], red = [0.06, 6], crit = 4, refresh = 2},
 	boss = {cols = 15, solid = [0.06, 6], bomb = [0.05, 4], red = [0.08, 10], crit = 5, refresh = 2},
 }
-const BOARD_KEYS := {".": "", "x": "plain", "?": "?", "#": "solid", "b": "bomb", "R": "red", "c": "crit", "r": "refresh"}  # "" empty, "?" rolled
+const BOARD_KEYS := {".": "", "x": "plain", "?": "?", "#": "solid", "b": "bomb", "R": "red", "c": "crit", "r": "refresh", "g": "gold"}  # "" empty, "?" rolled
 
 # Board brick kinds. hp: hits to break (-1 never). dmg: damage per break (the ball stores ball.dmg * brick.dmg).
 # face: the still look, a sprite name or [strip, frame width, frame]. idle: a looping [strip, frame width, fps] over it.
@@ -48,6 +48,7 @@ const BRICKS := {
 	crit = {hp = 1, dmg = 1, hue = "blue", face = ["crit_pulse", 30, 0], idle = ["crit_pulse", 30, 8], halo = "halo_pulse"},  # launches the bag's next ball
 	refresh = {hp = 1, dmg = 1, hue = "mint", face = ["refresh_pulse", 30, 0], idle = ["refresh_pulse", 30, 8]},  # regrows the layout
 	red = {hp = 1, dmg = 0, hue = "red", hurt = 3, face = "brick_red"},  # a ball break costs the player HP; a blast just removes it
+	gold = {hp = 1, dmg = 1, hue = "gold", gold = 5, face = "brick_gold"},  # pays `gold` on a break; an enemy with `jackpot` pays that instead, only when every gold brick breaks in one phase
 }
 const ICON_KINDS := ["crit", "refresh", "bomb"]  # kinds whose face is a pulse strip (an idle row above), not a static
 
@@ -77,7 +78,10 @@ const SHIELD_Y := 140.0  # centre y of the shield_row hazard
 const GOLD := {fight = [12, 6], elite = [30, 6]}  # win gold: base + rand 0..n
 const REWARDS := {ball = 40, rank = 25, relic = 15, gold = 20}  # card kind weights; 3 cards of distinct kinds
 const REWARD_GOLD := 30  # the gold card
-const SHOP := {ball = 15, remove = 12, heal = 20, heal_hp = 20, balls = 3, relics = 2}
+# The pawn shop (map 1): balls of `rarities` only, one slot a `map` ball when any fits; relic slots weighted by
+# `relic_weights` (over RELIC_RARITY's); BUY BACK returns run.removed (the last ball removed this run) for `buy_back` = half the ball price.
+const SHOP := {ball = 15, remove = 12, heal = 20, heal_hp = 20, balls = 3, relics = 2, rarities = ["common", "uncommon"], map = 1,
+	relic_weights = {common = 5, uncommon = 2, rare = 1}, buy_back = 7}
 const RELIC_RARITY := {common = {weight = 3, price = 40}, uncommon = {weight = 2, price = 60}, rare = {weight = 1, price = 80}}
 const RARITY := {common = 60, uncommon = 30, rare = 10}  # ball tier roll, then uniform within the tier
 const BAG_START := ["ball_basic", "ball_basic", "ball_basic", "ball_basic", "ball_heavy", "ball_pierce"]
@@ -99,14 +103,18 @@ const MAP_LEGEND := {fight = "FIGHT", elite = "ELITE", treasure = "TREASURE", sh
 
 # Events: two choices a / b. Numbers are what the choice does; the text is the panel's. Results apply in game.gd event_choice.
 const EVENTS := {
-	event_forge = {title = "A COLD FORGE", body = "THE COALS STILL GLOW. A HAMMER WAITS.", a = "HAMMER A BALL", b = "TAKE THE SCRAP", hp = 6, gold = 20},
+	event_coin_return = {title = "COIN RETURN", body = "A DEAD CABINET. THE COIN BOX RATTLES.", a = "PRY IT OPEN", b = "WALK ON", gold = 25, junk = "ball_junk"},
+	event_mod_shop = {title = "THE MOD SHOP", body = "A KID WITH A SOLDERING IRON LOOKS UP.", a = "MOD A BALL", b = "SELL ONE", hp = 6, gold = 15},  # a: ranks a ball up for hp; b: sells one (a stone first) for gold
+	event_fried_cabinet = {title = "FRIED CABINET", body = "SMOKE. THE SCREEN STILL FLICKERS.", a = "PULL THE PLUG", b = "PLAY IT", heal = 10, gold = 10, hp = 8},  # a: heals for gold; b: the node's relic for hp
 	event_vendor = {title = "A GHOST VENDOR", body = "IT HOLDS OUT A RELIC AND SAYS NOTHING.", a = "BUY IT FOR 20", b = "HAGGLE", price = 20, haggle = 0.5, junk = "ball_junk"},
 	event_spring = {title = "A HOT SPRING", body = "STEAM. SOMETHING SHINES UNDER THE WATER.", a = "BATHE", b = "DIVE FOR COINS", heal = 15, gold = 25, hp = 5},
 }
 
 # Balls: dmg per brick by rank; size and speed multiply BALL_RADIUS and BALL_SPEED; a trait key holds its [r1, r2, r3]:
 # split = balls it forks into on its first break per flight, pierce = bricks it passes through per flight, catches = sticky
-# paddle catches per phase, every = breaks between blasts (per fight), poison = stacks stored per break. catch: the 0-stored
+# paddle catches per phase, every = breaks between blasts (per fight), poison = stacks stored per break, pays = breaks between
+# payouts of `gold` (per fight), floor = floor bounces per phase (relic shield_floor's path), magnet = a float multiplier on
+# MAGNET_PULL (stacks with relic magnet_paddle). map: the map whose shop prefers it. catch: the 0-stored
 # paddle cue's pitch; pitch: the launch and break cue pitch (junk). locked names an UNLOCKS flag. Faces are frame rank-1 of
 # <id>_rank. desc: the card line (<= 36 glyphs, wraps at 72 px). Behaviour: arena.gd Ball, _launch, _paddle_hit, _break and _effect.
 const BALLS := {
@@ -117,6 +125,9 @@ const BALLS := {
 	ball_sticky = {name = "GUM", desc = "CATCHES ON THE PADDLE", rarity = "uncommon", dmg = [2, 3, 4], size = 1.0, speed = 1.0, catches = [1, 2, 3]},
 	ball_bomb = {name = "BLASTER", desc = "EVERY NTH BREAK BLASTS", rarity = "uncommon", dmg = [1, 2, 3], size = 1.0, speed = 1.0, every = [5, 4, 3], locked = "finished_run"},
 	ball_poison = {name = "SPORE", desc = "STACKS POISON", rarity = "rare", dmg = [0, 0, 1], size = 1.0, speed = 1.0, poison = [1, 2, 3], locked = "killed_elite"},
+	ball_token = {name = "TOKEN", desc = "PAYS OUT EVERY NTH BREAK", rarity = "common", dmg = [1, 2, 3], size = 1.0, speed = 1.0, pays = [8, 6, 4], gold = 1, map = 1},
+	ball_rubber = {name = "RUBBER", desc = "BOUNCES OFF THE FLOOR", rarity = "uncommon", dmg = [1, 2, 3], size = 1.0, speed = 1.0, floor = [1, 2, 3], map = 1},
+	ball_magnet = {name = "MAGNET", desc = "DRAWN TO THE PADDLE", rarity = "uncommon", dmg = [2, 3, 4], size = 1.0, speed = 1.0, magnet = [0.5, 1.0, 1.5], map = 1},
 	ball_junk = {name = "STONE", desc = "STORES NOTHING", rarity = "none", dmg = [0, 0, 0], size = 1.0, speed = 0.9, pitch = 0.6},  # never a card, no ranks, its crits launch nothing
 }
 const SPLIT_DEG := 20.0  # a splitter's halves fan from -SPLIT_DEG to +SPLIT_DEG about its heading
@@ -125,6 +136,11 @@ const SPLIT_DEG := 20.0  # a splitter's halves fan from -SPLIT_DEG to +SPLIT_DEG
 # cd: paddle hits between intents. intents cycle: [hazard id or "mouth", count]. board: rows = the drawn layout
 # (BOARD_KEYS), top = px below BOARD_TOP, no_refresh_rows (game.gd generate).
 # off: cue pitch offset in semitones. w: frame width of its <id>_idle/_hit/_attack/_die strips (48 tall). Behaviour: arena.gd.
+# Signatures: riposte = a landing of this much counts the intent down by 2; enraged = fields merged into the row below `at`
+# of its HP (cd, mouth, mimic = its enemy balls copy the bag's balls in order); steal = gold a dropped ball costs; twice =
+# seconds between the two firings of a phase's first intent; jackpot = gold when every gold brick breaks in one phase;
+# shield_start = the shield row stands at fight start; advance = rows the board slides toward the paddle each phase while
+# it fits above BOARD_FLOOR.
 const ENEMIES := {
 	glob = {role = "regular", tier = 1, hp = 30, cd = 6, intents = [["red_bricks", 3], ["debris", 4]], off = 0, w = 48, board = {rows = [
 		"....xxx....",
@@ -161,6 +177,93 @@ const ENEMIES := {
 		"x??#??c??#??x",
 		"xxx.xxxx.xxx",
 	]}},
+	rat_king = {role = "regular", tier = 1, hp = 35, cd = 6, intents = [["coin_junk", 1], ["debris", 3]], off = 3, w = 64, board = {rows = [
+		"c?xxxxxxx?c",  # the nest: crits in the four corners
+		"?xx?????xx?",
+		"xx???????xx",
+		"xx???????xx",
+		"?xx?????xx?",
+		"c?xxxxxxx?c",
+	]}},
+	coin_slug = {role = "regular", tier = 1, hp = 40, cd = 5, intents = [["coin_junk", 2], ["red_bricks", 2]], off = -1, w = 48, board = {rows = [
+		"...xxxxx...",
+		".xx?????xx.",
+		"xx???????xx",
+		"x???xgx???x",  # the coin in its gut
+		"xx???????xx",
+		".xx?????xx.",
+		"...xxxxx...",
+	]}},
+	fuse_box = {role = "regular", tier = 2, hp = 45, cd = 6, intents = [["red_bricks", 2], ["debris", 6]], off = 1, w = 48, board = {rows = [
+		"xxxxxxxxxxx",
+		"x?b???????x",  # the fuse: a diagonal of bombs, each inside the next one's blast
+		"x??b??????x",
+		"x???b?????x",
+		"x????b????x",
+		"x?????b???x",
+		"xxxxxxxxxxx",
+	]}},
+	claw_rig = {role = "regular", tier = 2, hp = 50, cd = 5, intents = [["pull", 1], ["enemy_balls", 2]], off = -3, w = 64, board = {rows = [
+		"xx???????xx",
+		"x?#..c..#?x",  # two pillars, the prize lane of crits between them
+		"x?#.c.c.#?x",
+		"x?#..c..#?x",
+		"x?#.....#?x",
+		"xx???????xx",
+	]}},
+	ticket_printer = {role = "regular", tier = 2, hp = 45, cd = 6, advance = 1, intents = [["jam", 1], ["red_bricks", 4]], off = 2, w = 48, board = {rows = [
+		"xxxxxxxxxxx",  # the paper: rows that feed toward the paddle a phase at a time
+		"?c???????c?",
+		"xxxxxxxxxxx",
+		"????c??????",
+		"xxxxxxxxxxx",
+	]}},
+	bootleg_cabinet = {role = "regular", tier = 3, hp = 55, cd = 5, intents = [["enemy_balls", 3], ["debris", 4]], off = -2, w = 48, board = {rows = [
+		"x#########x",  # the case
+		"x#???????#x",
+		"x#?R?c?R?#x",  # the cracked screen
+		"x#???????#x",
+		"x#xxxxxxx#x",
+		"x.........x",
+		"...xxxxx...",  # the coin door
+	]}},
+	repo_man = {role = "elite", tier = 4, hp = 110, cd = 5, steal = 1, shield_start = true, intents = [["shield_row", 1], ["coin_junk", 2], ["debris", 6]], off = -6, w = 64, board = {rows = [
+		"x???????????x",
+		"x?#########?x",  # the vault
+		"x?#?c?c?c?#?x",
+		"x?#???????#?x",
+		"x?###???###?x",  # the door
+		"x???????????x",
+	]}},
+	arcade_bouncer = {role = "elite", tier = 4, hp = 130, cd = 5, twice = 0.3, intents = [["jam", 2], ["enemy_balls", 4]], off = -5, w = 64, board = {rows = [
+		"?????#?#?????",  # the rope line, narrowing toward the top
+		"????#???#????",
+		"???#?????#???",
+		"??#???????#??",
+		"?#?????????#?",
+		"xxxxxxxxxxxxx",
+	]}},
+	jackpot_reel = {role = "elite", tier = 4, hp = 115, cd = 6, jackpot = 30, intents = [["pull", 1], ["red_bricks", 3], ["debris", 8]], off = -3, w = 64, board = {rows = [
+		".xxx.xxx.xxx.",  # three reels
+		".x?x.x?x.x?x.",
+		".xgx.xgx.xgx.",  # a gold brick in each: all three in one phase pays the jackpot
+		".x?x.x?x.x?x.",
+		".xxx.xxx.xxx.",
+		"xxxxxxxxxxxxx",
+	]}},
+	attract_mode = {role = "boss", tier = 5, hp = 220, cd = 4, enraged = {at = 0.5, cd = 4, mimic = true},
+		intents = [["jam", 1], ["enemy_balls", 5], ["pull", 1]], off = -8, w = 160, board = {top = 32, no_refresh_rows = 2, rows = [
+		"x#############x",  # the screen frame
+		"x#..ccc..cc..#x",  # the top score
+		"x#.xxxxx.xx.x#x",  # the table
+		"x#.xxxxx.xx.x#x",
+		"x#.?????.??.?#x",
+		"x#.xxxxx.xx.x#x",
+		"x#.?????.??.?#x",
+		"x#.xxxxx.xx.x#x",
+		"x#.xxxxx.xx.x#x",
+		"x.............x",  # the open bottom
+	]}},
 	maw = {role = "boss", tier = 5, hp = 240, cd = 4, mouth = 4, enraged = {at = 0.5, cd = 3, mouth = 6},
 		intents = [["debris", 8], ["mouth", 1], ["laser_sweep", 2]], off = -7, w = 160, board = {top = 32, no_refresh_rows = 2, rows = [
 		"...xxxxxxxxx...",
@@ -183,13 +286,18 @@ const MOUTH := {rect = Rect2(432, 0, 96, 32), spit_gap = 0.4}  # boss intent, no
 
 # Hazards: hp is what one touching the paddle costs (0 never touches). Sizes and speeds in game px; rows: the live rows
 # nearest the paddle red_bricks picks from; enemy_balls speed multiplies BALL_SPEED. flight: in the air, so a phase end
-# clears it (and any volley of it still pending); the rest stay placed. Behaviour: arena.gd _hazard.
+# clears it (and any volley of it still pending); the rest stay placed. jam: the paddle draws at `width` of its build for
+# `hits` paddle hits (a refire resets the count; the mini paddle is never jammed). pull: every ball in flight gets `force`
+# px/s^2 upward for `secs` per count. coin_junk: a `junk` ball on top of the bag per count. Behaviour: arena.gd _hazard.
 const HAZARDS := {
 	red_bricks = {hp = 0, rows = 3, stagger = 0.05},  # the red brick's own hurt pays, on a ball break
 	enemy_balls = {hp = 5, flight = true, speed = 0.7, radius = 8.0, spread_deg = 15.0, gap = 0.15, windup = 0.5, origin = Vector2(480, 60)},
 	debris = {hp = 3, flight = true, size = 16.0, speed = 300.0, apart = 80.0, gap = 0.2, shake = 0.3, shake_px = 4.0},
 	laser_sweep = {hp = 6, warn = 1.0, beam = 0.4},  # a lane is one board column (BRICK_SIZE.x + BRICK_GAP wide)
 	shield_row = {hp = 0, hits = 8},
+	jam = {hp = 0, hits = 6, width = 0.5},
+	pull = {hp = 0, flight = true, secs = 1.0, force = 490.0},  # half gravity; flight, so a pull still pending dies with the phase
+	coin_junk = {hp = 0, junk = "ball_junk"},
 }
 
 # Relics: one passive rule each at hook. on_fight_start / on_break / on_phase_end fire through arena.gd _relics (one match

@@ -8,7 +8,8 @@
 const RED = { tube: "ff0000", ring: "a30000", deep: "3a0000", hi: "ff8a8a", dim: "7f0000" };  // docs/art-style.md Red set, palette 32-47
 const GROUP = "Enemies";
 
-export function emit({ Img, C, def, hold, blank }) {
+// Shared enemy look, exported for the map parts (parts/arcade*.mjs, tower*.mjs, deepnet*.mjs).
+export function kit(C) {
 	const E = { fill: C.trimLo, rim: C.chromeLo, hi: C.trim, chrome: C.trimHi, chromeHi: C.rivet };
 	const hex = (p) => p.map((v) => v.toString(16).padStart(2, "0")).join("").slice(0, 6);
 	// Recolour by table; unmapped colours stay. `all` maps every opaque pixel not in the table.
@@ -30,6 +31,11 @@ export function emit({ Img, C, def, hold, blank }) {
 	const eye = (f, x, y, w, h, c) => { if (!c) return; f.rect(x, y, w, h, c); if (c === RED.tube) { f.px(x, y, RED.hi); f.rect(x + w - 2, y + 1, 1, h - 2, RED.deep); } };
 	const std = (base, recoil) => [flash(base), hot(base), ...recoil, base, base];  // hit: flash, hot, two recoil poses, settle
 	const fade = (f, a) => f.fade(a);
+	return { E, RED, remap, flash, hot, oval, block, eye, std, fade };
+}
+
+export function emit({ Img, C, def, hold, blank }) {
+	const { E, remap, flash, hot, oval, block, eye, std, fade } = kit(C);
 
 	// -- glob 48x48: a slime. Breathes by trading width for height; spits a red chunk on attack; melts on death. --
 	const glob = ({ rx = 16, ry = 12, eyeC = RED.tube, drip = 0, spit = false } = {}) => {

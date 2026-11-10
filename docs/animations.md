@@ -72,6 +72,126 @@ Sections headed Legacy belong to the cut incremental build: still generated, kep
 | laser_sweep_fire | 30x6 | 6 | 12 | beam bands, tiles vertically |
 | paddle_hurt | 60x8 | 4 | 12 | red twin of `paddle_hit` |
 
+## Enemies: Back Alley Arcade (`parts/arcade.mjs`, `parts/arcade_bosses.mjs`; proposal, docs/content/maps/back-alley-arcade.md)
+
+Every id gets the four strips of the Enemies section: `<id>_idle` x4 @8 (loop), `_hit` x6 @12, `_attack` x6 @12 (hazard on frame 3), `_die` x8 @12 (ends blank).
+
+| Id | Frame | Look |
+|---|---|---|
+| rat_king | 64x48 | heap of five cable rats under a crowned king rat with one red eye |
+| coin_slug | 48x48 | low slug with raised head |
+| fuse_box | 48x48 | wall box on conduit legs |
+| claw_rig | 64x48 | crane gantry with a red lamp on the carriage |
+| ticket_printer | 48x48 | squat printer with toothed slot mouth and red display eye |
+| bootleg_cabinet | 48x48 | upright arcade cabinet |
+| repo_man | 64x48 | hatted heavy in a long coat |
+| arcade_bouncer | 64x48 | huge-shouldered doorman with a small head |
+| jackpot_reel | 64x48 | domed slot machine |
+| attract_mode | 160x48 | wide two-player cabinet with an ATTRACT MODE marquee |
+
+## Enemies: Corp Tower (`parts/tower.mjs`, `parts/tower_bosses.mjs`; proposal, docs/content/maps/corp-tower.md)
+
+Every id gets the four strips of the Enemies section: `<id>_idle` x4 @8 (loop), `_hit` x6 @12, `_attack` x6 @12 (hazard on frame 3), `_die` x8 @12 (ends blank).
+
+| Id | Frame | Look |
+|---|---|---|
+| sentry_drone | 48x48 | hovering saucer with a dome and one red lens bobs over its floor shadow (loop) |
+| turnstile | 64x48 | three gate arms on a hub turn 30 degrees a frame around a post |
+| camera_cluster | 48x48 | three security cameras on stalks from one base box pan their red lenses together (loop) |
+| server_rack | 48x48 | tall cabinet of six units |
+| intern_swarm | 64x48 | five small rotor drones in a V |
+| auditor | 48x48 | a clipboard on two thin legs |
+| elevator | 64x48 | a cab hung on a cable |
+| ice_wall | 64x48 | three pointed crystal slabs |
+| head_of_security | 64x48 | broad guard in a peaked cap |
+| legal | 64x48 | walking briefcase with a red wax-seal eye |
+| twin_sentries | 64x48 | two dome turrets with barrels on one base |
+| mainframe | 160x48 | three-tower server cabinet |
+| ceo | 160x48 | suited figure on a throne with four finials |
+
+Extra strips:
+
+| Name | Frame | Frames | fps | What |
+|---|---|---|---|---|
+| mainframe_core_die | 24x24 | 6 | 12 | overlay on one core when its bar empties; ends on a dark core behind a red lock bar (hold it). Body-local top-lefts (20,10), (68,10), (116,10) |
+| twin_sentries_attack_r | 64x48 | 6 | 12 | RIGHT turret, the mirror of twin_sentries_attack; frame 3 fires |
+| ceo_shield_drop | 160x48 | 8 | 12 | the 50% HP beat: a red shield bar across the desk front cracks and shatters as he rises; ends on ceo_idle frame 0 |
+
+## Enemies: Deep Net (`parts/deepnet.mjs`, `parts/deepnet_bosses.mjs`; proposal, docs/content/maps/deep-net.md)
+
+Every id gets the four strips of the Enemies section: `<id>_idle` x4 @8 (loop), `_hit` x6 @12, `_attack` x6 @12 (hazard on frame 3), `_die` x8 @12 (ends blank).
+
+| Id | Frame | Look |
+|---|---|---|
+| worm | 64x48 | a string of 1/0 glyph segments climbing from the floor to a square head with a red eye and fangs |
+| glitch | 48x48 | a boxy two-eyed face on stubby legs whose row bands tear sideways differently every frame |
+| mirror_daemon | 64x48 | the player's paddle in dark body with a red stripe and two horns |
+| null | 48x48 | a tall hole: backdrop-coloured void in a dark rim |
+| packet_storm | 48x48 | a router head with LED eyes and an antenna raining six columns of packet dots to the floor |
+| rootkit | 64x48 | a round cable core with a red eye on a trunk of cable roots branching out to five floor tips |
+| ghost_process | 48x48 | a glob gone see-through under a marching dashed outline (the ghost brick dash) |
+| checksum | 48x48 | a display box on two legs showing a red two-digit number that changes every frame: 37 81 04 52 (loop) |
+| hive_mind | 64x48 | honeycomb mound of ten chrome-rimmed cells |
+| fork_bomb | 64x48 | round bomb with a riveted seam and an eye each side |
+| fork_bomb_half | 48x48 | a smaller fork_bomb (r 13) with its own fuse (loop) |
+| recursion | 64x48 | a diamond on its point full of nested diamond rings that zoom inward round a red core (loop) |
+| trojan | 64x48 | disguise: a Map 1 glob a size up |
+| trojan_true | 64x48 | revealed: chrome-rimmed wooden horse on a wheeled platform |
+| compiler | 160x48 | gantry printer: two pillars |
+| admin | 160x48 | hooded figure with red eyes at a long desk between two green terminals |
+
+Extra strips:
+
+| Name | Frame | Frames | fps | What |
+|---|---|---|---|---|
+| fork_bomb_split | 64x48 | 8 | 12 | at 50% HP: seam glows red, the bomb swells, then its two halves slide apart off the frame edges and fade; ends blank so two fork_bomb_half enemies take over |
+| trojan_reveal | 64x48 | 8 | 12 | at 50% HP: green seam spreads, the glob shell splits and slides off fading while the horse fades in; ends on the horse (trojan_true_idle frame 0) |
+| compiler_rewrite | 160x48 | 8 | 12 | at each 75/50/25% step: the carriage sweeps the beam left to right and every column behind it turns green; ends with all cells green, carriage parked right |
+
+## Hazards and bricks: maps (`parts/map_hazards.mjs`; proposal)
+
+Statics: `intent_jam`, `intent_pull`, `intent_coin_junk`, `intent_wall_col`, `intent_blackout`, `intent_lockdown`, `intent_virus`, `intent_scramble`, `intent_mirror`, `intent_ghost`, `paddle_jam`, `brick_virus`, `brick_virus_player`. Intent icons are 12x12 in the icons.mjs grammar. `virus` and `virus_player` take the Green set (`SETS.green`); `<hue>_ghost` exists per hue except chrome (solids can't be ghosted). Lockdown reuses the dim state, blackout hides the tag and glow, and coin_junk reuses `ball_junk_rank`; none of the three has a strip.
+
+| Name | Frame | Frames | fps | What |
+|---|---|---|---|---|
+| jam_clamp | 60x8 | 6 | 12 | red clamps flash on the paddle ends and squeeze it from 60 to 30 wide; ends on the paddle_jam look, centred |
+| pull_drift | 12x16 | 4 | 8 | overlay on a player ball (ball centre at frame 6,12): red chevrons rise off it and fade toward the top (loop) |
+| mirror_paddle | 60x8 | 4 | 8 | paddle with its stripe turned red and two arrows pointing inward (swapped), blinking (loop while mirror holds) |
+| scramble_swap | 30x12 | 6 | 12 | overlay on both slots of a swap: flash, scanlines, red/sky split outline closing in, clear |
+| wall_col_raise | 30x12 | 6 | 12 | one wall_col segment (brick_solid) drops in from its top edge, top band flashes, settles |
+| wall_col_crumble | 30x12 | 6 | 12 | segment flashes, cracks down the middle, halves sink apart and fade, ends blank |
+| mag_ghost | 30x12 | 4 | 8 | ghost hazard state in the kind's hue: tube at alpha 50, 2-on-2-off dashed outline marching (loop); one strip per hue |
+| ora_ghost | 30x12 | 4 | 8 | <hue>_ghost in orange (bomb) |
+| blue_ghost | 30x12 | 4 | 8 | <hue>_ghost in blue (crit) |
+| mint_ghost | 30x12 | 4 | 8 | <hue>_ghost in mint (refresh) |
+| red_ghost | 30x12 | 4 | 8 | <hue>_ghost in red (red brick) |
+| green_ghost | 30x12 | 4 | 8 | <hue>_ghost in green (virus) |
+| virus_pulse | 30x12 | 4 | 8 | hostile virus brick idles: green lamp, spiky virus particle with a red core breathes (loop); frame 0 = brick_virus |
+| virus_player_pulse | 30x12 | 4 | 8 | player virus_player brick idles: same green lamp, lit row and particle in pay yellow with a white core (loop) |
+| virus_infect | 30x12 | 8 | 12 | a plain brick turns virus by an ordered dither (direction-free, so any neighbour), hot green flash, ends on brick_virus |
+| virus_player_infect | 30x12 | 8 | 12 | the same, ending on brick_virus_player (ball_virus's break) |
+| virus_clear | 30x12 | 8 | 12 | cluster clear per brick: virus face, hot, flash, dithers out in green pixels, blank; stagger by cluster distance in-engine |
+| green_hit | 30x12 | 6 | 12 | <set>_hit shape in green |
+| green_break | 44x20 | 8 | 12 | <set>_break shape in green (virus_player's normal break) |
+| green_spawn | 30x12 | 6 | 12 | <set>_spawn shape in green |
+
+## Ball faces: maps (`parts/map_balls.mjs`; proposal, same contract as Ball faces)
+
+| Name | Frame | Frames | fps | What |
+|---|---|---|---|---|
+| ball_token_rank | 8x8 | 3 | 1 | TOKEN face per rank: brass coin with a see-through square hole (gold set); edge gold.ring / pay / payHi |
+| ball_rubber_rank | 8x8 | 3 | 1 | RUBBER face per rank: squashed orange bouncy ball with a cream band; edge ora.ring / pay / payHi |
+| ball_magnet_rank | 8x8 | 3 | 1 | MAGNET face per rank: red horseshoe with chrome tips, gap open upward; edge red.ring / pay / payHi |
+| ball_laser_rank | 8x8 | 3 | 1 | LASER face per rank: blue ball with a white vertical beam through it, spiking out top and bottom; edge blue.ring / pay / payHi |
+| ball_badge_rank | 8x8 | 3 | 1 | BADGE face per rank: violet shield (flat top, pointed bottom) with a white star; edge vio.ring / pay / payHi |
+| ball_drone_rank | 8x8 | 3 | 1 | DRONE face per rank: sky dome with a red eye under chrome rotor blades on struts; edge sky.ring / pay / payHi |
+| ball_virus_rank | 8x8 | 3 | 1 | VIRUS face per rank: mint diamond with pale knobs at the four points (vs spore's round puffball); edge mint.ring / pay / payHi |
+| ball_ghost_rank | 8x8 | 3 | 1 | GHOST face per rank: pale-mint sheet ghost, two dark eyes, ragged hem; edge mint.ring / pay / payHi |
+| ball_fork_rank | 8x8 | 3 | 1 | FORK face per rank: mint ball shedding a small pale copy off its top-right; edge mint.ring / pay / payHi |
+| ball_drone_hover | 8x4 | 4 | 12 | loop, rank-agnostic overlay drawn just under the drone ball while hover is active: two sky thrust jets flickering long/short |
+| ball_ghost_phase | 12x12 | 4 | 8 | loop, rank-agnostic overlay centred on the ghost ball while it phases: dashed mint ring that breathes r4-r5 and dims |
+| laser_column | 8x120 | 4 | 12 | one-shot beam down the laser ball's board column on paddle contact: wide flash, white core, thin, fading; caller scales y to the board height (one per column at rank 3) |
+
 ## Map (`parts/icons.mjs`)
 
 | Name | Frame | Frames | fps | What |

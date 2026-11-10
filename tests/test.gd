@@ -68,7 +68,7 @@ func _init() -> void:
 	for k in Tuning.ICON_KINDS:
 		check(k in Tuning.BRICKS and Tuning.BRICKS[k].has("idle"), "icon kind %s is a brick kind with a pulse strip" % k)
 	for k in Tuning.BRICKS:
-		check(Tuning.hue(k) in ["mag", "ora", "blue", "mint", "red"], "brick %s has a colour group with strips" % k)
+		check(Tuning.hue(k) in ["mag", "ora", "blue", "mint", "red", "gold"], "brick %s has a colour group with strips" % k)
 		check(Tuning.BRICKS[k].has("dmg"), "brick %s has a dmg" % k)
 	check(Tuning.BRICKS.bomb.blast > 0 and Tuning.BRICKS.red.hurt > 0, "the bomb hits the enemy and the red brick hurts")
 	check(Tuning.ladder(Tuning.DAMAGE_LAND, 0) == 0 and Tuning.ladder(Tuning.DAMAGE_LAND, 29) == 2 and Tuning.ladder(Tuning.DAMAGE_LAND, 100) == 7, "cue ladders pick the last row reached")
@@ -83,10 +83,13 @@ func _init() -> void:
 		check(row.rarity in Tuning.RARITY or row.rarity == "none", "ball %s has a rarity" % id)
 		check(row.dmg.size() == Tuning.MAX_RANK, "ball %s has a dmg per rank" % id)
 		check(row.size > 0 and row.speed > 0 and row.name.length() <= 9, "ball %s has a size, a speed and a name of 9 glyphs or fewer" % id)
-		for k in ["split", "pierce", "catches", "every", "poison"]:
+		for k in ["split", "pierce", "catches", "every", "poison", "pays", "floor"]:
 			check(not row.has(k) or (row[k].size() == Tuning.MAX_RANK and row[k].all(func(v): return v is int and v >= 0)), "ball %s trait %s has a whole value per rank" % [id, k])
 		check(not row.has("split") or row.split.min() >= 2, "ball %s splits into at least two" % id)
 		check(not row.has("every") or row.every.min() >= 1, "ball %s blasts every nth break, n >= 1" % id)
+		check(not row.has("pays") or (row.pays.min() >= 1 and row.get("gold", 0) >= 1), "ball %s pays gold every nth break, n >= 1" % id)
+		check(not row.has("magnet") or (row.magnet.size() == Tuning.MAX_RANK and row.magnet.all(func(v): return v is float and v > 0)), "ball %s multiplies the magnet pull per rank" % id)
+		check(not row.has("map") or row.map == Tuning.SHOP.map, "ball %s belongs to a map the shop knows" % id)
 		check(load("res://src/fx.gd")._frames("%s_rank" % id, int(8 * row.size)).get_frame_count("default") == (1 if id == "ball_junk" else Tuning.MAX_RANK), "ball %s has a face per rank" % id)
 		check(not row.has("locked") or row.locked in Tuning.UNLOCKS, "ball %s locks behind an UNLOCKS flag" % id)
 	for id in Tuning.RELICS:
@@ -113,14 +116,22 @@ func _init() -> void:
 		for it in e.intents:
 			check((it[0] in Tuning.HAZARDS or it[0] == "mouth") and it[1] >= 1, "enemy %s intent %s is a hazard x count" % [id, it[0]])
 			check(it[0] != "mouth" or e.has("mouth"), "enemy %s intends a mouth it has" % id)
-		check(not e.has("enraged") or (e.enraged.at > 0 and e.enraged.at < 1 and e.enraged.cd >= 1 and e.has("mouth")), "enemy %s enrages below a fraction of its HP" % id)
+		check(not e.has("enraged") or (e.enraged.at > 0 and e.enraged.at < 1 and e.enraged.cd >= 1 and (not e.enraged.has("mouth") or e.has("mouth"))), "enemy %s enrages below a fraction of its HP" % id)
 		check(not e.has("riposte") or e.riposte >= 1, "enemy %s ripostes shots of some size" % id)
+		for k in ["steal", "jackpot", "advance", "twice"]:  # the signature numbers arena.gd reads
+			check(not e.has(k) or e[k] > 0, "enemy %s %s is positive" % [id, k])
+		check(not e.has("jackpot") or "".join(e.board.rows).count("g") >= 2, "enemy %s's jackpot has gold bricks to break in one phase" % id)
+		check(not e.has("advance") or e.board.rows.size() + e.advance <= 11, "enemy %s's board has room to advance" % id)
 	for id in Tuning.HAZARDS:
 		var h: Dictionary = Tuning.HAZARDS[id]
 		check(h.hp >= 0 and FileAccess.file_exists("res://assets/pixel/png/intent_%s.png" % id), "hazard %s has an hp cost and an intent icon" % id)
 	check(FileAccess.file_exists("res://assets/pixel/png/intent_mouth.png"), "the mouth has an intent icon")
 	check(Tuning.HAZARDS.enemy_balls.flight and Tuning.HAZARDS.debris.flight and not Tuning.HAZARDS.laser_sweep.get("flight", false), "enemy balls and debris are flight hazards a phase end clears; a laser lane persists")
 	check(Tuning.HAZARDS.shield_row.hits >= 1 and Tuning.SHIELD_Y > Tuning.TOP_WALL and Tuning.SHIELD_Y < Tuning.BOARD_TOP, "the shield row sits between the top wall and the board")
+	var H := Tuning.HAZARDS
+	check(H.jam.hits >= 1 and H.jam.width > 0 and H.jam.width < 1 and H.pull.secs > 0 and H.pull.force > 0 and H.pull.flight and H.coin_junk.junk in Tuning.BALLS, "jam narrows the paddle for some hits, pull lifts for some seconds and dies with the phase, coin_junk adds a ball")
+	check(FileAccess.file_exists("res://assets/pixel/png/paddle_jam.png") and FileAccess.file_exists("res://assets/pixel/png/brick_gold.png"), "the jammed paddle and the gold brick have faces")
+	check(Tuning.SHOP.buy_back == Tuning.SHOP.ball / 2 and Tuning.SHOP.rarities.all(func(r): return r in Tuning.RARITY) and Tuning.SHOP.relic_weights.keys().all(func(r): return r in Tuning.RELIC_RARITY), "the pawn shop buys back at half price and stocks known rarities")
 	check(Tuning.MOUTH.rect.position.y == 0 and Tuning.MOUTH.rect.end.y <= Tuning.TOP_WALL, "the mouth zone is in the band")
 	check(Tuning.EVENTS.event_vendor.junk in Tuning.BALLS, "the vendor's junk is a ball")
 	for id in Tuning.EVENTS:
@@ -180,6 +191,7 @@ func _init() -> void:
 			check(c.kind != "relic" or (c.id in Tuning.RELICS and not c.id in g.run.relics and g.unlocked(c.id)), "relic card is unowned and unlocked")
 		var shop: Dictionary = g.roll_shop(g.rng(100 + s))
 		check(shop.balls.size() == 3 and shop.balls[0] != shop.balls[1] and shop.balls[1] != shop.balls[2] and shop.balls[0] != shop.balls[2], "shop stocks 3 distinct balls")
+		check(shop.balls.all(func(id): return Tuning.BALLS[id].rarity in Tuning.SHOP.rarities) and Tuning.BALLS[shop.balls[0]].get("map", 0) == Tuning.SHOP.map, "the pawn shop stocks common and uncommon balls, a map ball first")
 		check(shop.relics.size() == 2 and shop.relics[0] != shop.relics[1], "shop stocks 2 distinct relics")
 	check(not g.unlocked("ball_bomb") and g.unlocked("ball_basic"), "locked rows need their flag")
 	# Meta-unlocks (docs/content.md "Meta-unlocks"): the elite's flag, then a won run's; each new flag lists its ids once,
@@ -226,16 +238,33 @@ func _init() -> void:
 	check(g.run.hp == Tuning.RUN.hp_floor + E.event_spring.heal, "the spring's bath heals")
 	g.run.bag = [{id = "ball_basic", rank = Tuning.MAX_RANK}, {id = "ball_junk", rank = 1}]
 	g.run.hp = 3
-	g.event_choice("event_forge", "a")
-	check(g.run.hp == 3 and g.run.bag[0].rank == Tuning.MAX_RANK and g.run.bag[1].rank == 1, "the forge with nothing to hammer costs nothing")
+	g.event_choice("event_mod_shop", "a")
+	check(g.run.hp == 3 and g.run.bag[0].rank == Tuning.MAX_RANK and g.run.bag[1].rank == 1, "the mod shop with nothing to mod costs nothing")
 	g.run.bag[0].rank = 1
-	g.event_choice("event_forge", "a")
-	check(g.run.bag[0].rank == 2 and g.run.hp == Tuning.RUN.hp_floor, "the forge ranks a non-junk ball and floors HP")
+	g.event_choice("event_mod_shop", "a")
+	check(g.run.bag[0].rank == 2 and g.run.hp == Tuning.RUN.hp_floor, "the mod shop ranks a non-junk ball and floors HP")
 	g.run.gold = 0
-	g.event_choice("event_forge", "b")
-	check(g.run.gold == E.event_forge.gold, "the forge's scrap pays gold")
+	g.event_choice("event_mod_shop", "b")
+	check(g.run.gold == E.event_mod_shop.gold and g.run.bag.size() == 1 and g.run.bag[0].id == "ball_basic" and g.run.removed == "ball_junk", "the mod shop sells the stone first and remembers it for BUY BACK")
+	g.event_choice("event_mod_shop", "b")
+	check(g.run.gold == E.event_mod_shop.gold and g.run.bag.size() == 1, "the mod shop never buys the last ball")
 	g.run.gold = 0
-	check(not g.event_can("event_vendor", "a") and g.event_can("event_vendor", "b") and g.event_can("event_forge", "a"), "the vendor's buy needs its price; every other choice is open")
+	g.event_choice("event_coin_return", "a")
+	check(g.run.gold == E.event_coin_return.gold and g.run.bag.size() == 2 and g.run.bag.back().id == E.event_coin_return.junk, "the coin return pays gold and a stone")
+	g.event_choice("event_coin_return", "b")
+	check(g.run.gold == E.event_coin_return.gold and g.run.bag.size() == 2, "walking on changes nothing")
+	g.run.gold = E.event_fried_cabinet.gold - 1
+	check(not g.event_can("event_fried_cabinet", "a") and g.event_can("event_fried_cabinet", "b"), "the plug needs its gold")
+	g.run.gold = E.event_fried_cabinet.gold
+	g.run.hp = 3
+	g.event_choice("event_fried_cabinet", "a")
+	check(g.run.gold == 0 and g.run.hp == 3 + E.event_fried_cabinet.heal, "pulling the plug heals for gold")
+	var n_rel0: int = g.run.relics.size()
+	g.run.hp = 20
+	g.event_choice("event_fried_cabinet", "b")
+	check(g.run.relics.size() == n_rel0 + 1 and g.run.hp == 20 - E.event_fried_cabinet.hp, "playing it hands out a relic for HP")
+	g.run.gold = 0
+	check(not g.event_can("event_vendor", "a") and g.event_can("event_vendor", "b") and g.event_can("event_mod_shop", "a"), "the vendor's buy needs its price; every other choice is open")
 	g.run.gold = E.event_vendor.price
 	var relic: String = g.event_relic()
 	check(relic in Tuning.RELICS and Tuning.RELICS[relic].rarity != "rare" and relic == g.event_relic() and g.event_can("event_vendor", "a"), "the vendor offers one common or uncommon relic")
@@ -246,7 +275,7 @@ func _init() -> void:
 	g.event_choice("event_vendor", "b")
 	check((g.run.bag.size() == n_bag + 1 and g.run.bag.back().id == E.event_vendor.junk) != (g.run.relics.size() == n_rel + 1), "haggling yields a stone or a free relic, not both")
 	g.run.relics = Tuning.RELICS.keys()
-	check(g.event_relic() == "" and not g.event_can("event_vendor", "a") and g.roll_relics(g.rng(0), 3).is_empty(), "with every relic owned the vendor and the treasure have nothing")
+	check(g.event_relic() == "" and not g.event_can("event_vendor", "a") and not g.event_can("event_fried_cabinet", "b") and g.roll_relics(g.rng(0), 3).is_empty(), "with every relic owned the vendor, the fried cabinet and the treasure have nothing")
 	if kept:
 		FileAccess.open(g.RUN_PATH, FileAccess.WRITE).store_string(kept)
 	else:
@@ -271,7 +300,8 @@ func _init() -> void:
 			["mag_hit", 30, 6], ["blue_hit", 30, 6], ["ora_hit", 30, 6], ["mag_break", 44, 8], ["blue_break", 44, 8], ["ora_break", 44, 8],
 			["mag_spawn", 30, 6], ["blue_spawn", 30, 6], ["ora_spawn", 30, 6], ["icon_bomb_pulse", 30, 4], ["halo_pulse", 60, 4], ["halo_pulse_ora", 60, 4],
 			["solid_bounce", 44, 6], ["dust_puff", 12, 4], ["shield_floor", 32, 4], ["shield_floor_pop", 32, 6], ["magnet_pull", 44, 4], ["combo_chase", 30, 8], ["toll_pay", 30, 6],
-			["spark_burst", 16, 6], ["hazard_strip", 32, 4]]:
+			["spark_burst", 16, 6], ["hazard_strip", 32, 4],
+			["gold_hit", 30, 6], ["gold_break", 44, 8], ["gold_spawn", 30, 6], ["jam_clamp", 60, 6], ["pull_drift", 12, 4]]:  # map 1
 		var holder := Node2D.new()
 		var s: AnimatedSprite2D = Fx.play(holder, a[0], a[1], 12, Vector2.ZERO)
 		check(s.sprite_frames.get_frame_count("default") == a[2], "anim_%s has %d frames" % [a[0], a[2]])
