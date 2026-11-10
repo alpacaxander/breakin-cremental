@@ -1,0 +1,294 @@
+<title>Neon Cyberpunk Palette</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=Chakra+Petch:wght@400;600&family=Share+Tech+Mono&display=swap">
+<style>
+/* layout: one dark column; hero scene, role map, ramp sheet, removals. single neon theme by choice */
+:root {
+  --bg: #000020; --panel: #06061a; --line: #1e3040; --fg: #e0ffff; --mute: #7494a4;
+  --cyan: #00ffff; --pink: #ff1493; --mag: #ff4aff; --amber: #ffb000; --red: #ff0000;
+  --display: "Silkscreen", "Chakra Petch", monospace; --body: "Chakra Petch", system-ui, sans-serif; --mono: "Share Tech Mono", ui-monospace, monospace;
+  color-scheme: dark;
+}
+body { background: var(--bg); color: var(--fg); font: 15px/1.5 var(--body); margin: 0;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px 64px; }
+main { max-width: 1040px; margin: 0 auto; display: grid; gap: 40px; }
+h1 { font: 700 28px/1.1 var(--display); margin: 0; color: #fff; text-shadow: 0 0 12px var(--cyan), 0 0 2px var(--cyan); text-wrap: balance; }
+h2 { font: 400 15px/1.2 var(--display); margin: 0 0 12px; color: var(--cyan); letter-spacing: .08em; text-transform: uppercase; }
+p { max-width: 68ch; margin: 0; }
+.lede { color: var(--mute); max-width: 68ch; }
+.count { font-family: var(--mono); font-size: 13px; color: var(--amber); margin-top: 8px; font-variant-numeric: tabular-nums; }
+canvas { image-rendering: pixelated; image-rendering: crisp-edges; width: 100%; max-width: 100%; height: auto; display: block; border: 1px solid var(--line); background: var(--bg); }
+.sheet { display: grid; gap: 10px; }
+.ramp { display: grid; grid-template-columns: 170px 1fr; gap: 12px; align-items: center; min-width: 0; }
+.ramp .meta { min-width: 0; }
+.ramp .name { font: 600 14px var(--body); }
+.ramp .use { font-size: 12px; color: var(--mute); line-height: 1.3; }
+.sw { display: flex; gap: 2px; flex-wrap: wrap; }
+.sw i { display: block; width: 28px; height: 28px; flex: 0 0 auto; position: relative; }
+.sw i[title]:hover::after { content: attr(title); position: absolute; left: 0; top: 100%; z-index: 2; background: var(--panel); color: var(--fg); font: 11px var(--mono); padding: 2px 4px; border: 1px solid var(--line); white-space: nowrap; }
+.tag { font: 10px var(--display); padding: 1px 5px; margin-left: 6px; vertical-align: middle; border: 1px solid currentColor; }
+.tag.new { color: var(--cyan); } .tag.kept { color: var(--mute); } .tag.trim { color: var(--amber); } .tag.gone { color: var(--red); }
+.removed .sw i { opacity: .35; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font: 400 11px var(--display); color: var(--mute); letter-spacing: .08em; text-transform: uppercase; }
+td.chip { white-space: nowrap; } td.chip i { display: inline-block; width: 12px; height: 12px; vertical-align: -1px; margin-right: 6px; }
+.wrap { overflow-x: auto; }
+.kinds { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+.kind { display: grid; gap: 4px; font: 12px var(--mono); color: var(--mute); }
+.kind canvas { border: 0; width: 120px; }
+@media (max-width: 600px) { .ramp { grid-template-columns: 1fr; gap: 4px; } }
+</style>
+
+<main>
+<header>
+  <h1>Neon Cyberpunk Palette</h1>
+  <p class="lede">The same 256-slot Sonic Robo Blast 2 base, re-cut for neon cyberpunk. Thirteen hue ramps of ten steps each, lightest tint to deepest shade, and nothing else. The flesh, tan, leaf, salmon, sky and slate ramps go; gold absorbs amber, yellow absorbs cream, green absorbs lime, violet stands alone. Cyan, hot pink and gunmetal come in. Every rule from the old palette stays: near-black base, one hue per meaning, full-saturation accents, no black outlines.</p>
+  <p class="count" id="count"></p>
+</header>
+
+<section>
+  <h2>A fight in the new hues</h2>
+  <canvas id="scene" width="320" height="180"></canvas>
+  <p class="lede" style="margin-top:8px">Drawn at 1x sprite scale, shown at 3x. A circuit grid and a violet floor glow behind the board, neon tubes on the hull, a drone in the enemy band, the paddle in gunmetal with a cyan stripe, lamp bricks in the hues the role map assigns.</p>
+</section>
+
+<section>
+  <h2>Brick lamps per hue</h2>
+  <div class="kinds" id="kinds"></div>
+</section>
+
+<section>
+  <h2>Role map</h2>
+  <div class="wrap"><table id="roles"><thead><tr><th>Role</th><th>Hue</th><th>Top</th><th>Was</th><th>Why</th></tr></thead><tbody></tbody></table></div>
+</section>
+
+<section>
+  <h2>Ramps kept and added</h2>
+  <div class="sheet" id="kept"></div>
+</section>
+
+<section class="removed">
+  <h2>Ramps removed</h2>
+  <div class="sheet" id="removed"></div>
+</section>
+</main>
+
+<script>
+// [name, status, use, colors]. Order is the proposed index order; indices print on hover.
+const KEPT = [
+  ["Greys", "trim", "10 of 32. Text shadows, pause dim, debug. Pure greys are rare on screen.", "ffffff dadada b7b7b7 979797 777777 575757 3f3f3f 272727 171717 070707"],
+  ["Red", "trim", "10 of 16. Enemies and everything they put on the board: red bricks, lasers, debris, both HP bars.", "ff7f7f ff3f3f ff0000 df0000 bf0000 9f0000 7f0000 5f0000 470000 370000"],
+  ["Orange", "trim", "10 of 16. Bomb bricks and the act specials (shield, conditional, timed).", "ffdbc0 ffb975 ff9736 ff7500 dd5e00 c44f00 9f3800 8a2900 812000 791800"],
+  ["Amber gold", "new", "Gold and amber merged. Gold (money) sits on the light end, telegraphs (countdown pips, warning stripes) on the saturated mid. Keeps gold's ring 9b5b13 and the two off-palette steps gen.mjs already uses.", "fff5a8 ffe08a ffc84a ffb000 e09600 c07c00 9b5b13 784800 503000 2b1a06"],
+  ["Yellow", "trim", "Yellow and cream merged, 10 of 16. The cream end is the ball and chrome highlights, the pure end is damage: the stored number, the paddle flash, sparks.", "fffff0 ffffcf ffffaf ffff73 ffff00 e3d90f c9bb0e aa9b0b 887809 5a4905"],
+  ["Green", "kept", "Pure green with lime folded in, leaning green. Poison and junk traits, virus hazards, the hack cue, terminal blinks.", "e0ffc0 a0ff60 60ff20 00ff00 00df00 00bf00 009f00 007f00 005f00 003f00"],
+  ["Mint", "kept", "8 plus a tint and a deep. Refresh bricks and the wave that relights the board.", "e0fff4 b7fbe7 66f7cb 15f2b0 0bd297 03b180 02936b 027354 01563f 00301f"],
+  ["Cyan", "new", "The player's hue: paddle stripe and flash, starting paddles, holograms, the map path, info text. Was a single slot. Also covers what sky did.", "e0ffff b0ffff 80ffff 00ffff 00e0e8 00c0d0 00a0b8 007f98 005c74 003a50"],
+  ["Electric blue", "trim", "10 of 16. Crit bricks and their halo, now on-palette (3131ff) instead of the off-palette 3d6bff. The deepest step is the cabinet base the whole game sits on.", "e7e7ff c6c6ff 8c8cff 5252ff 3131ff 0000ff 0000c4 000095 000052 000020"],
+  ["Violet", "kept", "Relics and ball-trait icons in the HUD, shop and rewards. Its deep end is the only purple a backdrop gets.", "d8b7ff c799ff ad6aff 9844ff 7f16ff 6b00ee 5b00c9 48009f 330071 240051"],
+  ["Hot pink", "new", "UI accent: buttons, selection, the logo, the shop's black-market sign. Bricks never use it.", "ffd0e8 ffa0d0 ff70b8 ff40a0 ff1493 e0107f c00c6a 900850 600436 300218"],
+  ["Magenta", "trim", "10 of 12. Basic bricks. Glass brightens a step per hit left.", "ffcaff ffaaff ff8aff ff4aff ff00ff dd00dd a200a2 790079 550055 350035"],
+  ["Gunmetal", "new", "Unlit chrome: paddle body, walls, solids, shield rows, cabinet hull, inactive UI. Cool steel instead of the slate periwinkle.", "e8f4f8 c0d4dc 98b4c0 7494a4 567888 3e5c6c 2c4452 1e3040 14202c 0c141c"],
+];
+const REMOVED = [
+  ["Sky", "gone", "12. The paddle's old hue. Cyan tints cover info text and cold highlights.", "cefaff a6f1ff 75e7ff 57d5ff 4fc7ff 47b9ff 37a5ff 208ae1 186fb6 155386 0e3556 071e30"],
+  ["Slate", "gone", "6. Inactive UI and the old chrome. Gunmetal covers both.", "9797d5 7777bb 5454a7 414183 2e2e5c 21224e"],
+  ["Sage green", "gone", "8. Never used.", "deffa8 c7e494 adc880 95ad6b 7c9258 647744 4a5a30 323f1d"],
+  ["Leaf green", "gone", "16. Never used. Lime and pure green cover any green need.", "77ff4f 70f04b 69e046 61d041 5ac03c 52b037 4ba032 43902d 3c8028 357023 2d601e 265019 1e4014 17300f 0f200a 070f04"],
+  ["Teal grey", "gone", "4. Was a dim bumper alt. Gunmetal covers it.", "74d1c9 42b3b3 178888 005f5f"],
+  ["Chartreuse", "gone", "4. The green ramp's light end covers it.", "c5e800 a7ca04 8ca80b 6c7c12"],
+  ["Dusty mauve", "gone", "8. Warm purple base alt. Violet's deep end covers it.", "cf7fcf b76fb7 9f5f9f 874f87 6f3f6f 572f57 402040 2b152b"],
+  ["Rose", "gone", "8. Soft pink alt. Hot pink replaces it at full saturation.", "ffc4e0 ff99c0 f570a5 dd578c c73d74 b13466 9d2f5b 85274d"],
+  ["Salmon", "gone", "8. Never used.", "ffe6db ffbfbf ff9f9f e18585 cc7171 c26363 b55353 a73f3f"],
+  ["Skin and brown", "gone", "24. Nothing in space has skin.", "ffcfb3 ffc19e ffb78b f7ab7b efa373 e39767 d78b5b cf8353 bf7b4b b37347 ab6f43 a36b3f 9b633b 8f5f37 875733 7f532f 774f2b 6b4727 5f4323 533f1f 4b371b 3f2f17 332b13 2b230f"],
+  ["Warm tan", "gone", "12. Was an alt dead-brick colour. Gunmetal is the dead colour now.", "bfa78f af9880 9f8971 927d65 86725a 7e6a52 75624a 6d5a42 65533b 5d4b33 57452d 4b3c23"],
+  ["Greys, 22 of 32", "gone", "Every ramp is ten steps, so the greys lose 22.", "f6f6f6 ededed e4e4e4 d1d1d1 c8c8c8 bfbfbf afafaf a7a7a7 9f9f9f 8f8f8f 878787 7f7f7f 6f6f6f 676767 5f5f5f 4f4f4f 474747 373737 2f2f2f 1f1f1f 0f0f0f 000000"],
+  ["Red, 6 of 16", "gone", "Trimmed to ten.", "ff5f5f ef0000 cf0000 af0000 8f0000 6f0000"],
+  ["Orange, 6 of 16", "gone", "Trimmed to ten.", "ffcb97 ffa855 ff8619 ec6900 d05800 b54400"],
+  ["Electric blue, 7 of 16", "gone", "Trimmed to ten, with the base 000020 taking the deepest slot.", "adadff 7373ff 1818ff 0000df 0000ac 000080 000066"],
+  ["Magenta, 2 of 12", "gone", "Trimmed to ten.", "ff6aff bf00bf"],
+  ["Gold, 7 of 8", "gone", "Merged into amber gold; only the ring 9b5b13 survives. The gold lamp's tube moves from ebdb57 to ffc84a.", "ebdb57 d7bb43 c39b2f af7b1f 874307 752900 550000"],
+  ["Yellow and cream, 7 of 16", "gone", "Merged into one yellow ramp.", "ffff4f 706007 ffff8f ebde81 d0c280 b7a977 96835d"],
+  ["Pure green, 1 of 8", "gone", "The green ramp gains three lime tints at the top and drops its deepest step.", "002d00"],
+  ["Singles", "gone", "Blush white (Ice is the cold white now) and the second near-black.", "ffe7f6 00003f"],
+];
+
+const ROLES = [
+  ["Base", "Electric blue, deepest", "000020", "000020", "Same colour, now the last step of the blue ramp. Cold navy so glow has something to brighten."],
+  ["Backdrop", "Gunmetal, deep", "0c141c", "none", "A faint circuit grid and the hull's own neon tubes. No sky, no stars."],
+  ["Basic bricks", "Magenta", "ff4aff", "magenta", "Unchanged. Magenta is the synthwave constant."],
+  ["Crit", "Electric blue", "3131ff", "3d6bff off-palette", "Snaps to the on-palette blue. Still deeper than anything the player owns."],
+  ["Refresh", "Mint", "15f2b0", "mint", "Unchanged."],
+  ["Bomb and act specials", "Orange", "ff7500", "orange", "Unchanged."],
+  ["Telegraphs", "Amber gold, mid", "ffb000", "red / orange", "Countdown pips and warning stripes on the saturated end of the gold ramp, so red stays pure danger."],
+  ["Paddle and player", "Cyan", "00ffff", "sky", "The signature cyberpunk hue goes on the thing that is on screen every frame."],
+  ["Relics", "Violet", "7f16ff", "violet", "Unchanged."],
+  ["Traits: poison, junk, virus", "Green", "00ff00", "violet / chartreuse", "Harsh green for anything infectious or corrupt."],
+  ["Enemy", "Red", "ff0000", "red", "Unchanged. Enemies stay dark sprites with one red light."],
+  ["Gold", "Amber gold, light", "ffc84a", "ebdb57", "One step warmer and more saturated; the lamp keeps its ring and deep."],
+  ["Damage", "Yellow", "ffff00", "yellow", "Unchanged. The ball's cream is the light end of the same ramp."],
+  ["Dead / unbreakable / hull", "Gunmetal", "7494a4", "slate 5454a7", "Cool steel bands replace the periwinkle chrome."],
+  ["UI accent", "Hot pink", "ff1493", "gold trim", "Buttons, selection and the logo. Gold keeps meaning money."],
+  ["Text", "Ice", "e0ffff", "cream ffffcf", "Cold white for text. The ball keeps cream (yellow's light end) so it reads as a physical object."],
+  ["Inactive UI", "Gunmetal", "3e5c6c", "slate", "Slate goes; the mid gunmetal steps read as disabled."],
+];
+
+const el = (t, c, h) => { const e = document.createElement(t); if (c) e.className = c; if (h != null) e.innerHTML = h; return e; };
+let idx = 0;
+const renderSheet = (id, rows, number) => {
+  const root = document.getElementById(id);
+  for (const [name, status, use, cols] of rows) {
+    const r = el("div", "ramp"), m = el("div", "meta"), sw = el("div", "sw");
+    m.append(el("div", "name", name + `<span class="tag ${status}">${status}</span>`), el("div", "use", use));
+    for (const c of cols.split(" ")) { const i = el("i"); i.style.background = "#" + c; i.title = (number ? (idx++) + "  " : "") + c; sw.append(i); }
+    r.append(m, sw); root.append(r);
+  }
+};
+renderSheet("kept", KEPT, true);
+const used = idx;
+renderSheet("removed", REMOVED, false);
+const removed = REMOVED.reduce((n, r) => n + r[3].split(" ").length, 0);
+document.getElementById("count").textContent = `${used} of 256 slots used, ${256 - used} free. ${removed} colours dropped from the source palette, ${used - (256 - removed)} added.`;
+
+const tb = document.querySelector("#roles tbody");
+for (const [role, hue, top, was, why] of ROLES) {
+  const tr = el("tr");
+  tr.append(el("td", "", role), el("td", "", hue), el("td", "chip", `<i style="background:#${top}"></i>${top}`), el("td", "", was), el("td", "", why));
+  tb.append(tr);
+}
+
+// ---- pixel assets. Sets follow the lamp anatomy from docs/art-style.md: tube, ring, deep, highlight. ----
+const SETS = {
+  mag:   { tube: "ff4aff", ring: "a200a2", deep: "350035", hi: "ffcaff", label: "basic" },
+  blue:  { tube: "3131ff", ring: "0000c4", deep: "000052", hi: "c6c6ff", label: "crit" },
+  mint:  { tube: "15f2b0", ring: "02936b", deep: "01563f", hi: "b7fbe7", label: "refresh" },
+  ora:   { tube: "ff7500", ring: "c44f00", deep: "791800", hi: "ffb975", label: "bomb" },
+  amber: { tube: "ffb000", ring: "c07c00", deep: "503000", hi: "ffe08a", label: "timed" },
+  red:   { tube: "ff0000", ring: "9f0000", deep: "370000", hi: "ff7f7f", label: "red (enemy)" },
+  green: { tube: "00ff00", ring: "00bf00", deep: "003f00", hi: "a0ff60", label: "virus" },
+  vio:   { tube: "7f16ff", ring: "48009f", deep: "240051", hi: "c799ff", label: "relic" },
+  cyan:  { tube: "00ffff", ring: "00a0b8", deep: "003a50", hi: "b0ffff", label: "player" },
+  pink:  { tube: "ff1493", ring: "c00c6a", deep: "300218", hi: "ffa0d0", label: "ui accent" },
+  gold:  { tube: "ffc84a", ring: "9b5b13", deep: "2b1a06", hi: "fff5a8", label: "gold" },
+};
+const GUN = ["e8f4f8", "c0d4dc", "98b4c0", "7494a4", "567888", "3e5c6c", "2c4452", "1e3040", "14202c", "0c141c"];
+const FONT = { // 3x5, rows top to bottom
+  "0": "111101101101111", "1": "010110010010111", "2": "111001111100111", "3": "111001111001111", "4": "101101111001001", "5": "111100111001111", "6": "111100111101111", "7": "111001001001001", "8": "111101111101111", "9": "111101111001111",
+  "+": "000010111010000", "H": "101101111101101", "P": "111101111100100", "G": "111100101101111", "B": "110101110101111", "A": "111101111101101", "x": "000101010101000",
+};
+
+function painter(ctx) {
+  const px = (x, y, c) => { ctx.fillStyle = "#" + c; ctx.fillRect(x, y, 1, 1); };
+  const rect = (x, y, w, h, c) => { ctx.fillStyle = "#" + c; ctx.fillRect(x, y, w, h); };
+  const lamp = (x, y, w, h, s, dim) => {
+    if (dim) { rect(x + 1, y, w - 2, 1, s.ring); rect(x + 1, y + h - 1, w - 2, 1, s.ring); rect(x, y + 1, 1, h - 2, s.ring); rect(x + w - 1, y + 1, 1, h - 2, s.ring); rect(x + 1, y + 1, w - 2, h - 2, s.deep); rect(x + 2, y + 2, w - 4, h - 4, "000020"); return; }
+    rect(x + 1, y, w - 2, 1, s.tube); rect(x + 1, y + h - 1, w - 2, 1, s.tube); rect(x, y + 1, 1, h - 2, s.tube); rect(x + w - 1, y + 1, 1, h - 2, s.tube);
+    rect(x + 1, y + 1, w - 2, h - 2, s.ring); rect(x + 2, y + 2, w - 4, h - 4, s.deep); rect(x + 3, y + 2, w - 6, 1, s.hi);
+  };
+  const text = (x, y, str, c) => { for (const ch of str) { const g = FONT[ch]; if (g) for (let i = 0; i < 15; i++) if (g[i] === "1") px(x + i % 3, y + (i / 3 | 0), c); x += 4; } };
+  const chrome = (x, y, w, h, bands) => bands.slice(0, h).forEach((c, i) => rect(x, y + i, w, 1, c));
+  return { px, rect, lamp, text, chrome };
+}
+
+// Brick lamps per hue
+const kinds = document.getElementById("kinds");
+for (const [id, s] of Object.entries(SETS)) {
+  const k = el("div", "kind"), c = el("canvas"); c.width = 30; c.height = 12;
+  const p = painter(c.getContext("2d")); p.lamp(0, 0, 30, 12, s);
+  if (id === "blue") { p.rect(13, 5, 4, 4, s.hi); p.rect(14, 4, 2, 6, s.hi); p.rect(12, 6, 6, 2, s.hi); }
+  if (id === "ora") { p.rect(13, 5, 4, 4, s.hi); p.px(15, 3, "ffff00"); p.px(16, 2, "ffff73"); }
+  if (id === "red") { p.text(13, 4, "x", s.hi); }
+  k.append(c, el("div", "", `${id} <span style="color:#${s.tube}">${s.label}</span>`));
+  kinds.append(k);
+}
+{ const k = el("div", "kind"), c = el("canvas"); c.width = 30; c.height = 12; const p = painter(c.getContext("2d")); p.chrome(0, 0, 30, 12, GUN.slice(0, 7).concat(GUN.slice(7, 10)).slice(0, 12)); p.rect(0, 10, 30, 2, GUN[8]); p.px(0, 0, "000020"); p.px(29, 0, "000020"); p.px(0, 11, "000020"); p.px(29, 11, "000020"); p.px(3, 1, GUN[1]); p.px(26, 1, GUN[1]); k.append(c, el("div", "", "gunmetal <span style='color:#7494a4'>unbreakable</span>")); kinds.append(k); }
+
+// The scene: 320x180 sprite px
+{
+  const ctx = document.getElementById("scene").getContext("2d");
+  const p = painter(ctx);
+  p.rect(0, 0, 320, 180, "000020");
+  // backdrop: a faint circuit grid in deep gunmetal, a few traces one step up
+  for (let y = 0; y < 180; y += 16) p.rect(40, y, 240, 1, "0c141c");
+  for (let x = 40; x < 280; x += 16) p.rect(x, 0, 1, 180, "0c141c");
+  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  for (let i = 0; i < 24; i++) { const x = 40 + 16 * (rnd() * 15 | 0), y = 16 * (rnd() * 11 | 0); if (rnd() < .5) p.rect(x, y, 16, 1, "14202c"); else p.rect(x, y, 1, 16, "14202c"); p.px(x, y, "1e3040"); }
+  // a violet glow pooling at the bottom of the field, dithered
+  for (let y = 150; y < 180; y++) for (let x = 40; x < 280; x++) if ((x + y) % 2 === 0 && y > 150 + ((x * 7) % 5)) p.px(x, y, y > 168 ? "330071" : "240051");
+
+  // hull: side columns and top band in gunmetal, each column with its own neon tube
+  p.rect(0, 0, 40, 180, "0c141c"); p.rect(280, 0, 40, 180, "0c141c");
+  p.rect(39, 0, 1, 180, "2c4452"); p.rect(280, 0, 1, 180, "2c4452");
+  p.rect(40, 30, 240, 1, "3e5c6c"); p.rect(40, 31, 240, 1, "14202c");
+  for (let x = 44; x < 280; x += 12) p.px(x, 30, "7494a4");
+  p.rect(37, 40, 1, 100, "600436"); p.rect(38, 40, 1, 100, "ff1493"); p.rect(38, 36, 1, 4, "900850"); p.rect(38, 140, 1, 4, "900850");
+  p.rect(281, 40, 1, 100, "00ffff"); p.rect(282, 40, 1, 100, "003a50"); p.rect(281, 36, 1, 4, "007f98"); p.rect(281, 140, 1, 4, "007f98");
+
+  // enemy band: drone, dark with one red light, laser telegraph in amber
+  const DR = ["....11111111....", "..1122222211....", ".112333333211...", "11233R33333211..", "11233RR333332111", "11233R3333332111", ".1123333332211..", "..1122222211....", "....11111111....", ".....1....1.....", "....11....11....", "...1........1..."];
+  DR.forEach((row, y) => [...row].forEach((c, x) => { const m = { "1": "1e3040", "2": "2c4452", "3": "14202c", "R": "ff0000" }[c]; if (m) p.px(150 + x, 8 + y, m); }));
+  p.px(156, 11, "ff7f7f");
+  for (let y = 21; y < 30; y += 2) p.px(158, y, "ffb000");
+  p.text(170, 10, "3", "ffb000"); p.rect(169, 9, 5, 7, "503000"); p.text(170, 10, "3", "ffb000");
+  // enemy HP bar
+  p.rect(120, 4, 80, 3, "370000"); p.rect(120, 4, 52, 3, "ff0000"); p.rect(121, 4, 50, 1, "ff7f7f");
+
+  // board: 8 cols x 4 rows of 30x12 lamps starting (40, 40)
+  const G = [
+    "mag mag blue mag mag ora mag mag",
+    "mag gun mag mint mag mag gun red",
+    "green mag mag mag amber mag mag mag",
+    "mag red mag blue mag mag mint mag",
+  ];
+  G.forEach((row, r) => row.split(" ").forEach((k, c) => {
+    const x = 40 + c * 30, y = 40 + r * 12;
+    if (k === "gun") { p.chrome(x, y, 30, 12, ["c0d4dc", "98b4c0", "7494a4", "567888", "567888", "3e5c6c", "3e5c6c", "2c4452", "2c4452", "1e3040", "14202c", "0c141c"]); p.px(x, y, "000020"); p.px(x + 29, y, "000020"); p.px(x, y + 11, "000020"); p.px(x + 29, y + 11, "000020"); p.px(x + 3, y + 1, "e8f4f8"); p.px(x + 26, y + 1, "e8f4f8"); return; }
+    const s = SETS[k];
+    if (k === "blue") { for (let yy = -4; yy < 16; yy++) for (let xx = -6; xx < 36; xx++) if ((xx + yy) % 2 === 0 && (xx < 0 || xx >= 30 || yy < 0 || yy >= 12)) p.px(x + xx, y + yy, "0000c4"); }
+    p.lamp(x, y, 30, 12, s);
+    if (k === "blue") { p.rect(x + 13, y + 5, 4, 4, s.hi); p.rect(x + 14, y + 4, 2, 6, s.hi); p.rect(x + 12, y + 6, 6, 2, s.hi); }
+    if (k === "ora") { p.rect(x + 13, y + 5, 4, 4, s.hi); p.px(x + 15, y + 3, "ffff00"); }
+    if (k === "red") p.text(x + 13, y + 4, "x", s.hi);
+    if (k === "amber") p.text(x + 13, y + 4, "2", s.hi);
+    if (k === "green") { p.px(x + 13, y + 5, s.hi); p.px(x + 16, y + 5, s.hi); p.px(x + 14, y + 7, s.hi); p.px(x + 15, y + 7, s.hi); p.px(x + 13, y + 8, s.hi); p.px(x + 16, y + 8, s.hi); }
+  }));
+  // a broken slot, dim
+  p.lamp(130, 88, 30, 12, SETS.mag, true);
+
+  // laser sweep from the drone, red, with amber edge
+  p.rect(157, 30, 1, 60, "ff0000"); p.rect(158, 30, 1, 60, "ff3f3f"); p.rect(159, 30, 1, 60, "5f0000");
+
+  // paddle: gunmetal bands with the cyan stripe
+  p.chrome(132, 160, 60, 8, ["e8f4f8", "c0d4dc", "98b4c0", "7494a4", "567888", "3e5c6c", "2c4452", "1e3040"]);
+  p.rect(138, 164, 48, 1, "00ffff"); p.px(132, 160, "000020"); p.px(191, 160, "000020"); p.px(132, 167, "000020"); p.px(191, 167, "000020");
+  // paddle hit flash halo in cyan
+  for (let xx = 128; xx < 196; xx += 2) p.px(xx, 158, "00a0b8");
+
+  // balls: cream object, yellow damage tag
+  const ball = (x, y) => { p.rect(x + 2, y, 4, 8, "ffffcf"); p.rect(x, y + 2, 8, 4, "ffffcf"); p.rect(x + 1, y + 1, 6, 6, "ffffcf"); p.rect(x + 2, y + 2, 2, 1, "ffffff"); p.px(x + 2, y + 3, "ffffff"); };
+  ball(166, 130); p.rect(176, 126, 17, 8, "ffff00"); p.text(179, 128, "+24", "000020");
+  ball(96, 112); p.rect(106, 108, 13, 8, "ffff00"); p.text(109, 110, "+6", "000020");
+  // enemy ball: red
+  p.rect(230, 140, 6, 6, "ff0000"); p.px(231, 141, "ff7f7f");
+
+  // left column: HP and gold
+  p.text(4, 6, "HP", "e0ffff"); p.rect(4, 13, 32, 4, "370000"); p.rect(4, 13, 22, 4, "ff0000"); p.rect(5, 13, 20, 1, "ff7f7f"); p.text(4, 20, "41", "ffffcf");
+  p.text(4, 30, "G", "ffc84a"); p.text(10, 30, "128", "ffc84a");
+  // relics: violet lamps
+  for (let i = 0; i < 3; i++) p.lamp(4, 42 + i * 14, 30, 12, SETS.vio);
+  p.rect(13, 47, 4, 2, "c799ff"); p.rect(14, 46, 2, 4, "c799ff");
+  p.rect(12, 61, 6, 1, "c799ff"); p.rect(14, 59, 2, 5, "c799ff");
+  p.rect(13, 73, 2, 2, "c799ff"); p.rect(16, 73, 2, 2, "c799ff"); p.rect(14, 76, 3, 1, "c799ff");
+  // a pink-accent button
+  p.lamp(4, 150, 30, 12, SETS.pink); p.text(11, 154, "BAG", SETS.pink.hi);
+  // right column: the bag queue
+  p.text(286, 6, "BAG", "e0ffff");
+  const Q = ["ffffcf", "ffffcf", "00ff00", "ffffcf", "ff7500", "7f16ff"];
+  Q.forEach((c, i) => { const y = 16 + i * 12; p.rect(288, y, 8, 8, c); p.px(289, y + 1, "ffffff"); p.rect(300, y + 3, 3 + (i % 3) * 3, 2, c === "ffffcf" ? "00ffff" : c); });
+  // phase counter in amber
+  p.text(286, 160, "P", "ffb000"); p.text(292, 160, "2", "ffb000");
+  // hull rivets
+  for (let y = 4; y < 180; y += 16) { p.px(33, y, "3e5c6c"); p.px(286, y, "3e5c6c"); }
+}
+</script>

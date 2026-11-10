@@ -91,7 +91,7 @@ Win by beating the act three boss. Lose when HP hits zero. Both end the run; a r
 
 ## Target audience & platform
 
-Steam roguelike players who like Peglin, Slay the Spire and Balatro: short runs, build variety, visible numbers. Tone: an arcade cabinet that has wandered into a dungeon. The pixel art pipeline and cabinet layout stay.
+Steam roguelike players who like Peglin, Slay the Spire and Balatro: short runs, build variety, visible numbers. Tone: neon cyberpunk, a breakout cabinet in a back-alley arcade. Bricks are lit tubes, the paddle is gunmetal with a cyan stripe, enemies are dark drones with one red light. Visual rules in `docs/art-style.md`, colours in `docs/palette.md`. The pixel art pipeline and cabinet layout stay.
 
 ## MVP
 
