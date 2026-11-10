@@ -4,7 +4,7 @@ Proposal, 2026-11-10; landed in `tuning.gd` the same day, so `docs/content.md` n
 
 Street-level scrap tech: bootleg cabinets, coin-op pests, things that got into the wiring. Hazards are physical. Stuff falls, stuff bounces, nothing is subtle. This is the first map, so every enemy teaches one hazard and the board shapes are readable at a glance.
 
-Vocabulary as `docs/content.md`: a fight is one enemy on one board, a phase is one launch until every ball drops, a paddle hit is the clock. Intents cycle in order; `hazard xN` is one intent firing N of that hazard.
+Vocabulary as `docs/content.md`: a fight is one enemy on one board, a phase is one launch until every ball drops, the clock is seconds with a ball in flight (`cd` in seconds). Intents cycle in order; `hazard xN` is one intent firing N of that hazard.
 
 ## New hazards
 
@@ -20,30 +20,30 @@ Existing: `red_bricks`, `enemy_balls`, `debris`, `laser_sweep`, `shield_row`, an
 
 | id | look | board hook | HP | cd | intents |
 |---|---|---|---|---|---|
-| `glob` | goo blob, red core | crit behind a ring of reds (exists) | 30 | 6 | `red_bricks` x3, `debris` x4 |
-| `lobber` | squat turret | fortress with a gate (exists) | 40 | 5 | `enemy_balls` x1, `enemy_balls` x3 |
-| `rat_king` | pile of cable rats, one red eye | nest of plains, crits in the four corners | 35 | 6 | `coin_junk` x1, `debris` x3 |
-| `coin_slug` | slug with a coin-slot mouth | one gold brick in the middle, plains around it | 40 | 5 | `coin_junk` x2, `red_bricks` x2 |
-| `fuse_box` | wall box with sparking fuses | bombs chained in one line across the board | 45 | 6 | `red_bricks` x2, `debris` x6 |
-| `claw_rig` | crane claw hanging over the board | two solid pillars, a wide centre lane of crits | 50 | 5 | `pull` x1, `enemy_balls` x2 |
-| `ticket_printer` | printer spooling paper | rows that advance toward the paddle (design.md "advancing bricks") | 45 | 6 | `jam` x1, `red_bricks` x4 |
-| `bootleg_cabinet` | a cabinet with a cracked screen | a mirrored copy of the fight-class starting board | 55 | 5 | `enemy_balls` x3, `debris` x4 |
+| `glob` | goo blob, red core | crit behind a ring of reds (exists) | 30 | 12 s | `red_bricks` x3, `debris` x4 |
+| `lobber` | squat turret | fortress with a gate (exists) | 40 | 10 s | `enemy_balls` x1, `enemy_balls` x3 |
+| `rat_king` | pile of cable rats, one red eye | nest of plains, crits in the four corners | 35 | 12 s | `coin_junk` x1, `debris` x3 |
+| `coin_slug` | slug with a coin-slot mouth | one gold brick in the middle, plains around it | 40 | 10 s | `coin_junk` x2, `red_bricks` x2 |
+| `fuse_box` | wall box with sparking fuses | bombs chained in one line across the board | 45 | 12 s | `red_bricks` x2, `debris` x6 |
+| `claw_rig` | crane claw hanging over the board | two solid pillars, a wide centre lane of crits | 50 | 10 s | `pull` x1, `enemy_balls` x2 |
+| `ticket_printer` | printer spooling paper | rows that advance toward the paddle (design.md "advancing bricks") | 45 | 12 s | `jam` x1, `red_bricks` x4 |
+| `bootleg_cabinet` | a cabinet with a cracked screen | a mirrored copy of the fight-class starting board | 55 | 10 s | `enemy_balls` x3, `debris` x4 |
 
 ## Elites (4)
 
 | id | signature | board hook | HP | cd | intents |
 |---|---|---|---|---|---|
-| `warden` | riposte: a paddle hit landing 10+ drops cd by 2 (exists) | honeycomb pillars, crits in the middle lane | 120 | 5 | `laser_sweep` x1, `enemy_balls` x3, `shield_row` |
-| `repo_man` | every ball that drops steals 1 gold | vault with a shield row already raised at fight start | 110 | 5 | `shield_row`, `coin_junk` x2, `debris` x6 |
-| `arcade_bouncer` | the first hazard fired in a phase fires twice | solid pillars that narrow toward the top | 130 | 5 | `jam` x2, `enemy_balls` x4 |
-| `jackpot_reel` | three gold bricks that pay only if all three break in one phase | three vertical reels of plains, a gold brick in each | 115 | 6 | `pull` x1, `red_bricks` x3, `debris` x8 |
+| `warden` | riposte: a paddle hit landing 10+ takes 2 s off the countdown (exists) | honeycomb pillars, crits in the middle lane | 120 | 10 s | `laser_sweep` x1, `enemy_balls` x3, `shield_row` |
+| `repo_man` | every ball that drops steals 1 gold | vault with a shield row already raised at fight start | 110 | 10 s | `shield_row`, `coin_junk` x2, `debris` x6 |
+| `arcade_bouncer` | the first hazard fired in a phase fires twice | solid pillars that narrow toward the top | 130 | 10 s | `jam` x2, `enemy_balls` x4 |
+| `jackpot_reel` | three gold bricks that pay only if all three break in one phase | three vertical reels of plains, a gold brick in each | 115 | 12 s | `pull` x1, `red_bricks` x3, `debris` x8 |
 
 ## Bosses (2)
 
 | id | phases | board hook | HP | cd | intents |
 |---|---|---|---|---|---|
-| `maw` | below 50% HP: cd 3, the mouth holds 6 hits (exists) | jaws with solid teeth, crits in the throat | 240 | 4 | `debris` x8, `mouth`, `laser_sweep` x2 |
-| `attract_mode` | a cabinet playing itself. Below 50% HP its `enemy_balls` copy the player's bag in order: each spat ball carries the trait of the next ball in the bag (heavy is bigger and slower, split splits, piercing passes the shield floor) | a big screen frame; the bricks form a high-score table, crits as the top score | 220 | 4 | `jam` x1, `enemy_balls` x5, `pull` x1 |
+| `maw` | below 50% HP: cd 6 s, the mouth holds 6 hits (exists) | jaws with solid teeth, crits in the throat | 240 | 8 s | `debris` x8, `mouth`, `laser_sweep` x2 |
+| `attract_mode` | a cabinet playing itself. Below 50% HP its `enemy_balls` copy the player's bag in order: each spat ball carries the trait of the next ball in the bag (heavy is bigger and slower, split splits, piercing passes the shield floor) | a big screen frame; the bricks form a high-score table, crits as the top score | 220 | 8 s | `jam` x1, `enemy_balls` x5, `pull` x1 |
 
 ## Engine notes
 

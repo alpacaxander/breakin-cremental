@@ -10,8 +10,9 @@ const PADDLE_WIDTH := 120.0
 const PADDLE_HEIGHT := 16.0
 const PADDLE_UP := 40.0  # paddle centre above the arena floor
 const PADDLE_SPEED := 800.0  # px/s cap for both mouse-follow and keys
-const BALL_SPEED := 480.0
+const BALL_SPEED := 350.0
 const BALL_RADIUS := 8.0
+const LAUNCH_SPREAD_DEG := 10.0  # a launch leaves up to this far off vertical, either side, at random
 const MAX_BOUNCE_DEG := 60.0  # angle off vertical when the ball hits the paddle edge
 const MIN_VERTICAL := 0.25  # min |vy| as a fraction of speed, stops near-horizontal loops
 
@@ -133,16 +134,16 @@ const BALLS := {
 const SPLIT_DEG := 20.0  # a splitter's halves fan from -SPLIT_DEG to +SPLIT_DEG about its heading
 
 # Enemies: one per fight. role picks the node kind (fight = regular), tier the earliest layer a regular appears.
-# cd: paddle hits between intents. intents cycle: [hazard id or "mouth", count]. board: rows = the drawn layout
-# (BOARD_KEYS), top = px below BOARD_TOP, no_refresh_rows (game.gd generate).
+# cd: seconds between intents, counted only while a ball is in flight. intents cycle: [hazard id or "mouth", count].
+# board: rows = the drawn layout (BOARD_KEYS), top = px below BOARD_TOP, no_refresh_rows (game.gd generate).
 # off: cue pitch offset in semitones. w: frame width of its <id>_idle/_hit/_attack/_die strips (48 tall). Behaviour: arena.gd.
-# Signatures: riposte = a landing of this much counts the intent down by 2; enraged = fields merged into the row below `at`
-# of its HP (cd, mouth, mimic = its enemy balls copy the bag's balls in order); steal = gold a dropped ball costs; twice =
-# seconds between the two firings of a phase's first intent; jackpot = gold when every gold brick breaks in one phase;
+# Signatures: riposte = a landing of this much takes RIPOSTE_CUT s off the countdown; enraged = fields merged into the
+# row below `at` of its HP (cd, mouth, mimic = its enemy balls copy the bag's balls in order); steal = gold a dropped ball
+# costs; twice = seconds between the two firings of a phase's first intent; jackpot = gold when every gold brick breaks in one phase;
 # shield_start = the shield row stands at fight start; advance = rows the board slides toward the paddle each phase while
 # it fits above BOARD_FLOOR.
 const ENEMIES := {
-	glob = {role = "regular", tier = 1, hp = 30, cd = 6, intents = [["red_bricks", 3], ["debris", 4]], off = 0, w = 48, board = {rows = [
+	glob = {role = "regular", tier = 1, hp = 30, cd = 12.0, intents = [["red_bricks", 3], ["debris", 4]], off = 0, w = 48, board = {rows = [
 		"....xxx....",
 		"..xx???xx..",
 		".x??xRx??x.",
@@ -151,7 +152,7 @@ const ENEMIES := {
 		"..xx???xx..",
 		"....xxx....",
 	]}},
-	lobber = {role = "regular", tier = 1, hp = 40, cd = 5, intents = [["enemy_balls", 1], ["enemy_balls", 3]], off = -2, w = 48, board = {rows = [
+	lobber = {role = "regular", tier = 1, hp = 40, cd = 10.0, intents = [["enemy_balls", 1], ["enemy_balls", 3]], off = -2, w = 48, board = {rows = [
 		"x.x.x.x.x.x",  # battlements
 		"xxxxxxxxxxx",
 		"#?????????#",
@@ -159,7 +160,7 @@ const ENEMIES := {
 		"#?????????#",
 		"##xx...xx##",  # the gate
 	]}},
-	mason = {role = "regular", tier = 3, hp = 55, cd = 6, intents = [["shield_row", 1], ["debris", 6]], off = -4, w = 64, board = {rows = [
+	mason = {role = "regular", tier = 3, hp = 55, cd = 12.0, intents = [["shield_row", 1], ["debris", 6]], off = -4, w = 64, board = {rows = [
 		"??xxxxxxx??",
 		"?x#######x?",
 		"?x#?ccc?#x?",  # the vault
@@ -167,7 +168,7 @@ const ENEMIES := {
 		"?x##xxx##x?",  # the door
 		"??xxxxxxx??",
 	]}},
-	warden = {role = "elite", tier = 4, hp = 120, cd = 5, riposte = 10, intents = [["laser_sweep", 1], ["enemy_balls", 3], ["shield_row", 1]], off = -5, w = 64, board = {rows = [
+	warden = {role = "elite", tier = 4, hp = 120, cd = 10.0, riposte = 10, intents = [["laser_sweep", 1], ["enemy_balls", 3], ["shield_row", 1]], off = -5, w = 64, board = {rows = [
 		"xxx#xxxxx#xxx",
 		"x??#????#??x",  # odd rows one short: honeycomb, so the pillars zigzag
 		"x??#??c??#??x",
@@ -177,7 +178,7 @@ const ENEMIES := {
 		"x??#??c??#??x",
 		"xxx.xxxx.xxx",
 	]}},
-	rat_king = {role = "regular", tier = 1, hp = 35, cd = 6, intents = [["coin_junk", 1], ["debris", 3]], off = 3, w = 64, board = {rows = [
+	rat_king = {role = "regular", tier = 1, hp = 35, cd = 12.0, intents = [["coin_junk", 1], ["debris", 3]], off = 3, w = 64, board = {rows = [
 		"c?xxxxxxx?c",  # the nest: crits in the four corners
 		"?xx?????xx?",
 		"xx???????xx",
@@ -185,7 +186,7 @@ const ENEMIES := {
 		"?xx?????xx?",
 		"c?xxxxxxx?c",
 	]}},
-	coin_slug = {role = "regular", tier = 1, hp = 40, cd = 5, intents = [["coin_junk", 2], ["red_bricks", 2]], off = -1, w = 48, board = {rows = [
+	coin_slug = {role = "regular", tier = 1, hp = 40, cd = 10.0, intents = [["coin_junk", 2], ["red_bricks", 2]], off = -1, w = 48, board = {rows = [
 		"...xxxxx...",
 		".xx?????xx.",
 		"xx???????xx",
@@ -194,7 +195,7 @@ const ENEMIES := {
 		".xx?????xx.",
 		"...xxxxx...",
 	]}},
-	fuse_box = {role = "regular", tier = 2, hp = 45, cd = 6, intents = [["red_bricks", 2], ["debris", 6]], off = 1, w = 48, board = {rows = [
+	fuse_box = {role = "regular", tier = 2, hp = 45, cd = 12.0, intents = [["red_bricks", 2], ["debris", 6]], off = 1, w = 48, board = {rows = [
 		"xxxxxxxxxxx",
 		"x?b???????x",  # the fuse: a diagonal of bombs, each inside the next one's blast
 		"x??b??????x",
@@ -203,7 +204,7 @@ const ENEMIES := {
 		"x?????b???x",
 		"xxxxxxxxxxx",
 	]}},
-	claw_rig = {role = "regular", tier = 2, hp = 50, cd = 5, intents = [["pull", 1], ["enemy_balls", 2]], off = -3, w = 64, board = {rows = [
+	claw_rig = {role = "regular", tier = 2, hp = 50, cd = 10.0, intents = [["pull", 1], ["enemy_balls", 2]], off = -3, w = 64, board = {rows = [
 		"xx???????xx",
 		"x?#..c..#?x",  # two pillars, the prize lane of crits between them
 		"x?#.c.c.#?x",
@@ -211,14 +212,14 @@ const ENEMIES := {
 		"x?#.....#?x",
 		"xx???????xx",
 	]}},
-	ticket_printer = {role = "regular", tier = 2, hp = 45, cd = 6, advance = 1, intents = [["jam", 1], ["red_bricks", 4]], off = 2, w = 48, board = {rows = [
+	ticket_printer = {role = "regular", tier = 2, hp = 45, cd = 12.0, advance = 1, intents = [["jam", 1], ["red_bricks", 4]], off = 2, w = 48, board = {rows = [
 		"xxxxxxxxxxx",  # the paper: rows that feed toward the paddle a phase at a time
 		"?c???????c?",
 		"xxxxxxxxxxx",
 		"????c??????",
 		"xxxxxxxxxxx",
 	]}},
-	bootleg_cabinet = {role = "regular", tier = 3, hp = 55, cd = 5, intents = [["enemy_balls", 3], ["debris", 4]], off = -2, w = 48, board = {rows = [
+	bootleg_cabinet = {role = "regular", tier = 3, hp = 55, cd = 10.0, intents = [["enemy_balls", 3], ["debris", 4]], off = -2, w = 48, board = {rows = [
 		"x#########x",  # the case
 		"x#???????#x",
 		"x#?R?c?R?#x",  # the cracked screen
@@ -227,7 +228,7 @@ const ENEMIES := {
 		"x.........x",
 		"...xxxxx...",  # the coin door
 	]}},
-	repo_man = {role = "elite", tier = 4, hp = 110, cd = 5, steal = 1, shield_start = true, intents = [["shield_row", 1], ["coin_junk", 2], ["debris", 6]], off = -6, w = 64, board = {rows = [
+	repo_man = {role = "elite", tier = 4, hp = 110, cd = 10.0, steal = 1, shield_start = true, intents = [["shield_row", 1], ["coin_junk", 2], ["debris", 6]], off = -6, w = 64, board = {rows = [
 		"x???????????x",
 		"x?#########?x",  # the vault
 		"x?#?c?c?c?#?x",
@@ -235,7 +236,7 @@ const ENEMIES := {
 		"x?###???###?x",  # the door
 		"x???????????x",
 	]}},
-	arcade_bouncer = {role = "elite", tier = 4, hp = 130, cd = 5, twice = 0.3, intents = [["jam", 2], ["enemy_balls", 4]], off = -5, w = 64, board = {rows = [
+	arcade_bouncer = {role = "elite", tier = 4, hp = 130, cd = 10.0, twice = 0.3, intents = [["jam", 2], ["enemy_balls", 4]], off = -5, w = 64, board = {rows = [
 		"?????#?#?????",  # the rope line, narrowing toward the top
 		"????#???#????",
 		"???#?????#???",
@@ -243,7 +244,7 @@ const ENEMIES := {
 		"?#?????????#?",
 		"xxxxxxxxxxxxx",
 	]}},
-	jackpot_reel = {role = "elite", tier = 4, hp = 115, cd = 6, jackpot = 30, intents = [["pull", 1], ["red_bricks", 3], ["debris", 8]], off = -3, w = 64, board = {rows = [
+	jackpot_reel = {role = "elite", tier = 4, hp = 115, cd = 12.0, jackpot = 30, intents = [["pull", 1], ["red_bricks", 3], ["debris", 8]], off = -3, w = 64, board = {rows = [
 		".xxx.xxx.xxx.",  # three reels
 		".x?x.x?x.x?x.",
 		".xgx.xgx.xgx.",  # a gold brick in each: all three in one phase pays the jackpot
@@ -251,7 +252,7 @@ const ENEMIES := {
 		".xxx.xxx.xxx.",
 		"xxxxxxxxxxxxx",
 	]}},
-	attract_mode = {role = "boss", tier = 5, hp = 220, cd = 4, enraged = {at = 0.5, cd = 4, mimic = true},
+	attract_mode = {role = "boss", tier = 5, hp = 220, cd = 8.0, enraged = {at = 0.5, cd = 8.0, mimic = true},
 		intents = [["jam", 1], ["enemy_balls", 5], ["pull", 1]], off = -8, w = 160, board = {top = 32, no_refresh_rows = 2, rows = [
 		"x#############x",  # the screen frame
 		"x#..ccc..cc..#x",  # the top score
@@ -264,7 +265,7 @@ const ENEMIES := {
 		"x#.xxxxx.xx.x#x",
 		"x.............x",  # the open bottom
 	]}},
-	maw = {role = "boss", tier = 5, hp = 240, cd = 4, mouth = 4, enraged = {at = 0.5, cd = 3, mouth = 6},
+	maw = {role = "boss", tier = 5, hp = 240, cd = 8.0, mouth = 4, enraged = {at = 0.5, cd = 6.0, mouth = 6},
 		intents = [["debris", 8], ["mouth", 1], ["laser_sweep", 2]], off = -7, w = 160, board = {top = 32, no_refresh_rows = 2, rows = [
 		"...xxxxxxxxx...",
 		".xxx???????xxx.",
@@ -278,6 +279,7 @@ const ENEMIES := {
 		".xxx???????xxx.",
 	]}},
 }
+const RIPOSTE_CUT := 2.0  # seconds a riposte landing takes off the countdown (about one paddle hit at BALL_SPEED 350)
 const ENEMY_FOOT := Vector2(480, 108)  # bottom centre of the enemy sprite, in the band above TOP_WALL
 const ENEMY_STRIPS := {idle = 4, hit = 6, attack = 6, die = 8}  # frames per <id>_<strip>; idle loops at 8 fps, the rest play at 12
 const ENEMY_FPS := {idle = 8, hit = 12, attack = 12, die = 12}

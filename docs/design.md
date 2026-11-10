@@ -36,7 +36,7 @@ Feel like a juggler who is also an engineer: a desperate save at the paddle keep
 
 1. Pick a node on a branching map: fight, elite, treasure, shop, event, boss.
 2. In a fight, take turns. On your turn the next ball in your bag launches onto the board. Every brick a ball breaks deals that ball's damage to the enemy. Crit bricks launch the next ball in the bag, so several balls can be in play at once, each dealing its own damage. The turn ends when every ball in play has dropped past the paddle.
-3. Enemies act mid-phase on a countdown of paddle hits: hazards on the board that cost HP, changes to the board.
+3. Enemies act mid-phase on a countdown of seconds: hazards on the board that cost HP, changes to the board.
 4. Win the fight and pick one of three rewards: a new ball, a rank-up for a ball you own, a relic, or gold.
 5. Run ends on death or on the final boss. Meta-unlocks (new balls, relics, starting paddles) carry over; nothing else does.
 
@@ -45,7 +45,7 @@ Feel like a juggler who is also an engineer: a desperate save at the paddle keep
 - **Bricks are pegs.** Each fight generates a board. Basic bricks deal the ball's per-brick damage. Crit bricks launch the next ball in the bag, so a rally that keeps finding crits keeps adding balls. Refresh bricks respawn every broken brick. Bomb bricks break their neighbours and deal direct damage. Unbreakable bricks shape the bounces. Red bricks cost the player HP when a ball breaks them.
 - **Phase end.** A phase has no timer. It ends when every ball in play has dropped past the paddle, with no HP cost: like a wasted shot in Peglin, the penalty is the damage you did not deal. The natural limiter is the player's own success: each crit adds a ball to juggle, and an empty board stops the damage until a refresh brick appears. If play shows phases that never end, the fallback is a speed ramp on balls that stay alive too long.
 - **Damage.** In Peglin damage is stored as the orb hits pegs and fired when the orb leaves the board. Here each ball stores damage as it breaks bricks and fires it when it hits the paddle. The paddle hit is the shot: a ball shows its stored total as it flies, lands it on contact, and starts again from zero. A ball that drops past the paddle loses whatever it was carrying. Balls target the front enemy by default; some hit every enemy.
-- **Enemy damage.** Peglin's enemies act once per shot. Here they act on the board: hazards that hurt you when they touch the paddle or cross the paddle line. See Enemy attacks below. A countdown of paddle hits times them.
+- **Enemy damage.** Peglin's enemies act once per shot. Here they act on the board: hazards that hurt you when they touch the paddle or cross the paddle line. See Enemy attacks below. A countdown of seconds in flight times them.
 - **Ball bag (the deck).** Start with four or five basic balls. A ball has per-brick damage and one trait: heavy (bigger, slower, more damage), split (becomes two on the first bounce), piercing (passes through bricks), sticky (first paddle catch holds it for an aimed relaunch), poison (damage over the next turns), and so on. Balls launch in bag order, both at the start of a phase and from crit bricks; a discard action skips one before launch. When the bag runs out mid-phase, crit bricks do nothing more. Three ranks per ball. Some enemies and events add junk stone balls.
 - **Paddle.** One paddle. Size, speed and extras come from relics, not an upgrade tree. Vertical movement and sibling paddles from the old upgrade ideas become relics or starting paddles.
 - **Relics.** Passive rules picked up at treasures, elites and shops: wider paddle, crit bricks launch two balls, the first brick each phase counts as a crit, a dropped ball returns to the bag, bricks drop gold, every tenth brick is a bomb. The old upgrade ideas (sibling paddles, vertical paddle movement, splitter, flipper, toll and ghost bricks) are relic candidates; their faces are still generated (the legacy rows in `docs/sprite-spec.md`).
@@ -56,7 +56,7 @@ Feel like a juggler who is also an engineer: a desperate save at the paddle keep
 
 ## Enemy attacks
 
-Enemies hurt you through things on the board, not through a number that lands at the end of a turn. One rule ties them together: anything hostile that touches the paddle or crosses the paddle line costs HP. The paddle lane is then shared by balls you want to catch and hazards you want to miss, which is the fight's core tension. Each enemy shows an intent and a countdown; every paddle hit by a player ball counts it down, and at zero the hazard fires mid-phase. Built (`Tuning.HAZARDS`): red bricks, enemy balls, debris, laser sweep, shield rows, plus the boss's mouth. The rest of the pool is ideas.
+Enemies hurt you through things on the board, not through a number that lands at the end of a turn. One rule ties them together: anything hostile that touches the paddle or crosses the paddle line costs HP. The paddle lane is then shared by balls you want to catch and hazards you want to miss, which is the fight's core tension. Each enemy shows an intent and a countdown; it counts down while a player ball is in flight, and at zero the hazard fires mid-phase. Built (`Tuning.HAZARDS`): red bricks, enemy balls, debris, laser sweep, shield rows, plus the boss's mouth. The rest of the pool is ideas.
 
 Hazard pool, roughly by build cost:
 

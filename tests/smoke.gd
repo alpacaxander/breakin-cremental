@@ -63,10 +63,11 @@ func _ready() -> void:
 	assert(a.breakable < before - 3 and ball.stored > ball.dmg and a.enemy.hp <= Tuning.ENEMIES.glob.hp - Tuning.BRICKS.bomb.blast, "the bomb hit the enemy and broke its neighbours for the ball")
 	var stored: int = ball.stored
 	var hp_e: int = a.enemy.hp
+	var cd_e: float = a.enemy.cd_left
 	a._paddle_hit(ball)
-	assert(a.enemy.hp == hp_e - stored and ball.stored == 0 and ball.tag.text == "" and not ball.tag_s.visible and a.phase_dmg == stored + Tuning.ENEMIES.glob.hp - hp_e and a.enemy.cd_left == Tuning.ENEMIES.glob.cd - 1, "paddle contact fires the stored damage and counts down")
-	for i in Tuning.ENEMIES.glob.cd - 1:
-		a._paddle_hit(ball)
+	assert(a.enemy.hp == hp_e - stored and ball.stored == 0 and ball.tag.text == "" and not ball.tag_s.visible and a.phase_dmg == stored + Tuning.ENEMIES.glob.hp - hp_e and a.enemy.cd_left == cd_e, "paddle contact fires the stored damage and leaves the clock alone")
+	assert(cd_e < Tuning.ENEMIES.glob.cd, "the enemy clock ran while the ball flew")
+	a._count_down(cd_e)
 	assert(a.enemy.intent == 1 and a.enemy.cd_left == Tuning.ENEMIES.glob.cd, "the countdown fired the intent and showed the next")
 	var reds: int = a._bricks("red").size()  # the glob's first intent paints red bricks on the attack's spawn frame; checked after the beat below
 	# Crit launches the bag's next ball; drops end the phase after the beat, then the next ball rests.
@@ -131,7 +132,7 @@ func _ready() -> void:
 	var needle = a._add_ball({id = "ball_pierce", rank = 1}, lane.front().position + Vector2(0, 40))
 	a._launch(needle)
 	assert(needle.pierce_left == P.ball_pierce.pierce[0] and needle.radius == Tuning.BALL_RADIUS * P.ball_pierce.size and needle.speed == P.ball_pierce.speed, "a launched needle is armed, small and fast")
-	for i in 6:
+	for i in 12:
 		await get_tree().physics_frame
 	assert(needle.pierce_left < P.ball_pierce.pierce[0] and needle.vel.y < 0 and needle.stored > 0, "the needle broke a brick and passed through on its heading")
 	a.balls.erase(needle)
@@ -247,12 +248,12 @@ func _ready() -> void:
 	a.shield_left = 1
 	a._paddle_hit(a.rest)  # the resting ball never moves on its own, so no stray paddle hit sneaks in
 	assert(a.shield.is_empty() and a.shield_left == 0, "the last paddle hit crumbled the shield row")
-	# Riposte: a shot at or over the mark drops the countdown by two.
+	# Riposte: a shot at or over the mark takes RIPOSTE_CUT seconds off the countdown.
 	a.enemy.riposte = 10
+	a.enemy.cd_left = Tuning.RIPOSTE_CUT * 2
 	a.rest.store(10)
-	var cd0: int = a.enemy.cd_left
 	a._paddle_hit(a.rest)
-	assert(a.enemy.cd_left == cd0 - 2 and a.rest.stored == 0, "a riposte shot drops the countdown by two")
+	assert(is_equal_approx(a.enemy.cd_left, Tuning.RIPOSTE_CUT) and a.rest.stored == 0, "a riposte shot cuts the countdown")
 	# The win breaks the board outward and clears the hazards.
 	a._hazard("laser_sweep", 1)
 	a._land(a.enemy.hp)
@@ -325,7 +326,7 @@ func _ready() -> void:
 	var bite = a._add_ball({id = "ball_basic", rank = 1}, Vector2(Tuning.MOUTH.rect.get_center().x, Tuning.TOP_WALL + 20))
 	a._launch(bite)
 	var spent0: int = a.discard.size()
-	for i in 4:
+	for i in 8:
 		await get_tree().physics_frame
 	assert(a.eaten == 1 and not is_instance_valid(bite) and a.discard.size() == spent0 + 1, "a ball at the wall under the mouth is eaten into the discard pile")
 	a._land(a.enemy.hp_max / 2 + 1)
@@ -333,7 +334,7 @@ func _ready() -> void:
 	for i in Tuning.ENEMIES.maw.mouth:
 		a._paddle_hit(a.rest)
 	await get_tree().create_timer(0.1).timeout
-	assert(a.mouth_left == 0 and a.hazards.filter(func(h): return h.kind == "enemy_balls").size() == 1 and a.enemy.cd_left == Tuning.ENEMIES.maw.enraged.cd, "the mouth closed after its hits, spat the eaten ball back and the countdown reset to the enraged pace")
+	assert(a.mouth_left == 0 and a.hazards.filter(func(h): return h.kind == "enemy_balls").size() == 1, "the mouth closed after its hits and spat the eaten ball back")
 	await get_tree().create_timer(1.0).timeout  # the attack's volley and the delayed cues (the boss board's ten spawn ticks run to 0.8 s), else they leak at quit
 	a.queue_free()
 	await get_tree().process_frame

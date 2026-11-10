@@ -2,9 +2,9 @@ extends Node2D
 ## One fight: the enemy in the band above the top wall, the bag of balls launched phase by phase at the board, and the
 ## damage pipeline. A ball stores dmg per brick it breaks, fires it at the enemy on paddle contact and loses it on a drop;
 ## crit bricks launch the bag's next ball, bombs hit the enemy and blast their neighbours for the ball, a red brick a ball
-## breaks costs the player HP (a blast removes it for free); a phase ends when every ball has dropped, no HP cost. Paddle
-## hits count down the enemy's intent; at 0 its attack strip plays and the hazard spawns on frame 3 (_act, _hazard): red
-## bricks painted onto the board, enemy balls and debris that cost HP on paddle touch (Hazard nodes moved by hand, cleared
+## breaks costs the player HP (a blast removes it for free); a phase ends when every ball has dropped, no HP cost. Seconds
+## of flight count down the enemy's intent (_count_down); at 0 its attack strip plays and the hazard spawns on frame 3
+## (_act, _hazard): red bricks painted onto the board, enemy balls and debris that cost HP on paddle touch (Hazard nodes moved by hand, cleared
 ## at phase end), a laser lane snapped to the board column under the paddle (drawn in _draw), a shield row of solids that
 ## crumbles after so many paddle hits, the boss's mouth that eats balls and spits them back, and map 1's three: jam (the
 ## paddle at half width for so many hits, _paddle_fit), pull (an upward force on every ball in flight for a second,
@@ -29,8 +29,6 @@ const Fx = preload("res://src/fx.gd")
 const Ui = preload("res://src/ui.gd")
 const Sfx = preload("res://src/sfx.gd")
 const Hud = preload("res://src/hud.gd")
-const TRAIL_TEX := preload("res://assets/pixel/png/anim_ball_trail.png")
-const PIERCE_TEX := preload("res://assets/pixel/png/anim_pierce_trail.png")
 const HAZARD_TEX := preload("res://assets/pixel/png/anim_hazard_strip.png")
 const SHIELD_TEX := preload("res://assets/pixel/png/anim_shield_floor.png")  # the floor line while relic shield_floor has a save armed
 const LASER_WARN_TEX := preload("res://assets/pixel/png/anim_laser_sweep_warn.png")
@@ -332,7 +330,7 @@ func _launch_rest() -> void:
 func _launch(b: Ball) -> void:
 	b.age = 0
 	b.arm()
-	b.vel = Vector2.UP * Tuning.BALL_SPEED * b.speed
+	b.vel = Vector2.UP.rotated(deg_to_rad(randf_range(-Tuning.LAUNCH_SPREAD_DEG, Tuning.LAUNCH_SPREAD_DEG))) * Tuning.BALL_SPEED * b.speed
 	var pitch: float = b.row.get("pitch", Sfx.st(b.rank - 1))
 	Sfx.play("ball_launch", pitch)
 
@@ -400,6 +398,8 @@ func _physics_process(delta: float) -> void:
 	if combo_t <= 0:
 		combo = 0
 	_tick_hazards(delta)
+	if balls.size() > (1 if rest else 0):  # a ball in flight (or held by gum): the enemy's clock runs; never between phases
+		_count_down(delta)
 	if over:
 		return
 	if refresh_in > 0:
@@ -536,7 +536,7 @@ func _move_ball(ball: Ball, delta: float) -> void:
 
 
 ## Paddle contact (pad: the main paddle or relic mini_paddle's): the ball's stored damage and poison land on the enemy,
-## the hit counts the enemy's intent down, the ball's per-flight traits re-arm, and gum with a catch left sticks.
+## a big one ripostes, the ball's per-flight traits re-arm, and gum with a catch left sticks.
 func _paddle_hit(ball: Ball, pad: Box = null) -> void:
 	if not pad:
 		pad = paddle
@@ -576,11 +576,18 @@ func _paddle_hit(ball: Ball, pad: Box = null) -> void:
 		mouth_left -= 1
 		if mouth_left == 0:
 			_mouth_close()
-	enemy.cd_left -= 2 if enemy.has("riposte") and landed >= enemy.riposte else 1  # the warden's riposte: a big shot hurries it
-	if enemy.cd_left == 1:
-		Sfx.play("timed_off")
-	elif enemy.cd_left <= 0:
+	if enemy.has("riposte") and landed >= enemy.riposte:  # the warden's riposte: a big shot hurries it
+		_count_down(Tuning.RIPOSTE_CUT)
+
+
+## The enemy's clock: s seconds off the countdown, the warning cue as it crosses 1 s, the intent at 0.
+func _count_down(s: float) -> void:
+	var was: float = enemy.cd_left
+	enemy.cd_left -= s
+	if enemy.cd_left <= 0:
 		_act()
+	elif was > 1 and enemy.cd_left <= 1:
+		Sfx.play("timed_off")
 
 
 ## A stuck ball leaves the paddle toward the mouse, within the paddle's bounce angle.
@@ -1187,8 +1194,8 @@ func _end(win: bool) -> void:
 
 func _process(_delta: float) -> void:
 	hp_l.text = str(enemy.hp) + (" P%d" % enemy.poison if enemy.poison else "")
-	intent_s.modulate.a = 0.8 + 0.2 * sin(Time.get_ticks_msec() / 1000.0 * TAU * 2) if enemy.cd_left == 1 else 1.0
-	cd_l.text = str(enemy.cd_left)
+	intent_s.modulate.a = 0.8 + 0.2 * sin(Time.get_ticks_msec() / 1000.0 * TAU * 2) if enemy.cd_left <= 1 else 1.0
+	cd_l.text = str(ceili(enemy.cd_left))
 	var px: float = Tuning.HAZARDS.debris.shake_px
 	position = home + (Vector2(randf_range(-px, px), randf_range(-px, px)) if shake > 0 else Vector2.ZERO)
 	queue_redraw()
@@ -1218,13 +1225,15 @@ func _draw() -> void:
 				draw_texture_rect_region(LASER_WARN_TEX if warn else LASER_FIRE_TEX, Rect2(hz.position.x - 30, y, 60, th), Rect2(lf * 30, 0, 30, th / 2))
 				y += 12
 	for b in balls:
+		# The ball's own face, its afterimages fading back along the heading: three while piercing, two at FAST_SPEED.
+		# The needle's shard is drawn pointing up-right, so it turns by heading + 45 degrees.
 		var r := b.radius
-		var trail: Texture2D = PIERCE_TEX if b.pierce_left > 0 else TRAIL_TEX if b.speed >= Tuning.FAST_SPEED else null
-		if trail and b != rest and b.hold <= 0:
-			draw_set_transform(b.position, b.vel.angle(), Vector2.ONE * Fx.SCALE)
-			draw_texture_rect_region(trail, Rect2(-20, -4, 24, 8), Rect2(int(Time.get_ticks_msec() / 83) % 4 * 24, 0, 24, 8))
-			draw_set_transform(Vector2.ZERO)
-		else:
-			draw_texture_rect(b.tex, Rect2(b.position - Vector2(r, r), Vector2(r, r) * 2), false)
+		var v: Vector2 = b.vel if b.vel != Vector2.ZERO else Vector2.UP
+		var turn := v.angle() + PI / 4 if b.id == "ball_pierce" else 0.0
+		var ghosts := 0 if b == rest or b.hold > 0 else 3 if b.pierce_left > 0 else 2 if b.speed >= Tuning.FAST_SPEED else 0
+		for i in range(ghosts, -1, -1):
+			draw_set_transform(b.position - v.normalized() * r * 1.5 * i, turn)
+			draw_texture_rect(b.tex, Rect2(-r, -r, r * 2, r * 2), false, Color(1, 1, 1, 1.0 - i * 0.25))
+		draw_set_transform(Vector2.ZERO)
 	if flash > 0:
 		draw_rect(field, Color(C.danger, 0.25))

@@ -296,7 +296,7 @@ func _init() -> void:
 			["red_hit", 30, 6], ["red_break", 44, 8], ["red_spawn", 30, 6], ["red_bricks_paint", 30, 6], ["enemy_balls_warn", 8, 4], ["enemy_balls_fly", 8, 4],
 			["debris_fall", 8, 4], ["laser_sweep_warn", 30, 4], ["laser_sweep_fire", 30, 6], ["maw_mouth_open", 48, 6], ["maw_mouth_close", 48, 6],
 			["recall_rise", 12, 6], ["relic_get", 36, 6], ["map_ring_pulse", 16, 4],
-			["ball_bounce", 12, 6], ["ball_trail", 24, 4], ["pierce_trail", 24, 4], ["ball_lost", 12, 6], ["sticky_hold", 30, 6], ["bomb_ring", 60, 4], ["paddle_hit", 60, 4],
+			["ball_bounce", 12, 6], ["ball_lost", 12, 6], ["sticky_hold", 30, 6], ["bomb_ring", 60, 4], ["paddle_hit", 60, 4],
 			["mag_hit", 30, 6], ["blue_hit", 30, 6], ["ora_hit", 30, 6], ["mag_break", 44, 8], ["blue_break", 44, 8], ["ora_break", 44, 8],
 			["mag_spawn", 30, 6], ["blue_spawn", 30, 6], ["ora_spawn", 30, 6], ["icon_bomb_pulse", 30, 4], ["halo_pulse", 60, 4], ["halo_pulse_ora", 60, 4],
 			["solid_bounce", 44, 6], ["dust_puff", 12, 4], ["shield_floor", 32, 4], ["shield_floor_pop", 32, 6], ["magnet_pull", 44, 4], ["combo_chase", 30, 8], ["toll_pay", 30, 6],

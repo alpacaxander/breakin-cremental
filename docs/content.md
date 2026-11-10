@@ -4,13 +4,13 @@ The single source for asset and code agents. It resolves the eight pool specs; w
 
 Maps: map 1, Back Alley Arcade (`docs/content/maps/back-alley-arcade.md`), landed on 2026-11-10; its rows below win over the proposal. Still proposals, not in `tuning.gd`: `docs/content/maps/corp-tower.md`, `docs/content/maps/deep-net.md`. The run is still one five-layer map; map 1's enemies, hazards, events, shop and balls joined the existing pools rather than replacing them.
 
-Vocabulary: a **fight** is one enemy on one board. A **phase** is one launch from the bag until every ball in play has dropped (design.md's "turn"). A **paddle hit** is a player ball touching a paddle; it is the one clock in a fight.
+Vocabulary: a **fight** is one enemy on one board. A **phase** is one launch from the bag until every ball in play has dropped (design.md's "turn"). A **paddle hit** is a player ball touching a paddle. The fight's clock is seconds with a ball in flight.
 
 ## Decisions that cut across pools
 
 | topic | decision | lost proposals |
 |---|---|---|
-| Enemy attack timing | **Paddle hits** (enemies.md and hazards.md agreed; run.md adopted it). Every enemy has `cd`; each paddle hit by a player ball drops it by 1; at 0 the current intent fires on the spot, mid-phase, and the next intent (cyclic) shows with `cd` reset. Hostile objects touching the paddle do not count. Nothing fires between phases; the between-phase beat is 0.8 s of the enemy idling. | screens.md "YOUR TURN / ENEMY TURN" bands and `turn_you`/`turn_enemy` cues; design.md core loop step 3 is reworded to "enemies act mid-phase on a paddle-hit countdown". |
+| Enemy attack timing | **Seconds** (paddle hits until 2026-11-10; one paddle hit was taken as 2 s at `BALL_SPEED` 350, so every `cd` doubled). Every enemy has `cd` in seconds; it runs down while any player ball is in flight (not while one rests on the paddle); at 0 the current intent fires on the spot, mid-phase, and the next intent (cyclic) shows with `cd` reset. Nothing fires between phases; the between-phase beat is 0.8 s of the enemy idling. | screens.md "YOUR TURN / ENEMY TURN" bands and `turn_you`/`turn_enemy` cues; design.md core loop step 3 is reworded to "enemies act mid-phase on a countdown of seconds". |
 | Hazard ids | `red_bricks`, `enemy_balls`, `debris`, `laser_sweep`, `shield_row` (five). | `floor_goo` (no enemy intends it), `fuse` brick, `mouth` is a boss intent, not a hazard id. |
 | Hazard damage | One number per hazard row (HAZARDS table), not per enemy. Elite and boss hit harder through `count`. | enemies.md `atk` column. |
 | Red brick HP cost | 3 (bricks pool owns the row). | hazards.md 4. |
@@ -21,7 +21,7 @@ Vocabulary: a **fight** is one enemy on one board. A **phase** is one launch fro
 | Map | run.md: 9 nodes, 5 layers, forced shop in layer 4, elite in layer 3 slot 0, nodes at x = 60 + 90*(layer-1). Legend lives in the left column. | screens.md 8-node topology and field legend. |
 | Ball ids | `ball_<name>`; faces are frame `rank-1` of `<id>_rank`. | run.md save shape with bare `basic`; screens.md static `ball_<id>`. |
 | Enemy strips | enemies.md names `<id>_idle/_hit/_attack/_die`, sizes 48/48/64/64/160 wide, 48 tall. Anchor bottom centre at sprite (240,54). HP bar at the top of the field (screens.md). | screens.md `enemy_<id>_hurt`, boss 64x48, enemies.md under-feet bar. |
-| Intent icons | `intent_<hazard_id>` plus `intent_mouth`, 12x12 statics; pulse in-engine when the countdown is 1. | `ui_intent_*`, `<id>_intent`, `intent_shield`, `intent_heal`. |
+| Intent icons | `intent_<hazard_id>` plus `intent_mouth`, 12x12 statics; pulse in-engine in the countdown's last second. | `ui_intent_*`, `<id>_intent`, `intent_shield`, `intent_heal`. |
 | Cards | One `card_frame` (+`_hot`, `_dim`) 36x48 with a separate face. | `card_ball`, `card_relic`, `card_gold`, `card_rank`. |
 | Relic icons | `relic_<id>` 12x12 statics. | relics.md 10x10. |
 | Sound | sound.md owns: **five new wavs** (`damage_land`, `hp_lose`, `enemy_die`, `run_over`, `run_won`); every other moment plays an existing cue at a rate. Player events at or above 1.0, enemy events at or below 0.8. Enemy cue offsets `off`: glob 0, lobber -2, mason -4, warden -5, maw -7 semitones. | every other pool's new cue name (`dmg_fire`, `hp_hit`, `paddle_hurt`, `red_paint`, `laser_*`, `debris_slam`, `goo_hum`, `relic_get`, `shield_floor_pop`, `poison_tick`, `junk_thud`, `ball_rank_up`, `map_pick`, `map_hop`, `gold_gain`, `reward_pick`, `shop_buy`, `event_pick`, `intent_tick`, `<enemy>_attack`, `maw_mouth_*`). Cues `recall` and `coin` already exist and are reused. |
@@ -42,7 +42,7 @@ Vocabulary: a **fight** is one enemy on one board. A **phase** is one launch fro
 | `stats` | `fights`, `elites`, `damage`, `bricks`, `best_fire`, `drops`, `gold_earned`, `seconds`, `killer` | end-screen lines | | |
 | `enemy_turn` | 0.8 s | between-phase beat | | `combo_drop 0.8` at phase end |
 | `regen_below` | 10 | breakables left at phase start that trigger a free refresh | `refresh_wave` | `regrow 1.0` |
-| `ramp_on`, `ramp_after`, `ramp_per_s`, `ramp_max` | false, 20 s, 0.02, 1.6 | speed ramp on long-lived balls (design.md fallback, off by default); a sticky catch or re-bagging resets it | `ball_trail` at >= `FAST_SPEED` | |
+| `ramp_on`, `ramp_after`, `ramp_per_s`, `ramp_max` | false, 20 s, 0.02, 1.6 | speed ramp on long-lived balls (design.md fallback, off by default); a sticky catch or re-bagging resets it | two afterimages at >= `FAST_SPEED` | |
 
 Save: `user://run.json` `{version, seed, hp, hp_max, gold, bag, relics, removed, map{layers, enemies, events, path, layer, node}, stats}`; written on map entry, after a reward pick, an event choice and each shop purchase; never mid-fight (a fight restarts on load: `# ponytail: one re-rolled fight per quit`). Deleted when an end screen opens or NEW RUN is pressed. Present file = CONTINUE on the menu. `tests/smoke.tscn` saves and restores it. The dev `sandbox.json` slot is cut.
 
@@ -92,9 +92,9 @@ Event frame: panel (120,60) 400x230 sprite px, title k2 `pay`, body k1 wrapped 3
 | `phase_start` | bag empty: shuffle the discard pile into it. `< regen_below` breakables: free refresh. Rest `bag[0]` on the paddle; click/space launches straight up with the paddle-offset angle | | `ball_launch st(rank-1)` (junk `0.6`) |
 | `discard` | once per phase while a ball rests: D / right-click / DISCARD button; head ball to the discard pile, next rests | | `ui_drop 1.0` |
 | `store` | a ball breaking a brick adds `ball.dmg * brick.dmg` to `ball.stored` (relic `combo` scales) | `stored_tag` 25x8 x4 @8 rides 6 sprite px above the ball, number as a `pay` label, hidden at 0 | |
-| `fire` | paddle contact: `enemy.hp -= stored`, `stored = 0`; 0 stored is a plain catch. Every contact is one paddle hit for the countdown. Warden: 10+ landed drops it by 2 | `damage_fire` 60x8 x6 @12 on the paddle; `<enemy>_hit`; number flies to the HP bar over 0.25 s then the bar shrinks | `damage_land`: 1-9 `1.0`, 10-29 `st(2)`, 30-99 `st(4)`, 100+ `st(7)`; `bumper_hit 0.6*st(off)`; `count_tick 1.0` per tick; 0 stored: `paddle_hit` speed ladder (heavy `0.7`) |
+| `fire` | paddle contact: `enemy.hp -= stored`, `stored = 0`; 0 stored is a plain catch. Warden: 10+ landed takes `RIPOSTE_CUT` 2 s off the countdown | `damage_fire` 60x8 x6 @12 on the paddle; `<enemy>_hit`; number flies to the HP bar over 0.25 s then the bar shrinks | `damage_land`: 1-9 `1.0`, 10-29 `st(2)`, 30-99 `st(4)`, 100+ `st(7)`; `bumper_hit 0.6*st(off)`; `count_tick 1.0` per tick; 0 stored: `paddle_hit` speed ladder (heavy `0.7`) |
 | `drop` | past the paddle line: stored lost, ball to the discard pile; relics `shield_floor`, `recall` intercept | `ball_lost` 12x12 x6 @12 (exists) | `ball_lost 1.0` if it carried damage, else `0.7` at gain 0.5 |
-| `countdown` | per paddle hit `cd -= 1`; at 0 the intent fires, next intent shows, `cd` resets | intent icon pulses alpha 0.6..1 at 2 Hz when `cd == 1` | `timed_off 1.0` when it reaches 1; `hit_refused 0.5*st(off)` as it fires |
+| `countdown` | `cd` seconds tick down while a ball is in flight, shown rounded up; at 0 the intent fires, next intent shows, `cd` resets | intent icon pulses alpha 0.6..1 at 2 Hz in the last second | `timed_off 1.0` as it crosses 1 s; `hit_refused 0.5*st(off)` as it fires |
 | `crit` | `crit` breaks: launch `bag.pop_front()` from the paddle straight up; empty bag: nothing | `crit_launch` | `multiball_pop st(2*min(n,4))`, n = balls already in play; empty `hit_refused 0.8` |
 | `empty_board` | no breakable left, a ball live: after 1.0 s one `refresh` spawns at a random original slot | `mint_spawn` | |
 | `phase_end` | `balls_in_play == 0`: `on_phase_end` hooks, poison tick, in-flight hazards (`enemy_balls`, `debris`) removed, placed ones (red bricks, shield row, laser telegraph) stay; 0.8 s beat; `phase_start` | | `combo_drop 0.8`; poison `pips_shrink 0.8` |
@@ -112,7 +112,7 @@ Common: `dmg` is per brick broken, `size` and `speed` multiply `BALL_RADIUS` 8 a
 | `ball_basic` | PEBBLE | common | 1/2/3 | 1.0 | 1.0 | none | `ball_basic_rank` 8x8 x3 still (frame 2 == `ball`) | |
 | `ball_heavy` | BOULDER | common | 3/5/7 | 1.5 | 0.8 | none beyond the numbers | `ball_heavy_rank` 12x12 x3 | paddle catch `paddle_hit 0.7` |
 | `ball_split` | SPLITTER | common | 1/2/3 | 1.0 | 1.0 | first break after each launch or paddle hit: becomes `split` = 2/2/3 balls fanned +-20 deg; halves are full copies that cannot split again until the next paddle hit, each stores its own damage | `ball_split_rank` 8x8 x3; `ball_split_pop` 16x16 x6 @12 | `split_pop 1.0` |
-| `ball_pierce` | NEEDLE | uncommon | 1/2/3 | 0.75 | 1.2 | after each launch or paddle hit passes through and breaks the next `pierce` = 3/5/8 bricks; `solid`, walls and paddles always bounce it | `ball_pierce_rank` 6x6 x3; `pierce_trail` 24x8 x4 @12 (exists) while piercing | `pierce_swish 1.0` per brick |
+| `ball_pierce` | NEEDLE | uncommon | 1/2/3 | 0.75 | 1.2 | after each launch or paddle hit passes through and breaks the next `pierce` = 3/5/8 bricks; `solid`, walls and paddles always bounce it | `ball_pierce_rank` 6x6 x3, turned to its heading; three fading afterimages of its face while piercing | `pierce_swish 1.0` per brick |
 | `ball_sticky` | GUM | uncommon | 2/3/4 | 1.0 | 1.0 | the first `catches` = 1/2/3 paddle contacts per phase catch it: damage fires, the ball sits `STICKY_HOLD` 1.5 s or until click/space, relaunches toward the mouse clamped to `MAX_BOUNCE_DEG` | `ball_sticky_rank` 8x8 x3; `sticky_hold` 30x16 x6 @8 (exists, holds its last frame) | `sticky_catch 1.0`, `sticky_fire 1.0` |
 | `ball_bomb` | BLASTER | uncommon | 1/2/3 | 1.0 | 1.0 | every `every` = 5/4/3rd brick it breaks (per fight) also fires a `BOMB_RADIUS` blast at that brick through `_trigger`; blast-broken bricks are credited to this ball, no direct damage | `ball_bomb_rank` 8x8 x3; `bomb_ring` 60x60 x4 @12 (exists) | `bomb_boom 1.0` |
 | `ball_poison` | SPORE | rare | 0/0/1 | 1.0 | 1.0 | each brick also stores `poison` = 1/2/3 stacks; stacks land with the damage; tick at phase end (above) | `ball_poison_rank` 8x8 x3; `ball_poison_land` 12x12 x4 @12 on the paddle | tick `pips_shrink 0.8` |
@@ -121,7 +121,7 @@ Common: `dmg` is per brick broken, `size` and `speed` multiply `BALL_RADIUS` 8 a
 | `ball_rubber` | RUBBER | uncommon, `map` 1 | 1/2/3 | 1.0 | 1.0 | the first `floor` = 1/2/3 drops per phase bounce it straight up off the floor (relic `shield_floor`'s `_save`, the ball's own count first) | `ball_rubber_rank` 8x8 x3; `shield_floor_pop` | `shield_pop 1.0` |
 | `ball_magnet` | MAGNET | uncommon, `map` 1 | 2/3/4 | 1.0 | 1.0 | pulled toward the paddle within `MAGNET_RADIUS` at `magnet` = 0.5/1.0/1.5 x `MAGNET_PULL`, added to relic `magnet_paddle`'s 1.0 | `ball_magnet_rank` 8x8 x3 | |
 
-Locked: `ball_bomb` until `finished_run`, `ball_poison` until `killed_elite`. Invariant: the bag always holds at least one non-junk ball (removal refuses). Every ball reuses `ball_bounce` 12x12 x6 @12 and `ball_trail` 24x8 x4 @12 at >= `FAST_SPEED` (exist); `ball_bounce 1.0` on walls.
+Locked: `ball_bomb` until `finished_run`, `ball_poison` until `killed_elite`. Invariant: the bag always holds at least one non-junk ball (removal refuses). Every ball reuses `ball_bounce` 12x12 x6 @12 (exists) and draws two fading afterimages of its own face at >= `FAST_SPEED`; `ball_bounce 1.0` on walls.
 
 ## Bricks (`Tuning.BRICKS`, `Tuning.BOARDS`)
 
@@ -195,21 +195,21 @@ One enemy per fight. `tier` = earliest layer. Intents cycle in order; each entry
 
 | id | role | tier | HP | cd | board | intents | strips (W x 48 sprite px) | cues (`off` st) |
 |---|---|---|---|---|---|---|---|---|
-| `glob` | regular | 1 | 30 | 6 | goo blob, crit behind reds | `red_bricks` x3, `debris` x4 | `glob_idle` 48 x4 @8, `glob_hit` 48 x6 @12, `glob_attack` 48 x6 @12, `glob_die` 48 x8 @12 | 0 |
-| `lobber` | regular | 1 | 40 | 5 | fortress with a gate | `enemy_balls` x1, `enemy_balls` x3 | `lobber_idle/_hit/_attack/_die` 48, same counts | -2 |
-| `mason` | regular | 3 | 55 | 6 | solid-ringed vault of crits | `shield_row`, `debris` x6 | `mason_*` 64 | -4 |
-| `warden` | elite | 4 | 120 | 5 | two solid pillars, crits in the middle lane; **riposte**: a paddle hit landing 10+ drops `cd` by 2 | `laser_sweep` x1, `enemy_balls` x3, `shield_row` | `warden_*` 64 | -5 |
-| `maw` | boss | 5 | 240 | 4 | jaws with solid teeth, crits in the throat, `BOARD_TOP` +32, no `refresh` in rows 0-1; below 50% HP `cd` 3 and the mouth holds 6 hits | `debris` x8, `mouth`, `laser_sweep` x2 | `maw_*` 160; `maw_mouth_open` 48x16 x6 @12 (hold last), `maw_mouth_close` 48x16 x6 @12 | -7 |
-| `rat_king` | regular | 1 | 35 | 6 | nest, crits in the corners | `coin_junk` x1, `debris` x3 | `rat_king_*` 64 | +3 |
-| `coin_slug` | regular | 1 | 40 | 5 | one gold brick mid blob | `coin_junk` x2, `red_bricks` x2 | `coin_slug_*` 48 | -1 |
-| `fuse_box` | regular | 2 | 45 | 6 | a diagonal fuse of bombs | `red_bricks` x2, `debris` x6 | `fuse_box_*` 48 | +1 |
-| `claw_rig` | regular | 2 | 50 | 5 | two pillars, a lane of crits | `pull` x1, `enemy_balls` x2 | `claw_rig_*` 64 | -3 |
-| `ticket_printer` | regular | 2 | 45 | 6 | rows that feed toward the paddle; **advance** 1 row per phase | `jam` x1, `red_bricks` x4 | `ticket_printer_*` 48 | +2 |
-| `bootleg_cabinet` | regular | 3 | 55 | 5 | a solid case, a cracked screen | `enemy_balls` x3, `debris` x4 | `bootleg_cabinet_*` 48 | -2 |
-| `repo_man` | elite | 4 | 110 | 5 | a vault, the shield row up at fight start; **steal** 1: every ball that drops costs 1 gold (not below 0) | `shield_row`, `coin_junk` x2, `debris` x6 | `repo_man_*` 64 | -6 |
-| `arcade_bouncer` | elite | 4 | 130 | 5 | solid rope lines narrowing upward; **twice** 0.3: a phase's first intent fires again 0.3 s later | `jam` x2, `enemy_balls` x4 | `arcade_bouncer_*` 64 | -5 |
-| `jackpot_reel` | elite | 4 | 115 | 6 | three reels with a gold brick each; **jackpot** 30: its gold bricks pay only when all three break in one phase | `pull` x1, `red_bricks` x3, `debris` x8 | `jackpot_reel_*` 64 | -3 |
-| `attract_mode` | boss | 5 | 220 | 4 | a screen frame, a high-score table of crits, `BOARD_TOP` +32, no `refresh` in rows 0-1; below 50% HP **mimic**: each `enemy_balls` ball copies the run bag's next ball in order (its size and speed; a splitter's fan of `split` copies; a needle has nothing to pass and flies plain) | `jam` x1, `enemy_balls` x5, `pull` x1 | `attract_mode_*` 160 | -8 |
+| `glob` | regular | 1 | 30 | 12 s | goo blob, crit behind reds | `red_bricks` x3, `debris` x4 | `glob_idle` 48 x4 @8, `glob_hit` 48 x6 @12, `glob_attack` 48 x6 @12, `glob_die` 48 x8 @12 | 0 |
+| `lobber` | regular | 1 | 40 | 10 s | fortress with a gate | `enemy_balls` x1, `enemy_balls` x3 | `lobber_idle/_hit/_attack/_die` 48, same counts | -2 |
+| `mason` | regular | 3 | 55 | 12 s | solid-ringed vault of crits | `shield_row`, `debris` x6 | `mason_*` 64 | -4 |
+| `warden` | elite | 4 | 120 | 10 s | two solid pillars, crits in the middle lane; **riposte**: a paddle hit landing 10+ takes 2 s off the countdown | `laser_sweep` x1, `enemy_balls` x3, `shield_row` | `warden_*` 64 | -5 |
+| `maw` | boss | 5 | 240 | 8 s | jaws with solid teeth, crits in the throat, `BOARD_TOP` +32, no `refresh` in rows 0-1; below 50% HP `cd` 6 s and the mouth holds 6 hits | `debris` x8, `mouth`, `laser_sweep` x2 | `maw_*` 160; `maw_mouth_open` 48x16 x6 @12 (hold last), `maw_mouth_close` 48x16 x6 @12 | -7 |
+| `rat_king` | regular | 1 | 35 | 12 s | nest, crits in the corners | `coin_junk` x1, `debris` x3 | `rat_king_*` 64 | +3 |
+| `coin_slug` | regular | 1 | 40 | 10 s | one gold brick mid blob | `coin_junk` x2, `red_bricks` x2 | `coin_slug_*` 48 | -1 |
+| `fuse_box` | regular | 2 | 45 | 12 s | a diagonal fuse of bombs | `red_bricks` x2, `debris` x6 | `fuse_box_*` 48 | +1 |
+| `claw_rig` | regular | 2 | 50 | 10 s | two pillars, a lane of crits | `pull` x1, `enemy_balls` x2 | `claw_rig_*` 64 | -3 |
+| `ticket_printer` | regular | 2 | 45 | 12 s | rows that feed toward the paddle; **advance** 1 row per phase | `jam` x1, `red_bricks` x4 | `ticket_printer_*` 48 | +2 |
+| `bootleg_cabinet` | regular | 3 | 55 | 10 s | a solid case, a cracked screen | `enemy_balls` x3, `debris` x4 | `bootleg_cabinet_*` 48 | -2 |
+| `repo_man` | elite | 4 | 110 | 10 s | a vault, the shield row up at fight start; **steal** 1: every ball that drops costs 1 gold (not below 0) | `shield_row`, `coin_junk` x2, `debris` x6 | `repo_man_*` 64 | -6 |
+| `arcade_bouncer` | elite | 4 | 130 | 10 s | solid rope lines narrowing upward; **twice** 0.3: a phase's first intent fires again 0.3 s later | `jam` x2, `enemy_balls` x4 | `arcade_bouncer_*` 64 | -5 |
+| `jackpot_reel` | elite | 4 | 115 | 12 s | three reels with a gold brick each; **jackpot** 30: its gold bricks pay only when all three break in one phase | `pull` x1, `red_bricks` x3, `debris` x8 | `jackpot_reel_*` 64 | -3 |
+| `attract_mode` | boss | 5 | 220 | 8 s | a screen frame, a high-score table of crits, `BOARD_TOP` +32, no `refresh` in rows 0-1; below 50% HP **mimic**: each `enemy_balls` ball copies the run bag's next ball in order (its size and speed; a splitter's fan of `split` copies; a needle has nothing to pass and flies plain) | `jam` x1, `enemy_balls` x5, `pull` x1 | `attract_mode_*` 160 | -8 |
 
 Enrage is one rule: a row's `enraged` fields (`cd`, `mouth`, `mimic`) merge into the enemy once its HP is at or below `enraged.at` of its max (`_land`).
 
@@ -285,7 +285,7 @@ A ball or relic row carries `locked = "<flag>"`; `Game.unlocked(id)` is `not row
 
 New strips (name, frame W x H sprite px, frames, fps): `ball_basic_rank` 8x8 3 still, `ball_heavy_rank` 12x12 3, `ball_split_rank` 8x8 3, `ball_pierce_rank` 6x6 3, `ball_sticky_rank` 8x8 3, `ball_bomb_rank` 8x8 3, `ball_poison_rank` 8x8 3, `ball_junk_rank` 8x8 1, `ball_split_pop` 16x16 6 @12, `ball_poison_land` 12x12 4 @12, `stored_tag` 25x8 4 @8, `damage_fire` 60x8 6 @12, `paddle_hurt` 60x8 4 @12, `crit_pulse` 30x12 4 @8, `crit_launch` 30x12 6 @12, `refresh_pulse` 30x12 4 @8, `refresh_wave` 60x12 6 @12, `mint_hit` 30x12 6 @12, `mint_break` 44x20 8 @12, `mint_spawn` 30x12 6 @12, `red_hit` 30x12 6 @12, `red_break` 44x20 8 @12, `red_spawn` 30x12 6 @12, `red_bricks_paint` 30x12 6 @12, `enemy_balls_warn` 8x8 4 @8, `enemy_balls_fly` 8x8 4 @8, `debris_fall` 8x8 4 @8, `laser_sweep_warn` 30x6 4 @8, `laser_sweep_fire` 30x6 6 @12, `glob_idle` 48x48 4 @8, `glob_hit` 48x48 6 @12, `glob_attack` 48x48 6 @12, `glob_die` 48x48 8 @12, `lobber_idle/_hit/_attack/_die` 48x48 4/6/6/8, `mason_idle/_hit/_attack/_die` 64x48 4/6/6/8, `warden_idle/_hit/_attack/_die` 64x48 4/6/6/8, `maw_idle/_hit/_attack/_die` 160x48 4/6/6/8, `maw_mouth_open` 48x16 6 @12, `maw_mouth_close` 48x16 6 @12, `recall_rise` 12x12 6 @12, `relic_get` 36x48 6 @12, `map_ring_pulse` 16x16 4 @8.
 
-Reused strips: `ball_bounce` 12x12 6, `ball_trail` 24x8 4, `pierce_trail` 24x8 4, `ball_lost` 12x12 6, `sticky_hold` 30x16 6, `bomb_ring` 60x60 4, `paddle_hit` 60x8 4, `mag_hit`/`blue_hit`/`ora_hit` 30x12 6, `mag_break`/`blue_break`/`ora_break` 44x20 8, `mag_spawn`/`blue_spawn`/`ora_spawn` 30x12 6, `icon_bomb_pulse` 30x12 4 (recoloured), `halo_pulse`, `halo_pulse_ora` 60x30 4, `solid_bounce` 44x20 6, `dust_puff` 12x8 4, `shield_floor` 32x4 4, `shield_floor_pop` 32x8 6, `magnet_pull` 44x20 4, `combo_chase` 30x12 8, `toll_pay` 30x12 6.
+Reused strips: `ball_bounce` 12x12 6, `ball_lost` 12x12 6, `sticky_hold` 30x16 6, `bomb_ring` 60x60 4, `paddle_hit` 60x8 4, `mag_hit`/`blue_hit`/`ora_hit` 30x12 6, `mag_break`/`blue_break`/`ora_break` 44x20 8, `mag_spawn`/`blue_spawn`/`ora_spawn` 30x12 6, `icon_bomb_pulse` 30x12 4 (recoloured), `halo_pulse`, `halo_pulse_ora` 60x30 4, `solid_bounce` 44x20 6, `dust_puff` 12x8 4, `shield_floor` 32x4 4, `shield_floor_pop` 32x8 6, `magnet_pull` 44x20 4, `combo_chase` 30x12 8, `toll_pay` 30x12 6.
 
 Reused statics: `ball`, `coin`, `paddle`, `paddle_mini`, `brick_plain_lit`, `brick_solid`, `title_logo`, `ui_badge`, `ui_slot_hover`, `ui_pip_pay`, `ui_pip_off` (all exist).
 
