@@ -1,207 +1,172 @@
 ## Every tunable number and per-kind table lives here. Edit, rerun.
+## Run rewrite (docs/content.md "Code steps"): the incremental loop's tables are cut; the run tables below drive game.gd,
+## arena.gd and main.gd. Numbers and names follow docs/content.md; it wins where they differ.
 
 # Game px are 2x sprite px. The arena's origin is its top-left corner; the cabinet (ui.gd) centres it between the columns.
-const ARENA := Vector2(960, 720)  # default arena size and the largest allowed: the cabinet's 4:3 field; other ratios scale down into it
+const ARENA := Vector2(960, 720)  # the arena size: the cabinet's 4:3 field
 
 # Paddle / ball feel
 const PADDLE_WIDTH := 120.0
 const PADDLE_HEIGHT := 16.0
 const PADDLE_UP := 40.0  # paddle centre above the arena floor
-const PADDLE_SPEED := 500.0  # px/s cap for both mouse-follow and keys; the seed upgrade raises it (1400 at max rank)
+const PADDLE_SPEED := 800.0  # px/s cap for both mouse-follow and keys
 const BALL_SPEED := 480.0
 const BALL_RADIUS := 8.0
 const MAX_BOUNCE_DEG := 60.0  # angle off vertical when the ball hits the paddle edge
 const MIN_VERTICAL := 0.25  # min |vy| as a fraction of speed, stops near-horizontal loops
 
-# Round
-const ROUND_TIME_BASE := 20.0
-const TIME_BAR_PX := 0.75  # HUD time bar px per second, so a longer round shows as a longer bar; capped at the column width
+# Combo (relic `combo`, step 7): window START seconds, mult = 1 + PER_HIT * (combo - 1)
+const COMBO_WINDOW_START := 1.0
+const COMBO_MULT_PER_HIT := 0.25
 
-# Combo: window(n) = START + upgrades - SHRINK * (n - 1), floored at MIN. No combo at all until the combos node is bought (arena.gd _break).
-const COMBO_WINDOW_START := 1.0  # the combos node adds its amount from rank 1, so the first rank gives 1.5
-const COMBO_WINDOW_SHRINK := 0.1
-const COMBO_WINDOW_MIN := 0.4
-const COMBO_MULT_PER_HIT := 0.25  # mult = 1 + this * (combo - 1)
-
-# Board generation. shape: "grid", "triangle" (rows narrow by 2 going up) or "honey" (odd rows one brick short, so offset half a step).
+# Board generation. shape: "grid" or "honey" (odd rows one brick short, so offset half a step).
 const BRICK_SIZE := Vector2(60, 24)
 const BRICK_GAP := 4.0
-const BOARD_TOP := 100.0  # 44 + two brick rows (2 * (24 + 4)); a level row's top overrides it
-# holes: chance a slot is a hole brick (no ball contact, blocks placement). solid: chance of an unbreakable brick.
-# special: kind -> chance per brick (see BRICKS). jackpot: one 777 brick per board. seq: one 1-2-3 run per board.
-# arena: size in standard bricks, cols x rows (game.gd arena_size), default ARENA px (never larger). top: first row centre y, default BOARD_TOP. walls: extra Rect2s in arena px for other shapes; the board must still fit (test.gd).
-# skip: column indices left empty (room for a wall). time: round time scale, default 1. Fit at 960x720: cols <= 15, rows <= 16.
-# unlock: how the previous level opens this one; default clear its board, {combo = n} a combo of n in one round (game.gd finish_level).
-# The ramp: each level puts more on screen and needs a bigger combo than the last (docs/ideas.md, Level design).
-const LEVELS := [
-	# 1: low ceiling, three rows wall to wall (the edge margin is one brick gap), three rows of air above. Plain bricks only: what the player unlocks is all that shows.
-	{shape = "grid", cols = 10, rows = 3, holes = 0, solid = 0, payout = 1, arena = Vector2(10, 18), top = 96.0},
-	{shape = "columns", cols = 14, rows = 14, holes = 0, solid = 0, payout = 2, unlock = {combo = 10}},  # plain bricks only, like level 1
-	{shape = "grid", cols = 15, rows = 7, holes = 0.08, solid = 0.1, payout = 3, jackpot = true, seq = true,
-		special = {multi = 0.1, multi3 = 0.05, shield = 0.05, cond = 0.06, timed = 0.05, cgate = 0.04, x2 = 0.03, x3 = 0.02, combo = 0.03, timer = 0.02, multiball = 0.03, speedup = 0.03, slowdown = 0.02, chain = 0.04, bomb = 0.03, bolt = 0.02, mystery = 0.03}},
-	# 4 Honeycomb: offset rows leave diagonal corridors; bolts and speedups at the mouths.
-	{shape = "honey", cols = 13, rows = 8, holes = 0.12, solid = 0.04, payout = 4, jackpot = true, seq = true,
-		special = {multi = 0.08, shield = 0.03, cond = 0.04, timed = 0.03, cgate = 0.03, x2 = 0.03, combo = 0.03, timer = 0.02, multiball = 0.03, speedup = 0.06, chain = 0.02, bomb = 0.02, bolt = 0.06, mystery = 0.02}},
-	# 5 Multiball rain: a swarm is the normal state, combo bricks keep one chain alive, shorter clock.
-	{shape = "grid", cols = 14, rows = 8, holes = 0.08, solid = 0.04, payout = 5, time = 0.8, jackpot = true,
-		special = {multi = 0.06, shield = 0.03, cond = 0.04, cgate = 0.04, x2 = 0.04, x3 = 0.02, combo = 0.06, timer = 0.02, multiball = 0.1, speedup = 0.03, chain = 0.02, bomb = 0.02, bolt = 0.02, mystery = 0.02}},
-	# 6 Tall stack: the most rows yet, a long trip up that pays the whole way.
-	{shape = "grid", cols = 13, rows = 12, holes = 0.1, solid = 0.05, payout = 6, arena = Vector2(14, 25), jackpot = true, seq = true,
-		special = {multi = 0.08, multi3 = 0.03, shield = 0.03, cond = 0.05, timed = 0.03, cgate = 0.04, x2 = 0.03, x3 = 0.02, combo = 0.04, timer = 0.03, multiball = 0.04, speedup = 0.06, chain = 0.03, bomb = 0.03, bolt = 0.05, mystery = 0.02}},
-	# 7 Pinball: holes and solids as posts between clusters, the ball ricochets cluster to cluster. Sells capacity.
-	{shape = "grid", cols = 15, rows = 9, holes = 0.16, solid = 0.1, payout = 7, jackpot = true, seq = true,
-		special = {multi = 0.08, multi3 = 0.03, shield = 0.04, cond = 0.05, timed = 0.03, cgate = 0.04, x2 = 0.04, x3 = 0.02, combo = 0.04, timer = 0.02, multiball = 0.05, speedup = 0.05, slowdown = 0.02, chain = 0.03, bomb = 0.03, bolt = 0.03, mystery = 0.03}},
-	# 8 Chain field: a tight lattice of shockers and bombs, one hit cascades and the counter climbs on its own.
-	{shape = "grid", cols = 15, rows = 10, holes = 0.04, solid = 0.02, payout = 8, jackpot = true,
-		special = {multi = 0.06, shield = 0.03, cond = 0.04, cgate = 0.04, x2 = 0.04, x3 = 0.02, combo = 0.04, timer = 0.02, multiball = 0.04, speedup = 0.04, chain = 0.1, bomb = 0.06, bolt = 0.03, mystery = 0.02}},
-	# 9 Double wide: two boards split by a divider the ball flies over; the far half is for spawned balls and portals.
-	{shape = "grid", cols = 15, rows = 10, holes = 0.06, solid = 0.03, payout = 9, skip = [7], walls = [Rect2(472, 180, 16, 380)], jackpot = true, seq = true,
-		special = {multi = 0.08, multi3 = 0.03, shield = 0.03, cond = 0.05, timed = 0.03, cgate = 0.04, x2 = 0.04, x3 = 0.02, combo = 0.05, timer = 0.03, multiball = 0.08, speedup = 0.04, chain = 0.03, bomb = 0.03, bolt = 0.04, mystery = 0.02}},
-	# 10 Storm: every action brick at once on a dense tall grid, short clock. The clear is one run that never drops.
-	{shape = "grid", cols = 15, rows = 12, holes = 0.08, solid = 0.03, payout = 11, time = 0.7, jackpot = true, seq = true,
-		special = {multi = 0.06, shield = 0.03, cond = 0.05, timed = 0.03, cgate = 0.05, x2 = 0.05, x3 = 0.03, combo = 0.05, timer = 0.03, multiball = 0.1, speedup = 0.08, chain = 0.04, bomb = 0.04, bolt = 0.05, mystery = 0.03}},
-	# 11 Open sky: a few rows at the top of a full arena, the empty middle is the player's own machine.
-	{shape = "grid", cols = 15, rows = 5, holes = 0.05, solid = 0.0, payout = 13, time = 0.9, jackpot = true,
-		special = {multi = 0.08, multi3 = 0.04, shield = 0.04, cond = 0.05, cgate = 0.05, x2 = 0.04, x3 = 0.03, combo = 0.06, timer = 0.03, multiball = 0.06, speedup = 0.04, chain = 0.03, bomb = 0.04, bolt = 0.03, mystery = 0.03}},
-	# 12 Finale: the biggest board the arena holds, every kind, the shortest clock per brick. Clear it to win.
-	{shape = "grid", cols = 15, rows = 15, holes = 0.06, solid = 0.04, payout = 16, time = 0.6, jackpot = true, seq = true,
-		special = {multi = 0.08, multi3 = 0.04, shield = 0.04, cond = 0.05, timed = 0.04, cgate = 0.05, x2 = 0.05, x3 = 0.03, combo = 0.05, timer = 0.03, multiball = 0.08, speedup = 0.06, slowdown = 0.02, chain = 0.05, bomb = 0.04, bolt = 0.05, mystery = 0.03}},
-]
-
-# Board brick kinds. hp: hits to break (-1 never). pay: payout multiplier on break.
-# face: the still look, a sprite name or [strip, frame width, frame]. idle: a looping [strip, frame width, fps] over it.
-# Icon kinds (multiball..mystery) fire an effect on break and draw their icon_<kind>_pulse strip, so they carry no face here.
-# cond breaks only from a ball at FAST_SPEED. cgate only at combo >= GATE_COMBO. timed only while lit.
-# seq1..3 only in order. shield loses its shield first. Behaviour: arena.gd _hit, _damage, _effect (adding a kind: CLAUDE.md).
-# hue: the colour group (docs/palette.md), which picks the <hue>_hit/_break/_spawn strips. mag = basic (glass brightens per hit left),
-# ora = a level special the player never buys, blue = an unlock (a kind with an UPGRADES node). See hue().
-const BRICKS := {
-	plain = {hp = 1, pay = 1, face = "brick_plain_lit"}, solid = {hp = -1, pay = 0, face = "brick_solid"},
-	hole = {hp = -1, pay = 0, thru = true, face = "brick_hole"},  # the ball flies through, but it still blocks placement, so a level's footprint is the same every round
-	multi = {hp = 2, pay = 2, face = "brick_multi_full"}, multi3 = {hp = 3, pay = 3, face = ["multi3_crack", 30, 0]},
-	shield = {hp = 2, pay = 2, hue = "ora", face = ["shield_pop", 44, 0]},
-	cond = {hp = 1, pay = 3, hue = "ora", face = "brick_cond_speed_idle"}, cgate = {hp = 1, pay = 3, hue = "ora", face = ["combo_gate", 30, 0]},
-	timed = {hp = 1, pay = 2, hue = "ora", face = ["timed_blink", 30, 0], idle = ["timed_blink", 30, 8]},
-	seq1 = {hp = 1, pay = 1, hue = "ora", face = ["sequence_step1", 30, 0]}, seq2 = {hp = 1, pay = 2, hue = "ora", face = ["sequence_step2", 30, 0]},
-	seq3 = {hp = 1, pay = 5, hue = "ora", face = ["sequence_step3", 30, 0]},
-	multiball = {hp = 1, pay = 1}, speedup = {hp = 1, pay = 1}, slowdown = {hp = 1, pay = 1, hue = "ora"},
-	x2 = {hp = 1, pay = 1}, x3 = {hp = 1, pay = 1, hue = "ora"}, combo = {hp = 1, pay = 1}, timer = {hp = 1, pay = 1},
-	chain = {hp = 1, pay = 1}, bomb = {hp = 1, pay = 1}, bolt = {hp = 1, pay = 1}, jackpot = {hp = 1, pay = 1, hue = "ora"}, mystery = {hp = 1, pay = 1},
+const BOARD_TOP := 168.0  # centre y of the first brick row (the enemy band and top wall sit above it)
+const BOARD_FLOOR := 240.0  # bricks must sit at least this far above the arena floor
+# One board per fight class (the map node kind). density: chance a slot holds a brick. solid / bomb / red: [chance per
+# brick, hard max], rolled in that order; red_rows limits red to the first n rows. crit / refresh: exact counts converted
+# from plain bricks. Placement rules: game.gd generate. Fit: cols <= 15, rows <= 11, 10 for the boss (test.gd).
+const BOARDS := {
+	fight = {shape = "grid", cols = 11, rows = 6, density = 0.85, solid = [0.03, 2], bomb = [0.03, 2], red = [0.04, 3], red_rows = 4, crit = 3, refresh = 1},
+	elite = {shape = "honey", cols = 13, rows = 8, density = 0.90, solid = [0.05, 4], bomb = [0.04, 3], red = [0.06, 6], crit = 4, refresh = 2},
+	boss = {shape = "grid", cols = 15, rows = 10, density = 0.90, solid = [0.06, 6], bomb = [0.05, 4], red = [0.08, 10], crit = 5, refresh = 2},
 }
-const ICON_KINDS := ["multiball", "speedup", "slowdown", "x2", "x3", "combo", "timer", "chain", "bomb", "bolt", "jackpot", "mystery"]
 
-# Icon and conditional effects
+# Board brick kinds. hp: hits to break (-1 never). dmg: damage per break (the ball stores ball.dmg * brick.dmg).
+# face: the still look, a sprite name or [strip, frame width, frame]. idle: a looping [strip, frame width, fps] over it.
+# halo: a looping 60-wide strip behind it. hue: the colour group (docs/palette.md), which picks the <hue>_hit/_break/_spawn
+# strips: mag basic, ora bomb, blue crit, mint refresh, red hazard. blast: the bomb's direct enemy damage. hurt: HP a ball
+# break of a red costs the player. Behaviour: arena.gd _hit, _damage, _effect (adding a kind: CLAUDE.md).
+const BRICKS := {
+	plain = {hp = 1, dmg = 1, hue = "mag", face = "brick_plain_lit"},
+	solid = {hp = -1, dmg = 0, face = "brick_solid"},  # ponytail: no hue, so it spawns with mag_spawn; a chrome_spawn strip is step 9's call
+	bomb = {hp = 1, dmg = 0, hue = "ora", blast = 8, face = ["icon_bomb_pulse", 30, 0], idle = ["icon_bomb_pulse", 30, 8], halo = "halo_pulse_ora"},
+	crit = {hp = 1, dmg = 1, hue = "blue", face = ["crit_pulse", 30, 0], idle = ["crit_pulse", 30, 8], halo = "halo_pulse"},  # launches the bag's next ball
+	refresh = {hp = 1, dmg = 1, hue = "mint", face = ["refresh_pulse", 30, 0], idle = ["refresh_pulse", 30, 8]},  # regrows the layout
+	red = {hp = 1, dmg = 0, hue = "red", hurt = 3, face = "brick_red"},  # a ball break costs the player HP; a blast just removes it
+}
+const ICON_KINDS := ["crit", "refresh", "bomb"]  # kinds whose face is a pulse strip (an idle row above), not a static
+
+# Icon effects
 const SPEED_MIN := 0.6  # ball speed multipliers
 const SPEED_MAX := 2.0
-const FAST_SPEED := 1.4  # at or above: cond bricks break, ball draws a trail
-const SPEEDUP := 1.25
-const SLOWDOWN := 0.8
-const BOOST_HITS := 5  # x2/x3 apply to this many breaks
-const COMBO_EXTEND := 1.0  # seconds, C+ brick
-const TIME_EXTEND := 10.0  # seconds, hourglass brick
-const CHAIN_DIST := 66.0  # orthogonal neighbours only (step is 64 x 28)
+const FAST_SPEED := 1.4  # at or above: ball draws a trail
 const BOMB_RADIUS := 72.0  # 3x3 block
-const FUSED := ["chain", "bomb", "bolt"]  # area kinds that arm on a trigger and go off FUSE later; each needs an anim_<id>_fuse strip
-const FUSE := 2.0  # seconds from a fused brick's first trigger to going off; a ball's second hit sets it off at once, a blast never does
-const JACKPOT_MULT := 20  # times the level payout
-const GATE_COMBO := 3
-const CHASE_AT := 0.5  # combo seconds left when the pulse turns into the chase
 
-# Placement
-const PLACE_UP := 160.0  # placed bricks must sit at least this far above the arena floor
-const PLACE_MARGIN := 2.0  # min gap between a placed brick and anything else
-const ROTATE_DEG := 15.0  # per R press
-const CAPACITY_BASE := 2
-# Placeables. size in screen px, cost in capacity. Owned = start + rank of the upgrade with the same id.
-# thru: the ball flies through and the piece acts on it (arena.gd _pass). round: circle collider.
-# face and idle as in BRICKS. offset: a strip taller than the body, shifted so the body lines up.
-const PLACEABLES := {
-	bumper = {name = "Bumper", size = Vector2(90, 14), cost = 2, face = "bumper"},
-	pop = {name = "Pop bumper", size = Vector2(48, 48), cost = 2, round = true, face = ["pop_bumper_hit", 24, 4]},
-	accel = {name = "Launcher", size = Vector2(60, 24), cost = 1, thru = true, face = ["accel_chevrons", 30, 0], idle = ["accel_chevrons", 30, 8]},
-	oneway = {name = "One-way gate", size = Vector2(60, 24), cost = 2, thru = true, face = ["gate_flow", 30, 0], idle = ["gate_flow", 30, 8]},
-	sticky = {name = "Sticky pad", size = Vector2(60, 12), cost = 2, thru = true, face = "place_sticky"},
-	magnet = {name = "Magnet", size = Vector2(60, 24), cost = 3, thru = true, face = "place_magnet", idle = ["magnet_pull", 44, 8]},
-	tele = {name = "Portal", size = Vector2(32, 32), cost = 1, thru = true, round = true, face = "place_tele"},
-	spawner = {name = "Spawner", size = Vector2(60, 24), cost = 4, face = ["spawner_charge", 30, 0], offset = Vector2(0, -8)},
-}
-# The other two pieces. The paddle's sprite stretches to its width; walls are invisible.
-const PIECES := {paddle = {face = "paddle"}, wall = {}}
-const POP_SPEED := 0.1  # speed added per pop bumper hit
-const ACCEL_SPEED := 1.5  # ball leaves an accelerator at least this fast
-const STICKY_HOLD := 0.75  # seconds, matches sticky_hold strip
-const PASS_GRACE := 0.3  # seconds a ball ignores pass-through pieces after one acts on it
-const MAGNET_RADIUS := 160.0
+# The two pieces. The paddle's sprite stretches to its width; walls are invisible.
+const PIECES := {paddle = {face = "paddle"}, paddle_mini = {face = "paddle_mini"}, wall = {}}  # paddle_mini: relic mini_paddle's second paddle
+const STICKY_HOLD := 1.5  # seconds a sticky catch holds the ball on the paddle before it fires itself
+const MAGNET_RADIUS := 160.0  # relic magnet_paddle: balls this close above the paddle centre are pulled toward it
 const MAGNET_PULL := 700.0  # px/s^2
-const SPAWN_EVERY := 6.0  # seconds per spawner ball
 
-# Upgrade web. amount = effect per rank. cost(rank) = cost * COST_MULT ^ rank.
-# links are undirected: a node shows once any linked node has rank >= 1. pos: node centre in sprite px on the 640x360 layout;
-# the web pans and zooms (shop.gd), so positions may run past the field (80-559) once it fills up.
-# Names fit the 66px upgrade column at 2x when wrapped by word; descs use only glyphs the 3x5 font has (no ; or lowercase-only marks).
-# cat: the category (CATS) that colours the node. icon: the icon_<name> sprite, default the id. A node whose id is a brick kind
-# in ICON_KINDS is an unlock: each rank guarantees one more of that brick on every board (game.gd generate).
-# Layout: the seed sits at the bottom centre. Left of it the timer unlock (then aim, and longer timer below), right the bomb, below it the combos node, and everything else
-# hangs above it off Round Length: round bottom-left, placement right, blocks top-left. The web is one tree from the seed.
-const COST_MULT := 10.0  # each rank costs this times the one before
-const SEED_UPGRADE := "speed"  # the paddle starts slow: the first buy is the one every run feels
-const UPGRADES := {
-	# Paddle
-	"speed": {cat = "paddle", name = "Faster Paddle", desc = "+300 paddle speed", amount = 300, cost = 5, ranks = 3, links = ["timer", "bomb", "combos", "time"], pos = Vector2(320, 360)},
-	"aim": {cat = "paddle", name = "Aim", desc = "the launch follows the mouse", amount = 1, cost = 12, ranks = 1, links = [], pos = Vector2(180, 360)},
-	# Round: the cap, straight above the seed; the rest of the web hangs off it
-	"time": {cat = "round", name = "Round Length", desc = "+5s per round", amount = 5, cost = 6, ranks = 5, links = ["shield", "bumper"], pos = Vector2(320, 310)},
-	"shield": {cat = "round", name = "Shield Floor", desc = "+1 floor per round that bounces a dropped ball back", amount = 1, cost = 30, ranks = 2, links = ["balls"], pos = Vector2(250, 310)},
-	"balls": {cat = "round", name = "Extra Ball", desc = "+1 ball at launch", amount = 1, cost = 25, ranks = 2, links = [], pos = Vector2(180, 310)},
-	"combos": {cat = "round", name = "Combos", desc = "turns combos on, +0.5s combo window per rank", amount = 0.5, cost = 10, ranks = 4, links = [], pos = Vector2(320, 410)},
-	# Placement
-	"bumper": {cat = "place", name = "Bumper", desc = "+1 placeable bumper", amount = 1, cost = 10, ranks = 3, links = ["capacity", "sticky", "piecepay"], pos = Vector2(400, 310)},
-	"sticky": {cat = "place", name = "Sticky Pad", desc = "+1 pad that catches the ball and fires it up", amount = 1, cost = 14, ranks = 2, links = ["spawner"], pos = Vector2(470, 310)},
-	"spawner": {cat = "place", name = "Spawner", desc = "+1 lamp that spits out an extra ball every few seconds", amount = 1, cost = 30, ranks = 2, links = ["fastspawn"], pos = Vector2(540, 310)},
-	"fastspawn": {cat = "place", icon = "spawner", name = "Fast Spawner", desc = "spawners fire 1s sooner", amount = -1, cost = 25, ranks = 3, links = [], pos = Vector2(540, 260)},
-	"piecepay": {cat = "place", name = "Piece Pay", desc = "+1 cash per bumper hit", amount = 1, cost = 15, ranks = 3, links = ["piececombo"], pos = Vector2(400, 260)},
-	"piececombo": {cat = "place", name = "Piece Combo", desc = "a bumper hit adds 0.25s to a running combo", amount = 0.25, cost = 20, ranks = 2, links = [], pos = Vector2(470, 260)},
-	"capacity": {cat = "place", name = "Capacity", desc = "+2 arena capacity", amount = 2, cost = 15, ranks = 5, links = ["pop", "cheaper", "accel", "payout"], pos = Vector2(400, 210)},
-	"pop": {cat = "place", name = "Pop Bumper", desc = "+1 round bumper that speeds the ball up", amount = 1, cost = 12, ranks = 3, links = ["poppower", "oneway"], pos = Vector2(470, 210)},
-	"poppower": {cat = "place", icon = "pop", name = "Pop Power", desc = "+0.05 speed per pop bumper hit", amount = 0.05, cost = 15, ranks = 3, links = [], pos = Vector2(540, 210)},
-	"cheaper": {cat = "place", name = "Cheaper Pieces", desc = "every piece costs 1 less capacity, min 1", amount = 1, cost = 40, ranks = 1, links = ["floor"], pos = Vector2(400, 160)},
-	"floor": {cat = "place", name = "Lower Floor", desc = "pieces may sit 30px closer to the paddle", amount = -30, cost = 15, ranks = 3, links = ["rotate"], pos = Vector2(400, 110)},
-	"rotate": {cat = "place", name = "Free Rotate", desc = "finer rotation steps", amount = 1, cost = 10, ranks = 2, links = [], pos = Vector2(400, 60)},
-	"accel": {cat = "place", name = "Launcher", desc = "+1 strip that launches the ball to fast speed", amount = 1, cost = 10, ranks = 3, links = ["hotlaunch"], pos = Vector2(470, 160)},
-	"hotlaunch": {cat = "place", icon = "accel", name = "Hotter Launch", desc = "+0.15 launcher exit speed", amount = 0.15, cost = 15, ranks = 3, links = [], pos = Vector2(540, 160)},
-	"oneway": {cat = "place", name = "One-way Gate", desc = "+1 gate: ball passes up, bounces down", amount = 1, cost = 15, ranks = 3, links = ["tele", "magnet"], pos = Vector2(470, 110)},
-	"tele": {cat = "place", name = "Portal", desc = "+1 portal: the ball jumps to the next one placed", amount = 1, cost = 15, ranks = 4, links = [], pos = Vector2(540, 110)},
-	"magnet": {cat = "place", name = "Magnet", desc = "+1 magnet that bends the ball toward it", amount = 1, cost = 20, ranks = 2, links = ["reach"], pos = Vector2(470, 60)},
-	"reach": {cat = "place", icon = "magnet", name = "Magnet Reach", desc = "+40 magnet radius", amount = 40, cost = 20, ranks = 3, links = [], pos = Vector2(540, 60)},
-	# Blocks. Unlocks (brick kind ids) guarantee that brick per board; the rest tune generation and effects.
-	"payout": {cat = "block", name = "Payout", desc = "+1 base pay per brick", amount = 1, cost = 30, ranks = 5, links = ["solids", "x2"], pos = Vector2(320, 200)},
-	"solids": {cat = "block", name = "Fewer Solids", desc = "-2 in 100 solid bricks", amount = -0.02, cost = 20, ranks = 3, links = ["holes", "multiball"], pos = Vector2(250, 200)},
-	"holes": {cat = "block", name = "Fewer Holes", desc = "-3 in 100 holes", amount = -0.03, cost = 20, ranks = 3, links = ["row", "chain"], pos = Vector2(180, 200)},
-	"row": {cat = "block", name = "Extra Row", desc = "+1 board row when the arena has room", amount = 1, cost = 50, ranks = 2, links = [], pos = Vector2(110, 200)},
-	"x2": {cat = "unlock", name = "Multiplier", desc = "+1 x2 brick per board", amount = 1, cost = 25, ranks = 3, links = ["multiball"], pos = Vector2(320, 150)},
-	"multiball": {cat = "unlock", name = "Multiball", desc = "+1 multiball brick per board", amount = 1, cost = 25, ranks = 3, links = ["chain", "speedup"], pos = Vector2(250, 150)},
-	"chain": {cat = "unlock", name = "Shocker", desc = "+1 chain brick per board", amount = 1, cost = 25, ranks = 3, links = ["bolt"], pos = Vector2(180, 150)},
-	"bomb": {cat = "unlock", name = "Bomb", desc = "+1 bomb brick per board", amount = 1, cost = 25, ranks = 3, links = ["bigbomb"], pos = Vector2(390, 360)},
-	"timer": {cat = "unlock", name = "Timer", desc = "+1 hourglass brick per board, +10s each", amount = 1, cost = 25, ranks = 3, links = ["aim", "longtimer"], pos = Vector2(250, 360)},
-	"speedup": {cat = "unlock", name = "Speedup", desc = "+1 speedup brick per board", amount = 1, cost = 20, ranks = 3, links = ["bolt", "combo"], pos = Vector2(250, 100)},
-	"bolt": {cat = "unlock", name = "Bolt", desc = "+1 bolt brick per board", amount = 1, cost = 25, ranks = 3, links = ["mystery"], pos = Vector2(180, 100)},
-	"bigbomb": {cat = "unlock", icon = "bomb", name = "Bigger Bomb", desc = "+40 bomb radius", amount = 40, cost = 30, ranks = 2, links = [], pos = Vector2(460, 360)},
-	"longtimer": {cat = "unlock", icon = "timer", name = "Longer Timer", desc = "+3s per hourglass brick", amount = 3, cost = 20, ranks = 3, links = [], pos = Vector2(250, 410)},
-	"combo": {cat = "unlock", name = "Combo", desc = "+1 C+ brick per board", amount = 1, cost = 25, ranks = 3, links = ["mystery"], pos = Vector2(250, 50)},
-	"mystery": {cat = "unlock", name = "Mystery", desc = "+1 mystery brick per board", amount = 1, cost = 20, ranks = 3, links = ["twin"], pos = Vector2(180, 50)},
-	"twin": {cat = "unlock", name = "Twin Unlock", desc = "+1 more of every unlocked brick", amount = 1, cost = 150, ranks = 1, links = [], pos = Vector2(110, 50)},
-}
-# Node colours per category: docs/palette.md. The lamp sprites are node_<cat>_<state>; the icons and pips use these.
-# A node takes the hue of the arena thing it adds or changes: paddle sky, placeables mint, basic bricks magenta, unlock bricks blue.
-const CATS := {
-	paddle = {lit = Color("4fc7ff"), dim = Color("155386")},
-	round = {lit = Color("7f16ff"), dim = Color("5b00c9")},  # time, shield floor, extra ball: nothing on the board, so violet is only here and on the shield floor
-	place = {lit = Color("15f2b0"), dim = Color("027354")},
-	block = {lit = Color("ff4aff"), dim = Color("790079")},
-	unlock = {lit = Color("3d6bff"), dim = Color("1a2f8f")},  # the ICON_KINDS nodes and the nodes that modify them, blue like their bricks
+# --- Run (game.gd). docs/content.md "Run state" ---
+# enemy_turn: the between-phase beat. refresh_after: seconds an emptied board waits before growing a refresh brick.
+# end_beat: seconds between the fight ending and its done signal. hp_floor: the least HP an event's cost leaves. ramp_*: speed
+# ramp on long-lived balls (off by default): after ramp_after s a ball's speed multiplier gains ramp_per_s each second up to ramp_max.
+const RUN := {hp = 50, gold = 0, enemy_turn = 0.8, regen_below = 10, refresh_after = 1.0, end_beat = 0.6, win_break = 0.6, hp_floor = 1,
+	ramp_on = false, ramp_after = 20.0, ramp_per_s = 0.02, ramp_max = 1.6}  # win_break: seconds the board takes to break outward on a win
+# Cue ladders, [at least n, value]: the last row n reaches wins (ladder()). damage_land semitones; hp_lose pitch.
+const DAMAGE_LAND := [[1, 0], [10, 2], [30, 4], [100, 7]]
+const HP_LOSE := [[1, 1.0], [3, 0.85], [6, 0.7]]
+const TOP_WALL := 112.0  # y of the top wall body; the enemy band is above it
+const SHIELD_Y := 140.0  # centre y of the shield_row hazard
+const GOLD := {fight = [12, 6], elite = [30, 6]}  # win gold: base + rand 0..n
+const REWARDS := {ball = 40, rank = 25, relic = 15, gold = 20}  # card kind weights; 3 cards of distinct kinds
+const REWARD_GOLD := 30  # the gold card
+const SHOP := {ball = 15, remove = 12, heal = 20, heal_hp = 20, balls = 3, relics = 2}
+const RELIC_RARITY := {common = {weight = 3, price = 40}, uncommon = {weight = 2, price = 60}, rare = {weight = 1, price = 80}}
+const RARITY := {common = 60, uncommon = 30, rare = 10}  # ball tier roll, then uniform within the tier
+const BAG_START := ["ball_basic", "ball_basic", "ball_basic", "ball_basic", "ball_heavy", "ball_pierce"]
+const MAX_RANK := 3
+
+# Map layers: slots is a kind per slot (a string, or kind -> weight to roll); force names the slot made a fight when no
+# slot rolled one; edges[slot] lists the next layer's reachable slots. Node x = MAP_X + MAP_DX * layer, y spread evenly.
+const MAP := [
+	{slots = ["fight", "fight"], edges = [[0, 1], [1, 2]]},
+	{slots = [{fight = 50, event = 30, treasure = 20}, {fight = 50, event = 30, treasure = 20}, {fight = 50, event = 30, treasure = 20}], edges = [[0, 1], [0, 1], [0, 1]], force = 1},
+	{slots = ["elite", {fight = 60, event = 40}], edges = [[0], [0]]},
+	{slots = ["shop"], edges = [[0]]},
+	{slots = ["boss"], edges = []},
+]
+const MAP_KINDS := ["fight", "elite", "boss", "event", "treasure", "shop"]
+const MAP_X := 60
+const MAP_DX := 90
+const MAP_LEGEND := {fight = "FIGHT", elite = "ELITE", treasure = "TREASURE", shop = "SHOP", event = "EVENT", boss = "BOSS"}  # the map's left column, in this order
+
+# Events: two choices a / b. Numbers are what the choice does; the text is the panel's. Results apply in game.gd event_choice.
+const EVENTS := {
+	event_forge = {title = "A COLD FORGE", body = "THE COALS STILL GLOW. A HAMMER WAITS.", a = "HAMMER A BALL", b = "TAKE THE SCRAP", hp = 6, gold = 20},
+	event_vendor = {title = "A GHOST VENDOR", body = "IT HOLDS OUT A RELIC AND SAYS NOTHING.", a = "BUY IT FOR 20", b = "HAGGLE", price = 20, haggle = 0.5, junk = "ball_junk"},
+	event_spring = {title = "A HOT SPRING", body = "STEAM. SOMETHING SHINES UNDER THE WATER.", a = "BATHE", b = "DIVE FOR COINS", heal = 15, gold = 25, hp = 5},
 }
 
-const COLORS := {  # docs/palette.md. Brick, bumper and paddle colors live in their sprites; these are the cabinet and text.
+# Balls: dmg per brick by rank; size and speed multiply BALL_RADIUS and BALL_SPEED; a trait key holds its [r1, r2, r3]:
+# split = balls it forks into on its first break per flight, pierce = bricks it passes through per flight, catches = sticky
+# paddle catches per phase, every = breaks between blasts (per fight), poison = stacks stored per break. catch: the 0-stored
+# paddle cue's pitch; pitch: the launch and break cue pitch (junk). locked names an UNLOCKS flag. Faces are frame rank-1 of
+# <id>_rank. desc: the card line (<= 36 glyphs, wraps at 72 px). Behaviour: arena.gd Ball, _launch, _paddle_hit, _break and _effect.
+const BALLS := {
+	ball_basic = {name = "PEBBLE", desc = "PLAIN AND STEADY", rarity = "common", dmg = [1, 2, 3], size = 1.0, speed = 1.0},
+	ball_heavy = {name = "BOULDER", desc = "BIG AND SLOW", rarity = "common", dmg = [3, 5, 7], size = 1.5, speed = 0.8, catch = 0.7},
+	ball_split = {name = "SPLITTER", desc = "FORKS ON ITS FIRST BREAK", rarity = "common", dmg = [1, 2, 3], size = 1.0, speed = 1.0, split = [2, 2, 3]},
+	ball_pierce = {name = "NEEDLE", desc = "PASSES THROUGH BRICKS", rarity = "uncommon", dmg = [1, 2, 3], size = 0.75, speed = 1.2, pierce = [3, 5, 8]},
+	ball_sticky = {name = "GUM", desc = "CATCHES ON THE PADDLE", rarity = "uncommon", dmg = [2, 3, 4], size = 1.0, speed = 1.0, catches = [1, 2, 3]},
+	ball_bomb = {name = "BLASTER", desc = "EVERY NTH BREAK BLASTS", rarity = "uncommon", dmg = [1, 2, 3], size = 1.0, speed = 1.0, every = [5, 4, 3], locked = "finished_run"},
+	ball_poison = {name = "SPORE", desc = "STACKS POISON", rarity = "rare", dmg = [0, 0, 1], size = 1.0, speed = 1.0, poison = [1, 2, 3], locked = "killed_elite"},
+	ball_junk = {name = "STONE", desc = "STORES NOTHING", rarity = "none", dmg = [0, 0, 0], size = 1.0, speed = 0.9, pitch = 0.6},  # never a card, no ranks, its crits launch nothing
+}
+const SPLIT_DEG := 20.0  # a splitter's halves fan from -SPLIT_DEG to +SPLIT_DEG about its heading
+
+# Enemies: one per fight. role picks the node kind (fight = regular), tier the earliest layer a regular appears.
+# cd: paddle hits between intents. intents cycle: [hazard id or "mouth", count]. board: the generator change (game.gd generate).
+# off: cue pitch offset in semitones. w: frame width of its <id>_idle/_hit/_attack/_die strips (48 tall). Behaviour: arena.gd.
+const ENEMIES := {
+	glob = {role = "regular", tier = 1, hp = 30, cd = 6, board = {red = 4}, intents = [["red_bricks", 3], ["debris", 4]], off = 0, w = 48},
+	lobber = {role = "regular", tier = 1, hp = 40, cd = 5, board = {}, intents = [["enemy_balls", 1], ["enemy_balls", 3]], off = -2, w = 48},
+	mason = {role = "regular", tier = 3, hp = 55, cd = 6, board = {solid_row = 0}, intents = [["shield_row", 1], ["debris", 6]], off = -4, w = 64},
+	warden = {role = "elite", tier = 4, hp = 120, cd = 5, board = {solid_cols = [3, 9]}, riposte = 10, intents = [["laser_sweep", 1], ["enemy_balls", 3], ["shield_row", 1]], off = -5, w = 64},
+	maw = {role = "boss", tier = 5, hp = 240, cd = 4, board = {top = 32, no_refresh_rows = 2}, mouth = 4, enraged = {at = 0.5, cd = 3, mouth = 6},
+		intents = [["debris", 8], ["mouth", 1], ["laser_sweep", 2]], off = -7, w = 160},
+}
+const ENEMY_FOOT := Vector2(480, 108)  # bottom centre of the enemy sprite, in the band above TOP_WALL
+const ENEMY_STRIPS := {idle = 4, hit = 6, attack = 6, die = 8}  # frames per <id>_<strip>; idle loops at 8 fps, the rest play at 12
+const ENEMY_FPS := {idle = 8, hit = 12, attack = 12, die = 12}
+const ENEMY_SPAWN_FRAME := 3  # the hazard spawns on this frame of <id>_attack
+const MOUTH := {rect = Rect2(432, 0, 96, 32), spit_gap = 0.4}  # boss intent, not a hazard: the zone balls vanish into, seconds between spat balls
+
+# Hazards: hp is what one touching the paddle costs (0 never touches). Sizes and speeds in game px; rows: the live rows
+# nearest the paddle red_bricks picks from; enemy_balls speed multiplies BALL_SPEED. flight: in the air, so a phase end
+# clears it (and any volley of it still pending); the rest stay placed. Behaviour: arena.gd _hazard.
+const HAZARDS := {
+	red_bricks = {hp = 0, rows = 3, stagger = 0.05},  # the red brick's own hurt pays, on a ball break
+	enemy_balls = {hp = 5, flight = true, speed = 0.7, radius = 8.0, spread_deg = 15.0, gap = 0.15, windup = 0.5, origin = Vector2(480, 60)},
+	debris = {hp = 3, flight = true, size = 16.0, speed = 300.0, apart = 80.0, gap = 0.2, shake = 0.3, shake_px = 4.0},
+	laser_sweep = {hp = 6, warn = 1.0, beam = 0.4},  # a lane is one board column (BRICK_SIZE.x + BRICK_GAP wide)
+	shield_row = {hp = 0, hits = 8},
+}
+
+# Relics: one passive rule each at hook. on_fight_start / on_break / on_phase_end fire through arena.gd _relics (one match
+# by id; `reset` names a second hook the row also fires at); a stat relic is a Game.has read at its site (the paddle build,
+# _move_ball, _crit). numbers it needs; desc: the card line (<= 36 glyphs); locked as for balls.
+const RELIC_HOOKS := ["stat", "on_fight_start", "on_break", "on_phase_end"]
+const RELICS := {
+	wide_paddle = {name = "WIDE PADDLE", desc = "PADDLE 160 WIDE", rarity = "common", hook = "stat", width = 160.0},
+	shield_floor = {name = "SHIELD FLOOR", desc = "FIRST DROP A PHASE BOUNCES", rarity = "common", hook = "on_fight_start", reset = "on_phase_end", saves = 1},  # floor bounces per phase
+	opener = {name = "OPENER", desc = "FIRST BREAK A PHASE IS A CRIT", rarity = "common", hook = "on_break"},  # the phase's first break is a crit too
+	toll = {name = "TOLL", desc = "1 GOLD PER 10 BRICKS", rarity = "common", hook = "on_break", per = 10, gold = 1},  # gold per `per` breaks a fight
+	tenth_bomb = {name = "TENTH BOMB", desc = "EVERY 10TH BRICK IS A BOMB", rarity = "uncommon", hook = "on_fight_start", every = 10},  # every nth plain (row-major) is a bomb, at least one
+	magnet_paddle = {name = "MAGNET PADDLE", desc = "PULLS BALLS TO THE PADDLE", rarity = "uncommon", hook = "stat"},  # MAGNET_RADIUS / MAGNET_PULL
+	combo = {name = "COMBO", desc = "FAST BREAKS STORE MORE", rarity = "uncommon", hook = "on_break", cap = 3.0},  # COMBO_WINDOW_START / COMBO_MULT_PER_HIT, mult capped
+	twin_crit = {name = "TWIN CRIT", desc = "A CRIT LAUNCHES TWO", rarity = "rare", hook = "on_break", launches = 2, locked = "won_boss"},  # read in _crit, the one break site that launches
+	recall = {name = "RECALL", desc = "FIRST DROP A PHASE REJOINS", rarity = "rare", hook = "on_phase_end", balls = 1},  # the first n non-junk drops go back on top of the bag
+	mini_paddle = {name = "MINI PADDLE", desc = "A SECOND MIRRORED PADDLE", rarity = "rare", hook = "on_fight_start", size = Vector2(48, 12), locked = "killed_elite"},  # a mirrored paddle_mini
+}
+
+# Meta-unlocks: flag -> the BALLS / RELICS ids it unlocks. Flags live in settings.json under meta (step 10 sets them).
+const UNLOCKS := {finished_run = ["ball_bomb"], killed_elite = ["ball_poison", "mini_paddle"], won_boss = ["twin_crit"]}
+
+const COLORS := {  # docs/palette.md. Brick and paddle colors live in their sprites; these are the cabinet and text.
 	bg = Color("000020"),
 	trim = Color("2e2e5c"),
 	trim_hi = Color("5454a7"),
@@ -221,9 +186,18 @@ const COLORS := {  # docs/palette.md. Brick, bumper and paddle colors live in th
 
 ## The row describing a kind, whichever table holds it.
 static func spec(kind: String) -> Dictionary:
-	return BRICKS.get(kind, PLACEABLES.get(kind, PIECES.get(kind, {})))
+	return BRICKS.get(kind, PIECES.get(kind, {}))
 
 
-## A board brick's colour group: "mag" basic, "ora" level special, "blue" unlock (an icon kind with a web node of the same id).
+## A board brick's colour group, the row's hue field: "mag" unless the row says otherwise.
 static func hue(kind: String) -> String:
-	return BRICKS[kind].get("hue", "blue" if kind in ICON_KINDS and kind in UPGRADES else "mag")
+	return BRICKS[kind].get("hue", "mag")
+
+
+## The value of the last [at least n, value] row of a cue ladder that n reaches (the first row's below that).
+static func ladder(table: Array, n: int) -> Variant:
+	var v = table[0][1]
+	for row in table:
+		if n >= row[0]:
+			v = row[1]
+	return v

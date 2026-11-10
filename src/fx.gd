@@ -6,8 +6,8 @@ const SCALE := 2.0  # sprites are drawn on a 640x360 canvas, shown at 1280x720
 static var _cache := {}
 
 
-## fw: frame width in strip pixels. One-shot unless loop; one-shots free themselves when done.
-static func play(parent: Node, name: String, fw: int, fps: int, pos: Vector2, rot := 0.0, loop := false) -> AnimatedSprite2D:
+## fw: frame width in strip pixels. One-shot unless loop; one-shots free themselves when done unless hold keeps the last frame.
+static func play(parent: Node, name: String, fw: int, fps: int, pos: Vector2, rot := 0.0, loop := false, hold := false) -> AnimatedSprite2D:
 	var s := AnimatedSprite2D.new()
 	s.sprite_frames = _frames(name, fw)
 	s.sprite_frames.set_animation_speed("default", fps)
@@ -16,7 +16,7 @@ static func play(parent: Node, name: String, fw: int, fps: int, pos: Vector2, ro
 	s.rotation = rot
 	s.scale = Vector2.ONE * SCALE
 	s.z_index = 1
-	if not loop:
+	if not loop and not hold:
 		s.animation_finished.connect(s.queue_free)
 	parent.add_child(s)
 	s.play("default")

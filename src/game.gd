@@ -1,27 +1,20 @@
 extends Node
-## Autoload: run state, save, and the game's rules. Rules are checked by test.gd.
+## Autoload: settings (settings.json, with the meta-unlock flags and run / win counts under `meta`), the run state (`run`: hp, gold, the bag,
+## relics, the map with its visited path and rolled enemies and events, `pending` = the node kind entered and not yet
+## resolved, stats) with its mid-run save (run.json), and the pure rules: map generation, node entry, reward / shop / enemy
+## rolls, event choices, gold and HP, the bag invariant, board generation. No scene dependencies, so test.gd instantiates
+## it headless. docs/content.md "Run state" is the contract.
 
 const Tuning = preload("res://src/tuning.gd")
-const SAVE_PATH := "user://save.json"
-const SANDBOX_PATH := "user://sandbox.json"  # the dev save: same shape, starts with every rank maxed and every level open
-const SETTINGS_PATH := "user://settings.json"  # separate from the save: reset() leaves settings alone
+const SETTINGS_PATH := "user://settings.json"
+const RUN_PATH := "user://run.json"
+const RUN_VERSION := 1
 
-var currency := 0
-var unlocked := 0  # highest playable level index
-var won := false
-var best := 0  # most earned in one round
-var runs := 0
-var broken := {}  # level index (as a string, JSON keys) -> best share of bricks broken in one round, 0..100. Not a win condition
-var ranks := {}  # upgrade id -> rank
-var layouts := {}  # level index (as a string) -> [{kind, x, y, rot}]: the pieces placed last time, put back at the next placement
-var slot := SAVE_PATH  # which file holds the run in memory: SAVE_PATH or SANDBOX_PATH (enter_sandbox / leave_sandbox)
-var sandbox: bool:
-	get: return slot == SANDBOX_PATH
-var settings := {fullscreen = false, volume = 1.0}
+var settings := {fullscreen = false, volume = 1.0, meta = {flags = [], runs = 0, wins = 0}}
+var run := {}  # empty until new_run / load_run
 
 
 func _ready() -> void:
-	load_save()
 	load_settings()
 
 
@@ -35,10 +28,12 @@ func set_setting(key: String, value: Variant) -> void:
 
 func load_settings() -> void:
 	if FileAccess.file_exists(SETTINGS_PATH):
-		var d = JSON.parse_string(FileAccess.get_file_as_string(SETTINGS_PATH))
+		var d = _ints(JSON.parse_string(FileAccess.get_file_as_string(SETTINGS_PATH)))
 		if typeof(d) == TYPE_DICTIONARY:
 			for k in settings:
-				if k in d:
+				if k == "meta" and typeof(d.get(k)) == TYPE_DICTIONARY:
+					settings.meta.merge(d.meta, true)
+				elif k in d:
 					settings[k] = type_convert(d[k], typeof(settings[k]))
 	apply_settings()
 
@@ -48,253 +43,407 @@ func apply_settings() -> void:
 	AudioServer.set_bus_volume_db(0, linear_to_db(maxf(settings.volume, 0.001)))  # every cue (src/sfx.gd) plays on the master bus
 
 
-# --- Save: one JSON object per slot file. load_save wipes to the slot's defaults first, so slots never mix. ---
-
-func save() -> void:
-	var f := FileAccess.open(slot, FileAccess.WRITE)
-	f.store_string(JSON.stringify({currency = currency, unlocked = unlocked, won = won, best = best, runs = runs, ranks = ranks, broken = broken, layouts = layouts}))
-
-
-func load_save() -> void:
-	wipe()
-	if not FileAccess.file_exists(slot):
-		return
-	var d = JSON.parse_string(FileAccess.get_file_as_string(slot))
-	if typeof(d) != TYPE_DICTIONARY:
-		return
-	currency = int(d.get("currency", 0))
-	unlocked = clampi(int(d.get("unlocked", 0)), 0, Tuning.LEVELS.size() - 1)
-	won = bool(d.get("won", false))
-	best = int(d.get("best", 0))
-	runs = int(d.get("runs", 0))
-	for k in d.get("broken", {}):
-		broken[k] = int(d.broken[k])
-	for k in d.get("ranks", {}):
-		if k in Tuning.UPGRADES:
-			ranks[k] = int(d.ranks[k])
-	layouts = d.get("layouts", {})  # place.gd drops any entry that no longer fits (unowned kind, over capacity, off the board)
-
-
-func reset() -> void:
-	wipe()
-	save()
-
-
-## The slot's fresh state: zero for the real run, everything owned for the sandbox.
-func wipe() -> void:
-	currency = 999999 if sandbox else 0
-	unlocked = Tuning.LEVELS.size() - 1 if sandbox else 0
-	won = false
-	best = 0
-	runs = 0
-	ranks = {}
-	broken = {}
-	layouts = {}
-	if sandbox:
-		for id in Tuning.UPGRADES:
-			ranks[id] = Tuning.UPGRADES[id].ranks
-
-
-## Best share of bricks broken on a level, kept across rounds. A retry stat, not a win condition.
-func note_broken(level: int, done: int, total: int) -> void:
-	broken[str(level)] = maxi(broken.get(str(level), 0), 100 * done / maxi(total, 1))
-
-
-## A level's unlock row as a label for the shop: "CLEAR" or "COMBO x10".
-func unlock_text(level: int) -> String:
-	var u: Dictionary = Tuning.LEVELS[level].get("unlock", {})
-	return "COMBO x%d" % u.combo if u.has("combo") else "CLEAR"
-
-
-## Round over on `level`: win on clearing the last, open the next if its `unlock` row is met. Returns whether a level just opened.
-func finish_level(level: int, cleared: bool, best_combo: int) -> bool:
-	var next := level + 1
-	if cleared and next == Tuning.LEVELS.size():
-		won = true
-	if next >= Tuning.LEVELS.size() or unlocked >= next:
+## Sets a meta-unlock flag. True when it was new (the end screen's "UNLOCKED:" line).
+func set_flag(flag: String) -> bool:
+	if flag in settings.meta.flags:
 		return false
-	var u: Dictionary = Tuning.LEVELS[next].get("unlock", {})
-	if not (best_combo >= u.combo if u.has("combo") else cleared):
-		return false
-	unlocked = next
+	settings.meta.flags.append(flag)
+	set_setting("meta", settings.meta)
 	return true
 
 
-# --- Sandbox ---
-
-## Switch to the dev save. Every change already saves to its own file, so switching is just loading the other one.
-func enter_sandbox() -> void:
-	slot = SANDBOX_PATH
-	load_save()
+## A ball or relic id whose row has no `locked`, or whose flag is set.
+func unlocked(id: String) -> bool:
+	var row: Dictionary = Tuning.BALLS.get(id, Tuning.RELICS.get(id, {}))
+	return not row.has("locked") or row.locked in settings.meta.flags
 
 
-func leave_sandbox() -> void:
-	slot = SAVE_PATH
-	load_save()
+## Sets a flag; when it is new, its ids join run.unlocked (the end screen's "UNLOCKED:" line).
+func unlock(flag: String) -> void:
+	if set_flag(flag):
+		run.unlocked = run.get("unlocked", []) + Tuning.UNLOCKS[flag]  # get: a run.json saved before meta-unlocks has no list
 
 
-# --- Upgrades ---
-
-func rank(id: String) -> int:
-	return ranks.get(id, 0)
-
-
-func bonus(id: String) -> float:
-	return rank(id) * Tuning.UPGRADES[id].amount
-
-
-## A tuning number plus an upgrade's bonus. Most nodes are one of these at their call site.
-func stat(base: float, id: String) -> float:
-	return base + bonus(id)
+## The run is over: counts it (and a win) in meta, sets finished_run and, on a win, won_boss.
+func end_run(win: bool) -> void:
+	settings.meta.runs += 1
+	settings.meta.wins += int(win)
+	unlock("finished_run")
+	if win:
+		unlock("won_boss")
+	set_setting("meta", settings.meta)
 
 
-func cost(id: String) -> int:
-	var u: Dictionary = Tuning.UPGRADES[id]
-	return roundi(u.cost * pow(Tuning.COST_MULT, rank(id)))
+# --- Run state ---
+
+func new_run(seed: int = randi()) -> void:
+	run = {version = RUN_VERSION, seed = seed, hp = Tuning.RUN.hp, hp_max = Tuning.RUN.hp, gold = Tuning.RUN.gold,
+		bag = Tuning.BAG_START.map(func(id): return {id = id, rank = 1}), relics = [], map = gen_map(seed), pending = "", unlocked = [],
+		stats = {fights = 0, elites = 0, damage = 0, bricks = 0, best_fire = 0, drops = 0, gold_earned = 0, seconds = 0, killer = ""}}
 
 
-func is_revealed(id: String) -> bool:
-	if id == Tuning.SEED_UPGRADE:
-		return true
-	for o in Tuning.UPGRADES:
-		if rank(o) > 0 and (id in Tuning.UPGRADES[o].links or o in Tuning.UPGRADES[id].links):
-			return true
-	return false
+func save_run(path: String = RUN_PATH) -> void:
+	FileAccess.open(path, FileAccess.WRITE).store_string(JSON.stringify(run))
 
 
-func can_buy(id: String) -> bool:
-	return is_revealed(id) and rank(id) < Tuning.UPGRADES[id].ranks and currency >= cost(id)
+## True when a saved run of this version loaded into `run`.
+func load_run(path: String = RUN_PATH) -> bool:
+	if not FileAccess.file_exists(path):
+		return false
+	var d = _ints(JSON.parse_string(FileAccess.get_file_as_string(path)))
+	if typeof(d) != TYPE_DICTIONARY or d.get("version") != RUN_VERSION:
+		return false
+	run = d
+	return true
 
 
-func buy(id: String) -> void:
-	if not can_buy(id):
-		return
-	currency -= cost(id)
-	ranks[id] = rank(id) + 1
+func has_run() -> bool:
+	return FileAccess.file_exists(RUN_PATH)
 
 
-# --- Derived stats ---
-
-func paddle_speed() -> float:
-	return stat(Tuning.PADDLE_SPEED, "speed")
+func delete_run() -> void:
+	DirAccess.remove_absolute(RUN_PATH)
 
 
-func capacity() -> int:
-	return Tuning.CAPACITY_BASE + int(bonus("capacity"))
+## True when hp hit 0: the run is over.
+func hurt(n: int) -> bool:
+	run.hp = maxi(0, run.hp - n)
+	return run.hp <= 0
 
 
-## How many of a placeable the player can put down.
-func owned(kind: String) -> int:
-	return Tuning.PLACEABLES[kind].get("start", 0) + rank(kind)
+func heal(n: int) -> void:
+	run.hp = mini(run.hp_max, run.hp + n)
 
 
-func piece_cost(kind: String) -> int:
-	return maxi(1, Tuning.PLACEABLES[kind].cost - int(bonus("cheaper")))
+func add_gold(n: int) -> void:
+	run.gold += n
+	run.stats.gold_earned += n
 
 
-## How far above the arena floor placed pieces must stay.
-func place_up() -> float:
-	return stat(Tuning.PLACE_UP, "floor")
+## Pays n gold; false and nothing paid when short.
+func spend(n: int) -> bool:
+	if run.gold < n:
+		return false
+	run.gold -= n
+	return true
 
 
-func rotate_deg() -> float:
-	return Tuning.ROTATE_DEG / (1 + rank("rotate"))
+func has(relic: String) -> bool:
+	return relic in run.relics
 
 
-func base_pay(level: int) -> int:
-	return Tuning.LEVELS[level].payout + int(bonus("payout"))
+func add_ball(id: String, rank: int = 1) -> void:
+	run.bag.append({id = id, rank = rank})
 
 
-## The arena's size for a level, game px, from the row's size in standard bricks (each brick plus a gap, and one more gap).
-## ponytail: an upgrade that widens the arena adds its bonus here, capped at Tuning.ARENA.
-func arena_size(level: int) -> Vector2:
-	if not Tuning.LEVELS[level].has("arena"):
-		return Tuning.ARENA
-	var gap := Vector2.ONE * Tuning.BRICK_GAP
-	return Tuning.LEVELS[level].arena * (Tuning.BRICK_SIZE + gap) + gap
+## Removes bag[i] unless that would leave no non-junk ball (the bag invariant). True when removed.
+func remove_ball(i: int) -> bool:
+	var rest: Array = run.bag.duplicate()
+	rest.remove_at(i)
+	if not rest.any(func(b): return b.id != "ball_junk"):
+		return false
+	run.bag = rest
+	return true
 
 
-## Centre y of the first brick row, arena px.
-func board_top(level: int) -> float:
-	return Tuning.LEVELS[level].get("top", Tuning.BOARD_TOP)
+func relic_price(id: String) -> int:
+	return Tuning.RELIC_RARITY[Tuning.RELICS[id].rarity].price
 
 
-func round_time(level: int) -> float:
-	return stat(Tuning.ROUND_TIME_BASE, "time") * Tuning.LEVELS[level].get("time", 1.0)
+## Deterministic per roll site: seed + the node's index, so a reload replays the same map, shop and rewards.
+func rng(site: int) -> RandomNumberGenerator:
+	var r := RandomNumberGenerator.new()
+	r.seed = run.seed + site
+	return r
 
 
-func combo_window(combo: int) -> float:
-	return maxf(Tuning.COMBO_WINDOW_MIN, stat(Tuning.COMBO_WINDOW_START, "combos") - Tuning.COMBO_WINDOW_SHRINK * (combo - 1))
+## A node's roll-site index: its position in reading order, from 1 (0 is the map itself).
+static func node_index(layer: int, slot: int) -> int:
+	var n := 1
+	for i in layer:
+		n += Tuning.MAP[i].slots.size()
+	return n + slot
 
 
-func combo_mult(combo: int) -> float:
-	return 1.0 + Tuning.COMBO_MULT_PER_HIT * maxi(combo - 1, 0)
+## The rng of the node the run stands on; salt keeps a node's second roll site (reward after enemy, treasure after reward) apart.
+func node_rng(salt: int = 0) -> RandomNumberGenerator:
+	return rng(node_index(run.map.layer, run.map.node) + 1000 * salt)
 
 
-func payout(level: int, combo: int) -> int:
-	return roundi(base_pay(level) * combo_mult(combo))
+# --- Map ---
+
+## Rolls the layer kinds. Enemies and events are "" until enter_node rolls them, since both depend on the path walked.
+## layer -1 / node -1 means nothing entered yet; path is the slot entered in each layer.
+func gen_map(seed: int) -> Dictionary:
+	var r := RandomNumberGenerator.new()
+	r.seed = seed
+	var layers := []
+	for L in Tuning.MAP:
+		var row := []
+		for s in L.slots:
+			row.append(s if s is String else _weighted(s, r))
+		if L.has("force") and not "fight" in row:
+			row[L.force] = "fight"
+		layers.append(row)
+	var blank := layers.map(func(row): return row.map(func(_k): return ""))
+	return {layers = layers, enemies = blank, events = blank.duplicate(true), path = [], layer = -1, node = -1}
+
+
+func reachable(slot: int) -> bool:
+	var m: Dictionary = run.map
+	if m.layer < 0:
+		return slot < Tuning.MAP[0].slots.size()
+	return m.layer + 1 < Tuning.MAP.size() and slot in Tuning.MAP[m.layer].edges[m.node]
+
+
+## Steps onto the next layer's slot, rolling its enemy or event (never the last fight's enemy, events without
+## replacement along the path), marks it pending (main.gd clears that back on the map), autosaves, and returns the node kind.
+func enter_node(slot: int) -> String:
+	var m: Dictionary = run.map
+	m.layer += 1
+	m.node = slot
+	m.path.append(slot)
+	var kind: String = m.layers[m.layer][slot]
+	run.pending = kind
+	var r := rng(node_index(m.layer, slot))
+	if kind in ["fight", "elite", "boss"]:
+		m.enemies[m.layer][slot] = pick_enemy(kind, m.layer + 1, last_enemy(m.layer), r)
+	elif kind == "event":
+		var seen := []
+		for i in m.layer:
+			seen.append(m.events[i][m.path[i]])
+		var pool := Tuning.EVENTS.keys().filter(func(e): return not e in seen)
+		m.events[m.layer][slot] = pool[r.randi() % pool.size()]
+	save_run()
+	return kind
+
+
+## The enemy fought most recently before `layer` along the path, or "".
+func last_enemy(layer: int) -> String:
+	var m: Dictionary = run.map
+	for i in range(layer - 1, -1, -1):
+		if m.enemies[i][m.path[i]] != "":
+			return m.enemies[i][m.path[i]]
+	return ""
+
+
+## An enemy for a fight / elite / boss node in a 1-based layer: regulars of tier <= layer, never prev when another fits.
+func pick_enemy(kind: String, layer: int, prev: String, r: RandomNumberGenerator) -> String:
+	var role := "regular" if kind == "fight" else kind
+	var ids := Tuning.ENEMIES.keys().filter(func(id):
+		var e: Dictionary = Tuning.ENEMIES[id]
+		return e.role == role and (kind != "fight" or e.tier <= layer))
+	if ids.size() > 1:
+		ids.erase(prev)
+	return ids[r.randi() % ids.size()]
+
+
+# --- Rewards and shop ---
+
+## Up to 3 cards of distinct kinds: {kind = "ball", id} / {kind = "rank", at} (bag index) / {kind = "relic", id} / {kind = "gold", gold}.
+## ponytail: a kind with nothing eligible is dropped, so a full bag of rank-3 balls and no relics left yields 2 cards; the screen shows what it gets.
+func roll_reward(r: RandomNumberGenerator) -> Array:
+	var kinds: Dictionary = Tuning.REWARDS.duplicate()
+	var cards := []
+	while cards.size() < 3 and not kinds.is_empty():
+		var k := _weighted(kinds, r)
+		kinds.erase(k)
+		var c := _card(k, r)
+		if not c.is_empty():
+			cards.append(c)
+	return cards
+
+
+func _card(kind: String, r: RandomNumberGenerator) -> Dictionary:
+	match kind:
+		"ball":
+			return {kind = kind, id = roll_ball(r)}
+		"rank":
+			var ok := range(run.bag.size()).filter(func(i): return run.bag[i].id != "ball_junk" and run.bag[i].rank < Tuning.MAX_RANK)
+			return {kind = kind, at = ok[r.randi() % ok.size()]} if ok else {}
+		"relic":
+			var id := roll_relic(r)
+			return {kind = kind, id = id} if id else {}
+	return {kind = kind, gold = Tuning.REWARD_GOLD}
+
+
+## Applies a reward card to the run.
+func take_reward(c: Dictionary) -> void:
+	match c.kind:
+		"ball": add_ball(c.id)
+		"rank": run.bag[c.at].rank += 1
+		"relic": run.relics.append(c.id)
+		"gold": add_gold(c.gold)
+
+
+## A random unlocked non-junk ball: rarity tier roll, then uniform within the tier (an empty tier rerolls).
+func roll_ball(r: RandomNumberGenerator) -> String:
+	var pool := []
+	while pool.is_empty():
+		var tier := _weighted(Tuning.RARITY, r)
+		pool = Tuning.BALLS.keys().filter(func(id): return Tuning.BALLS[id].rarity == tier and unlocked(id))
+	return pool[r.randi() % pool.size()]
+
+
+## A random unowned unlocked relic weighted by rarity, from `rarities`, or "" when none is left.
+func roll_relic(r: RandomNumberGenerator, rarities: Array = Tuning.RELIC_RARITY.keys(), skip: Array = []) -> String:
+	var w := {}
+	for id in Tuning.RELICS:
+		if not has(id) and unlocked(id) and not id in skip and Tuning.RELICS[id].rarity in rarities:
+			w[id] = Tuning.RELIC_RARITY[Tuning.RELICS[id].rarity].weight
+	return _weighted(w, r) if w else ""
+
+
+## Up to n distinct unowned unlocked relic ids (the treasure's cards); fewer when the pool runs dry.
+func roll_relics(r: RandomNumberGenerator, n: int) -> Array:
+	var out := []
+	for i in n:
+		var id := roll_relic(r, Tuning.RELIC_RARITY.keys(), out)
+		if id:
+			out.append(id)
+	return out
+
+
+# --- Events ---
+
+## The vendor's relic: a common or uncommon one, the same for this node's dim check and its choice; "" when none is left.
+func event_relic() -> String:
+	return roll_relic(node_rng(3), ["common", "uncommon"])
+
+
+## False when a choice is dimmed: the vendor's buy needs its price and a relic.
+func event_can(id: String, which: String) -> bool:
+	return id != "event_vendor" or which != "a" or (run.gold >= Tuning.EVENTS[id].price and event_relic() != "")
+
+
+## Applies an event choice (docs/content.md "Gold, rewards, shop, events") and returns its result line. An HP cost floors at RUN.hp_floor.
+func event_choice(id: String, which: String) -> String:
+	var E: Dictionary = Tuning.EVENTS[id]
+	var r := node_rng()
+	var cost := func(n: int): run.hp = maxi(Tuning.RUN.hp_floor, run.hp - n)
+	match id:
+		"event_forge":
+			if which == "b":
+				add_gold(E.gold)
+				return "SCRAP SOLD. +%d GOLD." % E.gold
+			var ok := range(run.bag.size()).filter(func(i): return run.bag[i].id != "ball_junk" and run.bag[i].rank < Tuning.MAX_RANK)
+			if ok.is_empty():
+				return "NOTHING LEFT TO HAMMER. YOU WALK ON."
+			var b: Dictionary = run.bag[ok[r.randi() % ok.size()]]
+			b.rank += 1
+			cost.call(E.hp)
+			return "%s IS NOW RANK %d. THE HEAT COST %d HP." % [Tuning.BALLS[b.id].name, b.rank, E.hp]
+		"event_vendor":
+			var relic := event_relic()
+			if which == "a":
+				spend(E.price)
+				run.relics.append(relic)
+				return "%s IS YOURS." % Tuning.RELICS[relic].name
+			if relic and r.randf() < E.haggle:
+				run.relics.append(relic)
+				return "IT SHRUGS. %s IS YOURS, FREE." % Tuning.RELICS[relic].name
+			add_ball(E.junk)
+			return "IT SNEERS. A STONE JOINS YOUR BAG."
+	if which == "a":  # event_spring
+		heal(E.heal)
+		return "WARM. +%d HP." % E.heal
+	add_gold(E.gold)
+	cost.call(E.hp)
+	return "+%d GOLD, AND A CHILL. -%d HP." % [E.gold, E.hp]
+
+
+## Shop stock: {balls = [3 distinct unlocked non-junk ids], relics = [up to 2 distinct unowned unlocked ids]}.
+func roll_shop(r: RandomNumberGenerator) -> Dictionary:
+	var balls := Tuning.BALLS.keys().filter(func(id): return id != "ball_junk" and unlocked(id))
+	var stock := {balls = [], relics = []}
+	for i in Tuning.SHOP.balls:
+		stock.balls.append(balls.pop_at(r.randi() % balls.size()))
+	for i in Tuning.SHOP.relics:
+		var id := roll_relic(r, Tuning.RELIC_RARITY.keys(), stock.relics)
+		if id:
+			stock.relics.append(id)
+	return stock
+
+
+## A key of w drawn by weight.
+func _weighted(w: Dictionary, r: RandomNumberGenerator) -> String:
+	var roll: float = r.randf() * w.values().reduce(func(a, b): return a + b, 0)
+	for k in w:
+		roll -= w[k]
+		if roll < 0:
+			return k
+	return w.keys().back()
+
+
+## JSON reads every number as a float; whole ones come back as ints so they index arrays and print without ".0".
+func _ints(v: Variant) -> Variant:
+	match typeof(v):
+		TYPE_FLOAT:
+			return int(v) if v == floorf(v) else v
+		TYPE_ARRAY:
+			return v.map(_ints)
+		TYPE_DICTIONARY:
+			for k in v:
+				v[k] = _ints(v[k])
+	return v
 
 
 # --- Board generation ---
 
-## Returns [{pos: Vector2, kind: String}] in arena px (origin top-left), kinds from Tuning.BRICKS. Always has at least one breakable brick.
-func generate(level: int, seed: int) -> Array:
+## A board for a fight class (Tuning.BOARDS key) with an enemy's `board` change: [{pos, row, col, kind}] in arena px
+## (origin top-left), kinds from Tuning.BRICKS. Each filled slot rolls solid / bomb / red in that order under their max;
+## a roll that breaks a placement rule (solid off the edges and never touching a solid, red in its rows and never touching
+## a red) stays plain. Then exactly crit and refresh plain bricks convert: crit away from solids and crits in the column
+## with the fewest, refresh in the top half away from crits and one per column; a conversion with nothing eligible drops
+## its rules so the count holds. Touching means within one column step, so honey rows count their offset pair.
+## board: top (px below BOARD_TOP), solid_row / solid_cols (forced before the rolls), no_refresh_rows, red (extra reds after).
+func generate(cls: String, seed: int, board: Dictionary = {}) -> Array:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed
-	var L: Dictionary = Tuning.LEVELS[level]
+	var B: Dictionary = Tuning.BOARDS[cls]
 	var step := Tuning.BRICK_SIZE + Vector2.ONE * Tuning.BRICK_GAP
-	# Extra rows stop where the board would reach the placement line (the same bound test.gd checks).
-	var max_rows := int((arena_size(level).y - Tuning.PLACE_UP - board_top(level) - Tuning.BRICK_SIZE.y / 2 - 1) / step.y) + 1
-	var rows: int = mini(L.rows + int(bonus("row")), max_rows)
-	var holes: float = maxf(0, stat(L.holes, "holes"))
-	var solid: float = maxf(0, stat(L.solid, "solids"))
 	var out := []
-	for r in rows:
-		var cols: int = L.cols - (r % 2 if L.shape == "honey" else 0)
+	var count := {solid = 0, bomb = 0, red = 0}
+	var near := func(b: Dictionary, kind: String) -> bool:
+		return out.any(func(o): return o != b and o.kind == kind and o.pos.distance_to(b.pos) <= step.x + 1)
+	for r in B.rows:
+		var cols: int = B.cols - (r % 2 if B.shape == "honey" else 0)
 		for c in cols:
-			if c in L.get("skip", []):
+			if rng.randf() >= B.density:
 				continue
-			# columns: 2-wide pairs a one-brick gap apart; the centre pair is a row short at both ends, each pair out one row shorter again.
-			if L.shape == "columns" and (c % 3 == 2 or absf(r - (rows - 1) / 2.0) > (rows - 1) / 2.0 - 1 - absi(c / 3 - cols / 3 / 2)):
-				continue
-			var pos := Vector2(arena_size(level).x / 2 + (c - (cols - 1) / 2.0) * step.x, board_top(level) + r * step.y)
-			# A hole is a brick kind, not a gap: every seed fills the same slots, so a saved layout always fits (place.gd).
-			var kind := "hole" if rng.randf() < holes else "solid" if rng.randf() < solid else "plain"
-			if kind == "plain":
-				var roll := rng.randf()
-				for k in L.get("special", {}):
-					roll -= L.special[k]
-					if roll < 0:
-						kind = k
-						break
-			out.append({pos = pos, kind = kind})
-	var breakable := out.filter(func(b): return Tuning.BRICKS[b.kind].hp > 0)
-	if breakable.is_empty():
-		out[0].kind = "plain"  # ponytail: assumes holes never empty the whole board
-		breakable = [out[0]]
-	if L.get("seq", false):
-		# First brick (from a random start) with two neighbours to its right becomes the 1-2-3 run.
-		var at := func(p: Vector2): return out.filter(func(b): return b.pos.is_equal_approx(p))
-		var start := rng.randi() % out.size()
-		for i in out.size():
-			var b: Dictionary = out[(start + i) % out.size()]
-			var n1: Array = at.call(b.pos + Vector2(step.x, 0))
-			var n2: Array = at.call(b.pos + Vector2(step.x * 2, 0))
-			var soft := func(x: Dictionary): return Tuning.BRICKS[x.kind].hp > 0  # not solid, not a hole
-			if soft.call(b) and n1 and n2 and soft.call(n1[0]) and soft.call(n2[0]):
-				b.kind = "seq1"
-				n1[0].kind = "seq2"
-				n2[0].kind = "seq3"
-				break
-	if L.get("jackpot", false):
-		var free := breakable.filter(func(b): return not b.kind.begins_with("seq"))
-		free[rng.randi() % free.size()].kind = "jackpot"
-	# Unlocked icon kinds: each rank (plus twin) turns one plain brick into that kind, while plain bricks last.
-	for k in Tuning.ICON_KINDS:
-		if k in Tuning.UPGRADES and rank(k) > 0:
-			for i in rank(k) + rank("twin"):
-				var plain := out.filter(func(b): return b.kind == "plain")
-				if plain.is_empty():
+			var b := {pos = Vector2(Tuning.ARENA.x / 2 + (c - (cols - 1) / 2.0) * step.x, Tuning.BOARD_TOP + board.get("top", 0) + r * step.y), row = r, col = c, kind = "plain"}
+			for k in ["solid", "bomb", "red"]:
+				if count[k] < B[k][1] and rng.randf() < B[k][0]:
+					b.kind = k
 					break
-				plain[rng.randi() % plain.size()].kind = k
+			var edge: bool = c == 0 or c == cols - 1 or r == B.rows - 1
+			if b.kind == "solid" and (edge or near.call(b, "solid")) or b.kind == "red" and (r >= B.get("red_rows", B.rows) or near.call(b, "red")):
+				b.kind = "plain"  # a failing slot rolls plain
+			if r == board.get("solid_row", -1) or c in board.get("solid_cols", []):
+				b.kind = "solid"  # ponytail: honey odd rows are offset, so a solid column zigzags; fine for a wall
+			if b.kind in count:
+				count[b.kind] += 1
+			out.append(b)
+	var plain := func(ok: Callable) -> Array:
+		var e: Array = out.filter(func(b): return b.kind == "plain" and ok.call(b))
+		return e if e else out.filter(func(b): return b.kind == "plain")  # nothing eligible: the rules drop, the count holds
+	var crits := func(col: int) -> int: return out.filter(func(o): return o.kind == "crit" and o.col == col).size()
+	for i in B.crit:
+		var e: Array = plain.call(func(b): return not near.call(b, "solid") and not near.call(b, "crit"))
+		if e.is_empty():
+			break
+		var least: int = e.map(func(b): return crits.call(b.col)).min()
+		e = e.filter(func(b): return crits.call(b.col) == least)
+		e[rng.randi() % e.size()].kind = "crit"
+	for i in B.refresh:
+		var one_per_col := func(b: Dictionary) -> bool: return not out.any(func(o): return o.kind == "refresh" and o.col == b.col)
+		var e: Array = plain.call(func(b): return b.row >= board.get("no_refresh_rows", 0) and b.row < B.rows / 2 and not near.call(b, "crit") and one_per_col.call(b))
+		if e.is_empty():
+			break
+		e[rng.randi() % e.size()].kind = "refresh"
+	for i in board.get("red", 0):
+		var e: Array = out.filter(func(b): return b.kind == "plain")
+		if e.is_empty():
+			break
+		e[rng.randi() % e.size()].kind = "red"
 	return out

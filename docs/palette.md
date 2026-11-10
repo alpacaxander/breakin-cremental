@@ -16,20 +16,20 @@ Theme: pachinko / slot-machine cabinet. Near-black surface, a few saturated lit 
 
 ## Groups
 
-Every board object belongs to one group, and the group owns one hue in the arena and in the HUD alike. A brick's group is `Tuning.hue(kind)`: `mag`, `ora` or `blue` in the current code. The table gives the Peglin direction's meaning (`docs/design.md`); the "Incremental build" column is what the code and sprites do today and lags on purpose.
+Every board object belongs to one group, and the group owns one hue in the arena and in the HUD alike. A brick's group is `Tuning.hue(kind)`: `mag`, `ora`, `blue`, `mint` or `red`.
 
-| Group | Hue | Idx | Hex | Dim state | Peglin direction | Incremental build |
-|---|---|---|---|---|---|---|
-| Basic bricks | magenta | 180 | `ff4aff` | 185 `790079` | plain, multi, multi3. Glass brightens a step per hit left and drops a step on each hit; hp 1 is the plain glass | same, plus Blocks web nodes |
-| Bomb and act specials | orange | 54 | `ff7500` | 58 `9f3800` | bomb bricks and the specials an act's boards place (shield, conditional, timed, sequence). Locked is the dim lamp, open is lit | level specials: what a level places and no upgrade adds (`hue = "ora"` on the row) |
-| Crit | blue | off-palette | `3d6bff` | `1a2f8f` | crit bricks (launch the next ball) and their halo | unlocks: icon kinds with a web node of the same id, and the Unlocks nodes |
-| Refresh | mint | 122 | `15f2b0` | 126 `027354` | refresh bricks and the wave that relights the board | placeables: bumpers, pads, gates, magnets, portals, spawners, the ghost and placement line, Placement nodes |
-| Paddle | sky | 132 | `4fc7ff` | `155386` | the paddle's stripe and its hit flash over chrome; starting paddles | same, plus Paddle web nodes |
-| Relics | violet | 164 | `7f16ff` | `5b00c9` | relic and ball-trait icons in the HUD, shop and rewards; no board object | Round web nodes and the shield floor |
-| Enemy | red | 35 | `ff0000` | 43 `7f0000` | enemies' lit accent, red and fuse bricks, enemy balls, goo, lasers, debris, intents, both HP bars | danger, timer low, invalid ghost |
-| Dead | slate | 172 | `5454a7` | | solid, hole, walls, shield rows: unlit chrome and trim, the ball ignores or bounces | same |
+| Group | Hue | Idx | Hex | Dim state | Meaning |
+|---|---|---|---|---|---|
+| Basic bricks | magenta | 180 | `ff4aff` | 185 `790079` | plain, multi, multi3. Glass brightens a step per hit left and drops a step on each hit; hp 1 is the plain glass |
+| Bomb and act specials | orange | 54 | `ff7500` | 58 `9f3800` | bomb bricks and the specials an act's boards place (shield, conditional, timed, sequence). Locked is the dim lamp, open is lit |
+| Crit | blue | off-palette | `3d6bff` | `1a2f8f` | crit bricks (launch the next ball) and their halo |
+| Refresh | mint | 122 | `15f2b0` | 126 `027354` | refresh bricks and the wave that relights the board |
+| Paddle | sky | 132 | `4fc7ff` | `155386` | the paddle's stripe and its hit flash over chrome; starting paddles |
+| Relics | violet | 164 | `7f16ff` | `5b00c9` | relic and ball-trait icons in the HUD, shop and rewards; the shield floor relic's floor line |
+| Enemy | red | 35 | `ff0000` | 43 `7f0000` | enemies' lit accent, red and fuse bricks, enemy balls, goo, lasers, debris, intents, both HP bars |
+| Dead | slate | 172 | `5454a7` | | solid, hole, walls, shield rows: unlit chrome and trim, the ball ignores or bounces |
 
-Blue is off-palette, picked deeper than sky so the paddle stays apart. Violet was once held for a second currency; the Peglin direction has one currency (gold) and violet goes to relics.
+Blue is off-palette, picked deeper than sky so the paddle stays apart. There is one currency (gold); violet goes to relics.
 
 ## Game assignment
 
@@ -38,14 +38,12 @@ Blue is off-palette, picked deeper than sky so the paddle stays apart. Violet wa
 | Base | 254 | `000020` | |
 | Cabinet trim | 174 | `2e2e5c` | |
 | Dead / unbreakable | 172 | `5454a7` | |
-| Damage / sparks (incremental: payout) | 73 | `ffff00` | 77 `887809` |
+| Damage / sparks | 73 | `ffff00` | 77 `887809` |
 | Gold: run currency, prices, trim | 64 | `ebdb57` | 68 `9b5b13` |
 | Enemy / danger / invalid ghost | 35 | `ff0000` | 43 `7f0000` |
 | Ball / text / chrome | 80 | `ffffcf` | 84 `ebde81` |
 
-## Upgrade web (incremental build only)
-
-A node's lamp takes its category's hue (`tuning.gd` `CATS`, sprites `node_<cat>_<state>`): the hue of the arena thing it adds or changes, per the Groups table. Links and costs stay payout yellow. The Peglin direction has no web; the node lamps become relic and reward cards in violet, and the map is drawn in cabinet trim with the node kinds as icons.
+The map is drawn in cabinet trim with the node kinds as icons; reward and shop cards are violet lamps.
 
 Known gaps: no true gold neon (64–71 is bronze, tops at 0.63 sat). No cyan ramp, only the single 255 `00ffff`.
 
@@ -67,10 +65,10 @@ Known gaps: no true gold neon (64–71 is bronze, tops at 0.63 sat). No cyan ram
 | 48–63 | Orange, 16 | `ff7500` | Bomb and act specials. |
 | 72–79 | Yellow, 8 | `ffff00` | Lamps, damage. |
 | 112–119 | Pure green, 8 | `00ff00` | Harsh. Short flashes only. |
-| 120–127 | Mint, 8 | `15f2b0` | Refresh (incremental: bumpers, placement). |
+| 120–127 | Mint, 8 | `15f2b0` | Refresh. |
 | 128–139 | Sky → navy, 12 | `4fc7ff` | Paddle. |
 | 144–159 | Lavender → blue, 16 | `0000ff` | Backgrounds. Crit blue `3d6bff` sits just off this ramp. |
-| 160–169 | Violet, 10 | `7f16ff` | Relics (incremental: Round upgrades and the shield floor). |
+| 160–169 | Violet, 10 | `7f16ff` | Relics. |
 | 176–187 | Magenta, 12 | `ff00ff` | Basic bricks. |
 | 255 | Cyan single | `00ffff` | No ramp. |
 

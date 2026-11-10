@@ -2,9 +2,14 @@
 // Generates assets/audio/wav/*.wav (44.1k mono 16-bit) and assets/audio/demo.html.
 // Run: node assets/audio/gen.mjs   (no dependencies). Played by src/sfx.gd.
 import { writeFileSync, mkdirSync } from "node:fs";
+import { demo } from "./parts/demo.mjs";
 
 const SR = 44100;
 const TAU = Math.PI * 2;
+
+// Seeded noise so a regen rewrites only the cues whose recipe changed, not every wav. ponytail: mulberry32, fine for white noise.
+let rs = 0;
+Math.random = () => { rs = (rs + 0x6d2b79f5) | 0; let t = Math.imul(rs ^ (rs >>> 15), 1 | rs); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 
 // One synth voice: pitch glides f -> f1 (exponential), amplitude = linear attack `a` then exp decay.
 // k = decay rate per second (default lands near silence at dur); k = 0 sustains (for loops).
@@ -168,6 +173,9 @@ const CUES = {
 	// --- Ambient ---
 	lamp_hum: { g: "Ambient", d: "electrical lamp hum (loop)", gen: () => layer([tone({ f: 120, dur: 1, wave: "sin", a: 0, k: 0 })], [tone({ f: 240, dur: 1, wave: "sin", a: 0, k: 0 }), 0, 0.3], [noise({ dur: 1, lp: 3000, hp: 2000, k: 0 }), 0, 0.04]), gain: 0.15, loop: true },
 	tube_flicker: { g: "Ambient", d: "a tube crackles", gen: () => layer(...[0, 0.03, 0.09, 0.1, 0.17].map(t => [noise({ dur: 0.02, lp: 8000, hp: 2500 }), t, 0.5 + Math.random() * 0.5])), gain: 0.5 },
+
+	// --- Peglin direction (docs/content.md): new cues; the reuse table is in parts/demo.mjs ---
+	...demo({ tone, noise, layer, notes, bell, click }),
 };
 
 function finish(buf, gain = 1, loop = false) {
@@ -191,6 +199,7 @@ function wav(buf) {
 mkdirSync("assets/audio/wav", { recursive: true });
 const meta = {};
 for (const [name, c] of Object.entries(CUES)) {
+	rs = [...name].reduce((h, ch) => Math.imul(h ^ ch.charCodeAt(0), 16777619), 0x811c9dc5); // per-cue seed: a recipe change rewrites only its own wav
 	const buf = finish(c.gen(), c.gain, c.loop);
 	writeFileSync(`assets/audio/wav/${name}.wav`, wav(buf));
 	meta[name] = { g: c.g, d: c.d, ms: Math.round(buf.length / SR * 1000), loop: !!c.loop, ladder: c.ladder ?? null };

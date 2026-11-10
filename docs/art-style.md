@@ -40,15 +40,15 @@ A lit object uses exactly one set. Never mix swatches across sets.
 
 | Set | Tube | Ring | Deep | Highlight | Used for |
 |---|---|---|---|---|---|
-| Magenta | `ff4aff` | `a200a2` | `350035` | `ffcaff` | basic bricks (plain, multi-hit: the glass steps `350035`, `550055`, `790079` for 1, 2, 3 hits left). Incremental build also: Blocks web nodes |
-| Blue | `3d6bff` | `1f3bc4` | `0b1658` | `bccbff` | crit bricks and their halo. Incremental build: unlocks (icon bricks with a web node) and those nodes. Off-palette, deeper than sky |
-| Mint | `15f2b0` | `02936b` | `01563f` | `b7fbe7` | refresh bricks and the refresh wave. Incremental build: bumpers, placeables, portal ring, valid ghost, Placement web nodes |
-| Sky | `4fc7ff` | `186fb6` | `0e3556` | `cefaff` | paddle stripe and hit flash, paddle extras, starting paddles. Incremental build also: Paddle web nodes |
-| Orange | `ff7500` | `c44f00` | `791800` | `ffb975` | bomb bricks and the board specials an act places (shield, conditional, timed). Dim is locked, lit is open. Incremental build: level specials and the icon kinds no upgrade adds |
-| Violet | `7f16ff` | `48009f` | `240051` | `c799ff` | relics and ball traits in the HUD and shop. Incremental build: Round web nodes and the shield floor |
+| Magenta | `ff4aff` | `a200a2` | `350035` | `ffcaff` | basic bricks (plain, multi-hit: the glass steps `350035`, `550055`, `790079` for 1, 2, 3 hits left) |
+| Blue | `3d6bff` | `1f3bc4` | `0b1658` | `bccbff` | crit bricks and their halo. Off-palette, deeper than sky |
+| Mint | `15f2b0` | `02936b` | `01563f` | `b7fbe7` | refresh bricks and the refresh wave |
+| Sky | `4fc7ff` | `186fb6` | `0e3556` | `cefaff` | paddle stripe and hit flash, paddle extras, starting paddles |
+| Orange | `ff7500` | `c44f00` | `791800` | `ffb975` | bomb bricks and the board specials an act places (shield, conditional, timed). Dim is locked, lit is open |
+| Violet | `7f16ff` | `48009f` | `240051` | `c799ff` | relics and ball traits in the HUD and shop, the shield floor |
 | Gold | `ebdb57` | `9b5b13` | `2b1a06` | `fff5a8` | gold: the run currency, shop prices, the gold brick |
-| Yellow | `ffff00` | `887809` | `000020` | `ffff73` | damage: the stored number on a ball, the paddle flash that fires it, sparks and break effects. Incremental build: payout, combo, web links and costs |
-| Red | `ff0000` | `a30000` | `3a0000` | `ff8a8a` | enemies and everything they put on the board: red bricks, fuse bricks, enemy balls, goo, lasers, debris, the HP bar. Proposed; not in `SETS` yet |
+| Yellow | `ffff00` | `887809` | `000020` | `ffff73` | damage: the stored number on a ball, the paddle flash that fires it, sparks and break effects, the combo tube |
+| Red | `ff0000` | `a30000` | `3a0000` | `ff8a8a` | enemies and everything they put on the board: red bricks, fuse bricks, enemy balls, goo, lasers, debris, the HP bar. Not in `SETS`: the red strips come from `parts/bricks.mjs` and `parts/hazards.mjs` |
 
 The sets are `SETS` in `gen.mjs`; a new one takes top, mid, near-bottom and tint from one palette ramp.
 
@@ -70,7 +70,7 @@ Shape never changes between states. Only swatches do.
 
 ## Text
 
-One font: the 3x5 face in `FONT` in the generator. 1px letter spacing. HUD text draws at 2x (6x10). In-sprite text draws at 1x in payout yellow or base navy.
+One font: the 3x5 face in `FONT` in the generator. 1px letter spacing. HUD text draws at 2x (6x10). In-sprite text draws at 1x in yellow or base navy.
 
 ## Effects
 

@@ -3,6 +3,15 @@
 // Run: node assets/pixel/gen.mjs   (needs ImageMagick `magick`). Colors from docs/palette.md.
 import { writeFileSync, mkdirSync, readFileSync } from "node:fs";
 import { execSync } from "node:child_process";
+// Peglin-direction parts (docs/content.md). gen.mjs exports nothing, so each takes the helpers it needs as one object.
+import { emitBricks, RED } from "./parts/bricks.mjs";
+import { emit as emitBalls } from "./parts/balls.mjs";
+import { emit as emitEnemies } from "./parts/enemies.mjs";
+import { emit as emitBoss } from "./parts/boss.mjs";
+import { emit as emitHazards } from "./parts/hazards.mjs";
+import { emit as emitIcons } from "./parts/icons.mjs";
+import { emit as emitScreens } from "./parts/screens.mjs";
+import { emit as emitFight } from "./parts/fight.mjs";
 
 const C = {
 	base: "000020", trim: "2e2e5c", trimHi: "5454a7", trimLo: "21224e", rivet: "9797d5", chromeHi: "e7e7ff", chromeMid: "c6c6ff", chromeLo: "414183",
@@ -259,7 +268,7 @@ for (const id of ["mag", "ora", "vio", "gold", "sky", "blue"]) {
 // -- Multi-hit and armor --
 const M = SETS.mag, ML = lit(M), MH = hot(M);
 const UL = lit(SETS.blue);  // unlock bricks (icon kinds with a web node): blue body, like their web nodes
-const SPECIAL_ICONS = ["slowdown", "x3", "jackpot"];  // icon kinds a level places and no upgrade adds: orange, like the other level specials
+const SPECIAL_ICONS = ["slowdown", "x3", "jackpot", "bomb"];  // icon kinds a level places and no upgrade adds: orange, like the other level specials
 const iconBody = (id) => SPECIAL_ICONS.includes(id) ? lit(SETS.ora) : UL;
 A.brick_icon_multiball = withIcon(UL, ICONS.multiball, C.white);
 A.brick_icon_x2 = withIcon(UL, ICONS.x2, C.pay);
@@ -463,6 +472,16 @@ def("Ball and paddle", "ball_lost", 12, [frame(12, 12, [A.ball, 2, 2]), frame(12
 def("Ball and paddle", "paddle_hit", 12, [C.pureWhite, C.white, C.skyHi, C.sky].map((c) => { const b = A.paddle.crop(0, 0, 60, 8); b.hline(6, 4, 48, c); return b; }));
 
 const strip = (frames) => { const s = new Img(frames[0].w * frames.length, frames[0].h); frames.forEach((f, i) => s.blit(f, i * f.w, 0)); return s; };
+
+// -- Peglin direction (assets/pixel/parts/): bricks first so the hazards paint strip ends on brick_red; icons own the intent_* set --
+SETS.red = RED;
+emitBricks({ Img, C, SETS, lit, dim, hot, FLASH, frame, center, hold, blank, sparks, withIcon, glyph, ellipse, ICONS, A, def });
+emitBalls({ C, SETS, A, ellipse, def });
+emitEnemies({ Img, C, def, hold, blank });
+emitBoss({ Img, C, def, A, frame, hold, blank });
+emitHazards({ Img, C, A, def, frame, lamp, hot, ellipse, ring });
+emitIcons({ Img, C, text, A, def });
+emitFight({ Img, C, SETS, A, def, frame, center, blank, lit, dim, hot, ring });
 
 // ---- Mockup 640x360 ----
 function board() {
@@ -782,6 +801,7 @@ writeFileSync("assets/pixel/png/font_3x5.fnt", fnt);
 for (const [n, a] of Object.entries(ANIM)) toPng(strip(a.frames), `assets/pixel/png/anim_${n}.png`);
 toPng(board(), "assets/pixel/preview/look.png", 2);
 for (const [n, img] of Object.entries(MOCK)) toPng(img, `assets/pixel/preview/ui_${n}.png`, 2);
+emitScreens({ Img, C, SETS, A, ANIM, text, textW, nine, lit, dim, hot, ellipse, ring, chassis, col, btn, centreText, toPng });  // after MOCK: its ui_shop.png replaces the upgrade-web mock
 const logoCard = (l) => { const m = new Img(l.w + 32, l.h + 24); m.rect(0, 0, m.w, m.h, C.base); for (let y = 6; y < m.h; y += 10) for (let x = 6; x < m.w; x += 10) m.px(x, y, C.trim); m.blit(l, 16, 12); return m; };
 for (const [n, l] of Object.entries(LOGOS)) toPng(logoCard(l), `assets/pixel/preview/logo_${n}.png`, 3);
 execSync("rm -r assets/pixel/tmp");
@@ -798,6 +818,8 @@ const GROUPS = [
 	["Ideas (docs/ideas.md)", ["place_splitter", "place_flipper", "place_wedge", "place_ramp", "place_toll", "paddle_mini", "brick_ghost", "brick_gold", "brick_mirror", "brick_tele", "brick_regrow", "brick_key", "brick_lock"]],
 	["Ball and paddle", ["ball", "paddle"]],
 	["Effects", ["fx_halo", "fx_spark", "fx_debris", "fx_payout_tag"]],
+	["Peglin bricks", ["brick_crit", "brick_refresh", "brick_red"]],
+	["Relics, intents, map and HUD (docs/content.md)", Object.keys(A).filter((n) => /^(relic|intent|map_node|ui_hp|ui_next)/.test(n))],
 ];
 const cardsFor = (groups) => groups.map(([title, names]) => `<section><h2>${title}</h2><div class="row">${names.map((n) =>
 	`<figure><div class="tile"><img src="${uri(n)}" width="${A[n].w}" height="${A[n].h}" alt="${n}"></div><figcaption>${n}<span>${A[n].w}×${A[n].h}</span></figcaption></figure>`

@@ -3,8 +3,9 @@
 ## the 4:3 field (480x360, the content of every screen; the arena scales down into it), the pieces/menu column, padding.
 ## The columns stretch over the canvas height; the padding is bare sheet. In a window smaller than 1280x720 the columns
 ## keep their 2x (their content needs all of it) and the field shrinks to what is left between them (Root.content). Centred
-## content goes on the Root, column content on Root.left / Root.right (x 0..77 and RX..639 land in the columns). Look:
-## src/theme.tres, assets/pixel/preview/ui_*.png.
+## content goes on the Root, column content on Root.left / Root.right (x 0..77 and RX..639 land in the columns). The run
+## screens share run_columns (YOU: HP bar, gold, relics; BAG: the bag rows), card and hotspot. Look: src/theme.tres,
+## assets/pixel/preview/ui_*.png.
 extends Node
 
 const Tuning = preload("res://src/tuning.gd")
@@ -15,6 +16,7 @@ const SIZE := Vector2(640, 360)
 const RX := 562  # right column x; columns are 78 wide, text inset 6
 const FIELD_X := 80
 const FIELD_W := 480
+const BAG_ROWS := 22  # bag rows that fit a column above DISCARD. ponytail: a longer bag is clipped; scroll or shrink the pitch if bags grow past it
 
 
 ## A 2x sprite-space screen: the 640x360 layout, centred in the canvas by fit(). Esc emits back when something listens;
@@ -25,7 +27,7 @@ class Root extends Control:
 	var sheet := Control.new()  # covers the whole canvas: base and dots anchor to it
 	var left := Control.new()  # column content, in layout coordinates
 	var right := Control.new()
-	var field := Control.new()  # the 4:3 content between the columns; the shop pans its web inside it
+	var field := Control.new()  # the 4:3 content between the columns
 	var cols: Array[Control] = []  # chassis' panels and rails, stretched over the canvas height by fit()
 
 	func _init() -> void:
@@ -97,6 +99,18 @@ class Dots extends Control:
 				draw_rect(Rect2(x, y, 1, 1), Tuning.COLORS.trim)
 
 
+## Straight 1 px lines (the map's edges): segs is [[from, to, color], ...] in layout px.
+class Lines extends Control:
+	var segs := []
+
+	func _init() -> void:
+		mouse_filter = MOUSE_FILTER_IGNORE
+
+	func _draw() -> void:
+		for s in segs:
+			draw_line(s[0], s[1], s[2], 1)
+
+
 static func tex(name: String) -> Texture2D:
 	return load(PNG % name)
 
@@ -161,14 +175,14 @@ static func rect(parent: Node, x: float, y: float, w: float, h: float, c: Color)
 static func label(parent: Node, s: String, x: float, y: float, c: Color, k := 1, w := 0, align := HORIZONTAL_ALIGNMENT_LEFT) -> Label:
 	var l := Label.new()
 	l.text = s
-	l.position = Vector2(x, y)
 	l.add_theme_color_override("font_color", c)
 	if k != 1:
 		l.add_theme_font_size_override("font_size", 5 * k)
 	if w > 0:
-		l.size.x = w
 		l.autowrap_mode = TextServer.AUTOWRAP_WORD
+		l.size.x = w
 		l.horizontal_alignment = align
+	l.position = Vector2(x, y)  # after the wrap: a position set while autowrap is off pins the size to the unwrapped text's width
 	parent.add_child(l)
 	return l
 
@@ -194,6 +208,78 @@ static func button(parent: Node, s: String, x: float, y: float, w: float, h: flo
 	b.pressed.connect(on_press)
 	parent.add_child(b)
 	return b
+
+
+## An invisible button: a clickable area over something drawn by hand (a map node, a card, a bag row).
+static func hotspot(parent: Node, x: float, y: float, w: float, h: float, on_press: Callable, snd := "ui_click") -> Button:
+	var b := button(parent, "", x, y, w, h, on_press, false, 1, snd)
+	for s in ["normal", "hover", "pressed", "disabled", "focus"]:
+		b.add_theme_stylebox_override(s, StyleBoxEmpty.new())
+	return b
+
+
+## The player's HP bar: the heart at (x, y) and a 68x3 bar below it, `frac` full. Returns the bar, for live resizing.
+static func hp_bar(parent: Node, x: float, y: float, frac: float) -> ColorRect:
+	icon(parent, "ui_hp", x, y)
+	rect(parent, x, y + 9, 68, 3, Tuning.COLORS.trim)
+	return rect(parent, x, y + 9, 68 * frac, 3, Tuning.COLORS.mint)
+
+
+## A 36x48 card centred on cx with its top at `top`: the face at 2x, the name under it and a rivet description wrapped
+## to 72 px. Click runs on_press; hover plays ui_hover and lights card_frame_hot; badge adds the UP tag; dim shows
+## card_frame_dim, greys the face and disables it.
+static func card(parent: Node, cx: float, top: float, face: Texture2D, name: String, desc: String, on_press: Callable, badge := false, dim := false) -> Button:
+	var p := icon(parent, "card_frame_dim" if dim else "card_frame", cx - 18, top)
+	var f := icon(parent, face, cx - face.get_width(), top + 24 - face.get_height())
+	f.scale = Vector2.ONE * Fx.SCALE
+	if badge:
+		icon(parent, "ui_badge", cx + 10, top - 3)
+	label(parent, name, cx - 36, top + 52, Tuning.COLORS.white, 1, 72, HORIZONTAL_ALIGNMENT_CENTER)
+	label(parent, desc, cx - 36, top + 62, Tuning.COLORS.rivet, 1, 72, HORIZONTAL_ALIGNMENT_CENTER)
+	var b := hotspot(parent, cx - 18, top, 36, 48, on_press, "ui_pickup")
+	if dim:
+		f.modulate.a = 0.4
+		b.disabled = true
+	else:
+		b.mouse_entered.connect(func():
+			p.texture = tex("card_frame_hot")
+			Sfx.play("ui_hover"))
+		b.mouse_exited.connect(func(): p.texture = tex("card_frame"))
+	return b
+
+
+## A ball's still face: frame rank-1 of its <id>_rank strip.
+static func face(ball: Dictionary) -> Texture2D:
+	return Fx.frame("%s_rank" % ball.id, int(8 * Tuning.BALLS[ball.id].size), ball.rank - 1)
+
+
+## Bag rows in the right column from y 23: face, name, rank pips, pitch 12. head marks the first row as next to launch;
+## on_pick, when given, makes each row a hotspot called with its index.
+static func bag_rows(parent: Node, rows: Array, head := false, on_pick := Callable()) -> void:
+	for i in mini(rows.size(), BAG_ROWS):
+		var y := 23 + 12 * i
+		if head and i == 0:
+			icon(parent, "ui_next", RX + 1, y + 1)
+		icon(parent, face(rows[i]), RX + 6, y)
+		label(parent, Tuning.BALLS[rows[i].id].name, RX + 18, y, Tuning.COLORS.white)
+		pips(parent, RX + 18, y + 6, Tuning.MAX_RANK, rows[i].rank, "ui_pip_pay")
+		if on_pick.is_valid():
+			hotspot(parent, RX + 4, y - 1, 72, 12, on_pick.bind(i), "")
+
+
+## The between-fight run columns, drawn once from Game.run: YOU (HP, gold, relic icons) and BAG (the bag rows, pickable
+## when on_pick is given). The fight's live version is hud.gd.
+static func run_columns(r: Root, on_pick := Callable()) -> void:
+	var run: Dictionary = Game.run
+	var C := Tuning.COLORS
+	hp_bar(r.left, 6, 22, float(run.hp) / run.hp_max)
+	label(r.left, "HP %d/%d" % [run.hp, run.hp_max], 16, 23, C.pay)
+	icon(r.left, "coin", 6, 38)
+	label(r.left, "GOLD", 16, 39, C.rivet)
+	label(r.left, str(run.gold), 6, 48, C.pay, 2)
+	for i in run.relics.size():
+		icon(r.left, "relic_%s" % run.relics[i], 6 + 13 * (i % 5), 64 + 13 * (i / 5))
+	bag_rows(r.right, run.bag, false, on_pick)
 
 
 ## A sprite by name or texture at a sprite-space position.
