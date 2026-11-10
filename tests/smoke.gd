@@ -362,6 +362,12 @@ func _ready() -> void:
 	await get_tree().process_frame
 	assert(Game.run.pending == "" and Game.has_run() and _button(main, "SKIP") == null, "the map saved with the node resolved")
 	var m: Dictionary = Game.run.map
+	# The catalog: the starting bag and the enemy just fought are marked seen; then back to the map.
+	assert("ball_basic" in Game.settings.meta.seen and m.enemies[m.layer][m.node] in Game.settings.meta.seen, "the starting bag and the first enemy are in the catalog")
+	main._show_catalog()
+	await get_tree().process_frame
+	assert(_button(main, "BACK") != null, "the catalog opens with a BACK button")
+	main._show_map()
 	main._pick_node(Tuning.MAP[0].edges[0][0])
 	await get_tree().process_frame
 	assert(m.layer == 1 and Game.run.pending == m.layers[1][m.node], "a map click enters the next layer's node")

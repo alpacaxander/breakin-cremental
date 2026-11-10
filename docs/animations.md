@@ -36,13 +36,13 @@ Sections headed Legacy belong to the cut incremental build: still generated, kep
 
 | Name | Frame | Frames | fps | What |
 |---|---|---|---|---|
-| ball_basic_rank | 8x8 | 3 | 1 | warm-white ball; rank only changes the edge: cream, pay, payHi (rank 3 is `ball` exactly) |
-| ball_heavy_rank | 12x12 | 3 | 1 | 12px ball with a 2px violet shell |
-| ball_split_rank | 8x8 | 3 | 1 | centre seam in violet |
-| ball_pierce_rank | 6x6 | 3 | 1 | 6px ball with a violet core |
-| ball_sticky_rank | 8x8 | 3 | 1 | violet drip at the bottom |
-| ball_bomb_rank | 8x8 | 3 | 1 | fuse on top with a yellow spark |
-| ball_poison_rank | 8x8 | 3 | 1 | three violet specks |
+| ball_basic_rank | 8x8 | 3 | 1 | warm-white ball; rank only changes the edge: cream, pay, payHi (rank 3 is `ball` exactly). Every other ball: its own ring, then pay, then payHi |
+| ball_heavy_rank | 12x12 | 3 | 1 | lumpy brown rock with cracks |
+| ball_split_rank | 8x8 | 3 | 1 | white and sky halves on a zigzag crack |
+| ball_pierce_rank | 6x6 | 3 | 1 | diagonal chrome shard, white tip |
+| ball_sticky_rank | 8x8 | 3 | 1 | pink gum ball with a drip off the bottom |
+| ball_bomb_rank | 8x8 | 3 | 1 | dark navy bomb, cream fuse, orange and yellow spark |
+| ball_poison_rank | 8x8 | 3 | 1 | spiky mint puffball with dark spots |
 | ball_junk_rank | 8x8 | 1 | 1 | dead slate ball, no glint |
 
 ## Enemies (`parts/enemies.mjs`, `parts/boss.mjs`; 48 tall, feet on the bottom row, anchored bottom centre at field sprite (240,54))

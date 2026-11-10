@@ -1,5 +1,5 @@
 extends Node
-## Autoload: settings (settings.json, with the meta-unlock flags and run / win counts under `meta`), the run state (`run`: hp, gold, the bag,
+## Autoload: settings (settings.json, with the meta-unlock flags, run / win counts and the catalog's seen ids under `meta`), the run state (`run`: hp, gold, the bag,
 ## relics, the map with its visited path and rolled enemies and events, `pending` = the node kind entered and not yet
 ## resolved, stats) with its mid-run save (run.json), and the pure rules: map generation, node entry, reward / shop / enemy
 ## rolls, event choices, gold and HP, the bag invariant, board generation. No scene dependencies, so test.gd instantiates
@@ -10,7 +10,7 @@ const SETTINGS_PATH := "user://settings.json"
 const RUN_PATH := "user://run.json"
 const RUN_VERSION := 1
 
-var settings := {fullscreen = false, volume = 1.0, meta = {flags = [], runs = 0, wins = 0}}
+var settings := {fullscreen = false, volume = 1.0, meta = {flags = [], runs = 0, wins = 0, seen = []}}
 var run := {}  # empty until new_run / load_run
 
 
@@ -64,6 +64,14 @@ func unlock(flag: String) -> void:
 		run.unlocked = run.get("unlocked", []) + Tuning.UNLOCKS[flag]  # get: a run.json saved before meta-unlocks has no list
 
 
+## Records a ball or enemy id as met, for the menu's catalog. Writes settings.json only when it is new.
+func see(id: String) -> void:
+	var seen: Array = settings.meta.get_or_add("seen", [])  # get_or_add: a meta reset by test.gd has no list
+	if not id in seen:
+		seen.append(id)
+		set_setting("meta", settings.meta)
+
+
 ## The run is over: counts it (and a win) in meta, sets finished_run and, on a win, won_boss.
 func end_run(win: bool) -> void:
 	settings.meta.runs += 1
@@ -80,6 +88,8 @@ func new_run(seed: int = randi()) -> void:
 	run = {version = RUN_VERSION, seed = seed, hp = Tuning.RUN.hp, hp_max = Tuning.RUN.hp, gold = Tuning.RUN.gold,
 		bag = Tuning.BAG_START.map(func(id): return {id = id, rank = 1}), relics = [], map = gen_map(seed), pending = "", unlocked = [],
 		stats = {fights = 0, elites = 0, damage = 0, bricks = 0, best_fire = 0, drops = 0, gold_earned = 0, seconds = 0, killer = ""}}
+	for id in Tuning.BAG_START:
+		see(id)
 
 
 func save_run(path: String = RUN_PATH) -> void:
@@ -134,6 +144,7 @@ func has(relic: String) -> bool:
 
 func add_ball(id: String, rank: int = 1) -> void:
 	run.bag.append({id = id, rank = rank})
+	see(id)
 
 
 ## Removes bag[i] unless that would leave no non-junk ball (the bag invariant). True when removed.
@@ -208,6 +219,7 @@ func enter_node(slot: int) -> String:
 	var r := rng(node_index(m.layer, slot))
 	if kind in ["fight", "elite", "boss"]:
 		m.enemies[m.layer][slot] = pick_enemy(kind, m.layer + 1, last_enemy(m.layer), r)
+		see(m.enemies[m.layer][slot])
 	elif kind == "event":
 		var seen := []
 		for i in m.layer:

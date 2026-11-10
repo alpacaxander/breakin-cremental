@@ -1,5 +1,5 @@
 extends Node
-## Drives the run: menu -> map -> the node's screen (a fight in arena.gd; the shop, an event or a treasure built here)
+## Drives the run (and the menu's catalog of the balls and enemies met, Game.see): menu -> map -> the node's screen (a fight in arena.gd; the shop, an event or a treasure built here)
 ## -> map, until the boss falls (run won) or HP hits 0 (run over); the elite's death and the run's end set the meta-unlock
 ## flags (Game.unlock / Game.end_run). Every screen but the fight is a Ui.chassis with the run
 ## columns; reward and treasure are overlays over the fight or the map. The run autosaves (Game.save_run) on every screen
@@ -69,20 +69,69 @@ func _show_menu() -> void:
 	Ui.icon(r, logo, 320 - logo.get_width() / 2, 50)
 	# Logo above a pause-sized card of stacked buttons; CONTINUE joins them while a saved run exists.
 	var saved := Game.has_run()
-	Ui.panel(r, 240, 140, 160, 82 + (24 if saved else 0))
+	Ui.panel(r, 240, 140, 160, 106 + (24 if saved else 0))
 	var y := 150
 	if saved:
 		Ui.button(r, "CONTINUE", 260, y, 120, 18, _continue, true, 2, "ui_start")
 		y += 24
 	Ui.button(r, "PLAY", 260, y, 120, 18, _confirm_new if saved else _new_run, not saved, 2, "ui_start" if not saved else "ui_click")
-	Ui.button(r, "SETTINGS", 260, y + 24, 120, 18, func(): _swap(Ui.settings(_show_menu)))
-	Ui.button(r, "QUIT", 260, y + 48, 120, 18, Sfx.quit, false, 2, "")
+	Ui.button(r, "CATALOG", 260, y + 24, 120, 18, _show_catalog)
+	Ui.button(r, "SETTINGS", 260, y + 48, 120, 18, func(): _swap(Ui.settings(_show_menu)))
+	Ui.button(r, "QUIT", 260, y + 72, 120, 18, Sfx.quit, false, 2, "")
 	Ui.centre(r, "BREAK THE BOARD. BEAT THE BOSS.", 300, Tuning.COLORS.rivet)
 	var meta: Dictionary = Game.settings.meta
 	if meta.runs:
 		Ui.centre(r, "RUNS %d  WINS %d" % [meta.runs, meta.wins], 312, Tuning.COLORS.trim_hi)
 	for i in 6:
 		Ui.icon(r, "brick_plain_lit" if i % 3 == 0 else "brick_plain_dim", 230 + i * 32, 330)
+	_swap(r)
+
+
+## Every ball and enemy, the ones met in any run (Game.see) in full, the rest as a dark silhouette named "???".
+## Balls: a 4x2 grid of face at 2x, name, card line, damage per rank. Enemies: one row of idle frame 0, name, role, HP, intents.
+func _show_catalog() -> void:
+	var C := Tuning.COLORS
+	var seen: Array = Game.settings.meta.get("seen", [])
+	var r := Ui.chassis()
+	Ui.centre(r, "CATALOG", 14, C.pay, 2)
+	var ids := Tuning.BALLS.keys()
+	Ui.label(r, "BALLS %d/%d" % [ids.filter(func(id): return id in seen).size(), ids.size()], 92, 34, C.rivet)
+	for i in ids.size():
+		var id: String = ids[i]
+		var row: Dictionary = Tuning.BALLS[id]
+		var met: bool = id in seen
+		var x := 92 + 118 * (i % 4)
+		var y := 46 + 40 * (i / 4)
+		var t := Ui.face({id = id, rank = 1})
+		var f := Ui.icon(r, t, x + 12 - t.get_width(), y + 12 - t.get_height())
+		f.scale = Vector2.ONE * Fx.SCALE
+		if not met:
+			f.modulate = C.trim
+		Ui.label(r, row.name if met else "???", x + 28, y, C.white)
+		if met:
+			Ui.label(r, row.desc, x + 28, y + 7, C.rivet, 1, 80)
+			Ui.label(r, "DMG " + "/".join(row.dmg.map(func(d): return str(d))) if row.rarity != "none" else "DMG 0", x + 28, y + 25, C.pay)
+		elif not Game.unlocked(id):
+			Ui.label(r, "LOCKED", x + 28, y + 7, C.trim_hi)
+	ids = Tuning.ENEMIES.keys()
+	Ui.label(r, "ENEMIES %d/%d" % [ids.filter(func(id): return id in seen).size(), ids.size()], 92, 132, C.rivet)
+	var ex := 96.0  # widths 48+48+64+64+160 plus 4 gaps of 16 = 448, centred in the field
+	for id in ids:
+		var e: Dictionary = Tuning.ENEMIES[id]
+		var met: bool = id in seen
+		var f := Ui.icon(r, Fx.frame("%s_idle" % id, e.w, 0), ex, 144)
+		if not met:
+			f.modulate = C.trim
+		Ui.label(r, id.to_upper() if met else "???", ex, 196, C.white, 1, e.w, HORIZONTAL_ALIGNMENT_CENTER)
+		if met:
+			Ui.label(r, "TIER %d" % e.tier if e.role == "regular" else e.role.to_upper(), ex, 203, C.rivet, 1, e.w, HORIZONTAL_ALIGNMENT_CENTER)
+			Ui.label(r, "HP %d" % e.hp, ex, 210, C.pay, 1, e.w, HORIZONTAL_ALIGNMENT_CENTER)
+			var n: int = e.intents.size()
+			for j in n:
+				Ui.icon(r, "intent_%s" % e.intents[j][0], ex + e.w / 2.0 - 6.5 * n + 13 * j, 218)
+		ex += e.w + 16
+	Ui.button(r, "BACK", 260, 330, 120, 18, _show_menu, false, 2, "ui_back")
+	r.back.connect(_show_menu)
 	_swap(r)
 
 

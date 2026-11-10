@@ -222,7 +222,7 @@ Every between-fight screen is a `Ui.chassis` with the run columns (left: you, ri
 
 | screen | numbers (sprite px) | effect | strips / statics | cues |
 |---|---|---|---|---|
-| menu | CONTINUE above PLAY when `run.json` exists; SANDBOX gone; PLAY with a save asks `Ui.dialog("ABANDON RUN?")`; footer "BREAK THE BOARD. BEAT THE BOSS." | | `title_logo` (exists) | `ui_start 1.0` |
+| menu | CONTINUE above PLAY when `run.json` exists, then CATALOG, SETTINGS, QUIT; SANDBOX gone; PLAY with a save asks `Ui.dialog("ABANDON RUN?")`; footer "BREAK THE BOARD. BEAT THE BOSS." | | `title_logo` (exists) | `ui_start 1.0` |
 | map | nodes and edges per the Map section; legend in the left column from y 120 (icon + name, pitch 12) | click a lit node, autosave on entry and after every node | `map_node_*`, `map_ring_pulse`, `ball` | per Map |
 | fight | per the Fight pipeline; HP icon `ui_hp` 8x8 beside the player bar | | `ui_hp`, `ui_next` statics | |
 | reward | panel (160,70) 320x180: VICTORY k2 `pay`, PICK ONE, three `card_frame` at centres x 240/320/400 tops y 108, name k1 at y 160, desc rivet y 170..188 wrapped 72, SKIP 96x20 at (272,224); "+N GOLD" top right | pick -> autosave -> map | `card_frame`, `card_frame_hot`, `card_frame_dim` 36x48; faces `<id>_rank` frame at 2x, `relic_<id>` at 2x, `coin` at 2x; `ui_badge` for rank-up | per Rewards; hover `ui_hover`, pick `ui_pickup 1.0` then the kind's cue |
@@ -230,6 +230,7 @@ Every between-fight screen is a `Ui.chassis` with the run columns (left: you, ri
 | shop | PEDDLER header; ball cards tops y 40 at x 90/170/250 with price under each; relic cards at x 370/450; rule at y 150; REMOVE row y 160, HEAL row y 184 (chrome 96x18 buttons at x 344); status line y 210; LEAVE in the right column | per Shop | `card_frame*`, `ui_slot_hover` | per Shop |
 | event | per Events | | none | per Events |
 | run over / run won | full chassis, no columns: title k4 at y 40 (white + red rule for RUN OVER, `pay` for RUN WON); line 2 "SLAIN BY <ENEMY> AT NODE n/5" or "THE MAW IS DOWN"; STATS at x 180 from y 102 pitch 10: FIGHTS WON, DAMAGE DEALT, BRICKS BROKEN, BIGGEST SHOT, BALLS DROPPED, GOLD EARNED, TIME m:ss; BAG faces at x 340 pitch 12 and RELICS icons pitch 14; "UNLOCKED: <NAME>" mint at y 180 when a flag was set this run; NEW RUN mint 96x20 at (214,220), MENU chrome at (330,220) | deletes `run.json` on open; numbers tick over 0.8 s | | `run_over 1.0` / `run_won 1.0` on open; `result_roll` while ticking; `ui_unlock 1.2` at delay 1.0 for the unlock line; NEW RUN `ui_start`, MENU `ui_back` |
+| catalog | from the menu, no columns: "CATALOG" k2; "BALLS n/8" over a 4x2 grid (face at 2x, name, card line, "DMG 1/2/3"); "ENEMIES n/5" over one row of `<id>_idle` frame 0 with name, TIER n / ELITE / BOSS, HP and intent icons; an id not in `meta.seen` is a `trim` silhouette named "???" (a ball still `locked` adds LOCKED); BACK | | | BACK `ui_back` |
 | pause | unchanged: RESUME / SETTINGS / MENU; MENU in a fight abandons it, the map autosave stands | | | `ui_pause`, `ui_unpause` |
 
 Drawn in-engine, no sprite: both HP bars, top wall line, map edges, damage pops, the red field flash, the shop rule, stat tables. Cut: `ui_hp_bar`, `hp_lose` strip, `card_ball`/`card_relic`/`card_gold`/`card_rank`, `map_here`, `ui_intent` generic set, turn bands, event art.
@@ -242,7 +243,7 @@ Drawn in-engine, no sprite: both HP bars, top wall line, map edges, damage pops,
 | `killed_elite` | the elite dies | `ball_poison`, `mini_paddle` | "UNLOCKED: SPORE" / "UNLOCKED: MINI PADDLE" |
 | `won_boss` | the boss dies | `twin_crit` | "UNLOCKED: TWIN CRIT" |
 
-A ball or relic row carries `locked = "<flag>"`; `Game.unlocked(id)` is `not row.has("locked") or row.locked in meta.flags`. Reward cards, shop stock and `event_vendor` draw only from unlocked ids. `meta` also counts `runs` and `wins` for one menu stat line. Nothing numeric carries over.
+A ball or relic row carries `locked = "<flag>"`; `Game.unlocked(id)` is `not row.has("locked") or row.locked in meta.flags`. Reward cards, shop stock and `event_vendor` draw only from unlocked ids. `meta` also counts `runs` and `wins` for one menu stat line, and lists `seen`: every ball id that entered a bag (`Game.add_ball`, the starting bag) and every enemy id whose node was entered, for the catalog. Nothing numeric carries over.
 
 ## Asset inventory
 

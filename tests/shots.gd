@@ -24,7 +24,7 @@ func _ready() -> void:
 	Game.run.hp = 38
 	Game.settings.meta.runs = 3  # in memory only, for the menu's stat line; nothing here writes settings.json
 	Game.settings.meta.wins = 1
-	var screens := [["menu", main._show_menu], ["abandon", func(): main._show_menu(); main._confirm_new()], ["map", main._show_map], ["arena", main._play],
+	var screens := [["menu", main._show_menu], ["catalog", main._show_catalog], ["abandon", func(): main._show_menu(); main._confirm_new()], ["map", main._show_map], ["arena", main._play],
 		["reward", func(): main._play(); main._fight_done(true)], ["treasure", func(): main._show_map(); main._show_treasure()],
 		["shop", main._show_shop], ["shop_remove", main._show_shop.bind(true)], ["event", main._show_event],
 		["event_result", main._show_event.bind("IT SHRUGS. OPENER IS YOURS, FREE.")],

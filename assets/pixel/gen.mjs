@@ -476,7 +476,7 @@ const strip = (frames) => { const s = new Img(frames[0].w * frames.length, frame
 // -- Peglin direction (assets/pixel/parts/): bricks first so the hazards paint strip ends on brick_red; icons own the intent_* set --
 SETS.red = RED;
 emitBricks({ Img, C, SETS, lit, dim, hot, FLASH, frame, center, hold, blank, sparks, withIcon, glyph, ellipse, ICONS, A, def });
-emitBalls({ C, SETS, A, ellipse, def });
+emitBalls({ C, SETS, A, Img, def });
 emitEnemies({ Img, C, def, hold, blank });
 emitBoss({ Img, C, def, A, frame, hold, blank });
 emitHazards({ Img, C, A, def, frame, lamp, hot, ellipse, ring });
