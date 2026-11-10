@@ -15,7 +15,7 @@ Built from the Sonic Robo Blast 2 v2.2 palette (256 colours, Lospec): 86 of its 
 - Cold white (ice, cyan's top) for text. The ball is cream (yellow's light end) so it reads as a physical object, not text.
 - Text over base needs ~7:1 contrast. Red fails; don't use it for numbers. Enemy HP and the player's HP are red bars with ice numbers.
 - Damage is yellow and gold is gold. Effects (sparks, blasts, beams) stay yellow, so a break never introduces a hue. Red is the enemy's and appears only on things that hurt the player.
-- No sky, no stars, no space. Backdrops are the base, a faint circuit grid in deep gunmetal, and neon tubes on the hull. Violet's deep end is the only purple a backdrop gets.
+- Backdrops are the base, a faint circuit grid in deep gunmetal, and neon tubes on the hull. Violet's deep end is the only purple a backdrop gets.
 - A lamp takes four steps of one ramp: tube (bright), ring (mid), deep, highlight (tint). See `docs/art-style.md`.
 
 ## Groups

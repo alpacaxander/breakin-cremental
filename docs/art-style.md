@@ -2,7 +2,7 @@
 
 Pixel art, neon tube look. Theme: neon cyberpunk. Reference implementation: `assets/pixel/gen.mjs`. When this doc and the code disagree, the code wins and this doc gets fixed. Colors: `docs/palette.md`. Inventory: `docs/sprite-spec.md`.
 
-Direction set 2026-11-10: the board is a breakout cabinet in a back-alley arcade. Every brick is a lit neon tube on a near-black base, every unlit thing is gunmetal, and the only light that is not a tube is the enemy's single red eye. Cyan is the player's hue, magenta the bricks', hot pink the UI's. No sky, no stars, no space: backdrops are the base, a faint circuit grid and the hull's own tubes. Preview: `assets/pixel/preview/palette.html`. The generator still draws the deprecated cabinet palette (the bottom of `docs/palette.md`); the hue sets below are the target, and the old sets stay listed until `SETS` in `gen.mjs` moves.
+Direction set 2026-11-10: the board is a breakout cabinet in a back-alley arcade. Every brick is a lit neon tube on a near-black base, every unlit thing is gunmetal, and the only light that is not a tube is the enemy's single red eye. Cyan is the player's hue, magenta the bricks', hot pink the UI's. Preview: `assets/pixel/preview/palette.html`. The generator still draws the deprecated cabinet palette (the bottom of `docs/palette.md`); the hue sets below are the target, and the old sets stay listed until `SETS` in `gen.mjs` moves.
 
 Enemies are the one place a non-lamp style is allowed: a dark creature or drone sprite with a single lit accent in red, so it reads as the thing that is not part of the machine.
 
@@ -108,5 +108,4 @@ No runtime rotation of pixel art. Bumpers snap to pre-drawn angles or stay as dr
 - No anti-aliasing, gradients, or colors outside `docs/palette.md`.
 - No black outlines, no drop shadows.
 - No dithering on object faces. Backdrop glow may dither, in violet's deep end only.
-- No sky, stars, planets or nebulae. The world outside the cabinet is a city, not space, and it stays off screen.
 - No sizes that are not whole pixels at 1x canvas scale.
