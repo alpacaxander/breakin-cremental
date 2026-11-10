@@ -82,7 +82,7 @@ Event frame: panel (120,60) 400x230 sprite px, title k2 `pay`, body k1 wrapped 3
 
 | step | rule | strips | cues |
 |---|---|---|---|
-| `fight_start` | build board from `BOARDS[class]` with the enemy's `board` change, enemy drops into the band, shuffle the bag, discard pile empty | `<enemy>_idle` loop | `round_go 1.0`; `fast_whoosh 0.6` then `bumper_hit 0.5` at delay 0.3 |
+| `fight_start` | build the enemy's drawn board (`?` rolls from `BOARDS[class]`), enemy drops into the band, shuffle the bag, discard pile empty | `<enemy>_idle` loop | `round_go 1.0`; `fast_whoosh 0.6` then `bumper_hit 0.5` at delay 0.3 |
 | `phase_start` | bag empty: shuffle the discard pile into it. `< regen_below` breakables: free refresh. Rest `bag[0]` on the paddle; click/space launches straight up with the paddle-offset angle | | `ball_launch st(rank-1)` (junk `0.6`) |
 | `discard` | once per phase while a ball rests: D / right-click / DISCARD button; head ball to the discard pile, next rests | | `ui_drop 1.0` |
 | `store` | a ball breaking a brick adds `ball.dmg * brick.dmg` to `ball.stored` (relic `combo` scales) | `stored_tag` 25x8 x4 @8 rides 6 sprite px above the ball, number as a `pay` label, hidden at 0 | |
@@ -127,17 +127,27 @@ Locked: `ball_bomb` until `finished_run`, `ball_poison` until `killed_elite`. In
 | `bomb` | 1 | 0 | ora | on break, at once: `blast` = 8 direct damage to the enemy, then break every brick with its centre within `BOMB_RADIUS` 72 through `_trigger` (chained bombs each blast); neighbours' `dmg` goes to the breaking ball | `icon_bomb_pulse` 30x12 x4 @8 (exists, body recoloured orange), `halo_pulse_ora` 60x30 x4 @8, `bomb_ring` 60x60 x4 @12; `ora_hit`, `ora_break`, `ora_spawn` (exist) | `bomb_boom 1.0` |
 | `red` | 1 | 0 | red | a ball breaking it costs the player `hurt` = 3 HP at the moment of the break; a blast just removes it | static `brick_red` 30x12; `red_hit` 30x12 x6 @12, `red_break` 44x20 x8 @12 (debris falls), `red_spawn` 30x12 x6 @12 | `brick_break 0.7`, `hp_lose` (ladder) at delay 0.05 |
 
-### Generator (`Game.generate(cls, seed)`)
+### Generator (`Game.generate(cls, seed, board)`)
 
-Arena is always `Tuning.ARENA`. `BOARD_TOP = 168`, `BOARD_FLOOR = 240`, step 64x28, max rows 11; `test.gd` asserts `BOARD_TOP + (rows-1)*28 + 12 <= 480` and `cols <= 15` for every row, with +32 on top for the boss (so boss rows <= 10). `density` is the chance a slot holds a brick; `solid`, `bomb`, `red` are per-brick chances with a hard `max`, rolled in that order; then exactly `crit` and `refresh` plain bricks are converted.
+Every enemy draws its own board: `board.rows` in `tuning.gd` `ENEMIES`, one glyph per brick from `BOARD_KEYS`: `.` empty, `x` plain, `?` rolled, `#` solid, `b` bomb, `R` red, `c` crit, `r` refresh. Each row centres on the arena, so a row one shorter than its neighbours sits half a step over (honeycomb). Drawn kinds stand as drawn; each `?` rolls `solid`, `bomb`, `red` at the class's per-brick chance under its hard `max`, in that order; then plain bricks convert until the board holds at least `crit` and `refresh` of each (drawn ones count).
 
-| class | shape | cols x rows | density | solid | bomb | red | crit | refresh |
-|---|---|---|---|---|---|---|---|---|
-| `fight` | grid | 11 x 6 | 0.85 | 0.03 max 2 | 0.03 max 2 | 0.04 max 3, rows 0-3 only | 3 | 1 |
-| `elite` | honey | 13 x 8 | 0.90 | 0.05 max 4 | 0.04 max 3 | 0.06 max 6 | 4 | 2 |
-| `boss` | grid | 15 x 10 | 0.90 | 0.06 max 6 | 0.05 max 4 | 0.08 max 10 | 5 | 2 |
+Arena is always `Tuning.ARENA`. `BOARD_TOP = 168`, `BOARD_FLOOR = 240`, step 64x28, max rows 11 (boss 10, it sits 32 lower). `test.gd` asserts every brick fits, the widest row is exactly the class's `cols` (the lane grid for `laser_sweep` and `shield_row`), and every non-solid glyph is reachable from outside the layout past the drawn solids.
 
-Placement rules (a failing slot rolls `plain`): `solid` never orthogonally adjacent to `solid`, never in the first or last column or the bottom row; `red` never adjacent to `red`; `crit` converts a `plain` with no `solid` or `crit` orthogonal neighbour, picking the column with the fewest crits; `refresh` converts a `plain` in the top half, not adjacent to a `crit`, never two in one column; if a conversion runs out of eligible bricks the adjacency rules drop and the count stays. An enemy's `board` change applies after these rules and may break them.
+| class | cols | solid | bomb | red | crit | refresh |
+|---|---|---|---|---|---|---|
+| `fight` | 11 | 0.03 max 2 | 0.03 max 2 | 0.04 max 3, rows 0-3 only | 3 | 1 |
+| `elite` | 13 | 0.05 max 4 | 0.04 max 3 | 0.06 max 6 | 4 | 2 |
+| `boss` | 15 | 0.06 max 6 | 0.05 max 4 | 0.08 max 10 | 5 | 2 |
+
+Placement rules for `?` rolls (a failing roll stays `plain`): `solid` never touching `solid`, never at a row's ends or in the bottom row; `red` never touching `red`. Conversions: `crit` takes a `plain` with no `solid` or `crit` touching, in the column with the fewest crits; `refresh` a `plain` in the top half, not touching a `crit`, never two in one column; if a conversion runs out of eligible bricks the rules drop and the count stays.
+
+| enemy | layout | idea |
+|---|---|---|
+| `glob` | 7-row blob, a drawn crit ringed by 4 drawn reds | the goo core: the crit costs HP to reach |
+| `lobber` | battlements, a wall, solid side towers, a 3-wide gate in the bottom row | a fortress you enter by the gate or by breaking in |
+| `mason` | a solid ring around a vault of 3 drawn crits, a 3-plain door at the bottom | break in; the shield row seals the top |
+| `warden` | two solid pillars full height (zigzag on the honeycomb), 4 drawn crits in the middle chamber | three lanes, and the laser sweeps lanes |
+| `maw` | jaws of plain, two rows of solid teeth with one-brick gaps, 3 drawn crits floating in the throat | shoot between the teeth |
 
 ### Every existing `tuning.gd` kind and constant
 
@@ -161,15 +171,15 @@ Placement rules (a failing slot rolls `plain`): `solid` never orthogonally adjac
 
 ## Enemies (`Tuning.ENEMIES`)
 
-One enemy per fight. `tier` = earliest layer. Intents cycle in order; each entry is `hazard x count` (bare = x1). `board` applies once at generation.
+One enemy per fight. `tier` = earliest layer. Intents cycle in order; each entry is `hazard x count` (bare = x1). `board` is the drawn layout (Generator above).
 
 | id | role | tier | HP | cd | board | intents | strips (W x 48 sprite px) | cues (`off` st) |
 |---|---|---|---|---|---|---|---|---|
-| `glob` | regular | 1 | 30 | 6 | 4 random `plain` start as `red` | `red_bricks` x3, `debris` x4 | `glob_idle` 48 x4 @8, `glob_hit` 48 x6 @12, `glob_attack` 48 x6 @12, `glob_die` 48 x8 @12 | 0 |
-| `lobber` | regular | 1 | 40 | 5 | none | `enemy_balls` x1, `enemy_balls` x3 | `lobber_idle/_hit/_attack/_die` 48, same counts | -2 |
-| `mason` | regular | 3 | 55 | 6 | board row 0 is `solid` | `shield_row`, `debris` x6 | `mason_*` 64 | -4 |
-| `warden` | elite | 4 | 120 | 5 | `solid` columns 3 and 9 (of 13); **riposte**: a paddle hit landing 10+ drops `cd` by 2 | `laser_sweep` x1, `enemy_balls` x3, `shield_row` | `warden_*` 64 | -5 |
-| `maw` | boss | 5 | 240 | 4 | `BOARD_TOP` +32, no `refresh` in rows 0-1; below 50% HP `cd` 3 and the mouth holds 6 hits | `debris` x8, `mouth`, `laser_sweep` x2 | `maw_*` 160; `maw_mouth_open` 48x16 x6 @12 (hold last), `maw_mouth_close` 48x16 x6 @12 | -7 |
+| `glob` | regular | 1 | 30 | 6 | goo blob, crit behind reds | `red_bricks` x3, `debris` x4 | `glob_idle` 48 x4 @8, `glob_hit` 48 x6 @12, `glob_attack` 48 x6 @12, `glob_die` 48 x8 @12 | 0 |
+| `lobber` | regular | 1 | 40 | 5 | fortress with a gate | `enemy_balls` x1, `enemy_balls` x3 | `lobber_idle/_hit/_attack/_die` 48, same counts | -2 |
+| `mason` | regular | 3 | 55 | 6 | solid-ringed vault of crits | `shield_row`, `debris` x6 | `mason_*` 64 | -4 |
+| `warden` | elite | 4 | 120 | 5 | two solid pillars, crits in the middle lane; **riposte**: a paddle hit landing 10+ drops `cd` by 2 | `laser_sweep` x1, `enemy_balls` x3, `shield_row` | `warden_*` 64 | -5 |
+| `maw` | boss | 5 | 240 | 4 | jaws with solid teeth, crits in the throat, `BOARD_TOP` +32, no `refresh` in rows 0-1; below 50% HP `cd` 3 and the mouth holds 6 hits | `debris` x8, `mouth`, `laser_sweep` x2 | `maw_*` 160; `maw_mouth_open` 48x16 x6 @12 (hold last), `maw_mouth_close` 48x16 x6 @12 | -7 |
 
 Shared: the enemy sprite sits behind balls and bricks, bottom centre at sprite (240,54), in the bare band above the top wall body (y 112). The hazard spawns on frame 3 of `<id>_attack`; `<id>_hit` on every landed shot; `<id>_die` then outward board break. Statics `enemy_<id>` are frame 0 of `<id>_idle` (no separate sprite). Cue per moment: hit `bumper_hit 0.6*st(off)`, attack `hit_refused 0.5*st(off)`, die `enemy_die` (`1.0`, maw `0.6`), enter `fast_whoosh 0.6` + `bumper_hit 0.5` d0.3.
 

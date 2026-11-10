@@ -390,60 +390,57 @@ func _ints(v: Variant) -> Variant:
 
 # --- Board generation ---
 
-## A board for a fight class (Tuning.BOARDS key) with an enemy's `board` change: [{pos, row, col, kind}] in arena px
-## (origin top-left), kinds from Tuning.BRICKS. Each filled slot rolls solid / bomb / red in that order under their max;
-## a roll that breaks a placement rule (solid off the edges and never touching a solid, red in its rows and never touching
-## a red) stays plain. Then exactly crit and refresh plain bricks convert: crit away from solids and crits in the column
-## with the fewest, refresh in the top half away from crits and one per column; a conversion with nothing eligible drops
-## its rules so the count holds. Touching means within one column step, so honey rows count their offset pair.
-## board: top (px below BOARD_TOP), solid_row / solid_cols (forced before the rolls), no_refresh_rows, red (extra reds after).
-func generate(cls: String, seed: int, board: Dictionary = {}) -> Array:
+## A board for a fight class (Tuning.BOARDS key) from an enemy's `board`: [{pos, row, col, kind}] in arena px (origin
+## top-left), kinds from Tuning.BRICKS. board.rows is the drawn layout (Tuning.BOARD_KEYS): drawn kinds stand, and each
+## "?" rolls solid / bomb / red in that order under their max; a roll that breaks a placement rule (solid off the row's
+## ends and the bottom row and never touching a solid, red in its rows and never touching a red) stays plain. Then plain
+## bricks convert until there are at least crit and refresh of each: crit away from solids and crits in the column with
+## the fewest, refresh in the top half away from crits and one per column; a conversion with nothing eligible drops its
+## rules so the count holds. Touching means within one column step, so offset rows count their pair.
+## board: rows, top (px below BOARD_TOP), no_refresh_rows.
+func generate(cls: String, seed: int, board: Dictionary) -> Array:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed
 	var B: Dictionary = Tuning.BOARDS[cls]
+	var rows: Array = board.rows
 	var step := Tuning.BRICK_SIZE + Vector2.ONE * Tuning.BRICK_GAP
 	var out := []
+	for r in rows.size():
+		var line: String = rows[r]
+		for c in line.length():
+			var kind: String = Tuning.BOARD_KEYS[line[c]]
+			if kind:
+				out.append({pos = Vector2(Tuning.ARENA.x / 2 + (c - (line.length() - 1) / 2.0) * step.x, Tuning.BOARD_TOP + board.get("top", 0) + r * step.y), row = r, col = c, kind = kind})
 	var count := {solid = 0, bomb = 0, red = 0}
 	var near := func(b: Dictionary, kind: String) -> bool:
 		return out.any(func(o): return o != b and o.kind == kind and o.pos.distance_to(b.pos) <= step.x + 1)
-	for r in B.rows:
-		var cols: int = B.cols - (r % 2 if B.shape == "honey" else 0)
-		for c in cols:
-			if rng.randf() >= B.density:
-				continue
-			var b := {pos = Vector2(Tuning.ARENA.x / 2 + (c - (cols - 1) / 2.0) * step.x, Tuning.BOARD_TOP + board.get("top", 0) + r * step.y), row = r, col = c, kind = "plain"}
-			for k in ["solid", "bomb", "red"]:
-				if count[k] < B[k][1] and rng.randf() < B[k][0]:
-					b.kind = k
-					break
-			var edge: bool = c == 0 or c == cols - 1 or r == B.rows - 1
-			if b.kind == "solid" and (edge or near.call(b, "solid")) or b.kind == "red" and (r >= B.get("red_rows", B.rows) or near.call(b, "red")):
-				b.kind = "plain"  # a failing slot rolls plain
-			if r == board.get("solid_row", -1) or c in board.get("solid_cols", []):
-				b.kind = "solid"  # ponytail: honey odd rows are offset, so a solid column zigzags; fine for a wall
-			if b.kind in count:
-				count[b.kind] += 1
-			out.append(b)
+	for b in out.filter(func(o): return o.kind == "?"):
+		b.kind = "plain"
+		for k in ["solid", "bomb", "red"]:
+			if count[k] < B[k][1] and rng.randf() < B[k][0]:
+				b.kind = k
+				break
+		var edge: bool = b.col == 0 or b.col == rows[b.row].length() - 1 or b.row == rows.size() - 1
+		if b.kind == "solid" and (edge or near.call(b, "solid")) or b.kind == "red" and (b.row >= B.get("red_rows", rows.size()) or near.call(b, "red")):
+			b.kind = "plain"  # a failing slot rolls plain
+		if b.kind in count:
+			count[b.kind] += 1
 	var plain := func(ok: Callable) -> Array:
 		var e: Array = out.filter(func(b): return b.kind == "plain" and ok.call(b))
 		return e if e else out.filter(func(b): return b.kind == "plain")  # nothing eligible: the rules drop, the count holds
 	var crits := func(col: int) -> int: return out.filter(func(o): return o.kind == "crit" and o.col == col).size()
-	for i in B.crit:
+	var drawn := func(kind: String) -> int: return out.filter(func(o): return o.kind == kind).size()
+	for i in B.crit - drawn.call("crit"):
 		var e: Array = plain.call(func(b): return not near.call(b, "solid") and not near.call(b, "crit"))
 		if e.is_empty():
 			break
 		var least: int = e.map(func(b): return crits.call(b.col)).min()
 		e = e.filter(func(b): return crits.call(b.col) == least)
 		e[rng.randi() % e.size()].kind = "crit"
-	for i in B.refresh:
+	for i in B.refresh - drawn.call("refresh"):
 		var one_per_col := func(b: Dictionary) -> bool: return not out.any(func(o): return o.kind == "refresh" and o.col == b.col)
-		var e: Array = plain.call(func(b): return b.row >= board.get("no_refresh_rows", 0) and b.row < B.rows / 2 and not near.call(b, "crit") and one_per_col.call(b))
+		var e: Array = plain.call(func(b): return b.row >= board.get("no_refresh_rows", 0) and b.row < rows.size() / 2 and not near.call(b, "crit") and one_per_col.call(b))
 		if e.is_empty():
 			break
 		e[rng.randi() % e.size()].kind = "refresh"
-	for i in board.get("red", 0):
-		var e: Array = out.filter(func(b): return b.kind == "plain")
-		if e.is_empty():
-			break
-		e[rng.randi() % e.size()].kind = "red"
 	return out

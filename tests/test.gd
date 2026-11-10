@@ -22,31 +22,49 @@ func _init() -> void:
 	var fits := func(b: Dictionary) -> bool:
 		var r := Rect2(b.pos - Tuning.BRICK_SIZE / 2, Tuning.BRICK_SIZE)
 		return arena.encloses(r) and r.end.y <= arena.size.y - Tuning.BOARD_FLOOR
-	for cls in Tuning.BOARDS:
-		var B: Dictionary = Tuning.BOARDS[cls]
-		check(B.cols <= 15 and Tuning.BOARD_TOP + (B.rows - 1) * 28 + 12 <= Tuning.ARENA.y - Tuning.BOARD_FLOOR, "%s board fits between BOARD_TOP and BOARD_FLOOR" % cls)
-		for s in 200:
-			var bricks: Array = g.generate(cls, s)
-			check(bricks == g.generate(cls, s), "generate is deterministic")
-			var n := func(kind: String) -> int: return bricks.filter(func(b): return b.kind == kind).size()
-			check(n.call("crit") == B.crit and n.call("refresh") == B.refresh, "%s seed %d has exactly %d crits and %d refreshes" % [cls, s, B.crit, B.refresh])
-			for k in ["solid", "bomb", "red"]:
-				check(n.call(k) <= B[k][1], "%s seed %d keeps %s at or under its max" % [cls, s, k])
-			for b in bricks:
-				check(fits.call(b), "%s brick inside the arena, above the floor line" % cls)
-				check(b.kind in Tuning.BRICKS, "%s brick kind %s exists" % [cls, b.kind])
-				var touching: Array = bricks.filter(func(o): return o != b and o.pos.distance_to(b.pos) <= step.x + 1)
-				var cols: int = B.cols - (b.row % 2 if B.shape == "honey" else 0)
-				if b.kind == "solid":
-					check(b.col > 0 and b.col < cols - 1 and b.row < B.rows - 1 and touching.all(func(o): return o.kind != "solid"), "%s solid is off the edges and touches no solid" % cls)
-				if b.kind == "red":
-					check(b.row < B.get("red_rows", B.rows) and touching.all(func(o): return o.kind != "red"), "%s red is in its rows and touches no red" % cls)
-	# An enemy's board change still fits (the boss sits lower) and keeps a breakable brick.
 	for id in Tuning.ENEMIES:
 		var e: Dictionary = Tuning.ENEMIES[id]
-		var bricks: Array = g.generate("fight" if e.role == "regular" else e.role, 5, e.board)
-		check(bricks.all(fits) and bricks.any(func(b): return Tuning.BRICKS[b.kind].hp > 0), "%s's board fits with a breakable brick" % id)
-		check(bricks.filter(func(b): return b.kind == "red").size() >= e.board.get("red", 0), "%s's board adds its reds" % id)
+		var cls: String = "fight" if e.role == "regular" else e.role
+		var B: Dictionary = Tuning.BOARDS[cls]
+		var rows: Array = e.board.rows
+		check(rows.all(func(l): return l.length() <= B.cols) and rows.any(func(l): return l.length() == B.cols), "%s's layout is %d columns at its widest (the lane grid)" % [id, B.cols])
+		check(rows.all(func(l): return Array(l.split("")).all(func(ch): return ch in Tuning.BOARD_KEYS)), "%s's layout uses only BOARD_KEYS glyphs" % id)
+		# Every brick is reachable past the drawn solids: flood the open cells from outside the layout, 4-way.
+		# ponytail: a 4-way grid walk ignores the half-step offset of short rows; fine while honey pillars run straight.
+		var solid := func(r: int, c: int) -> bool: return r >= 0 and r < rows.size() and c >= 0 and c < rows[r].length() and rows[r][c] == "#"
+		var seen := {Vector2i(-1, -1): true}
+		var todo := [Vector2i(-1, -1)]
+		while todo:
+			var p: Vector2i = todo.pop_back()
+			for d in [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
+				var q: Vector2i = p + d
+				if q.x >= -1 and q.x <= rows.size() and q.y >= -1 and q.y <= B.cols and not q in seen and not solid.call(q.x, q.y):
+					seen[q] = true
+					todo.append(q)
+		for r in rows.size():
+			for c in rows[r].length():
+				if not rows[r][c] in ".#":
+					check(Vector2i(r, c) in seen, "%s's brick at row %d col %d is reachable past the solids" % [id, r, c])
+		var drawn := func(kind: String) -> int: return "".join(rows).count({crit = "c", refresh = "r"}[kind])
+		for s in 200:
+			var bricks: Array = g.generate(cls, s, e.board)
+			check(bricks == g.generate(cls, s, e.board), "generate is deterministic")
+			check(bricks.any(func(b): return Tuning.BRICKS[b.kind].hp > 0), "%s's board has a breakable brick" % id)
+			var n := func(kind: String) -> int: return bricks.filter(func(b): return b.kind == kind).size()
+			for k in ["crit", "refresh"]:
+				check(n.call(k) == maxi(B[k], drawn.call(k)), "%s seed %d has %d %ss" % [id, s, maxi(B[k], drawn.call(k)), k])
+			var rolled: Array = bricks.filter(func(b): return rows[b.row][b.col] == "?")
+			for k in ["solid", "bomb", "red"]:
+				check(rolled.filter(func(b): return b.kind == k).size() <= B[k][1], "%s seed %d keeps rolled %s at or under its max" % [id, s, k])
+			for b in bricks:
+				check(fits.call(b), "%s brick inside the arena, above the floor line" % id)
+				check(b.kind in Tuning.BRICKS, "%s brick kind %s exists" % [id, b.kind])
+			for b in rolled:
+				var touching: Array = bricks.filter(func(o): return o != b and o.pos.distance_to(b.pos) <= step.x + 1)
+				if b.kind == "solid":
+					check(b.col > 0 and b.col < rows[b.row].length() - 1 and b.row < rows.size() - 1 and touching.all(func(o): return o.kind != "solid"), "%s rolled solid is off the ends and touches no solid" % id)
+				if b.kind == "red":
+					check(b.row < B.get("red_rows", rows.size()) and touching.all(func(o): return o.kind != "red"), "%s rolled red is in its rows and touches no red" % id)
 	for k in Tuning.ICON_KINDS:
 		check(k in Tuning.BRICKS and Tuning.BRICKS[k].has("idle"), "icon kind %s is a brick kind with a pulse strip" % k)
 	for k in Tuning.BRICKS:

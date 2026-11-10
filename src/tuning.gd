@@ -19,19 +19,22 @@ const MIN_VERTICAL := 0.25  # min |vy| as a fraction of speed, stops near-horizo
 const COMBO_WINDOW_START := 1.0
 const COMBO_MULT_PER_HIT := 0.25
 
-# Board generation. shape: "grid" or "honey" (odd rows one brick short, so offset half a step).
+# Board generation. Each enemy draws its own board (ENEMIES board.rows), one BOARD_KEYS glyph per brick. Every row centres
+# on the arena, so a row one shorter than its neighbours sits half a step over (honeycomb).
 const BRICK_SIZE := Vector2(60, 24)
 const BRICK_GAP := 4.0
 const BOARD_TOP := 168.0  # centre y of the first brick row (the enemy band and top wall sit above it)
 const BOARD_FLOOR := 240.0  # bricks must sit at least this far above the arena floor
-# One board per fight class (the map node kind). density: chance a slot holds a brick. solid / bomb / red: [chance per
-# brick, hard max], rolled in that order; red_rows limits red to the first n rows. crit / refresh: exact counts converted
-# from plain bricks. Placement rules: game.gd generate. Fit: cols <= 15, rows <= 11, 10 for the boss (test.gd).
+# One row per fight class (the map node kind). cols: the widest layout row, and the lane grid for lasers and the shield
+# row. solid / bomb / red: [chance per "?" brick, hard max], rolled in that order; red_rows limits rolled reds to the first
+# n rows. crit / refresh: at least this many, drawn ones first, the rest converted from plain bricks. Placement rules:
+# game.gd generate. Fit: rows <= 11, 10 for the boss; every brick reachable past the solids (test.gd).
 const BOARDS := {
-	fight = {shape = "grid", cols = 11, rows = 6, density = 0.85, solid = [0.03, 2], bomb = [0.03, 2], red = [0.04, 3], red_rows = 4, crit = 3, refresh = 1},
-	elite = {shape = "honey", cols = 13, rows = 8, density = 0.90, solid = [0.05, 4], bomb = [0.04, 3], red = [0.06, 6], crit = 4, refresh = 2},
-	boss = {shape = "grid", cols = 15, rows = 10, density = 0.90, solid = [0.06, 6], bomb = [0.05, 4], red = [0.08, 10], crit = 5, refresh = 2},
+	fight = {cols = 11, solid = [0.03, 2], bomb = [0.03, 2], red = [0.04, 3], red_rows = 4, crit = 3, refresh = 1},
+	elite = {cols = 13, solid = [0.05, 4], bomb = [0.04, 3], red = [0.06, 6], crit = 4, refresh = 2},
+	boss = {cols = 15, solid = [0.06, 6], bomb = [0.05, 4], red = [0.08, 10], crit = 5, refresh = 2},
 }
+const BOARD_KEYS := {".": "", "x": "plain", "?": "?", "#": "solid", "b": "bomb", "R": "red", "c": "crit", "r": "refresh"}  # "" empty, "?" rolled
 
 # Board brick kinds. hp: hits to break (-1 never). dmg: damage per break (the ball stores ball.dmg * brick.dmg).
 # face: the still look, a sprite name or [strip, frame width, frame]. idle: a looping [strip, frame width, fps] over it.
@@ -119,15 +122,58 @@ const BALLS := {
 const SPLIT_DEG := 20.0  # a splitter's halves fan from -SPLIT_DEG to +SPLIT_DEG about its heading
 
 # Enemies: one per fight. role picks the node kind (fight = regular), tier the earliest layer a regular appears.
-# cd: paddle hits between intents. intents cycle: [hazard id or "mouth", count]. board: the generator change (game.gd generate).
+# cd: paddle hits between intents. intents cycle: [hazard id or "mouth", count]. board: rows = the drawn layout
+# (BOARD_KEYS), top = px below BOARD_TOP, no_refresh_rows (game.gd generate).
 # off: cue pitch offset in semitones. w: frame width of its <id>_idle/_hit/_attack/_die strips (48 tall). Behaviour: arena.gd.
 const ENEMIES := {
-	glob = {role = "regular", tier = 1, hp = 30, cd = 6, board = {red = 4}, intents = [["red_bricks", 3], ["debris", 4]], off = 0, w = 48},
-	lobber = {role = "regular", tier = 1, hp = 40, cd = 5, board = {}, intents = [["enemy_balls", 1], ["enemy_balls", 3]], off = -2, w = 48},
-	mason = {role = "regular", tier = 3, hp = 55, cd = 6, board = {solid_row = 0}, intents = [["shield_row", 1], ["debris", 6]], off = -4, w = 64},
-	warden = {role = "elite", tier = 4, hp = 120, cd = 5, board = {solid_cols = [3, 9]}, riposte = 10, intents = [["laser_sweep", 1], ["enemy_balls", 3], ["shield_row", 1]], off = -5, w = 64},
-	maw = {role = "boss", tier = 5, hp = 240, cd = 4, board = {top = 32, no_refresh_rows = 2}, mouth = 4, enraged = {at = 0.5, cd = 3, mouth = 6},
-		intents = [["debris", 8], ["mouth", 1], ["laser_sweep", 2]], off = -7, w = 160},
+	glob = {role = "regular", tier = 1, hp = 30, cd = 6, intents = [["red_bricks", 3], ["debris", 4]], off = 0, w = 48, board = {rows = [
+		"....xxx....",
+		"..xx???xx..",
+		".x??xRx??x.",
+		"x??xRcRx??x",  # the goo core: a crit behind reds
+		".x??xRx??x.",
+		"..xx???xx..",
+		"....xxx....",
+	]}},
+	lobber = {role = "regular", tier = 1, hp = 40, cd = 5, intents = [["enemy_balls", 1], ["enemy_balls", 3]], off = -2, w = 48, board = {rows = [
+		"x.x.x.x.x.x",  # battlements
+		"xxxxxxxxxxx",
+		"#?????????#",
+		"#?????????#",
+		"#?????????#",
+		"##xx...xx##",  # the gate
+	]}},
+	mason = {role = "regular", tier = 3, hp = 55, cd = 6, intents = [["shield_row", 1], ["debris", 6]], off = -4, w = 64, board = {rows = [
+		"??xxxxxxx??",
+		"?x#######x?",
+		"?x#?ccc?#x?",  # the vault
+		"?x#?????#x?",
+		"?x##xxx##x?",  # the door
+		"??xxxxxxx??",
+	]}},
+	warden = {role = "elite", tier = 4, hp = 120, cd = 5, riposte = 10, intents = [["laser_sweep", 1], ["enemy_balls", 3], ["shield_row", 1]], off = -5, w = 64, board = {rows = [
+		"xxx#xxxxx#xxx",
+		"x??#????#??x",  # odd rows one short: honeycomb, so the pillars zigzag
+		"x??#??c??#??x",
+		"x??#????#??x",
+		"x??#?c?c?#??x",
+		"x??#????#??x",
+		"x??#??c??#??x",
+		"xxx.xxxx.xxx",
+	]}},
+	maw = {role = "boss", tier = 5, hp = 240, cd = 4, mouth = 4, enraged = {at = 0.5, cd = 3, mouth = 6},
+		intents = [["debris", 8], ["mouth", 1], ["laser_sweep", 2]], off = -7, w = 160, board = {top = 32, no_refresh_rows = 2, rows = [
+		"...xxxxxxxxx...",
+		".xxx???????xxx.",
+		"xx???????????xx",
+		"x?#.#.#.#.#.#?x",  # upper teeth
+		"x?...........?x",
+		"x?....ccc....?x",  # the throat
+		"x?...........?x",
+		"x?#.#.#.#.#.#?x",  # lower teeth
+		"xx???????????xx",
+		".xxx???????xxx.",
+	]}},
 }
 const ENEMY_FOOT := Vector2(480, 108)  # bottom centre of the enemy sprite, in the band above TOP_WALL
 const ENEMY_STRIPS := {idle = 4, hit = 6, attack = 6, die = 8}  # frames per <id>_<strip>; idle loops at 8 fps, the rest play at 12
