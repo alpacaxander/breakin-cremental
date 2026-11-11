@@ -20,6 +20,7 @@ import { emit as emitDeepnet } from "./parts/deepnet.mjs";
 import { emit as emitDeepnetBosses } from "./parts/deepnet_bosses.mjs";
 import { emit as emitMapHazards, GREEN } from "./parts/map_hazards.mjs";
 import { emit as emitMapBalls } from "./parts/map_balls.mjs";
+import { emit as emitOrgans } from "./parts/organs.mjs";
 
 const C = {
 	base: "000020", trim: "2e2e5c", trimHi: "5454a7", trimLo: "21224e", rivet: "9797d5", chromeHi: "e7e7ff", chromeMid: "c6c6ff", chromeLo: "414183",
@@ -484,6 +485,7 @@ const strip = (frames) => { const s = new Img(frames[0].w * frames.length, frame
 // -- Peglin direction (assets/pixel/parts/): bricks first so the hazards paint strip ends on brick_red; icons own the intent_* set --
 SETS.red = RED;
 emitBricks({ Img, C, SETS, lit, dim, hot, FLASH, frame, center, hold, blank, sparks, withIcon, glyph, ellipse, ICONS, A, def });
+emitOrgans({ Img, C, lit, dim, hot, FLASH, frame, center, hold, blank, sparks, A, def });
 emitBalls({ C, SETS, A, Img, def });
 emitEnemies({ Img, C, def, hold, blank });
 emitBoss({ Img, C, def, A, frame, hold, blank });
