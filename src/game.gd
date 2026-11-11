@@ -439,8 +439,9 @@ func _ints(v: Variant) -> Variant:
 
 # --- Board generation ---
 
-## A board for a fight class (Tuning.BOARDS key) from an enemy's `board`: [{pos, row, col, kind}] in arena px (origin
-## top-left), kinds from Tuning.BRICKS. board.rows is the drawn layout (Tuning.BOARD_KEYS): drawn kinds stand, and each
+## A board for a fight class (Tuning.BOARDS key) from an encounter's `board`: [{pos, row, col, kind}] in arena px (origin
+## top-left), kinds from Tuning.BRICKS, plus a digit's organ cells {kind = "organ", organ = index into the encounter's
+## organs}, which stand as drawn. board.rows is the drawn layout (Tuning.BOARD_KEYS): drawn kinds stand, and each
 ## "?" rolls solid / bomb / red in that order under their max; a roll that breaks a placement rule (solid off the row's
 ## ends and the bottom row and never touching a solid, red in its rows and never touching a red) stays plain. Then plain
 ## bricks convert until there are at least crit and refresh of each: crit away from solids and crits in the column with
@@ -457,9 +458,13 @@ func generate(cls: String, seed: int, board: Dictionary) -> Array:
 	for r in rows.size():
 		var line: String = rows[r]
 		for c in line.length():
+			var pos := Vector2(Tuning.ARENA.x / 2 + (c - (line.length() - 1) / 2.0) * step.x, Tuning.BOARD_TOP + board.get("top", 0) + r * step.y)
+			if line[c] in "123456789":  # an organ cell: never rolled, never converted
+				out.append({pos = pos, row = r, col = c, kind = "organ", organ = int(line[c]) - 1})
+				continue
 			var kind: String = Tuning.BOARD_KEYS[line[c]]
 			if kind:
-				out.append({pos = Vector2(Tuning.ARENA.x / 2 + (c - (line.length() - 1) / 2.0) * step.x, Tuning.BOARD_TOP + board.get("top", 0) + r * step.y), row = r, col = c, kind = kind})
+				out.append({pos = pos, row = r, col = c, kind = kind})
 	var count := {solid = 0, bomb = 0, red = 0}
 	var near := func(b: Dictionary, kind: String) -> bool:
 		return out.any(func(o): return o != b and o.kind == kind and o.pos.distance_to(b.pos) <= step.x + 1)

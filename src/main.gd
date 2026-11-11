@@ -255,7 +255,7 @@ func _run_chassis(title: String, sub := "", on_pick := Callable()) -> Ui.Root:
 func _play() -> void:
 	var m: Dictionary = Game.run.map
 	var a = preload("res://src/arena.gd").new()
-	a.enemy_id = m.enemies[m.layer][m.node]
+	a.encounter_id = m.enemies[m.layer][m.node]
 	a.done.connect(_fight_done)
 	group = true
 	_swap(a)

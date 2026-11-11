@@ -22,13 +22,16 @@ func _init() -> void:
 	var fits := func(b: Dictionary) -> bool:
 		var r := Rect2(b.pos - Tuning.BRICK_SIZE / 2, Tuning.BRICK_SIZE)
 		return arena.encloses(r) and r.end.y <= arena.size.y - Tuning.BOARD_FLOOR
-	for id in Tuning.ENEMIES:
-		var e: Dictionary = Tuning.ENEMIES[id]
+	for id in Tuning.encounters():
+		var e: Dictionary = Tuning.encounter(id)
 		var cls: String = "fight" if e.role == "regular" else e.role
 		var B: Dictionary = Tuning.BOARDS[cls]
 		var rows: Array = e.board.rows
+		var digits := "123456789".substr(0, e.organs.size())
 		check(rows.all(func(l): return l.length() <= B.cols) and rows.any(func(l): return l.length() == B.cols), "%s's layout is %d columns at its widest (the lane grid)" % [id, B.cols])
-		check(rows.all(func(l): return Array(l.split("")).all(func(ch): return ch in Tuning.BOARD_KEYS)), "%s's layout uses only BOARD_KEYS glyphs" % id)
+		check(rows.all(func(l): return Array(l.split("")).all(func(ch): return ch in Tuning.BOARD_KEYS or ch in digits)), "%s's layout uses only BOARD_KEYS glyphs and its organs' digits" % id)
+		for d in digits:
+			check(d in "".join(rows), "%s's organ %s has cells on the board" % [id, d])
 		# Every brick is reachable past the drawn solids: flood the open cells from outside the layout, 4-way.
 		# ponytail: a 4-way grid walk ignores the half-step offset of short rows; fine while honey pillars run straight.
 		var solid := func(r: int, c: int) -> bool: return r >= 0 and r < rows.size() and c >= 0 and c < rows[r].length() and rows[r][c] == "#"
@@ -49,7 +52,7 @@ func _init() -> void:
 		for s in 200:
 			var bricks: Array = g.generate(cls, s, e.board)
 			check(bricks == g.generate(cls, s, e.board), "generate is deterministic")
-			check(bricks.any(func(b): return Tuning.BRICKS[b.kind].hp > 0), "%s's board has a breakable brick" % id)
+			check(bricks.any(func(b): return b.kind != "organ" and Tuning.BRICKS[b.kind].hp > 0), "%s's board has a breakable brick" % id)
 			var n := func(kind: String) -> int: return bricks.filter(func(b): return b.kind == kind).size()
 			for k in ["crit", "refresh"]:
 				check(n.call(k) == maxi(B[k], drawn.call(k)), "%s seed %d has %d %ss" % [id, s, maxi(B[k], drawn.call(k)), k])
@@ -58,7 +61,7 @@ func _init() -> void:
 				check(rolled.filter(func(b): return b.kind == k).size() <= B[k][1], "%s seed %d keeps rolled %s at or under its max" % [id, s, k])
 			for b in bricks:
 				check(fits.call(b), "%s brick inside the arena, above the floor line" % id)
-				check(b.kind in Tuning.BRICKS, "%s brick kind %s exists" % [id, b.kind])
+				check(b.kind in Tuning.BRICKS or (b.kind == "organ" and b.organ < e.organs.size()), "%s brick kind %s exists" % [id, b.kind])
 			for b in rolled:
 				var touching: Array = bricks.filter(func(o): return o != b and o.pos.distance_to(b.pos) <= step.x + 1)
 				if b.kind == "solid":
@@ -107,21 +110,30 @@ func _init() -> void:
 		for id in Tuning.UNLOCKS[flag]:
 			check(id in Tuning.BALLS or id in Tuning.RELICS, "unlock %s is a ball or relic" % id)
 	var Fx = load("res://src/fx.gd")
-	for id in Tuning.ENEMIES:
-		var e: Dictionary = Tuning.ENEMIES[id]
-		check(e.role in ["regular", "elite", "boss"] and e.intents.size() >= 1, "enemy %s has a role and an intent" % id)
-		check(e.hp > 0 and e.cd >= 1, "enemy %s has hp and a countdown" % id)
-		for strip in Tuning.ENEMY_STRIPS:  # the four strips arena.gd _enemy_play slices at the row's width (docs/animations.md)
-			check(strip in Tuning.ENEMY_FPS and Fx._frames("%s_%s" % [id, strip], e.w).get_frame_count("default") == Tuning.ENEMY_STRIPS[strip], "enemy %s has a %d-frame %s strip %d wide with an fps" % [id, Tuning.ENEMY_STRIPS[strip], strip, e.w])
+	check(Tuning.ENCOUNTERS.keys().all(func(k): return not k in Tuning.ORGANS and not k in Tuning.ENEMIES) and Tuning.ORGANS.keys().all(func(k): return not k in Tuning.ENEMIES), "ENCOUNTERS, ORGANS and ENEMIES ids are disjoint")
+	check("111" in "".join(Tuning.encounter("glob").board.rows), "the bridge stamps a 3-cell organ on a legacy enemy's board")
+	check(FileAccess.file_exists("res://assets/pixel/png/%s.png" % Tuning.spec("organ").face), "the organ cell has a face")
+	for id in Tuning.ORGANS.keys() + Tuning.ENEMIES.keys():  # every organ arena.gd runs: authored, and each enemy through the bridge
+		var e: Dictionary = Tuning.organ(id)
+		check(e.intents.size() >= 1 and e.hp > 0 and e.cd >= 1, "organ %s has hp, a countdown and an intent" % id)
 		for it in e.intents:
-			check((it[0] in Tuning.HAZARDS or it[0] == "mouth") and it[1] >= 1, "enemy %s intent %s is a hazard x count" % [id, it[0]])
-			check(it[0] != "mouth" or e.has("mouth"), "enemy %s intends a mouth it has" % id)
-		check(not e.has("enraged") or (e.enraged.at > 0 and e.enraged.at < 1 and e.enraged.cd >= 1 and (not e.enraged.has("mouth") or e.has("mouth"))), "enemy %s enrages below a fraction of its HP" % id)
-		check(not e.has("riposte") or e.riposte >= 1, "enemy %s ripostes shots of some size" % id)
-		for k in ["steal", "jackpot", "advance", "twice"]:  # the signature numbers arena.gd reads
-			check(not e.has(k) or e[k] > 0, "enemy %s %s is positive" % [id, k])
-		check(not e.has("jackpot") or "".join(e.board.rows).count("g") >= 2, "enemy %s's jackpot has gold bricks to break in one phase" % id)
-		check(not e.has("advance") or e.board.rows.size() + e.advance <= 11, "enemy %s's board has room to advance" % id)
+			check((it[0] in Tuning.HAZARDS or it[0] == "mouth") and it[1] >= 1, "organ %s intent %s is a hazard x count" % [id, it[0]])
+			check(it[0] != "mouth" or e.has("mouth"), "organ %s intends a mouth it has" % id)
+		check(not e.has("enraged") or (e.enraged.at > 0 and e.enraged.at < 1 and e.enraged.cd >= 1 and (not e.enraged.has("mouth") or e.has("mouth"))), "organ %s enrages below a fraction of its HP" % id)
+		check(not e.has("riposte") or e.riposte >= 1, "organ %s ripostes shots of some size" % id)
+		check(not e.has("twice") or e.twice > 0, "organ %s twice is positive" % id)
+	for id in Tuning.encounters():
+		var e: Dictionary = Tuning.encounter(id)
+		check(e.role in ["regular", "elite", "boss"] and e.tier >= 1, "encounter %s has a role and a tier" % id)
+		check(e.organs.size() >= 1 and e.organs.all(func(o): return not Tuning.organ(o).is_empty()), "encounter %s's organs exist" % id)
+		check(e.get("win", e.organs).all(func(o): return o in e.organs), "encounter %s wins on its own organs" % id)
+		check(not e.has("cd_start") or e.cd_start.size() == e.organs.size(), "encounter %s has a first countdown per organ" % id)
+		for strip in Tuning.ENEMY_STRIPS:  # the four strips arena.gd _band_play slices at the row's width (docs/animations.md)
+			check(strip in Tuning.ENEMY_FPS and Fx._frames("%s_%s" % [e.band, strip], e.w).get_frame_count("default") == Tuning.ENEMY_STRIPS[strip], "encounter %s has a %d-frame %s strip %d wide with an fps" % [id, Tuning.ENEMY_STRIPS[strip], strip, e.w])
+		for k in ["steal", "jackpot", "advance"]:  # the signature numbers arena.gd reads
+			check(not e.has(k) or e[k] > 0, "encounter %s %s is positive" % [id, k])
+		check(not e.has("jackpot") or "".join(e.board.rows).count("g") >= 2, "encounter %s's jackpot has gold bricks to break in one phase" % id)
+		check(not e.has("advance") or e.board.rows.size() + e.advance <= 11, "encounter %s's board has room to advance" % id)
 	for id in Tuning.HAZARDS:
 		var h: Dictionary = Tuning.HAZARDS[id]
 		check(h.hp >= 0 and FileAccess.file_exists("res://assets/pixel/png/intent_%s.png" % id), "hazard %s has an hp cost and an intent icon" % id)

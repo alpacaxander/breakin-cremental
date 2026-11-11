@@ -20,7 +20,8 @@ const MIN_VERTICAL := 0.25  # min |vy| as a fraction of speed, stops near-horizo
 const COMBO_WINDOW_START := 1.0
 const COMBO_MULT_PER_HIT := 0.25
 
-# Board generation. Each enemy draws its own board (ENEMIES board.rows), one BOARD_KEYS glyph per brick. Every row centres
+# Board generation. Each encounter draws its own board (board.rows), one BOARD_KEYS glyph per brick, or a digit n for a cell
+# of its organ n (ENCOUNTERS). Every row centres
 # on the arena, so a row one shorter than its neighbours sits half a step over (honeycomb).
 const BRICK_SIZE := Vector2(60, 24)
 const BRICK_GAP := 4.0
@@ -60,7 +61,9 @@ const FAST_SPEED := 1.4  # at or above: ball draws a trail
 const BOMB_RADIUS := 72.0  # 3x3 block
 
 # The two pieces. The paddle's sprite stretches to its width; walls are invisible.
-const PIECES := {paddle = {face = "paddle"}, paddle_mini = {face = "paddle_mini"}, wall = {}}  # paddle_mini: relic mini_paddle's second paddle
+# organ: one cell of an organ (ORGANS), tinted by the organ's tint. Not in BRICKS, so box() gives it hp -1: never broken,
+# blasted, refreshed or counted by the win check.
+const PIECES := {paddle = {face = "paddle"}, paddle_mini = {face = "paddle_mini"}, wall = {}, organ = {face = "organ_cell"}}  # paddle_mini: relic mini_paddle's second paddle
 const STICKY_HOLD := 1.5  # seconds a sticky catch holds the ball on the paddle before it fires itself
 const MAGNET_RADIUS := 160.0  # relic magnet_paddle: balls this close above the paddle centre are pulled toward it
 const MAGNET_PULL := 700.0  # px/s^2
@@ -279,6 +282,29 @@ const ENEMIES := {
 		".xxx???????xxx.",
 	]}},
 }
+# Organs (docs/content/encounters.md): an enemy living in the board, drawn with a digit glyph (1 = the encounter's first
+# organ). Fields as an ENEMIES row's hp, cd, intents, off and signatures (riposte, twice, mimic, enraged, mouth), plus tint:
+# its cells' colour. An ENEMIES row doubles as its own organ row (organ()).
+const ORGANS := {
+	knight_body = {hp = 60, cd = 14.0, intents = [["debris", 4]], off = -3, tint = Color("e0a040")},
+	knight_sword = {hp = 25, cd = 8.0, intents = [["laser_sweep", 1], ["enemy_balls", 2]], off = 0, tint = Color("c0d0ff")},
+	knight_shield = {hp = 30, cd = 12.0, intents = [["shield_row", 1]], off = -5, tint = Color("80c0a0")},  # ponytail: grow deferred, shield_row stands in
+}
+# Encounters: one per fight. role and tier as for ENEMIES; organs: ORGANS ids, board digit n is organs[n - 1]; cd_start: each
+# organ's first countdown; win: the organs whose deaths end the fight (default all); band + w: the portrait's
+# <band>_idle/_hit/_attack/_die strips. steal, jackpot, advance, shield_start as for ENEMIES. Every ENEMIES row is an
+# encounter too, through encounter()'s bridge.
+const ENCOUNTERS := {
+	knight = {role = "regular", tier = 1, band = "warden", w = 64,  # ponytail: borrows warden's band strips until a knight portrait exists; tier 1 so the playtest meets it
+		organs = ["knight_body", "knight_sword", "knight_shield"], cd_start = [14.0, 4.0, 9.0], win = ["knight_body"], board = {rows = [
+		"xx?xxxxx?xx",
+		"x33?x1x?2?x",  # 1 body, 2 sword, 3 shield
+		"x33?111?2?x",
+		"x33?111?2?x",
+		"x?x?x1x?2xx",
+		"xx?xxxxx?xx",
+	]}},
+}
 const RIPOSTE_CUT := 2.0  # seconds a riposte landing takes off the countdown (about one paddle hit at BALL_SPEED 350)
 const ENEMY_FOOT := Vector2(480, 108)  # bottom centre of the enemy sprite, in the band above TOP_WALL
 const ENEMY_STRIPS := {idle = 4, hit = 6, attack = 6, die = 8}  # frames per <id>_<strip>; idle loops at 8 fps, the rest play at 12
@@ -293,8 +319,8 @@ const MOUTH := {rect = Rect2(432, 0, 96, 32), spit_gap = 0.4}  # boss intent, no
 # px/s^2 upward for `secs` per count. coin_junk: a `junk` ball on top of the bag per count. Behaviour: arena.gd _hazard.
 const HAZARDS := {
 	red_bricks = {hp = 0, rows = 3, stagger = 0.05},  # the red brick's own hurt pays, on a ball break
-	enemy_balls = {hp = 5, flight = true, speed = 0.7, radius = 8.0, spread_deg = 15.0, gap = 0.15, windup = 0.5, origin = Vector2(480, 60)},
-	debris = {hp = 3, flight = true, size = 16.0, speed = 300.0, apart = 80.0, gap = 0.2, shake = 0.3, shake_px = 4.0},
+	enemy_balls = {hp = 5, flight = true, speed = 0.55, radius = 8.0, spread_deg = 15.0, gap = 0.15, windup = 0.8},  # fired from the organ
+	debris = {hp = 3, flight = true, size = 16.0, speed = 240.0, apart = 80.0, gap = 0.2, shake = 0.3, shake_px = 4.0},
 	laser_sweep = {hp = 6, warn = 1.0, beam = 0.4},  # a lane is one board column (BRICK_SIZE.x + BRICK_GAP wide)
 	shield_row = {hp = 0, hits = 8},
 	jam = {hp = 0, hits = 6, width = 0.5},
@@ -343,6 +369,34 @@ const COLORS := {  # docs/palette.md. Brick and paddle colors live in their spri
 ## The row describing a kind, whichever table holds it.
 static func spec(kind: String) -> Dictionary:
 	return BRICKS.get(kind, PIECES.get(kind, {}))
+
+
+## An organ's row: ORGANS, or an ENEMIES row standing in as its own organ.
+static func organ(id: String) -> Dictionary:
+	return ORGANS.get(id, ENEMIES.get(id, {}))
+
+
+## Every encounter id: the authored ones, then every enemy through the bridge.
+static func encounters() -> Array:
+	return ENCOUNTERS.keys() + ENEMIES.keys()
+
+
+## An encounter's row. An ENEMIES id comes back as a one-organ encounter, its organ a 3-cell "111" at the board centre.
+static func encounter(id: String) -> Dictionary:
+	if id in ENCOUNTERS:
+		return ENCOUNTERS[id]
+	var e: Dictionary = ENEMIES[id]
+	# ponytail: legacy bridge, a 3-cell organ stamped at the board centre until each enemy is authored as an encounter
+	var rows: Array = e.board.rows.duplicate()
+	var m := rows.size() / 2
+	var line: String = rows[m]
+	var c0 := (line.length() - 3) / 2
+	rows[m] = line.substr(0, c0) + "111" + line.substr(c0 + 3)
+	var enc := {role = e.role, tier = e.tier, band = id, w = e.w, organs = [id], win = [id], board = e.board.merged({rows = rows}, true)}
+	for k in ["steal", "jackpot", "advance", "shield_start"]:
+		if k in e:
+			enc[k] = e[k]
+	return enc
 
 
 ## A board brick's colour group, the row's hue field: "mag" unless the row says otherwise.

@@ -1,23 +1,27 @@
 extends Node2D
-## One fight: the enemy in the band above the top wall, the bag of balls launched phase by phase at the board, and the
-## damage pipeline. A ball stores dmg per brick it breaks, fires it at the enemy on paddle contact and loses it on a drop;
-## crit bricks launch the bag's next ball, bombs hit the enemy and blast their neighbours for the ball, a red brick a ball
-## breaks costs the player HP (a blast removes it for free); a phase ends when every ball has dropped, no HP cost. Seconds
-## of flight count down the enemy's intent (_count_down); at 0 its attack strip plays and the hazard spawns on frame 3
-## (_act, _hazard): red bricks painted onto the board, enemy balls and debris that cost HP on paddle touch (Hazard nodes moved by hand, cleared
+## One fight: an encounter (Tuning.encounter) of organs living in the board, its portrait in the band above the top wall
+## (decoration only, _band_play), the bag of balls launched phase by phase at the board, and the damage pipeline. A ball
+## stores dmg per brick it breaks, cashes it in on touching an organ cell (_organ_hit: a 0-charge touch is refused, one
+## hit per organ per ball per frame) and loses it on a drop; the paddle only bounces. Each Organ node owns its cells, HP,
+## poison, countdown and intent cycle; the fight is won when the encounter's `win` organs are dead (_organ_die, _won).
+## Crit bricks launch the bag's next ball, bombs blast their neighbours for the ball, a red brick a ball breaks costs the
+## player HP (a blast removes it for free); a phase ends when every ball has dropped, no HP cost. Seconds of flight count
+## down every live organ's intent (_count_down, _tick); at 0 the band's attack strip plays and the hazard spawns from the
+## organ on frame 3 (_act, _hazard): red bricks painted onto the board, enemy balls and debris that cost HP on paddle touch (Hazard nodes moved by hand, cleared
 ## at phase end), a laser lane snapped to the board column under the paddle (drawn in _draw), a shield row of solids that
 ## crumbles after so many paddle hits, the boss's mouth that eats balls and spits them back, and map 1's three: jam (the
 ## paddle at half width for so many hits, _paddle_fit), pull (an upward force on every ball in flight for a second,
-## _move_ball) and coin_junk (stones on top of the bag). The enemy signatures (Tuning.ENEMIES) live at their sites: the
-## riposte in _paddle_hit, enrage in _land (the row's enraged fields merge in; mimic makes _enemy_ball copy the bag's
-## balls), steal in _drop, twice in _act, the jackpot in _effect, shield_start in _ready, advance in _phase_start. Ball
+## _move_ball) and coin_junk (stones on top of the bag). The organ signatures live at their sites: the riposte in
+## _organ_hit, enrage in _land (the row's enraged fields merge in; mimic makes _enemy_ball copy the bag's balls), twice in
+## _act; the encounter's: steal in _drop, the jackpot in _effect, shield_start in _ready, advance in _phase_start. Ball
 ## traits (Tuning.BALLS) live here too: pierce in the collision loop, split, the blaster's and the token's counts in
-## _break, the sticky catch in _paddle_hit, poison stacks landing with the damage and ticking at phase end, the rubber
+## _break, the sticky catch in _paddle_hit, poison stacks landing on the organ hit and ticking at phase end, the rubber
 ## ball's floor bounces in _save, the magnet ball in _move_ball, the junk ball's silent crits. Relics (Tuning.RELICS)
 ## fire through _relics, one match by id at the on_fight_start, on_break and on_phase_end sites; stat relics are Game.has
 ## reads where their number applies (paddle width, the magnet in _move_ball, twin_crit in _crit, the mini paddle in _pads). won / lost fire as the fight ends and
 ## done(win) after the end beat, for main.gd's reward overlay or end screen; hud.gd draws the run columns.
-## docs/content.md "Fight pipeline", "Balls", "Enemies", "Hazards" and "Relics" are the contract.
+## docs/content.md "Fight pipeline", "Balls", "Enemies", "Hazards" and "Relics" are the contract; docs/content/encounters.md
+## for organs.
 
 signal won
 signal lost
@@ -55,6 +59,8 @@ class Ball extends CharacterBody2D:
 	var hold := 0.0  # seconds a sticky catch keeps it on the paddle; 0 in flight
 	var hold_dx := 0.0  # where on the paddle it stuck
 	var age := 0.0  # seconds in flight, for the speed ramp
+	var struck := 0  # the organ (instance id) it last cashed in on, and the physics frame: one hit per organ per frame
+	var struck_frame := -1
 	var tex: Texture2D  # frame rank-1 of <id>_rank
 	var tag: Label  # the stored number riding above the ball, on the stored_tag strip (tag_s), both hidden at 0
 	var tag_s: AnimatedSprite2D
@@ -110,23 +116,83 @@ class Hazard extends Node2D:
 	var t := 0.0  # laser: seconds left of the state
 	var paid := false  # laser: the paddle already paid this beam
 	var zapped: Array = []  # laser: ball instance ids this beam already emptied
+	var src := ""  # the organ id that fired it, the killer if it ends the run
 
 	func _init(k: String) -> void:
 		kind = k
 		row = Tuning.HAZARDS[k]
 
 
-var enemy_id := "glob"  # set by main.gd from the map node before the arena enters the tree
-var enemy := {}  # the ENEMIES row plus hp_max, cd_left and intent (index into intents)
+## One organ: its board cells (Box, kind "organ", each pointing back here), HP, poison, countdown and intent cycle. Sits
+## at the centre of its cells' bounding rect over them: an HP bar along the top edge, the HP, the intent icon and the
+## seconds left. Rules are the arena's.
+class Organ extends Node2D:
+	var id: String
+	var row: Dictionary  # a duplicate of Tuning.organ(id); enraged fields merge into it
+	var hp := 0
+	var hp_max := 0
+	var cd_left := 0.0
+	var intent := 0  # index into row.intents
+	var poison := 0  # stacks ticking at phase end
+	var acts := 0  # intents fired this phase (twice)
+	var cells: Array = []
+	var dead := false
+	var half := Vector2.ZERO  # half the cells' bounding rect
+	var intent_s: Sprite2D
+	var hp_l: Label
+	var cd_l: Label
+
+	func _init(organ_id: String) -> void:
+		id = organ_id
+		row = Tuning.organ(id).duplicate(true)
+		hp = row.hp
+		hp_max = hp
+		cd_left = row.cd
+		z_index = 2
+
+	## Centres on the cells (placed by the arena) and lays the readout out along the long side.
+	func fit() -> void:
+		var r: Rect2 = cells[0].rect()
+		for c in cells:
+			r = r.merge(c.rect())
+		position = r.get_center()
+		half = r.size / 2
+		var tall := half.y > half.x
+		intent_s = Sprite2D.new()
+		intent_s.scale = Vector2.ONE * Fx.SCALE
+		add_child(intent_s)
+		hp_l = Ui.label(self, "", -20, -26 if tall else -5, Tuning.COLORS.white, 2, 40, HORIZONTAL_ALIGNMENT_CENTER)
+		cd_l = Ui.label(self, "", -20, 14 if tall else -5, Tuning.COLORS.white, 2, 40, HORIZONTAL_ALIGNMENT_CENTER)
+		if not tall:
+			hp_l.position.x = -half.x + 2
+			cd_l.position.x = half.x - 42
+			hp_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+			cd_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+
+	func _process(_delta: float) -> void:
+		hp_l.text = str(hp) + (" P%d" % poison if poison else "")
+		cd_l.text = str(ceili(cd_left))
+		intent_s.modulate.a = 0.8 + 0.2 * sin(Time.get_ticks_msec() / 1000.0 * TAU * 2) if cd_left <= 1 else 1.0
+		queue_redraw()
+
+	func _draw() -> void:
+		var bar := Rect2(-half.x, -half.y - 6, half.x * 2, 4)
+		draw_rect(bar, Tuning.COLORS.trim)
+		draw_rect(Rect2(bar.position, Vector2(bar.size.x * hp / hp_max, bar.size.y)), Tuning.COLORS.danger)
+
+
+var encounter_id := "glob"  # set by main.gd from the map node before the arena enters the tree
+var enc := {}  # the Tuning.encounter(encounter_id) row
+var organs: Array = []  # Organ nodes, in enc.organs order
 var cls := "fight"  # the BOARDS class, for the lane count
-var foe: AnimatedSprite2D  # the enemy's idle loop; hidden while `acting` plays a hit, attack or die strip over it
+var foe: AnimatedSprite2D  # the band portrait's idle loop; hidden while `acting` plays a hit, attack or die strip over it
 var acting: AnimatedSprite2D
-var intent_s: Sprite2D  # the current intent's icon
 var hazards: Array = []  # live Hazard nodes
 var volley: Array = []  # tweens spawning flight hazards; a phase end kills them (nothing fires between phases)
 var shield: Array = []  # the shield row's solids
 var shield_left := 0  # paddle hits until the shield row crumbles
 var mouth_left := 0  # paddle hits the boss's mouth stays open; 0 = closed
+var mouth_of: Organ = null  # the organ whose mouth is open, which spits the eaten balls back
 var eaten := 0  # balls the mouth swallowed, spat back when it closes
 var mouth_s: AnimatedSprite2D
 var shake := 0.0  # seconds left of the debris shake
@@ -152,7 +218,6 @@ var dropped: Array = []  # non-junk bag entries dropped this phase, in order (re
 var mini: Box = null  # relic mini_paddle's second paddle, mirroring the main one
 var jam_left := 0  # hazard jam: paddle hits the paddle stays at half width; persists past a phase
 var pull_t := 0.0  # hazard pull: seconds left of the upward force on every ball in flight
-var phase_acts := 0  # intents fired this phase (the bouncer's first fires twice)
 var phase_gold := 0  # gold bricks broken this phase (the jackpot)
 var mimic_i := 0  # the bag index the next mimicked enemy ball copies
 var paddle_w := Tuning.PADDLE_WIDTH  # the paddle's built width, what a jam halves
@@ -164,8 +229,6 @@ var breakable := 0
 var ui: Ui.Root  # the cabinet: columns by hud.gd
 var hud: Hud
 var field: Rect2  # the arena in its own px: origin top-left. _fit scales the node into the cabinet's 4:3 field.
-var hp_l: Label
-var cd_l: Label
 
 
 func _ready() -> void:
@@ -175,13 +238,26 @@ func _ready() -> void:
 	box("wall", Vector2(100, field.size.y * 3), Vector2(-50, field.size.y / 2))
 	box("wall", Vector2(100, field.size.y * 3), Vector2(field.size.x + 50, field.size.y / 2))
 	box("wall", Vector2(field.size.x, 100), Vector2(field.size.x / 2, Tuning.TOP_WALL - 50))
-	enemy = Tuning.ENEMIES[enemy_id].duplicate()
-	enemy.hp_max = enemy.hp
-	enemy.cd_left = enemy.cd
-	enemy.intent = 0
-	enemy.poison = 0  # stacks ticking at phase end
-	cls = "fight" if enemy.role == "regular" else enemy.role
-	layout = Game.generate(cls, randi(), enemy.board)
+	enc = Tuning.encounter(encounter_id)
+	cls = "fight" if enc.role == "regular" else enc.role
+	for i in enc.organs.size():
+		var o := Organ.new(enc.organs[i])
+		if "cd_start" in enc:
+			o.cd_left = enc.cd_start[i]
+		organs.append(o)
+	var cells := Game.generate(cls, randi(), enc.board)
+	layout = cells.filter(func(d): return d.kind != "organ")  # organ cells stand outside the layout: never regrown or counted
+	for d in cells:
+		if d.kind == "organ":
+			var o: Organ = organs[d.organ]
+			var b := box("organ", Tuning.BRICK_SIZE, d.pos)
+			b.organ = o
+			b.self_modulate = o.row.get("tint", Color.WHITE)
+			o.cells.append(b)
+	for o in organs:
+		add_child(o)
+		o.fit()
+		_show_intent(o)
 	slots.resize(layout.size())
 	_relics("on_fight_start")  # before the spawn: tenth_bomb rewrites layout kinds
 	var rows := {}
@@ -196,20 +272,12 @@ func _ready() -> void:
 	target_x = paddle.position.x
 	if Game.has("magnet_paddle"):
 		Fx.play(paddle, "magnet_pull", 44, 8, Vector2(0, Tuning.PADDLE_HEIGHT), 0, true).show_behind_parent = true
-	if enemy.get("shield_start", false):
+	if enc.get("shield_start", false):
 		_shield_row()
 
-	foe = Fx.play(self, "%s_idle" % enemy_id, enemy.w, Tuning.ENEMY_FPS.idle, Tuning.ENEMY_FOOT - Vector2(0, 24 * Fx.SCALE), 0, true)
+	foe = Fx.play(self, "%s_idle" % enc.band, enc.w, Tuning.ENEMY_FPS.idle, Tuning.ENEMY_FOOT - Vector2(0, 24 * Fx.SCALE), 0, true)
 	foe.z_index = 0
 	foe.show_behind_parent = true  # behind the balls the arena draws
-	hp_l = Ui.label(self, "", 648, 2, Tuning.COLORS.white, 2)
-	intent_s = Sprite2D.new()
-	intent_s.centered = false
-	intent_s.position = Vector2(660, 4)
-	intent_s.scale = Vector2.ONE * Fx.SCALE
-	add_child(intent_s)
-	_show_intent()
-	cd_l = Ui.label(self, "", 692, 0, Tuning.COLORS.white, 2)
 	bag = Game.run.bag.duplicate(true)
 	bag.shuffle()
 
@@ -289,19 +357,25 @@ func _phase_start() -> void:
 	phase += 1
 	phase_dmg = 0
 	phase_breaks = 0
-	phase_acts = 0
 	phase_gold = 0
 	combo = 0
 	dropped = []
 	discarded = false
 	refresh_in = 0
-	var dy: float = enemy.get("advance", 0) * (Tuning.BRICK_SIZE.y + Tuning.BRICK_GAP)
-	if dy and phase > 1 and layout.map(func(s): return s.pos.y).max() + dy + Tuning.BRICK_SIZE.y / 2 <= field.size.y - Tuning.BOARD_FLOOR:
+	for o in organs:
+		o.acts = 0
+	var dy: float = enc.get("advance", 0) * (Tuning.BRICK_SIZE.y + Tuning.BRICK_GAP)
+	var low: float = layout.map(func(s): return s.pos.y).max()
+	for o in organs:
+		low = maxf(low, o.position.y + o.half.y - Tuning.BRICK_SIZE.y / 2)
+	if dy and phase > 1 and low + dy + Tuning.BRICK_SIZE.y / 2 <= field.size.y - Tuning.BOARD_FLOOR:
 		for s in layout:
 			s.pos.y += dy
-		for b in slots:
+		for b in slots + organs.reduce(func(acc, o): return acc + o.cells, []):
 			if is_instance_valid(b) and not b.is_queued_for_deletion():
 				b.position.y += dy
+		for o in organs:
+			o.position.y += dy
 		Sfx.play("count_tick", 0.7)
 	if breakable < Tuning.RUN.regen_below:
 		_refresh()
@@ -354,10 +428,11 @@ func _phase_end() -> void:
 	pull_t = 0
 	_relics("on_phase_end")
 	_clear_hazards(true)
-	if enemy.poison > 0:
-		Sfx.play("pips_shrink", 0.8)
-		_land(enemy.poison)
-		enemy.poison /= 2
+	for o in organs:
+		if o.poison > 0 and not o.dead and not over:
+			Sfx.play("pips_shrink", 0.8)
+			_land(o, o.poison)
+			o.poison /= 2
 
 
 # --- Play ---
@@ -446,8 +521,8 @@ func _drop(b: Ball, quiet := false) -> void:
 	if not quiet:
 		Fx.play(self, "ball_lost", 12, 12, Vector2(b.position.x, field.size.y - 12))
 		Sfx.play("ball_lost", 1.0 if b.stored else 0.7)
-		if enemy.get("steal", 0) and Game.run.gold > 0:
-			Game.run.gold = maxi(0, Game.run.gold - enemy.steal)
+		if enc.get("steal", 0) and Game.run.gold > 0:
+			Game.run.gold = maxi(0, Game.run.gold - enc.steal)
 			Sfx.play("coin", 0.6)
 	Game.run.stats.drops += 1
 	if not b.copy:
@@ -535,26 +610,15 @@ func _move_ball(ball: Ball, delta: float) -> void:
 		ball.set_speed(ball.speed)
 
 
-## Paddle contact (pad: the main paddle or relic mini_paddle's): the ball's stored damage and poison land on the enemy,
-## a big one ripostes, the ball's per-flight traits re-arm, and gum with a catch left sticks.
+## Paddle contact (pad: the main paddle or relic mini_paddle's): the ball keeps its stored damage and poison (only an
+## organ cashes them in), its per-flight traits re-arm, and gum with a catch left sticks.
 func _paddle_hit(ball: Ball, pad: Box = null) -> void:
 	if not pad:
 		pad = paddle
 	# Child of the paddle so the flash rides along instead of ghosting where the hit happened.
-	Fx.play(pad, "damage_fire" if ball.stored > 0 else "paddle_hit", 60, 12, Vector2.ZERO).scale = pad.size / Vector2(60, 8)
-	if ball.poison > 0:
-		Fx.play(self, "ball_poison_land", 12, 12, ball.position)
-	enemy.poison += ball.poison
-	ball.poison = 0
-	var landed := ball.stored
-	if landed > 0:
-		_land(landed)
-		ball.store(-landed)
-	else:
-		var pitch: float = ball.row.get("catch", clampf(ball.speed, 0.85, 1.3))
-		Sfx.play("paddle_hit", pitch)
-	if over:
-		return
+	Fx.play(pad, "paddle_hit", 60, 12, Vector2.ZERO).scale = pad.size / Vector2(60, 8)
+	var pitch: float = ball.row.get("catch", clampf(ball.speed, 0.85, 1.3))
+	Sfx.play("paddle_hit", pitch)
 	ball.arm()
 	if ball.catches_left > 0:
 		ball.catches_left -= 1
@@ -576,17 +640,22 @@ func _paddle_hit(ball: Ball, pad: Box = null) -> void:
 		mouth_left -= 1
 		if mouth_left == 0:
 			_mouth_close()
-	if enemy.has("riposte") and landed >= enemy.riposte:  # the warden's riposte: a big shot hurries it
-		_count_down(Tuning.RIPOSTE_CUT)
 
 
-## The enemy's clock: s seconds off the countdown, the warning cue as it crosses 1 s, the intent at 0.
+## Every live organ's clock: s seconds off each countdown.
 func _count_down(s: float) -> void:
-	var was: float = enemy.cd_left
-	enemy.cd_left -= s
-	if enemy.cd_left <= 0:
-		_act()
-	elif was > 1 and enemy.cd_left <= 1:
+	for o in organs:
+		if not o.dead and not over:
+			_tick(o, s)
+
+
+## One organ's clock: s seconds off, the warning cue as it crosses 1 s, the intent at 0.
+func _tick(o: Organ, s: float) -> void:
+	var was := o.cd_left
+	o.cd_left -= s
+	if o.cd_left <= 0:
+		_act(o)
+	elif was > 1 and o.cd_left <= 1:
 		Sfx.play("timed_off")
 
 
@@ -599,29 +668,74 @@ func _sticky_fire(b: Ball) -> void:
 	Sfx.play("sticky_fire")
 
 
-## n damage lands on the enemy; a boss below its enrage mark takes its enraged fields (the maw's faster countdown and
-## longer mouth, attract_mode's mimic).
-func _land(n: int) -> void:
-	enemy.hp = maxi(0, enemy.hp - n)
+## A ball touched a cell of organ o: its stored damage and poison cash in there and it keeps bouncing. A 0-charge touch is
+## refused; a ball touching two cells of one organ in a frame hits once. A big landing ripostes.
+func _organ_hit(o: Organ, ball: Ball, cell: Box) -> void:
+	if o.dead:
+		return
+	var f := Engine.get_physics_frames()
+	if ball.struck == o.get_instance_id() and ball.struck_frame == f:
+		return
+	ball.struck = o.get_instance_id()
+	ball.struck_frame = f
+	if ball.stored <= 0 and ball.poison <= 0:
+		Sfx.play("hit_refused")
+		return
+	Fx.play(cell, "damage_fire", 60, 12, Vector2.ZERO).scale = cell.size / Vector2(60, 8)
+	for c in o.cells:
+		Fx.play(c, "organ_hit", 30, 12, Vector2.ZERO).modulate = o.row.get("tint", Color.WHITE)
+	if ball.poison > 0:
+		Fx.play(self, "ball_poison_land", 12, 12, ball.position)
+	o.poison += ball.poison
+	ball.poison = 0
+	var n := ball.stored
+	ball.store(-n)
+	if n > 0:
+		_land(o, n)
+	if not o.dead and o.row.get("riposte", 0) > 0 and n >= o.row.riposte:  # the warden's riposte: a big shot hurries it
+		_tick(o, Tuning.RIPOSTE_CUT)
+
+
+## n damage lands on organ o; below its enrage mark it takes its enraged fields (the maw's faster countdown and longer
+## mouth, attract_mode's mimic); at 0 it dies.
+func _land(o: Organ, n: int) -> void:
+	o.hp = maxi(0, o.hp - n)
 	phase_dmg += n
 	Game.run.stats.damage += n
 	Game.run.stats.best_fire = maxi(Game.run.stats.best_fire, n)
 	Sfx.play("damage_land", Sfx.st(Tuning.ladder(Tuning.DAMAGE_LAND, n)))
-	Sfx.play("bumper_hit", 0.6 * Sfx.st(enemy.off))
-	if enemy.hp <= 0:
-		_end(true)
+	Sfx.play("bumper_hit", 0.6 * Sfx.st(o.row.off))
+	if o.hp <= 0:
+		_organ_die(o)
 		return
-	_enemy_play("hit")
-	if enemy.has("enraged") and enemy.hp <= enemy.hp_max * enemy.enraged.at:
-		enemy.merge(enemy.enraged, true)
+	_band_play("hit")
+	if o.row.has("enraged") and o.hp <= o.hp_max * o.row.enraged.at:
+		o.row.merge(o.row.enraged, true)
 
 
-## The enemy's hit, attack or die strip over its hidden idle; the idle returns when it ends (die holds). One at a time.
-func _enemy_play(name: String) -> AnimatedSprite2D:
+## Organ o at 0 HP: its cells break and go, its clock stops (hazards already out keep going); the win organs all dead win.
+func _organ_die(o: Organ) -> void:
+	o.dead = true
+	for c in o.cells:
+		Fx.play(self, "organ_die", 44, 12, c.position).modulate = o.row.get("tint", Color.WHITE)
+		c.queue_free()
+	o.hide()
+	Sfx.play("enemy_die", Sfx.st(o.row.off))
+	if _won():
+		_end(true)
+
+
+## Every organ the encounter's `win` names (default all) is dead.
+func _won() -> bool:
+	return enc.get("win", enc.organs).all(func(id): return organs.any(func(o): return o.id == id and o.dead))
+
+
+## The band portrait's hit, attack or die strip over its hidden idle; the idle returns when it ends (die holds). One at a time.
+func _band_play(name: String) -> AnimatedSprite2D:
 	if is_instance_valid(acting):
 		acting.queue_free()
 	foe.hide()
-	acting = Fx.play(self, "%s_%s" % [enemy_id, name], enemy.w, Tuning.ENEMY_FPS[name], foe.position, 0, false, name == "die")
+	acting = Fx.play(self, "%s_%s" % [enc.band, name], enc.w, Tuning.ENEMY_FPS[name], foe.position, 0, false, name == "die")
 	acting.z_index = 0
 	acting.show_behind_parent = true
 	if name != "die":
@@ -629,26 +743,26 @@ func _enemy_play(name: String) -> AnimatedSprite2D:
 	return acting
 
 
-## The countdown ran out: the attack strip plays and the intent fires on its spawn frame (twice, `twice` seconds apart,
-## for the bouncer's first intent of a phase), the next intent shows and the countdown resets. A flight hazard's spawn is
-## part of the volley, so a phase end in that window cancels it.
-func _act() -> void:
-	var it: Array = enemy.intents[enemy.intent]
-	Sfx.play("hit_refused", 0.5 * Sfx.st(enemy.off))
-	_enemy_play("attack")
+## Organ o's countdown ran out: the band's attack strip plays and the intent fires from o on its spawn frame (twice,
+## `twice` seconds apart, for the bouncer's first intent of a phase), the next intent shows and the countdown resets. A
+## flight hazard's spawn is part of the volley, so a phase end in that window cancels it.
+func _act(o: Organ) -> void:
+	var it: Array = o.row.intents[o.intent]
+	Sfx.play("hit_refused", 0.5 * Sfx.st(o.row.off))
+	_band_play("attack")
 	var spawn := Tuning.ENEMY_SPAWN_FRAME / float(Tuning.ENEMY_FPS.attack)
 	var flight: bool = Tuning.HAZARDS.get(it[0], {}).get("flight", false)
-	_later(spawn, _hazard.bind(it[0], it[1]), flight)
-	if enemy.has("twice") and phase_acts == 0:
-		_later(spawn + enemy.twice, _hazard.bind(it[0], it[1]), flight)
-	phase_acts += 1
-	enemy.intent = (enemy.intent + 1) % enemy.intents.size()
-	enemy.cd_left = enemy.cd
-	_show_intent()
+	_later(spawn, _hazard.bind(o, it[0], it[1]), flight)
+	if o.row.has("twice") and o.acts == 0:
+		_later(spawn + o.row.twice, _hazard.bind(o, it[0], it[1]), flight)
+	o.acts += 1
+	o.intent = (o.intent + 1) % o.row.intents.size()
+	o.cd_left = o.row.cd
+	_show_intent(o)
 
 
-func _show_intent() -> void:
-	intent_s.texture = Ui.tex("intent_%s" % enemy.intents[enemy.intent][0])
+func _show_intent(o: Organ) -> void:
+	o.intent_s.texture = Ui.tex("intent_%s" % o.row.intents[o.intent][0])
 
 
 ## fn after delay seconds, on a tween that dies with the arena. flight: part of the volley a phase end cancels.
@@ -661,26 +775,27 @@ func _later(delay: float, fn: Callable, flight := false) -> void:
 
 # --- Hazards (docs/content.md "Hazards") ---
 
-## The intent's effect on the board.
-func _hazard(id: String, count: int) -> void:
+## Organ o's intent takes effect on the board.
+func _hazard(o: Organ, id: String, count: int) -> void:
 	if over:
 		return
 	match id:
 		"red_bricks": _red_bricks(count)
-		"enemy_balls": _enemy_balls(count)
-		"debris": _debris(count)
-		"laser_sweep": _laser(count)
+		"enemy_balls": _enemy_balls(o, count)
+		"debris": _debris(o, count)
+		"laser_sweep": _laser(count, o.id)
 		"shield_row": _shield_row()
-		"mouth": _mouth_open()
+		"mouth": _mouth_open(o)
 		"jam": _jam()
 		"pull": _pull(count)
 		"coin_junk": _coin_junk(count)
 
 
-## A Hazard node at pos, with a looping 8x8 strip when given.
-func _hazard_node(kind: String, pos: Vector2, strip := "") -> Hazard:
+## A Hazard node at pos, with a looping 8x8 strip when given; src: the organ id that fired it.
+func _hazard_node(kind: String, pos: Vector2, strip := "", src := "") -> Hazard:
 	var h := Hazard.new(kind)
 	h.position = pos
+	h.src = src
 	if strip:
 		Fx.play(h, strip, 8, 8, Vector2.ZERO, 0, true)
 	hazards.append(h)
@@ -706,7 +821,7 @@ func _clear_hazards(flight_only: bool) -> void:
 ## A hazard touched the paddle: the paddle flashes red and its hp is paid.
 func _hazard_touch(h: Hazard) -> void:
 	Fx.play(paddle, "paddle_hurt", 60, 12, Vector2.ZERO).scale = paddle.size / Vector2(60, 8)
-	hurt(h.row.hp)
+	hurt(h.row.hp, h.src)
 
 
 ## Moves every hazard: enemy balls bounce off the side walls and vanish past the line, debris lands on the floor with a
@@ -768,10 +883,10 @@ func _paint(id: int, i: int) -> void:
 	Sfx.play("cond_primed", 0.6 * Sfx.st(-i))
 
 
-## enemy_balls: a warning ring at the enemy's centre through the wind-up, then count balls fanned at the paddle.
-func _enemy_balls(count: int) -> void:
+## enemy_balls: a warning ring at organ o's centre through the wind-up, then count balls fanned at the paddle.
+func _enemy_balls(o: Organ, count: int) -> void:
 	var H: Dictionary = Tuning.HAZARDS.enemy_balls
-	var warn := _hazard_node("enemy_balls", H.origin, "enemy_balls_warn")  # a flight hazard itself, so a phase end clears it
+	var warn := _hazard_node("enemy_balls", o.position, "enemy_balls_warn", o.id)  # a flight hazard itself, so a phase end clears it
 	var wid := warn.get_instance_id()
 	var unwarn := func():
 		var w = instance_from_id(wid)
@@ -780,17 +895,17 @@ func _enemy_balls(count: int) -> void:
 	_later(H.windup, unwarn, true)
 	for i in count:
 		var off := 0.0 if count == 1 else lerpf(-H.spread_deg, H.spread_deg, i / float(count - 1))
-		_later(H.windup + i * H.gap, _enemy_ball.bind(deg_to_rad(off)), true)
+		_later(H.windup + i * H.gap, _enemy_ball.bind(o, deg_to_rad(off)), true)
 
 
-## One enemy ball from the enemy's centre toward the paddle, off radians from straight at it. A mimicking boss copies
-## the run bag's next ball onto it: its size and speed, and a splitter's fan of copies.
+## One enemy ball from organ o's centre toward the paddle, off radians from straight at it. A mimicking organ copies the
+## run bag's next ball onto it: its size and speed, and a splitter's fan of copies.
 ## ponytail: pierce has nothing to pass on the enemy side (no shield floor for hazards), so a needle copies as a plain ball
-func _enemy_ball(off: float) -> void:
+func _enemy_ball(o: Organ, off: float) -> void:
 	var H: Dictionary = Tuning.HAZARDS.enemy_balls
 	var row := {}
 	var n := 1
-	if enemy.get("mimic", false) and Game.run.bag:
+	if o.row.get("mimic", false) and Game.run.bag:
 		var e: Dictionary = Game.run.bag[mimic_i % Game.run.bag.size()]
 		mimic_i += 1
 		row = Tuning.BALLS[e.id]
@@ -798,33 +913,28 @@ func _enemy_ball(off: float) -> void:
 			n = row.split[e.rank - 1]
 			Sfx.play("split_pop", 1.0, 0.05)
 	for i in n:
-		var h := _hazard_node("enemy_balls", H.origin, "enemy_balls_fly")
+		var h := _hazard_node("enemy_balls", o.position, "enemy_balls_fly", o.id)
 		h.r = H.radius * row.get("size", 1.0)
 		h.scale = Vector2.ONE * row.get("size", 1.0)
 		var fan := 0.0 if n == 1 else deg_to_rad(lerpf(-Tuning.SPLIT_DEG, Tuning.SPLIT_DEG, i / float(n - 1)))
-		h.vel = (paddle.position - H.origin).normalized().rotated(off + fan) * Tuning.BALL_SPEED * H.speed * row.get("speed", 1.0)
+		h.vel = (paddle.position - o.position).normalized().rotated(off + fan) * Tuning.BALL_SPEED * H.speed * row.get("speed", 1.0)
 	Sfx.play("ball_launch", 0.5)
 
 
-## debris: the board shakes, then count chunks fall from the top wall at random x, spread apart, staggered.
-func _debris(count: int) -> void:
+## debris: the board shakes, then count chunks fall from organ o's bottom edge, `apart` apart about its centre (clamped
+## to the field), staggered.
+func _debris(o: Organ, count: int) -> void:
 	var H: Dictionary = Tuning.HAZARDS.debris
 	shake = H.shake
 	Sfx.play("blast", 0.6)
-	var xs := []
 	for i in count:
-		var x := randf_range(H.size, field.size.x - H.size)
-		for tries in 20:  # ponytail: rejection sampling; a count the width cannot space just overlaps
-			if xs.all(func(o): return absf(o - x) >= H.apart):
-				break
-			x = randf_range(H.size, field.size.x - H.size)
-		xs.append(x)
-		_later(H.shake + i * H.gap, _debris_chunk.bind(x), true)
+		var x := clampf(o.position.x + (i - (count - 1) / 2.0) * H.apart, H.size, field.size.x - H.size)
+		_later(H.shake + i * H.gap, _debris_chunk.bind(Vector2(x, o.position.y + o.half.y), o.id), true)
 
 
-func _debris_chunk(x: float) -> void:
+func _debris_chunk(pos: Vector2, src: String) -> void:
 	var H: Dictionary = Tuning.HAZARDS.debris
-	var h := _hazard_node("debris", Vector2(x, Tuning.TOP_WALL), "debris_fall")
+	var h := _hazard_node("debris", pos, "debris_fall", src)
 	h.r = H.size / 2
 	h.vel = Vector2.DOWN * H.speed
 
@@ -842,11 +952,11 @@ func _lane(x: float) -> int:
 
 ## laser_sweep: a lane on the paddle's column (two: and its mirror) warns, then beams; the paddle inside pays once, a ball
 ## inside loses its stored damage once. Drawn in _draw; it ticks through a phase end.
-func _laser(count: int) -> void:
+func _laser(count: int, src := "") -> void:
 	var c := _lane(paddle.position.x)
 	var mirror: int = Tuning.BOARDS[cls].cols - 1 - c
 	for lane in ([c] if count == 1 or mirror == c else [c, mirror]):
-		var h := _hazard_node("laser_sweep", Vector2(_lane_x(lane), 0))
+		var h := _hazard_node("laser_sweep", Vector2(_lane_x(lane), 0), "", src)
 		h.t = Tuning.HAZARDS.laser_sweep.warn
 	Sfx.play("ui_reveal", 0.5)
 
@@ -938,8 +1048,9 @@ func _coin_junk(count: int) -> void:
 
 ## The boss's mouth opens for `mouth` paddle hits: any ball inside is eaten (_physics_process), and on close every eaten
 ## ball comes back as one enemy ball aimed at the paddle, spit_gap apart.
-func _mouth_open() -> void:
-	mouth_left = enemy.mouth
+func _mouth_open(o: Organ) -> void:
+	mouth_left = o.row.mouth
+	mouth_of = o
 	eaten = 0
 	Sfx.play("fast_whoosh", 0.5)
 	if is_instance_valid(mouth_s):
@@ -954,22 +1065,24 @@ func _mouth_close() -> void:
 	Fx.play(self, "maw_mouth_close", 48, 12, Tuning.MOUTH.rect.get_center())
 	Sfx.play("blast", 0.5)
 	for i in eaten:
-		_later(i * Tuning.MOUTH.spit_gap, _enemy_ball.bind(0.0), true)
+		_later(i * Tuning.MOUTH.spit_gap, _enemy_ball.bind(mouth_of, 0.0), true)
 	eaten = 0
 
 
-## The player loses n HP (red bricks and hazards); at 0 the fight is lost.
-func hurt(n: int) -> void:
+## The player loses n HP (red bricks and hazards); at 0 the fight is lost to who (the hazard's organ), else the
+## encounter's first win organ.
+func hurt(n: int, who := "") -> void:
 	flash = 0.1
 	Sfx.play("hp_lose", Tuning.ladder(Tuning.HP_LOSE, n))
 	if Game.hurt(n):
-		Game.run.stats.killer = enemy_id
+		Game.run.stats.killer = who if who != "" else enc.get("win", enc.organs)[0]
 		_end(false)
 
 
 func _hit(b: Box, ball: Ball) -> void:
 	match b.kind:
 		"wall": Sfx.play("ball_bounce")
+		"organ": _organ_hit(b.organ, ball, b)
 		"solid":
 			Fx.play(self, "solid_bounce", 44, 12, b.position)
 			Sfx.play("solid_bounce")
@@ -1071,7 +1184,6 @@ func _blast(b: Box, ball: Ball = null) -> void:
 func _effect(kind: String, b: Box, ball: Ball = null, direct := true) -> void:
 	match kind:
 		"bomb":
-			_land(Tuning.BRICKS.bomb.blast)  # the enemy first, then the neighbours for the ball (a win here stops the breaks)
 			_blast(b, ball)
 		"red":
 			if ball and direct:
@@ -1080,14 +1192,14 @@ func _effect(kind: String, b: Box, ball: Ball = null, direct := true) -> void:
 			_crit(b, ball)
 		"refresh":
 			_refresh(b)
-		"gold":  # pays its gold; under a jackpot enemy only the phase that breaks every gold brick pays, the jackpot
+		"gold":  # pays its gold; under a jackpot encounter only the phase that breaks every gold brick pays, the jackpot
 			Sfx.play("gold_hit")
-			if not enemy.has("jackpot"):
+			if not enc.has("jackpot"):
 				_pay(Tuning.BRICKS.gold.gold, b.position)
 				return
 			phase_gold += 1
 			if phase_gold == layout.filter(func(s): return s.kind == "gold").size():
-				_pay(enemy.jackpot, b.position)
+				_pay(enc.jackpot, b.position)
 				Sfx.play("jackpot")
 
 
@@ -1161,8 +1273,8 @@ func _near(b: Box, dist: float) -> Array:
 	return _live().filter(func(o): return o != b and o.position.distance_to(b.position) <= dist)
 
 
-## The fight ends: balls freeze (over stops the physics), hazards and the shield row go; on a win the enemy dies and the
-## board breaks outward from it over win_break seconds; then done after a beat.
+## The fight ends: balls freeze (over stops the physics), hazards and the shield row go; on a win the band dies and the
+## board (with any organ still standing) breaks outward from it over win_break seconds; then done after a beat.
 func _end(win: bool) -> void:
 	if over:
 		return
@@ -1172,18 +1284,21 @@ func _end(win: bool) -> void:
 		_shield_crumble()
 	if win:
 		Game.run.stats.fights += 1
-		Game.run.stats.elites += int(enemy.role == "elite")
-		var pitch := 0.6 if enemy.role == "boss" else 1.0
+		Game.run.stats.elites += int(enc.role == "elite")
+		var pitch := 0.6 if enc.role == "boss" else 1.0
 		Sfx.play("enemy_die", pitch)
-		_enemy_play("die")
+		_band_play("die")
 		var live := _live()
+		for o in organs:
+			if not o.dead:
+				live.append_array(o.cells)
 		var far: float = maxf(1.0, live.map(func(b): return b.position.distance_to(Tuning.ENEMY_FOOT)).max()) if live else 1.0
 		for b in live:
 			var id: int = b.get_instance_id()
 			var burst := func():
 				var o = instance_from_id(id)
 				if o:
-					Fx.play(self, "%s_break" % Tuning.hue(o.kind), 44, 12, o.position)
+					Fx.play(self, "organ_die" if o.kind == "organ" else "%s_break" % Tuning.hue(o.kind), 44, 12, o.position)
 					o.queue_free()
 			_later(Tuning.RUN.win_break * b.position.distance_to(Tuning.ENEMY_FOOT) / far, burst)
 		won.emit()
@@ -1193,23 +1308,18 @@ func _end(win: bool) -> void:
 
 
 func _process(_delta: float) -> void:
-	hp_l.text = str(enemy.hp) + (" P%d" % enemy.poison if enemy.poison else "")
-	intent_s.modulate.a = 0.8 + 0.2 * sin(Time.get_ticks_msec() / 1000.0 * TAU * 2) if enemy.cd_left <= 1 else 1.0
-	cd_l.text = str(ceili(enemy.cd_left))
 	var px: float = Tuning.HAZARDS.debris.shake_px
 	position = home + (Vector2(randf_range(-px, px), randf_range(-px, px)) if shake > 0 else Vector2.ZERO)
 	queue_redraw()
 
 
 func _draw() -> void:
-	# Base and dots come from the cabinet (ui, drawn beneath this). Here: the frame, the enemy's HP bar, the top wall's
+	# Base and dots come from the cabinet (ui, drawn beneath this). Here: the frame, the top wall's
 	# line, the bottom lamps and the balls. The frame sits just outside the arena, under the rails.
 	var C := Tuning.COLORS
 	var w := field.size.x
 	var h := field.size.y
 	draw_polyline([Vector2(-2, h), Vector2(-2, -2), Vector2(w + 2, -2), Vector2(w + 2, h)], C.trim_hi, 4)
-	draw_rect(Rect2(320, 4, 320, 8), C.trim)
-	draw_rect(Rect2(320, 4, 320.0 * enemy.hp / enemy.hp_max, 8), C.danger)
 	draw_rect(Rect2(0, Tuning.TOP_WALL - 2, w, 4), C.trim_hi)
 	var f := int(Time.get_ticks_msec() / 125) % 4  # 8 fps
 	for x in range(0, int(w), 64):

@@ -1,5 +1,5 @@
 extends StaticBody2D
-## Any piece in the arena: board bricks, paddle, wall. Rules in arena.gd; this is shape and look.
+## Any piece in the arena: board bricks, organ cells, paddle, wall. Rules in arena.gd; this is shape and look.
 ## The look comes from the kind's row in tuning.gd (face, idle, halo, offset).
 
 const Tuning = preload("res://src/tuning.gd")
@@ -11,6 +11,7 @@ var hp := 1  # < 0 = unbreakable
 var size := Vector2.ONE
 var tex: Texture2D
 var idle_sprite: AnimatedSprite2D
+var organ = null  # an organ cell's arena Organ node; null on every other piece
 
 
 func _ready() -> void:

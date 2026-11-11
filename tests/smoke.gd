@@ -22,7 +22,7 @@ func _ready() -> void:
 	add_child(a)
 	await get_tree().process_frame
 	assert(a.breakable > 0 and a.balls.size() == 1 and a.rest == a.balls[0] and a.phase == 1, "the board built with a resting ball")
-	assert(a.enemy.hp == Tuning.ENEMIES.glob.hp and a.enemy.cd_left == Tuning.ENEMIES.glob.cd and a.bag.size() == Game.run.bag.size() - 1, "the enemy is up and the bag holds the rest")
+	assert(a.organs.size() == 1 and a.organs[0].hp == Tuning.ENEMIES.glob.hp and a.organs[0].cd_left == Tuning.ENEMIES.glob.cd and a.bag.size() == Game.run.bag.size() - 1, "the bridged glob organ is up and the bag holds the rest")
 	a._launch_rest()
 	await get_tree().physics_frame
 	assert(a.rest == null and a.balls[0].vel.y < 0, "the ball launched upward")
@@ -46,7 +46,7 @@ func _ready() -> void:
 	main.queue_free()
 	await get_tree().process_frame
 
-	# Store and fire: a break stores the ball's dmg, paddle contact lands it on the enemy and counts the intent down.
+	# Store and fire: a break stores the ball's dmg, an organ cell lands it, the paddle never does; the clock fires the intent.
 	var ball = a.balls[0]
 	var before: int = a.breakable
 	a._damage(a._bricks("plain").front(), ball)
@@ -57,18 +57,24 @@ func _ready() -> void:
 	assert(Game.run.hp == hp_run - Tuning.BRICKS.red.hurt and ball.stored == ball.dmg, "a ball breaking a red brick costs HP and stores nothing")
 	a._trigger(a._bricks("red").front(), ball)
 	assert(Game.run.hp == hp_run - Tuning.BRICKS.red.hurt, "a blast removing a red brick costs nothing")
-	# Hits the enemy, then the blast's neighbours are credited to the ball: aimed at a plain with a plain neighbour, so there is one to credit.
+	# The blast's neighbours are credited to the ball: aimed at a plain with a plain neighbour, so there is one to credit.
 	_pull_refresh(a)  # a blast reaching the refresh brick would regrow the board
 	a._effect("bomb", a._bricks("plain").filter(func(p): return a._near(p, Tuning.BOMB_RADIUS).any(func(o): return o.kind == "plain")).front(), ball)
-	assert(a.breakable < before - 3 and ball.stored > ball.dmg and a.enemy.hp <= Tuning.ENEMIES.glob.hp - Tuning.BRICKS.bomb.blast, "the bomb hit the enemy and broke its neighbours for the ball")
+	assert(a.breakable < before - 3 and ball.stored > ball.dmg, "the bomb broke its neighbours for the ball")
 	var stored: int = ball.stored
-	var hp_e: int = a.enemy.hp
-	var cd_e: float = a.enemy.cd_left
+	var o0 = a.organs[0]
+	var hp_e: int = o0.hp
+	var cd_e: float = o0.cd_left
 	a._paddle_hit(ball)
-	assert(a.enemy.hp == hp_e - stored and ball.stored == 0 and ball.tag.text == "" and not ball.tag_s.visible and a.phase_dmg == stored + Tuning.ENEMIES.glob.hp - hp_e and a.enemy.cd_left == cd_e, "paddle contact fires the stored damage and leaves the clock alone")
-	assert(cd_e < Tuning.ENEMIES.glob.cd, "the enemy clock ran while the ball flew")
-	a._count_down(cd_e)
-	assert(a.enemy.intent == 1 and a.enemy.cd_left == Tuning.ENEMIES.glob.cd, "the countdown fired the intent and showed the next")
+	assert(o0.hp == hp_e and ball.stored == stored, "paddle contact keeps the charge")
+	a._organ_hit(o0, ball, o0.cells[0])
+	assert(o0.hp == hp_e - stored and ball.stored == 0 and ball.tag.text == "" and not ball.tag_s.visible and a.phase_dmg == stored and o0.cd_left == cd_e, "an organ cell cashes the stored damage in and leaves the clock alone")
+	await get_tree().physics_frame
+	a._organ_hit(o0, ball, o0.cells[0])
+	assert(o0.hp == hp_e - stored, "a 0-charge touch is refused")
+	assert(cd_e < Tuning.ENEMIES.glob.cd, "the organ clock ran while the ball flew")
+	a._count_down(o0.cd_left)
+	assert(o0.intent == 1 and o0.cd_left == Tuning.ENEMIES.glob.cd, "the countdown fired the intent and showed the next")
 	var reds: int = a._bricks("red").size()  # the glob's first intent paints red bricks on the attack's spawn frame; checked after the beat below
 	# Crit launches the bag's next ball; drops end the phase after the beat, then the next ball rests.
 	var in_bag: int = a.bag.size()
@@ -98,22 +104,22 @@ func _ready() -> void:
 	a._launch_rest()
 	a.balls[0].position.x = 30  # off the board, so the live ball meets no brick while the test looks
 	a.bag = []  # so the crits broken below launch nothing
-	a.enemy.hp = 999  # so the bombs' direct damage below cannot win the fight first
+	a.organs[0].hp = 999  # so the poison or any stray hit below cannot win the fight first
 	_pull_refresh(a)
 	for b in a._live():
 		a._trigger(b)
 	assert(a.breakable == 0 and a.refresh_in > 0 and a.in_play() == 1, "a bare board with a ball live waits for a refresh brick")
 	await get_tree().create_timer(Tuning.RUN.refresh_after + 0.1).timeout
 	assert(a._bricks("refresh").size() == 1 and a.breakable == 1, "the refresh brick grew")
-	# HP loss short of 0 keeps the fight going; the enemy at 0 wins it, then done(true) after the end beat.
+	# HP loss short of 0 keeps the fight going; the win organ at 0 wins it, then done(true) after the end beat.
 	hp_run = Game.run.hp
 	a.hurt(1)
 	assert(Game.run.hp == hp_run - 1 and not a.over, "hurt costs HP without ending the fight")
 	var hit := [false, false, false]
 	a.won.connect(func(): hit[0] = true)
 	a.done.connect(func(w): hit[1] = w)
-	a._land(a.enemy.hp)
-	assert(a.over and hit[0] and not hit[1] and Game.run.stats.fights == 1, "the enemy at 0 HP wins the fight")
+	a._land(a.organs[0], a.organs[0].hp)
+	assert(a.over and hit[0] and not hit[1] and Game.run.stats.fights == 1, "the win organ at 0 HP wins the fight")
 	await get_tree().create_timer(Tuning.RUN.end_beat + 0.5).timeout  # done, and the delayed cues, else they leak at quit
 	assert(hit[1], "done(true) fired after the end beat")
 	var fx: int = a.get_children().filter(func(c): return c is AnimatedSprite2D).size()
@@ -150,27 +156,27 @@ func _ready() -> void:
 	for i in 3:
 		await get_tree().physics_frame
 	assert(not is_instance_valid(half) and a.discard.is_empty(), "a dropped half is freed and never joins the discard pile")
-	# Gum: the first paddle contact lands the damage and sticks; fired, it flies up; no catches left, it bounces.
+	# Gum: the first paddle contact keeps the charge and sticks; fired, it flies up; no catches left, it bounces.
 	var gum = a._add_ball({id = "ball_sticky", rank = 1}, Vector2(480, 600))
 	a._launch(gum)
 	gum.store(4)
-	var hp0: int = a.enemy.hp
+	var hp0: int = a.organs[0].hp
 	a._paddle_hit(gum)
-	assert(gum.hold > 0 and gum.vel == Vector2.ZERO and gum.catches_left == 0 and gum.stored == 0 and a.enemy.hp == hp0 - 4, "gum's first paddle contact fires its damage and sticks")
+	assert(gum.hold > 0 and gum.vel == Vector2.ZERO and gum.catches_left == 0 and gum.stored == 4 and a.organs[0].hp == hp0, "gum's first paddle contact keeps its charge and sticks")
 	a._sticky_fire(gum)
 	assert(gum.hold == 0 and gum.vel.y < 0 and is_equal_approx(gum.vel.length(), Tuning.BALL_SPEED * gum.speed), "fired gum flies up at its speed")
 	a._paddle_hit(gum)
 	assert(gum.hold == 0, "gum with no catches left bounces")
-	# Spore: breaks store stacks, paddle contact lands them, the phase-end tick deals them and halves them.
+	# Spore: breaks store stacks, an organ cell lands them, the phase-end tick deals them and halves them.
 	var spore = a._add_ball({id = "ball_poison", rank = 2}, Vector2(480, 600))
 	a._launch(spore)
 	a._damage(a._bricks("plain").front(), spore)
 	assert(spore.poison == P.ball_poison.poison[1] and spore.stored == 0, "a spore stores stacks and no damage at rank 2")
-	a._paddle_hit(spore)
-	assert(a.enemy.poison == P.ball_poison.poison[1] and spore.poison == 0, "paddle contact lands the stacks on the enemy")
-	hp0 = a.enemy.hp
+	a._organ_hit(a.organs[0], spore, a.organs[0].cells[0])
+	assert(a.organs[0].poison == P.ball_poison.poison[1] and spore.poison == 0, "an organ cell lands the stacks on its organ")
+	hp0 = a.organs[0].hp
 	a._phase_end()
-	assert(a.enemy.hp == hp0 - P.ball_poison.poison[1] and a.enemy.poison == P.ball_poison.poison[1] / 2, "the phase-end tick deals the stacks and halves them")
+	assert(a.organs[0].hp == hp0 - P.ball_poison.poison[1] and a.organs[0].poison == P.ball_poison.poison[1] / 2, "the phase-end tick deals the stacks and halves them")
 	# Stone: stores nothing, its crits launch nothing.
 	var stone = a._add_ball({id = "ball_junk", rank = 1}, Vector2(480, 600))
 	a._launch(stone)
@@ -198,8 +204,9 @@ func _ready() -> void:
 	a = load("res://src/arena.gd").new()
 	add_child(a)
 	await get_tree().process_frame
-	a._hazard("enemy_balls", 3)
-	assert(a.hazards.size() == 1 and a.hazards[0].vel == Vector2.ZERO, "the wind-up ring is up")
+	var org = a.organs[0]
+	a._hazard(org, "enemy_balls", 3)
+	assert(a.hazards.size() == 1 and a.hazards[0].vel == Vector2.ZERO and a.hazards[0].position == org.position, "the wind-up ring is up on the organ")
 	await get_tree().create_timer(H.enemy_balls.windup + H.enemy_balls.gap * 2 + 0.1).timeout
 	assert(a.hazards.size() == 3 and a.hazards.all(func(h): return h.kind == "enemy_balls" and h.vel.y > 0), "three enemy balls fly down after the wind-up and the ring is gone")
 	hp0 = Game.run.hp
@@ -207,14 +214,14 @@ func _ready() -> void:
 	for i in 2:
 		await get_tree().physics_frame
 	assert(Game.run.hp == hp0 - H.enemy_balls.hp and a.hazards.size() == 2, "an enemy ball on the paddle costs its hp and is gone")
-	# A phase end clears what is in flight, pending volleys included; a fresh debris volley falls from the top wall and lands on the floor.
-	a._hazard("debris", 2)
+	# A phase end clears what is in flight, pending volleys included; a fresh debris volley falls from the organ and lands on the floor.
+	a._hazard(org, "debris", 2)
 	a._phase_end()
 	await get_tree().create_timer(H.debris.shake + H.debris.gap + 0.1).timeout
 	assert(a.hazards.is_empty() and a.volley.is_empty(), "a phase end clears flight hazards and their pending volley")
-	a._hazard("debris", 2)
+	a._hazard(org, "debris", 2)
 	await get_tree().create_timer(H.debris.shake + H.debris.gap + 0.1).timeout
-	assert(a.hazards.size() == 2 and a.hazards.all(func(h): return h.kind == "debris" and h.vel.y == H.debris.speed) and absf(a.hazards[0].position.x - a.hazards[1].position.x) >= H.debris.apart, "two debris chunks fall, spaced apart")
+	assert(a.hazards.size() == 2 and a.hazards.all(func(h): return h.kind == "debris" and h.vel.y == H.debris.speed and h.src == org.id and h.position.y > org.position.y) and is_equal_approx(absf(a.hazards[0].position.x - a.hazards[1].position.x), H.debris.apart), "two debris chunks fall from the organ, apart")
 	for h in a.hazards:
 		h.position.y = a.field.size.y
 	for i in 2:
@@ -223,7 +230,7 @@ func _ready() -> void:
 	# Laser: two lanes, the paddle's column and its mirror; the beam charges the paddle under it once and empties a ball in the lane.
 	a.paddle.position.x = a._lane_x(2)
 	a.target_x = a.paddle.position.x
-	a._hazard("laser_sweep", 2)
+	a._hazard(org, "laser_sweep", 2)
 	var lanes: Array = a.hazards.filter(func(h): return h.kind == "laser_sweep")
 	assert(lanes.size() == 2 and lanes[0].position.x == a._lane_x(2) and lanes[1].position.x == a._lane_x(Tuning.BOARDS.fight.cols - 3) and lanes[0].state == "warn", "two laser lanes warn on the paddle's column and its mirror")
 	var zap = a._add_ball({id = "ball_basic", rank = 1}, Vector2(a._lane_x(2), 500))
@@ -240,23 +247,24 @@ func _ready() -> void:
 	await get_tree().create_timer(H.laser_sweep.beam + 0.1).timeout
 	assert(Game.run.hp == hp0 - H.laser_sweep.hp and a.hazards.filter(func(h): return h.kind == "laser_sweep").is_empty(), "the beam paid once and the lanes are gone")
 	# Shield row: a solid per column at SHIELD_Y, crumbling when the paddle hits run out; a refire resets the count.
-	a._hazard("shield_row", 1)
+	a._hazard(org, "shield_row", 1)
 	assert(a.shield.size() == Tuning.BOARDS.fight.cols and a.shield_left == H.shield_row.hits and a.shield.all(func(b): return b.kind == "solid" and b.position.y == Tuning.SHIELD_Y), "the shield row raised a solid per column")
 	a.shield_left = 1
-	a._hazard("shield_row", 1)
+	a._hazard(org, "shield_row", 1)
 	assert(a.shield_left == H.shield_row.hits and a.shield.size() == Tuning.BOARDS.fight.cols, "a refire resets the hits without a second row")
 	a.shield_left = 1
 	a._paddle_hit(a.rest)  # the resting ball never moves on its own, so no stray paddle hit sneaks in
 	assert(a.shield.is_empty() and a.shield_left == 0, "the last paddle hit crumbled the shield row")
 	# Riposte: a shot at or over the mark takes RIPOSTE_CUT seconds off the countdown.
-	a.enemy.riposte = 10
-	a.enemy.cd_left = Tuning.RIPOSTE_CUT * 2
+	org.row.riposte = 10
+	org.hp = 999
+	org.cd_left = Tuning.RIPOSTE_CUT * 2
 	a.rest.store(10)
-	a._paddle_hit(a.rest)
-	assert(is_equal_approx(a.enemy.cd_left, Tuning.RIPOSTE_CUT) and a.rest.stored == 0, "a riposte shot cuts the countdown")
+	a._organ_hit(org, a.rest, org.cells[0])
+	assert(is_equal_approx(org.cd_left, Tuning.RIPOSTE_CUT) and a.rest.stored == 0, "a riposte shot cuts the countdown")
 	# The win breaks the board outward and clears the hazards.
-	a._hazard("laser_sweep", 1)
-	a._land(a.enemy.hp)
+	a._hazard(org, "laser_sweep", 1)
+	a._land(org, org.hp)
 	assert(a.over and a.hazards.is_empty(), "the win cleared the hazards")
 	await get_tree().create_timer(Tuning.RUN.win_break + 0.2).timeout
 	assert(a._live().is_empty(), "the win broke every brick outward")
@@ -317,11 +325,11 @@ func _ready() -> void:
 	# The boss: its mouth opens on the intent and eats a ball at the wall under it; below half HP it enrages; after its
 	# paddle hits it closes and spits the eaten ball back as an enemy ball.
 	a = load("res://src/arena.gd").new()
-	a.enemy_id = "maw"
+	a.encounter_id = "maw"
 	add_child(a)
 	await get_tree().process_frame
-	assert(a.cls == "boss" and a.enemy.hp == Tuning.ENEMIES.maw.hp and a.balls.size() == 1, "the maw fights on the boss board")
-	a._hazard("mouth", 1)
+	assert(a.cls == "boss" and a.organs[0].hp == Tuning.ENEMIES.maw.hp and a.balls.size() == 1, "the maw fights on the boss board")
+	a._hazard(a.organs[0], "mouth", 1)
 	assert(a.mouth_left == Tuning.ENEMIES.maw.mouth and a.eaten == 0, "the mouth opened")
 	var bite = a._add_ball({id = "ball_basic", rank = 1}, Vector2(Tuning.MOUTH.rect.get_center().x, Tuning.TOP_WALL + 20))
 	a._launch(bite)
@@ -329,8 +337,8 @@ func _ready() -> void:
 	for i in 8:
 		await get_tree().physics_frame
 	assert(a.eaten == 1 and not is_instance_valid(bite) and a.discard.size() == spent0 + 1, "a ball at the wall under the mouth is eaten into the discard pile")
-	a._land(a.enemy.hp_max / 2 + 1)
-	assert(a.enemy.cd == Tuning.ENEMIES.maw.enraged.cd and a.enemy.mouth == Tuning.ENEMIES.maw.enraged.mouth, "below half HP the maw enrages")
+	a._land(a.organs[0], a.organs[0].hp_max / 2 + 1)
+	assert(a.organs[0].row.cd == Tuning.ENEMIES.maw.enraged.cd and a.organs[0].row.mouth == Tuning.ENEMIES.maw.enraged.mouth, "below half HP the maw enrages")
 	for i in Tuning.ENEMIES.maw.mouth:
 		a._paddle_hit(a.rest)
 	await get_tree().create_timer(0.1).timeout
@@ -342,29 +350,83 @@ func _ready() -> void:
 	# Map 1 (docs/content/maps/back-alley-arcade.md): jam halves the paddle for its hits, pull lifts the balls, coin_junk
 	# tops the bag with stones; below half HP the attract mode's enemy balls copy the run bag.
 	a = load("res://src/arena.gd").new()
-	a.enemy_id = "attract_mode"
+	a.encounter_id = "attract_mode"
 	add_child(a)
 	await get_tree().process_frame
-	a.enemy.cd_left = 999  # no intent fires mid-check
+	a.organs[0].cd_left = 999  # no intent fires mid-check
 	var w0: float = a.paddle.size.x
-	a._hazard("jam", 1)
+	a._hazard(a.organs[0], "jam", 1)
 	assert(a.jam_left == H.jam.hits and is_equal_approx(a.paddle.size.x, w0 * H.jam.width), "jam halves the paddle")
 	for i in H.jam.hits:
 		a._paddle_hit(a.rest)
 	assert(a.jam_left == 0 and is_equal_approx(a.paddle.size.x, w0), "the paddle grows back after its hits")
-	a._hazard("pull", 1)
+	a._hazard(a.organs[0], "pull", 1)
 	assert(a.pull_t == H.pull.secs, "pull lifts for its seconds")
 	var queue0: int = a.bag.size()
 	var run_bag0: int = Game.run.bag.size()
-	a._hazard("coin_junk", 2)
+	a._hazard(a.organs[0], "coin_junk", 2)
 	assert(a.bag.size() == queue0 + 2 and a.bag[0].id == H.coin_junk.junk and Game.run.bag.size() == run_bag0 + 2, "coin junk puts stones on top of the bag and in the run")
-	a._land(a.enemy.hp_max / 2 + 1)
-	assert(a.enemy.cd == Tuning.ENEMIES.attract_mode.enraged.cd and a.enemy.mimic, "below half HP the attract mode enrages")
+	a._land(a.organs[0], a.organs[0].hp_max / 2 + 1)
+	assert(a.organs[0].row.cd == Tuning.ENEMIES.attract_mode.enraged.cd and a.organs[0].row.mimic, "below half HP the attract mode enrages")
 	Game.run.bag = [{id = "ball_split", rank = 1}]
 	var spat0: int = a.hazards.size()
-	a._enemy_ball(0)
+	a._enemy_ball(a.organs[0], 0)
 	assert(a.hazards.size() == spat0 + Tuning.BALLS.ball_split.split[0], "a mimicked splitter spits its fan")
 	await get_tree().create_timer(1.2).timeout  # the cues and the pull strips, else they leak at quit
+	a.queue_free()
+	await get_tree().process_frame
+
+	# The knight (docs/content/encounters.md): three organs on their own clocks; a cell cashes in once a frame, refuses a
+	# 0-charge touch; the sword dying leaves the fight on; a hazard's organ is the killer; the body dying wins.
+	Game.run.hp = Game.run.hp_max
+	a = load("res://src/arena.gd").new()
+	a.encounter_id = "knight"
+	add_child(a)
+	var knight_won := [false]
+	a.done.connect(func(w): knight_won[0] = w)
+	await get_tree().process_frame
+	var K: Dictionary = Tuning.ENCOUNTERS.knight
+	var body = a.organs[0]
+	var sword = a.organs[1]
+	assert(a.organs.size() == 3 and a.organs.all(func(o): return o.cd_left == K.cd_start[a.organs.find(o)] and not o.cells.is_empty()), "the knight's three organs are up on their first countdowns")
+	var k1 = a._add_ball({id = "ball_basic", rank = 1}, Vector2(480, 600))
+	var k2 = a._add_ball({id = "ball_basic", rank = 1}, Vector2(480, 600))
+	a._organ_hit(body, k1, body.cells[0])
+	assert(body.hp == body.hp_max, "a 0-charge touch is refused")
+	await get_tree().physics_frame
+	k1.store(5)
+	a._organ_hit(body, k1, body.cells[0])
+	a._organ_hit(body, k1, body.cells[1])
+	assert(body.hp == body.hp_max - 5, "two cells of one organ in a frame cash in once")
+	k2.store(3)
+	a._organ_hit(sword, k2, sword.cells[0])
+	assert(sword.hp == sword.hp_max - 3 and body.hp == body.hp_max - 5, "each organ takes its own hits")
+	a._land(sword, sword.hp)
+	await get_tree().process_frame
+	assert(sword.dead and not a.over and sword.cells.all(func(c): return not is_instance_valid(c)), "the sword dies, its cells go, the fight goes on")
+	var cd_s: float = sword.cd_left
+	a._count_down(1.0)
+	assert(sword.cd_left == cd_s, "a dead organ's clock stops")
+	var lump = a._hazard_node("debris", a.paddle.position, "debris_fall", "knight_shield")
+	lump.vel = Vector2.DOWN
+	Game.run.hp = H.debris.hp
+	Game.run.stats.killer = ""
+	for i in 2:
+		await get_tree().physics_frame
+	assert(a.over and Game.run.stats.killer == "knight_shield", "the hazard's organ is the killer")
+	Game.run.hp = Game.run.hp_max
+	await get_tree().create_timer(Tuning.RUN.end_beat + 0.5).timeout
+	a.queue_free()
+	await get_tree().process_frame
+	a = load("res://src/arena.gd").new()
+	a.encounter_id = "knight"
+	add_child(a)
+	a.done.connect(func(w): knight_won[0] = w)
+	await get_tree().process_frame
+	a._land(a.organs[0], a.organs[0].hp)
+	assert(a.over and not a.organs[1].dead, "the body at 0 wins with the other organs standing")
+	await get_tree().create_timer(Tuning.RUN.end_beat + 0.5).timeout
+	assert(knight_won[0], "the knight fight ends done(true)")
 	a.queue_free()
 	await get_tree().process_frame
 
@@ -377,15 +439,15 @@ func _ready() -> void:
 	main = load("res://src/main.gd").new()
 	add_child(main)
 	await get_tree().process_frame
-	assert(_button(main, "CONTINUE") and await _click(main, "CONTINUE") and main.get_child(0).get_script() == load("res://src/arena.gd") and main.get_child(0).enemy_id == Game.run.map.enemies[0][0], "CONTINUE resumes the pending fight against its enemy")
+	assert(_button(main, "CONTINUE") and await _click(main, "CONTINUE") and main.get_child(0).get_script() == load("res://src/arena.gd") and main.get_child(0).encounter_id == Game.run.map.enemies[0][0], "CONTINUE resumes the pending fight against its enemy")
 	await get_tree().process_frame
 	# The fight end to end through main.gd: a launch, a shot that kills, the arena's own done signal brings the reward.
 	var gold1: int = Game.run.gold
 	var fight = main.get_child(0)
 	fight._launch_rest()
-	fight.balls[0].store(fight.enemy.hp)
-	fight._paddle_hit(fight.balls[0])
-	assert(fight.over and fight.enemy.hp <= 0, "one paddle hit landing the enemy's HP wins the fight")
+	fight.balls[0].store(fight.organs[0].hp)
+	fight._organ_hit(fight.organs[0], fight.balls[0], fight.organs[0].cells[0])
+	assert(fight.over and fight.organs[0].hp <= 0, "one organ hit landing its HP wins the fight")
 	await fight.done
 	await get_tree().process_frame
 	assert(Game.run.gold >= gold1 + Tuning.GOLD.fight[0] and main.get_child_count() == 2 and await _click(main, "SKIP"), "a won fight pays gold and shows the reward, SKIP leaves it")

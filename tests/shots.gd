@@ -39,9 +39,9 @@ func _ready() -> void:
 				push_warning("window is %s, not %s" % [get_window().size, s])
 			_save(dir, sc[0], s)
 		get_tree().paused = false
-	# Every enemy's drawn board, once, after its bricks have landed.
+	# Every encounter's drawn board, once, after its bricks have landed.
 	get_window().size = Vector2i(1920, 1080)
-	for id in preload("res://src/tuning.gd").ENEMIES:
+	for id in preload("res://src/tuning.gd").encounters():
 		var m: Dictionary = Game.run.map
 		m.enemies[m.layer][m.node] = id
 		main._play()
