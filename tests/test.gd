@@ -73,7 +73,7 @@ func _init() -> void:
 	for k in Tuning.BRICKS:
 		check(Tuning.hue(k) in ["mag", "ora", "blue", "mint", "red", "gold"], "brick %s has a colour group with strips" % k)
 		check(Tuning.BRICKS[k].has("dmg"), "brick %s has a dmg" % k)
-	check(Tuning.BRICKS.bomb.blast > 0 and Tuning.BRICKS.red.hurt > 0, "the bomb hits the enemy and the red brick hurts")
+	check(Tuning.BRICKS.bomb.hp == 2 and "armed" in Tuning.BRICKS.bomb and not "blast" in Tuning.BRICKS.bomb and Tuning.BRICKS.red.hurt > 0, "the bomb arms then blasts, and the red brick hurts")
 	check(Tuning.ladder(Tuning.DAMAGE_LAND, 0) == 0 and Tuning.ladder(Tuning.DAMAGE_LAND, 29) == 2 and Tuning.ladder(Tuning.DAMAGE_LAND, 100) == 7, "cue ladders pick the last row reached")
 	for k in ["enemy_turn", "regen_below", "refresh_after", "end_beat", "win_break", "ramp_on", "ramp_after", "ramp_per_s", "ramp_max"]:
 		check(k in Tuning.RUN, "RUN has %s" % k)
@@ -310,7 +310,7 @@ func _init() -> void:
 			["recall_rise", 12, 6], ["relic_get", 36, 6], ["map_ring_pulse", 16, 4],
 			["ball_bounce", 12, 6], ["ball_lost", 12, 6], ["sticky_hold", 30, 6], ["bomb_ring", 60, 4], ["paddle_hit", 60, 4],
 			["mag_hit", 30, 6], ["blue_hit", 30, 6], ["ora_hit", 30, 6], ["mag_break", 44, 8], ["blue_break", 44, 8], ["ora_break", 44, 8],
-			["mag_spawn", 30, 6], ["blue_spawn", 30, 6], ["ora_spawn", 30, 6], ["icon_bomb_pulse", 30, 4], ["halo_pulse", 60, 4], ["halo_pulse_ora", 60, 4],
+			["mag_spawn", 30, 6], ["blue_spawn", 30, 6], ["ora_spawn", 30, 6], ["icon_bomb_pulse", 30, 4], ["halo_pulse", 60, 4], ["halo_pulse_ora", 60, 4], ["bomb_fuse", 30, 16],
 			["solid_bounce", 44, 6], ["dust_puff", 12, 4], ["shield_floor", 32, 4], ["shield_floor_pop", 32, 6], ["magnet_pull", 44, 4], ["combo_chase", 30, 8], ["toll_pay", 30, 6],
 			["spark_burst", 16, 6], ["hazard_strip", 32, 4],
 			["gold_hit", 30, 6], ["gold_break", 44, 8], ["gold_spawn", 30, 6], ["jam_clamp", 60, 6], ["pull_drift", 12, 4]]:  # map 1

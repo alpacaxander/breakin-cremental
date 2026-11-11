@@ -57,10 +57,28 @@ func _ready() -> void:
 	assert(Game.run.hp == hp_run - Tuning.BRICKS.red.hurt and ball.stored == ball.dmg, "a ball breaking a red brick costs HP and stores nothing")
 	a._trigger(a._bricks("red").front(), ball)
 	assert(Game.run.hp == hp_run - Tuning.BRICKS.red.hurt, "a blast removing a red brick costs nothing")
-	# The blast's neighbours are credited to the ball: aimed at a plain with a plain neighbour, so there is one to credit.
+	# Bombs: the first hit arms, the second blasts; each brick in radius takes one hit for the ball, an organ none. The bomb
+	# sits by the organ, with two plain neighbours turned bombs out of each other's reach: one armed (chains), one not (arms).
 	_pull_refresh(a)  # a blast reaching the refresh brick would regrow the board
-	a._effect("bomb", a._bricks("plain").filter(func(p): return a._near(p, Tuning.BOMB_RADIUS).any(func(o): return o.kind == "plain")).front(), ball)
-	assert(a.breakable < before - 3 and ball.stored > ball.dmg, "the bomb broke its neighbours for the ball")
+	var BR := Tuning.BOMB_RADIUS
+	var o_cell = a.organs[0].cells[0]
+	var spot = a._bricks("plain").filter(func(p): return p.position.distance_to(o_cell.position) <= BR and a._near(p, BR).filter(func(o): return o.kind == "plain").size() >= 3).front()
+	var near: Array = a._near(spot, BR).filter(func(o): return o.kind == "plain")
+	var pair: Array = []
+	for x in near:
+		for y in near:
+			if pair.is_empty() and x.position.distance_to(y.position) > BR:
+				pair = [x, y]
+	var b1 = _bomb_at(a, spot)
+	var b2 = _bomb_at(a, pair[0])
+	var b3 = _bomb_at(a, pair[1])
+	a._damage(b2, ball)
+	a._damage(b1, ball)
+	assert(b1.hp == 1 and b1 in a._live() and b2.hp == 1 and b2 in a._live() and ball.stored == ball.dmg, "a bomb's first hit arms it and leaves it live")
+	var hp_o: int = a.organs[0].hp
+	a._damage(b1, ball)
+	assert(b1.is_queued_for_deletion() and b2.is_queued_for_deletion() and b3.hp == 1 and b3 in a._live() and ball.stored > ball.dmg, "the second hit blasts for the ball: the armed bomb in range chains, the unarmed one arms")
+	assert(a.organs[0].hp == hp_o and a.organs[0].cells.all(func(c): return is_instance_valid(c) and not c.is_queued_for_deletion()), "a blast never touches an organ")
 	var stored: int = ball.stored
 	var o0 = a.organs[0]
 	var hp_e: int = o0.hp
@@ -106,8 +124,8 @@ func _ready() -> void:
 	a.bag = []  # so the crits broken below launch nothing
 	a.organs[0].hp = 999  # so the poison or any stray hit below cannot win the fight first
 	_pull_refresh(a)
-	for b in a._live():
-		a._trigger(b)
+	while not a._live().is_empty():  # an unarmed bomb takes two
+		a._trigger(a._live()[0])
 	assert(a.breakable == 0 and a.refresh_in > 0 and a.in_play() == 1, "a bare board with a ball live waits for a refresh brick")
 	await get_tree().create_timer(Tuning.RUN.refresh_after + 0.1).timeout
 	assert(a._bricks("refresh").size() == 1 and a.breakable == 1, "the refresh brick grew")
@@ -141,6 +159,15 @@ func _ready() -> void:
 	for i in 12:
 		await get_tree().physics_frame
 	assert(needle.pierce_left < P.ball_pierce.pierce[0] and needle.vel.y < 0 and needle.stored > 0, "the needle broke a brick and passed through on its heading")
+	a.balls.erase(needle)
+	needle.free()
+	# ...but bounces off an unarmed bomb, arming it, with its pierce kept.
+	var nb = _bomb_at(a, lane.filter(func(p): return is_instance_valid(p) and not p.is_queued_for_deletion()).front())
+	needle = a._add_ball({id = "ball_pierce", rank = 1}, nb.position + Vector2(0, 40))
+	a._launch(needle)
+	for i in 12:
+		await get_tree().physics_frame
+	assert(needle.pierce_left == P.ball_pierce.pierce[0] and needle.vel.y > 0 and nb.hp == 1, "a needle bounces off an unarmed bomb and arms it")
 	a.balls.erase(needle)
 	needle.free()
 	# Splitter: the first break per flight forks it; halves store their own damage, never split again and never rejoin the bag.
@@ -192,6 +219,15 @@ func _ready() -> void:
 	for i in P.ball_bomb.every[2]:  # each at a plain with a live neighbour, so the nth break's blast has something to break
 		a._damage(a._bricks("plain").filter(func(p): return not a._near(p, Tuning.BOMB_RADIUS).is_empty()).front(), blaster)
 	assert(blaster.entry.breaks >= P.ball_bomb.every[2] and a.breakable < before - P.ball_bomb.every[2], "the blaster's nth break blasted its neighbours")
+	var bp = a._bricks("plain").filter(func(p): return a._near(p, Tuning.BOMB_RADIUS).any(func(o): return o.kind == "plain")).front()
+	var bb = _bomb_at(a, a._near(bp, Tuning.BOMB_RADIUS).filter(func(o): return o.kind == "plain").front())
+	for o in a._near(bp, Tuning.BOMB_RADIUS):  # the bomb alone in reach, so no break of this blast fires another
+		if o != bb:
+			a.breakable -= 1
+			o.queue_free()
+	blaster.entry.breaks = P.ball_bomb.every[2] - 1
+	a._damage(bp, blaster)
+	assert(bb.hp == 1 and bb in a._live(), "the blaster's blast arms an unarmed bomb in range, never detonates it")
 	a.hurt(Game.run.hp)
 	assert(a.over and hit[2] and Game.run.hp == 0 and Game.run.stats.killer == "glob", "HP at 0 loses the fight")
 	await get_tree().create_timer(Tuning.RUN.end_beat + 0.5).timeout
@@ -527,6 +563,15 @@ func _ready() -> void:
 
 
 ## Pulls the refresh bricks without their effect: a broken refresh regrows the layout, itself included, which no board-emptying step can allow.
+## Swaps the live brick p for a fresh, unarmed bomb in its layout slot.
+func _bomb_at(a: Node2D, p) -> Node:
+	var i: int = a.slots.find(p)
+	a.breakable -= 1
+	p.queue_free()
+	a._spawn(i, "bomb")
+	return a.slots[i]
+
+
 func _pull_refresh(a: Node2D) -> void:
 	for b in a._bricks("refresh"):
 		a.breakable -= 1

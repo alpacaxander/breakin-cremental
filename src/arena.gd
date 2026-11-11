@@ -4,7 +4,7 @@ extends Node2D
 ## stores dmg per brick it breaks, cashes it in on touching an organ cell (_organ_hit: a 0-charge touch is refused, one
 ## hit per organ per ball per frame) and loses it on a drop; the paddle only bounces. Each Organ node owns its cells, HP,
 ## poison, countdown and intent cycle; the fight is won when the encounter's `win` organs are dead (_organ_die, _won).
-## Crit bricks launch the bag's next ball, bombs blast their neighbours for the ball, a red brick a ball breaks costs the
+## Crit bricks launch the bag's next ball, a bomb arms on its first hit and blasts its neighbours on its second, a red brick a ball breaks costs the
 ## player HP (a blast removes it for free); a phase ends when every ball has dropped, no HP cost. Seconds of flight count
 ## down every live organ's intent (_count_down, _tick); at 0 the band's attack strip plays and the hazard spawns from the
 ## organ on frame 3 (_act, _hazard): red bricks painted onto the board, enemy balls and debris that cost HP on paddle touch (Hazard nodes moved by hand, cleared
@@ -581,9 +581,9 @@ func _move_ball(ball: Ball, delta: float) -> void:
 			break
 		var hit = c.get_collider()
 		var n := c.get_normal()
-		if hit is Box and hit.hp > 0 and ball.pierce_left > 0:
-			# Needle: through the brick on the same heading. The brick is excepted so the next sweep passes it.
-			# ponytail: the exception assumes the brick breaks (every breakable is hp 1); a multi-hit brick would stay ghosted to this ball
+		if hit is Box and hit.hp == 1 and ball.pierce_left > 0:
+			# Needle: through a brick this hit breaks, on the same heading; it bounces off a multi-hit one (an unarmed bomb).
+			# The brick is excepted so the next sweep passes it.
 			ball.pierce_left -= 1
 			ball.add_collision_exception_with(hit)
 			Sfx.play("pierce_swish")
@@ -1091,12 +1091,16 @@ func _hit(b: Box, ball: Ball) -> void:
 				_damage(b, ball)
 
 
-func _damage(b: Box, ball: Ball) -> void:
+## Every hit on a breakable, a ball's own (direct) or a blast's: one hp off. A bomb's first hit arms it.
+func _damage(b: Box, ball: Ball = null, direct := true) -> void:
 	if b.is_queued_for_deletion():
 		return
 	b.hp -= 1
 	if b.hp <= 0:
-		_break(b, ball)
+		_break(b, ball, direct)
+		return
+	if b.kind == "bomb":
+		_arm(b)
 		return
 	b.flash("%s_hit" % Tuning.hue(b.kind), 30)
 	Sfx.play("brick_hit")
@@ -1111,10 +1115,19 @@ func _bricks(kind: String) -> Array:
 	return _live().filter(func(o): return o.kind == kind)
 
 
-## The one way anything but a ball's own hit (a blast, a relic) sets off a brick. Bombs go off at once, so a chain of them
-## cascades in one frame; the ball that started it is credited with every brick's dmg, and no red it removes hurts.
+## An armed bomb shows the fuse strip until its next hit detonates it.
+func _arm(b: Box) -> void:
+	b.face(Tuning.BRICKS.bomb.armed.face)
+	b.idle(Tuning.BRICKS.bomb.armed.idle)
+	b.flash("ora_hit", 30)
+	Sfx.play("cond_primed")
+
+
+## The one way anything but a ball's own hit (a blast, a relic) hits a brick: one hp off, like a ball's. An armed bomb goes
+## off at once, so a chain cascades in one frame; the ball that started it is credited with every brick's dmg, and no red
+## it removes hurts.
 func _trigger(b: Box, ball: Ball = null) -> void:
-	_break(b, ball, false)
+	_damage(b, ball, false)
 
 
 ## direct: the ball itself hit the brick (false for a blast), which is what arms a red's hurt.
@@ -1172,7 +1185,8 @@ func _split(ball: Ball) -> void:
 		half.vel = v
 
 
-## A blast at b: every brick within BOMB_RADIUS breaks for the ball. The bomb brick and the blaster ball both fire this.
+## A blast at b: every brick within BOMB_RADIUS takes one hit for the ball (an unarmed bomb arms, an armed one chains;
+## organs are never in _near). The bomb brick and the blaster ball both fire this.
 func _blast(b: Box, ball: Ball = null) -> void:
 	Fx.play(self, "bomb_ring", 60, 12, b.position)
 	Sfx.play("bomb_boom")

@@ -41,12 +41,13 @@ const BOARD_KEYS := {".": "", "x": "plain", "?": "?", "#": "solid", "b": "bomb",
 # Board brick kinds. hp: hits to break (-1 never). dmg: damage per break (the ball stores ball.dmg * brick.dmg).
 # face: the still look, a sprite name or [strip, frame width, frame]. idle: a looping [strip, frame width, fps] over it.
 # halo: a looping 60-wide strip behind it. hue: the colour group (docs/palette.md), which picks the <hue>_hit/_break/_spawn
-# strips: mag basic, ora bomb, blue crit, mint refresh, red hazard. blast: the bomb's direct enemy damage. hurt: HP a ball
+# strips: mag basic, ora bomb, blue crit, mint refresh, red hazard. armed: the bomb's face and idle once its first hit arms it. hurt: HP a ball
 # break of a red costs the player. Behaviour: arena.gd _hit, _damage, _effect (adding a kind: CLAUDE.md).
 const BRICKS := {
 	plain = {hp = 1, dmg = 1, hue = "mag", face = "brick_plain_lit"},
 	solid = {hp = -1, dmg = 0, face = "brick_solid"},  # ponytail: no hue, so it spawns with mag_spawn; a chrome_spawn strip is step 9's call
-	bomb = {hp = 1, dmg = 0, hue = "ora", blast = 8, face = ["icon_bomb_pulse", 30, 0], idle = ["icon_bomb_pulse", 30, 8], halo = "halo_pulse_ora"},
+	bomb = {hp = 2, dmg = 0, hue = "ora", face = ["icon_bomb_pulse", 30, 0], idle = ["icon_bomb_pulse", 30, 8], halo = "halo_pulse_ora",  # first hit arms, second blasts
+		armed = {face = ["bomb_fuse", 30, 0], idle = ["bomb_fuse", 30, 8]}},
 	crit = {hp = 1, dmg = 1, hue = "blue", face = ["crit_pulse", 30, 0], idle = ["crit_pulse", 30, 8], halo = "halo_pulse"},  # launches the bag's next ball
 	refresh = {hp = 1, dmg = 1, hue = "mint", face = ["refresh_pulse", 30, 0], idle = ["refresh_pulse", 30, 8]},  # regrows the layout
 	red = {hp = 1, dmg = 0, hue = "red", hurt = 3, face = "brick_red"},  # a ball break costs the player HP; a blast just removes it
