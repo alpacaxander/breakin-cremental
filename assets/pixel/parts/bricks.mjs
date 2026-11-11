@@ -10,8 +10,8 @@ export const RED = { tube: "ff0000", ring: "a30000", deep: "3a0000", hi: "ff8a8a
 const GROUP = "Peglin bricks";
 const PULSE = (h, body, icon) => [h.C.pay, h.C.white, h.C.pureWhite, h.C.white].map((c) => h.withIcon(body, icon, c));
 
-// <id>_hit, <id>_break, <id>_spawn for one hue set; the same shapes as gen.mjs's hue loop. fall: halves and chips drop instead of flying out.
-function hueStrips(h, s, id, fall) {
+// <id>_hit, <id>_break, <id>_spawn for one hue set; the same shapes as gen.mjs's hue loop. Exported for parts/organs.mjs. fall: halves and chips drop instead of flying out.
+export function hueStrips(h, s, id, fall) {
 	const { Img, C, lit, dim, hot, FLASH, frame, center, hold, blank, sparks, def } = h;
 	const L = lit(s), H = hot(s), D = dim(s);
 	def(GROUP, `${id}_hit`, 12, [FLASH, H, ...hold(L, 4)]);

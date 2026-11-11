@@ -32,6 +32,14 @@ Sections headed Legacy belong to the cut incremental build: still generated, kep
 
 `icon_bomb_pulse` takes the orange body (`bomb` is in `SPECIAL_ICONS`).
 
+## Organs (parts/organs.mjs; placeholder, tinted per organ by ORGANS.tint)
+
+| Name | Frame | Frames | fps | What |
+|---|---|---|---|---|
+| organ_cell | 30x12 | static | - | neutral grey-white solid lamp, one per organ cell, tinted at runtime |
+| organ_hit | 30x12 | 6 | 12 | the `<set>_hit` shape in grey-white: flash, hot, settle |
+| organ_die | 44x20 | 8 | 12 | the `<set>_break` shape in grey-white, ending blank |
+
 ## Ball faces (`parts/balls.mjs`; still strips, frame rank-1 is the face, fps 1)
 
 | Name | Frame | Frames | fps | What |
@@ -230,7 +238,7 @@ Statics: `intent_jam`, `intent_pull`, `intent_coin_junk`, `intent_wall_col`, `in
 | wild_cycle | 30x12 | 6 | 8 | tube and ring cycle mag, ora, vio |
 | mystery_cycle | 30x12 | 6 | 8 | "?" swaps through other icons |
 | chain_arc | 64x12 | 4 | 12 | zigzag arc between two bricks, white core, blue edge |
-| <id>_fuse | 30x12 | 16 | 8 | armed chain, bomb or bolt: icon blinks red/white, faster and faster, then the face flashes white. ids: chain, bomb, bolt |
+| <id>_fuse | 30x12 | 16 | 8 | armed chain, bomb or bolt: icon blinks red/white, faster and faster, then the face flashes white. ids: chain, bomb, bolt. `bomb_fuse` is the armed bomb's face (frame 0) and idle (BRICKS.bomb.armed) |
 | bomb_ring | 60x60 | 4 | 12 | expanding ring, thinning |
 | bolt_sweep | 60x12 | 4 | 12 | row beam: white core travels left to right, tileable |
 | jackpot_rays | 48x48 | 6 | 8 | eight-ray starburst, rays lengthen and rotate by half step |
