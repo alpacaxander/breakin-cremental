@@ -89,7 +89,7 @@ const SHOP := {ball = 15, remove = 12, heal = 20, heal_hp = 20, balls = 3, relic
 	relic_weights = {common = 5, uncommon = 2, rare = 1}, buy_back = 7}
 const RELIC_RARITY := {common = {weight = 3, price = 40}, uncommon = {weight = 2, price = 60}, rare = {weight = 1, price = 80}}
 const RARITY := {common = 60, uncommon = 30, rare = 10}  # ball tier roll, then uniform within the tier
-const BAG_START := ["ball_basic", "ball_basic", "ball_basic", "ball_basic", "ball_heavy", "ball_pierce"]
+const BAG_START := ["ball_basic", "ball_basic", "ball_basic", "ball_pierce"]
 const MAX_RANK := 3
 
 # Map layers: slots is a kind per slot (a string, or kind -> weight to roll); force names the slot made a fight when no

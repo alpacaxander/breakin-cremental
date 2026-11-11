@@ -108,7 +108,7 @@ Fight columns (sprite px): left = HP bar + number, gold, relic icons 12x12 at pi
 
 ## Balls (`Tuning.BALLS`)
 
-Common: `dmg` is per brick broken, `size` and `speed` multiply `BALL_RADIUS` 8 and `BALL_SPEED` 480, three ranks raise the numbers only. Trait numbers are `[r1, r2, r3]`. Rarity roll: common 60 / uncommon 30 / rare 10, then uniform within the tier among unlocked members (empty tier rerolls). `BAG_START = [ball_basic x4, ball_heavy, ball_pierce]`.
+Common: `dmg` is per brick broken, `size` and `speed` multiply `BALL_RADIUS` 8 and `BALL_SPEED` 480, three ranks raise the numbers only. Trait numbers are `[r1, r2, r3]`. Rarity roll: common 60 / uncommon 30 / rare 10, then uniform within the tier among unlocked members (empty tier rerolls). `BAG_START = [ball_basic x3, ball_pierce]`.
 
 | id | name | rarity | dmg | size | speed | effect | strips | cues |
 |---|---|---|---|---|---|---|---|---|
