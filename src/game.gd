@@ -102,6 +102,7 @@ func load_run(path: String = RUN_PATH) -> bool:
 		return false
 	var d = _ints(JSON.parse_string(FileAccess.get_file_as_string(path)))
 	if typeof(d) != TYPE_DICTIONARY or d.get("version") != RUN_VERSION:
+		DirAccess.remove_absolute(path)  # so the menu drops CONTINUE instead of offering a save that never loads
 		return false
 	run = d
 	return true

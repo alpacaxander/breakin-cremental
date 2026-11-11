@@ -32,9 +32,14 @@ func _init() -> void:
 		check(rows.all(func(l): return Array(l.split("")).all(func(ch): return ch in Tuning.BOARD_KEYS or ch in digits)), "%s's layout uses only BOARD_KEYS glyphs and its organs' digits" % id)
 		for d in digits:
 			check(d in "".join(rows), "%s's organ %s has cells on the board" % [id, d])
+		if id in Tuning.ENEMIES:  # the bridge stamps its organ over plain or rolled cells only, never a drawn glyph
+			var src: Array = Tuning.ENEMIES[id].board.rows
+			for r in rows.size():
+				for c in rows[r].length():
+					check(rows[r][c] == src[r][c] or src[r][c] in "x?.#", "%s's bridged organ covers no drawn %s at row %d col %d" % [id, src[r][c], r, c])
 		# Every brick is reachable past the drawn solids: flood the open cells from outside the layout, 4-way.
 		# ponytail: a 4-way grid walk ignores the half-step offset of short rows; fine while honey pillars run straight.
-		var solid := func(r: int, c: int) -> bool: return r >= 0 and r < rows.size() and c >= 0 and c < rows[r].length() and rows[r][c] == "#"
+		var solid := func(r: int, c: int) -> bool: return r >= 0 and r < rows.size() and c >= 0 and c < rows[r].length() and rows[r][c] in "#123456789"
 		var seen := {Vector2i(-1, -1): true}
 		var todo := [Vector2i(-1, -1)]
 		while todo:
@@ -46,7 +51,7 @@ func _init() -> void:
 					todo.append(q)
 		for r in rows.size():
 			for c in rows[r].length():
-				if not rows[r][c] in ".#":
+				if not rows[r][c] in ".#123456789":
 					check(Vector2i(r, c) in seen, "%s's brick at row %d col %d is reachable past the solids" % [id, r, c])
 		var drawn := func(kind: String) -> int: return "".join(rows).count({crit = "c", refresh = "r"}[kind])
 		for s in 200:
@@ -247,7 +252,7 @@ func _init() -> void:
 	check(g.load_run() and g.run == saved and g.run.bag[0].rank is int, "run save round-trips with ints")
 	g.run.version = 1
 	g.save_run()
-	check(not g.load_run(), "a save of an older version is dropped")
+	check(not g.load_run() and not g.has_run(), "a save of an older version is dropped, and CONTINUE with it")
 	# Events (docs/content.md "Gold, rewards, shop, events"), rolled at the node stood on.
 	g.new_run(21)
 	g.enter_node(0)

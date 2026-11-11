@@ -241,6 +241,10 @@ func _ready() -> void:
 	add_child(a)
 	await get_tree().process_frame
 	var org = a.organs[0]
+	org.dead = true
+	a._hazard(org, "enemy_balls", 3)
+	assert(a.hazards.is_empty(), "an organ that died during its wind-up fires nothing")
+	org.dead = false
 	a._hazard(org, "enemy_balls", 3)
 	assert(a.hazards.size() == 1 and a.hazards[0].vel == Vector2.ZERO and a.hazards[0].position == org.position, "the wind-up ring is up on the organ")
 	await get_tree().create_timer(H.enemy_balls.windup + H.enemy_balls.gap * 2 + 0.1).timeout

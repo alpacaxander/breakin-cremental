@@ -163,7 +163,7 @@ Placement rules for `?` rolls (a failing roll stays `plain`): `solid` never touc
 | `maw` | jaws of plain, two rows of solid teeth with one-brick gaps, 3 drawn crits floating in the throat | shoot between the teeth |
 | `rat_king` | 6-row nest of plains, a drawn crit in each corner | the crits are at the edges, where the ball goes last |
 | `coin_slug` | 7-row blob with one drawn gold brick in the middle | dig for the coin |
-| `fuse_box` | plain walls top and bottom, a diagonal fuse of 5 drawn bombs (each 69.8 px from the next, inside `BOMB_RADIUS`) | light one end and the whole fuse goes: 40 of its 45 HP |
+| `fuse_box` | plain walls top and bottom, a diagonal fuse of 5 drawn bombs (each 69.8 px from the next, inside `BOMB_RADIUS`) | light one end and the fuse arms down the line: each blast arms the next bomb, so one more hit apiece sets it off, the bricks it breaks credited to that ball (bombs deal no direct damage) |
 | `claw_rig` | two drawn solid pillars, 4 drawn crits in the open lane between them | the prize lane |
 | `ticket_printer` | 5 rows, plain lines between rows of rolled bricks with 3 drawn crits; `advance` 1: the whole layout slides a row toward the paddle each phase while the lowest row stays above `BOARD_FLOOR` (5 phases) | the paper feeds out |
 | `bootleg_cabinet` | a drawn solid case around a cracked screen (2 drawn reds beside a crit), a plain shelf, an open row and a coin door | break the case or go in by the door |
@@ -206,7 +206,7 @@ One encounter per fight. An **organ** is one enemy living in the board: one HP b
 |---|---|---|---|---|---|---|---|
 | `knight` | regular | 1 | 1 body, 2 sword, 3 shield | 14 / 4 / 9 s | `knight_body` | `warden` 64 (borrowed) | 11 cols, 6 rows: the shield (3) a 2x3 block on the left, the body (1) a cross in the middle, the sword (2) a 1x4 column on the right, lanes of `?` between |
 
-Bridge (`Tuning.encounter(id)` for an `ENEMIES` id): one organ (the row itself), `win` = it, band = its own strips, its board with `111` stamped at the centre of the middle row (over whatever was drawn there); `steal`, `jackpot`, `advance`, `shield_start` carry over as encounter fields. `riposte`, `twice`, `mimic`, `enraged`, `mouth` are organ fields.
+Bridge (`Tuning.encounter(id)` for an `ENEMIES` id): one organ (the row itself), `win` = it, band = its own strips, its board with `111` stamped at the centre of the top row (over plain, rolled, empty or solid cells only, so no vault is sealed and no drawn kind is lost); `steal`, `jackpot`, `advance`, `shield_start` carry over as encounter fields. `riposte`, `twice`, `mimic`, `enraged`, `mouth` are organ fields.
 
 ### Enemies (`Tuning.ENEMIES`, bridged)
 

@@ -777,7 +777,7 @@ func _later(delay: float, fn: Callable, flight := false) -> void:
 
 ## Organ o's intent takes effect on the board.
 func _hazard(o: Organ, id: String, count: int) -> void:
-	if over:
+	if over or o.dead:  # a dead organ's wind-up fizzles; hazards already out keep going
 		return
 	match id:
 		"red_bricks": _red_bricks(count)

@@ -382,17 +382,16 @@ static func encounters() -> Array:
 	return ENCOUNTERS.keys() + ENEMIES.keys()
 
 
-## An encounter's row. An ENEMIES id comes back as a one-organ encounter, its organ a 3-cell "111" at the board centre.
+## An encounter's row. An ENEMIES id comes back as a one-organ encounter, its organ a 3-cell "111" at the centre of the top row.
 static func encounter(id: String) -> Dictionary:
 	if id in ENCOUNTERS:
 		return ENCOUNTERS[id]
 	var e: Dictionary = ENEMIES[id]
-	# ponytail: legacy bridge, a 3-cell organ stamped at the board centre until each enemy is authored as an encounter
+	# ponytail: legacy bridge, a 3-cell organ stamped at the top row's centre (it seals no vault and covers no drawn kind; test.gd checks) until each enemy is authored as an encounter
 	var rows: Array = e.board.rows.duplicate()
-	var m := rows.size() / 2
-	var line: String = rows[m]
+	var line: String = rows[0]
 	var c0 := (line.length() - 3) / 2
-	rows[m] = line.substr(0, c0) + "111" + line.substr(c0 + 3)
+	rows[0] = line.substr(0, c0) + "111" + line.substr(c0 + 3)
 	var enc := {role = e.role, tier = e.tier, band = id, w = e.w, organs = [id], win = [id], board = e.board.merged({rows = rows}, true)}
 	for k in ["steal", "jackpot", "advance", "shield_start"]:
 		if k in e:
