@@ -14,6 +14,8 @@ func check(ok: bool, msg: String) -> void:
 
 func _init() -> void:
 	var g = load("res://src/game.gd").new()
+	# The walks see() ids and the unlocks count runs, both writing settings.json: keep the real one, write it back at the end.
+	var kept_settings := FileAccess.get_file_as_string(g.SETTINGS_PATH) if FileAccess.file_exists(g.SETTINGS_PATH) else ""
 
 	# Every board fits the arena between the top wall band and the floor line, and the generator keeps its counts and
 	# placement rules (docs/content.md "Generator"). Touching = within one column step, the generator's own definition.
@@ -220,8 +222,7 @@ func _init() -> void:
 		check(shop.relics.size() == 2 and shop.relics[0] != shop.relics[1], "shop stocks 2 distinct relics")
 	check(not g.unlocked("ball_bomb") and g.unlocked("ball_basic"), "locked rows need their flag")
 	# Meta-unlocks (docs/content.md "Meta-unlocks"): the elite's flag, then a won run's; each new flag lists its ids once,
-	# and the pools open up. g's settings are the defaults, so the real settings.json is kept and written back.
-	var kept_settings := FileAccess.get_file_as_string(g.SETTINGS_PATH) if FileAccess.file_exists(g.SETTINGS_PATH) else ""
+	# and the pools open up.
 	g.unlock("killed_elite")
 	g.unlock("killed_elite")
 	check(g.run.unlocked == Tuning.UNLOCKS.killed_elite and g.unlocked("ball_poison") and g.unlocked("mini_paddle") and not g.unlocked("twin_crit"), "the elite's flag unlocks its ids, listed once")
@@ -231,10 +232,6 @@ func _init() -> void:
 	g.end_run(false)
 	check(g.settings.meta.runs == 2 and g.settings.meta.wins == 1 and g.run.unlocked.size() == 4, "a lost run counts and unlocks nothing twice")
 	g.settings.meta = {flags = [], runs = 0, wins = 0}
-	if kept_settings:
-		FileAccess.open(g.SETTINGS_PATH, FileAccess.WRITE).store_string(kept_settings)
-	else:
-		DirAccess.remove_absolute(g.SETTINGS_PATH)
 	g.take_reward({kind = "relic", id = "toll"})
 	check(g.has("toll") and g.roll_shop(g.rng(0)).relics.find("toll") < 0, "owned relics leave the pool")
 	g.take_reward({kind = "rank", at = 0})
@@ -355,6 +352,11 @@ func _init() -> void:
 		check(box.tex != null, "%s has a face" % k)
 		box.free()
 
+	# ponytail: a failed run mid-script (a GDScript error) still leaves the test's settings behind; this only covers a clean finish
+	if kept_settings:
+		FileAccess.open(g.SETTINGS_PATH, FileAccess.WRITE).store_string(kept_settings)
+	else:
+		DirAccess.remove_absolute(g.SETTINGS_PATH)
 	g.free()
 	print("FAILED %d" % failed if failed else "ok")
 	quit(1 if failed else 0)

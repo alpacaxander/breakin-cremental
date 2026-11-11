@@ -8,13 +8,13 @@ BreakIn cremental: "Peglin, but breakout", a run-based roguelike in Godot 4.7 (G
 
 ## Commands
 
-Godot is not on PATH; it comes from the Nix dev shell (`nix develop`, or prefix commands with `nix develop -c`).
+Godot and xvfb-run are not on PATH; they come from the Nix dev shell (`nix develop`, or prefix commands with `nix develop -c`).
 
 ```sh
 godot                                  # open the editor on this project
 godot --headless -s tests/test.gd      # rules self-check (game.gd, tuning.gd tables, strips, cues); prints "ok" or FAIL lines, exits 1 on failure
 godot --headless tests/smoke.tscn      # scripted fights poking every mechanic, then a walk through the run screens; any script error prints. A scene, not -s, so the Game autoload exists
-xvfb-run -s "-screen 0 3840x2160x24" godot --display-driver x11 --rendering-driver opengl3 tests/shots.tscn  # every screen at eight window sizes to user://shots/, to eyeball the layout
+nix develop -c xvfb-run -s "-screen 0 3840x2160x24" godot --display-driver x11 --rendering-driver opengl3 tests/shots.tscn  # every screen at eight window sizes to user://shots/, to eyeball the layout
 node assets/pixel/gen.mjs              # regenerate every sprite and animation strip in assets/pixel/png/ (needs ImageMagick `magick`)
 node assets/audio/gen.mjs              # regenerate every sound cue in assets/audio/wav/ and the review page assets/audio/demo.html
 ```
