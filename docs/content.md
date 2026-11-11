@@ -4,6 +4,8 @@ The single source for asset and code agents. It resolves the eight pool specs; w
 
 Maps: map 1, Back Alley Arcade (`docs/content/maps/back-alley-arcade.md`), landed on 2026-11-10; its rows below win over the proposal. Still proposals, not in `tuning.gd`: `docs/content/maps/corp-tower.md`, `docs/content/maps/deep-net.md`. The run is still one five-layer map; map 1's enemies, hazards, events, shop and balls joined the existing pools rather than replacing them.
 
+Encounters and organs (`docs/content/encounters.md`, proposal 2026-11-10) will replace the enemy model below: authored encounters, damage cashed in on organs instead of the paddle, bombs that arm then detonate. Until it lands, the rows below describe the game as built.
+
 Vocabulary: a **fight** is one enemy on one board. A **phase** is one launch from the bag until every ball in play has dropped (design.md's "turn"). A **paddle hit** is a player ball touching a paddle. The fight's clock is seconds with a ball in flight.
 
 ## Decisions that cut across pools

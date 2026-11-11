@@ -4,6 +4,8 @@
 
 *Status: WIP. Redirected on 2026-11-09 from an incremental (currency, upgrade web, between-round brick placement) to a Peglin-style roguelike. The code now plays a one-act run end to end (map, fights, rewards, shop, events, treasure, relics, meta-unlocks) and the incremental loop is gone; see Migration below. `docs/content.md` fixes the numbers, names and per-moment assets and wins where this file is vaguer. Every decision below is provisional. The name is a leftover and will change.*
 
+*Direction change, 2026-11-10: fights become authored **encounters** of **organs** (enemies that live on the board), damage is cashed in by a ball hitting an organ instead of the paddle, and bombs arm then detonate. The rules are in `docs/content/encounters.md`; the code still plays the old model until that proposal lands. This file describes the new direction.*
+
 ## Unique selling point
 
 Peglin's loop (shoot an orb into a peg board, damage is the pegs you hit, collect orbs and relics across a branching map, die and start over) with breakout physics instead of pachinko. In Peglin a shot is a roll of the dice once it leaves the launcher and a phase is one orb; here a phase has no clock and can in principle last forever, because the paddle keeps the ball alive. What ends it is the player: crit bricks launch the next ball in the bag, so a good rally keeps adding balls until there are more than two hands can juggle. Paddle skill is the floor, the ball bag and relics are the engine, generated boards are the variance.
@@ -16,9 +18,10 @@ Peglin's loop (shoot an orb into a peg board, damage is the pegs you hit, collec
 | Relics (passive rules) | Relics, same |
 | Crit pegs (damage multiplier for the shot) | Crit brick: launches the next ball in the bag |
 | Refresh pegs (restore every hit peg) | Refresh brick, same |
-| Bomb pegs | Bomb brick, same |
+| Bomb pegs | Bomb brick: the first hit arms it, the second detonates it and charges the ball |
 | Slime-coated and special pegs (poison, etc.) | Brick coatings from enemies and relics, later |
-| Buckets at the bottom (bounce back, reload, pit) | The paddle |
+| Buckets at the bottom (bounce back, reload, pit) | The paddle (keeps the ball alive; deals no damage) |
+| Enemies standing on the right | Organs: enemies inside the board, each with its own HP bar and attacks |
 | Discard an orb | Discard a ball before launch |
 | Stone orbs (junk added by enemies and events) | Junk balls, same |
 | Status effects on orbs and enemies (poison, blind, spin, etc.) | Ball traits and enemy debuffs |
@@ -35,28 +38,28 @@ Feel like a juggler who is also an engineer: a desperate save at the paddle keep
 ## Core loop
 
 1. Pick a node on a branching map: fight, elite, treasure, shop, event, boss.
-2. In a fight, take turns. On your turn the next ball in your bag launches onto the board. Every brick a ball breaks deals that ball's damage to the enemy. Crit bricks launch the next ball in the bag, so several balls can be in play at once, each dealing its own damage. The turn ends when every ball in play has dropped past the paddle.
-3. Enemies act mid-phase on a countdown of seconds: hazards on the board that cost HP, changes to the board.
+2. In a fight, take turns. On your turn the next ball in your bag launches onto the board. Every brick a ball breaks charges it; a charged ball hitting an organ (an enemy on the board) deals the charge to it. Crit bricks launch the next ball in the bag, so several balls can be in play at once, each charging and cashing in on its own. The turn ends when every ball in play has dropped past the paddle.
+3. Organs act mid-phase, each on its own countdown of seconds: hazards on the board that cost HP, changes to the board.
 4. Win the fight and pick one of three rewards: a new ball, a rank-up for a ball you own, a relic, or gold.
 5. Run ends on death or on the final boss. Meta-unlocks (new balls, relics, starting paddles) carry over; nothing else does.
 
 ## Key mechanics
 
-- **Bricks are pegs.** Each fight generates a board. Basic bricks deal the ball's per-brick damage. Crit bricks launch the next ball in the bag, so a rally that keeps finding crits keeps adding balls. Refresh bricks respawn every broken brick. Bomb bricks break their neighbours and deal direct damage. Unbreakable bricks shape the bounces. Red bricks cost the player HP when a ball breaks them.
+- **Bricks are pegs.** Each encounter authors its board. Basic bricks charge the ball with its per-brick damage. Crit bricks launch the next ball in the bag, so a rally that keeps finding crits keeps adding balls. Refresh bricks respawn every broken brick: more fuel to charge on. Bomb bricks arm on the first hit and detonate on the second, hitting their neighbours and adding the charge to the ball that set them off; a blast never touches an organ. Unbreakable bricks shape the bounces. Red bricks cost the player HP when a ball breaks them.
 - **Phase end.** A phase has no timer. It ends when every ball in play has dropped past the paddle, with no HP cost: like a wasted shot in Peglin, the penalty is the damage you did not deal. The natural limiter is the player's own success: each crit adds a ball to juggle, and an empty board stops the damage until a refresh brick appears. If play shows phases that never end, the fallback is a speed ramp on balls that stay alive too long.
-- **Damage.** In Peglin damage is stored as the orb hits pegs and fired when the orb leaves the board. Here each ball stores damage as it breaks bricks and fires it when it hits the paddle. The paddle hit is the shot: a ball shows its stored total as it flies, lands it on contact, and starts again from zero. A ball that drops past the paddle loses whatever it was carrying. Balls target the front enemy by default; some hit every enemy.
+- **Damage.** In Peglin damage is stored as the orb hits pegs and fired when the orb leaves the board. Here each ball stores damage as it breaks bricks and fires it when it hits an organ. The organ hit is the shot: a ball shows its stored total as it flies, lands it on the organ it touches, and starts again from zero. A ball with nothing stored just bounces off. A ball that drops past the paddle loses whatever it was carrying. The paddle deals no damage; its job is keeping charged balls alive and aiming them.
 - **Enemy damage.** Peglin's enemies act once per shot. Here they act on the board: hazards that hurt you when they touch the paddle or cross the paddle line. See Enemy attacks below. A countdown of seconds in flight times them.
 - **Ball bag (the deck).** Start with four or five basic balls. A ball has per-brick damage and one trait: heavy (bigger, slower, more damage), split (becomes two on the first bounce), piercing (passes through bricks), sticky (first paddle catch holds it for an aimed relaunch), poison (damage over the next turns), and so on. Balls launch in bag order, both at the start of a phase and from crit bricks; a discard action skips one before launch. When the bag runs out mid-phase, crit bricks do nothing more. Three ranks per ball. Some enemies and events add junk stone balls.
 - **Paddle.** One paddle. Size, speed and extras come from relics, not an upgrade tree. Vertical movement and sibling paddles from the old upgrade ideas become relics or starting paddles.
 - **Relics.** Passive rules picked up at treasures, elites and shops: wider paddle, crit bricks launch two balls, the first brick each phase counts as a crit, a dropped ball returns to the bag, bricks drop gold, every tenth brick is a bomb. The old upgrade ideas (sibling paddles, vertical paddle movement, splitter, flipper, toll and ghost bricks) are relic candidates; their faces are still generated (the legacy rows in `docs/sprite-spec.md`).
-- **Enemies.** HP, an attack value and a countdown of turns. Some touch the board: add unbreakable bricks, remove refresh bricks, shrink the paddle, speed the ball. Elites and bosses have a gimmick each.
+- **Encounters and organs.** A fight is an authored encounter: it lays out the board, places the organs, scripts what happens when (an organ splits, the board swaps) and names its end condition (default: every organ dead). An organ is one enemy: one HP bar, its own countdown and attacks, any size and shape, buried in the board as the encounter likes. A thematic foe can be several organs (a knight is a body, a sword and a shield), so multiple enemies need no extra rule. The enemy band above the top wall is decoration that pictures what the organs are doing.
 - **Map.** Slay the Spire style branching, three acts, a boss at the end of each.
 - **Gold.** One currency, spent at shops on balls, relics, ball removal and healing.
 - **HP.** One pool. Zero ends the run.
 
 ## Enemy attacks
 
-Enemies hurt you through things on the board, not through a number that lands at the end of a turn. One rule ties them together: anything hostile that touches the paddle or crosses the paddle line costs HP. The paddle lane is then shared by balls you want to catch and hazards you want to miss, which is the fight's core tension. Each enemy shows an intent and a countdown; it counts down while a player ball is in flight, and at zero the hazard fires mid-phase. Built (`Tuning.HAZARDS`): red bricks, enemy balls, debris, laser sweep, shield rows, plus the boss's mouth. The rest of the pool is ideas.
+Enemies hurt you through things on the board, not through a number that lands at the end of a turn. One rule ties them together: anything hostile that touches the paddle or crosses the paddle line costs HP. The paddle lane is then shared by balls you want to catch and hazards you want to miss, which is the fight's core tension. Each organ shows an intent and a countdown; it counts down while a player ball is in flight, and at zero the hazard fires mid-phase, from the organ. Built (`Tuning.HAZARDS`): red bricks, enemy balls, debris, laser sweep, shield rows, plus the boss's mouth. The rest of the pool is ideas.
 
 Hazard pool, roughly by build cost:
 
@@ -122,3 +125,5 @@ The build already goes past the MVP list above: it has a branching five-layer ma
 3. **Enemy turns in an arcade game.** Waiting while an enemy swings kills flow. Enemy turns stay around a second, with the board visible throughout.
 4. **Generated boards.** Peglin boards are hand-laid. Generated boards must give every ball a fair rally and never trap the ball.
 5. **Paddle feel.** Still the base of everything; a bad drop still feels unfair.
+6. **Organ aim.** Breakout control is coarse. If hitting an organ on purpose feels like luck, damage feels random. Levers: organ size, lanes the authored board opens as bricks break, and aiming tools (`sticky`, `ball_magnet` drawn to organs). The first slice in `docs/content/encounters.md` exists to answer this.
+7. **Buried organs stall.** Refresh regrows the bricks that bury organs. Deferred until play shows it; the fix is to keep refresh off organ-adjacent cells.
