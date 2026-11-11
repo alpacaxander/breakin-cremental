@@ -1,5 +1,5 @@
 extends Node
-## Drives the run (and the menu's catalog of the balls and enemies met, Game.see): menu -> map -> the node's screen (a fight in arena.gd; the shop, an event or a treasure built here)
+## Drives the run (and the menu's catalog of the balls and encounters met, Game.see): menu -> map -> the node's screen (a fight in arena.gd; the shop, an event or a treasure built here)
 ## -> map, until the boss falls (run won) or HP hits 0 (run over); the elite's death and the run's end set the meta-unlock
 ## flags (Game.unlock / Game.end_run). Every screen but the fight is a Ui.chassis with the run
 ## columns; reward and treasure are overlays over the fight or the map. The run autosaves (Game.save_run) on every screen
@@ -87,14 +87,14 @@ func _show_menu() -> void:
 	_swap(r)
 
 
-## Every ball and enemy, the ones met in any run (Game.see) in full, the rest as a dark silhouette named "???". Two pages:
-## balls, a 4-wide grid of face at 2x, name, card line, damage per rank; enemies, rows of idle frame 0, name, role, HP,
-## intents, wrapped to the field's width.
+## Every ball and encounter, the ones met in any run (Game.see) in full, the rest as a dark silhouette named "???". Two pages:
+## balls, a 4-wide grid of face at 2x, name, card line, damage per rank; encounters, rows of the band's idle frame 0, name, role, HP (summed over organs),
+## every organ's intents, wrapped to the field's width.
 func _show_catalog(enemies := false) -> void:
 	var C := Tuning.COLORS
 	var seen: Array = Game.settings.meta.get("seen", [])
 	var r := Ui.chassis()
-	var ids: Array = Tuning.ENEMIES.keys() if enemies else Tuning.BALLS.keys()
+	var ids: Array = Tuning.encounters() if enemies else Tuning.BALLS.keys()
 	Ui.centre(r, "CATALOG: %s %d/%d" % ["ENEMIES" if enemies else "BALLS", ids.filter(func(id): return id in seen).size(), ids.size()], 14, C.pay, 2)
 	var ex := 96.0
 	var ey := 40.0
@@ -117,21 +117,24 @@ func _show_catalog(enemies := false) -> void:
 			elif not Game.unlocked(id):
 				Ui.label(r, "LOCKED", x + 28, y + 7, C.trim_hi)
 			continue
-		var e: Dictionary = Tuning.ENEMIES[id]
+		var e: Dictionary = Tuning.encounter(id)
 		if ex + e.w > Ui.FIELD_X + 480 - 16:  # past the field's right edge: the next row
 			ex = 96.0
 			ey += 84
-		var f := Ui.icon(r, Fx.frame("%s_idle" % id, e.w, 0), ex, ey)
+		var f := Ui.icon(r, Fx.frame("%s_idle" % e.band, e.w, 0), ex, ey)
 		if not met:
 			f.modulate = C.trim
 		Ui.label(r, id.to_upper().replace("_", " ") if met else "???", ex, ey + 52, C.white, 1, e.w, HORIZONTAL_ALIGNMENT_CENTER)
 		if met:
 			Ui.label(r, "TIER %d" % e.tier if e.role == "regular" else e.role.to_upper(), ex, ey + 59, C.rivet, 1, e.w, HORIZONTAL_ALIGNMENT_CENTER)
-			Ui.label(r, "HP %d" % e.hp, ex, ey + 66, C.pay, 1, e.w, HORIZONTAL_ALIGNMENT_CENTER)
-			var n: int = e.intents.size()
+			Ui.label(r, "HP %d" % e.organs.reduce(func(s, o): return s + Tuning.organ(o).hp, 0), ex, ey + 66, C.pay, 1, e.w, HORIZONTAL_ALIGNMENT_CENTER)
+			var icons := []
+			for o in e.organs:
+				icons += Tuning.organ(o).intents.map(func(it): return it[0])
+			var n := icons.size()
 			for j in n:
-				Ui.icon(r, "intent_%s" % e.intents[j][0], ex + e.w / 2.0 - 6.5 * n + 13 * j, ey + 74)
-		ex += e.w + 16
+				Ui.icon(r, "intent_%s" % icons[j], ex + e.w / 2.0 - 6.5 * n + 13 * j, ey + 74)
+		ex += e.w + 8  # ponytail: 8 px gaps keep 16 encounters on three rows; pages when the next one overflows
 	Ui.button(r, "BACK", 200, 330, 112, 18, _show_menu, false, 2, "ui_back")
 	Ui.button(r, "BALLS" if enemies else "ENEMIES", 328, 330, 112, 18, _show_catalog.bind(not enemies))
 	r.back.connect(_show_menu)

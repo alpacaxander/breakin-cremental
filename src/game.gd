@@ -1,14 +1,14 @@
 extends Node
 ## Autoload: settings (settings.json, with the meta-unlock flags, run / win counts and the catalog's seen ids under `meta`), the run state (`run`: hp, gold, the bag,
-## relics, the map with its visited path and rolled enemies and events, `pending` = the node kind entered and not yet
-## resolved, stats) with its mid-run save (run.json), and the pure rules: map generation, node entry, reward / shop / enemy
+## relics, the map with its visited path and rolled encounters and events, `pending` = the node kind entered and not yet
+## resolved, stats) with its mid-run save (run.json), and the pure rules: map generation, node entry, reward / shop / encounter
 ## rolls, event choices, gold and HP, the bag invariant, board generation. No scene dependencies, so test.gd instantiates
 ## it headless. docs/content.md "Run state" is the contract.
 
 const Tuning = preload("res://src/tuning.gd")
 const SETTINGS_PATH := "user://settings.json"
 const RUN_PATH := "user://run.json"
-const RUN_VERSION := 1
+const RUN_VERSION := 2  # 2: map.enemies holds encounter ids, older saves are dropped
 
 var settings := {fullscreen = false, volume = 1.0, meta = {flags = [], runs = 0, wins = 0, seen = []}}
 var run := {}  # empty until new_run / load_run
@@ -64,7 +64,7 @@ func unlock(flag: String) -> void:
 		run.unlocked = run.get("unlocked", []) + Tuning.UNLOCKS[flag]  # get: a run.json saved before meta-unlocks has no list
 
 
-## Records a ball or enemy id as met, for the menu's catalog. Writes settings.json only when it is new.
+## Records a ball or encounter id as met, for the menu's catalog. Writes settings.json only when it is new.
 func see(id: String) -> void:
 	var seen: Array = settings.meta.get_or_add("seen", [])  # get_or_add: a meta reset by test.gd has no list
 	if not id in seen:
@@ -209,7 +209,7 @@ func reachable(slot: int) -> bool:
 	return m.layer + 1 < Tuning.MAP.size() and slot in Tuning.MAP[m.layer].edges[m.node]
 
 
-## Steps onto the next layer's slot, rolling its enemy or event (never the last fight's enemy, events without
+## Steps onto the next layer's slot, rolling its encounter or event (never the last fight's encounter, events without
 ## replacement along the path), marks it pending (main.gd clears that back on the map), autosaves, and returns the node kind.
 func enter_node(slot: int) -> String:
 	var m: Dictionary = run.map
@@ -220,7 +220,7 @@ func enter_node(slot: int) -> String:
 	run.pending = kind
 	var r := rng(node_index(m.layer, slot))
 	if kind in ["fight", "elite", "boss"]:
-		m.enemies[m.layer][slot] = pick_enemy(kind, m.layer + 1, last_enemy(m.layer), r)
+		m.enemies[m.layer][slot] = pick_encounter(kind, m.layer + 1, last_encounter(m.layer), r)
 		see(m.enemies[m.layer][slot])
 	elif kind == "event":
 		var seen := []
@@ -232,8 +232,8 @@ func enter_node(slot: int) -> String:
 	return kind
 
 
-## The enemy fought most recently before `layer` along the path, or "".
-func last_enemy(layer: int) -> String:
+## The encounter fought most recently before `layer` along the path, or "".
+func last_encounter(layer: int) -> String:
 	var m: Dictionary = run.map
 	for i in range(layer - 1, -1, -1):
 		if m.enemies[i][m.path[i]] != "":
@@ -241,11 +241,11 @@ func last_enemy(layer: int) -> String:
 	return ""
 
 
-## An enemy for a fight / elite / boss node in a 1-based layer: regulars of tier <= layer, never prev when another fits.
-func pick_enemy(kind: String, layer: int, prev: String, r: RandomNumberGenerator) -> String:
+## An encounter for a fight / elite / boss node in a 1-based layer: regulars of tier <= layer, never prev when another fits.
+func pick_encounter(kind: String, layer: int, prev: String, r: RandomNumberGenerator) -> String:
 	var role := "regular" if kind == "fight" else kind
-	var ids := Tuning.ENEMIES.keys().filter(func(id):
-		var e: Dictionary = Tuning.ENEMIES[id]
+	var ids := Tuning.encounters().filter(func(id):
+		var e: Dictionary = Tuning.encounter(id)
 		return e.role == role and (kind != "fight" or e.tier <= layer))
 	if ids.size() > 1:
 		ids.erase(prev)

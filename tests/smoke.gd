@@ -495,6 +495,9 @@ func _ready() -> void:
 	main._show_catalog()
 	await get_tree().process_frame
 	assert(_button(main, "BACK") != null, "the catalog opens with a BACK button")
+	main._show_catalog(true)  # the encounters page: every band, summed organ HP and every organ's intents
+	await get_tree().process_frame
+	assert(_button(main, "BALLS") != null, "the encounters page opens")
 	main._show_map()
 	main._pick_node(Tuning.MAP[0].edges[0][0])
 	await get_tree().process_frame

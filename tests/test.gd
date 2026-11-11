@@ -184,14 +184,22 @@ func _init() -> void:
 		check(g.run.pending == walk.back(), "entering a node leaves it pending until the map returns")
 		var e: String = g.run.map.enemies[layer][slot]
 		if walk.back() in ["fight", "elite", "boss"]:
-			check(e in Tuning.ENEMIES and e != prev, "node %d enemy %s exists and differs from the last fight's" % [layer, e])
-			check(Tuning.ENEMIES[e].role == ("regular" if walk.back() == "fight" else walk.back()), "node %d enemy has the node's role" % layer)
-			check(walk.back() != "fight" or Tuning.ENEMIES[e].tier <= layer + 1, "fight enemy tier fits the layer")
+			check(e in Tuning.encounters() and e != prev, "node %d encounter %s exists and differs from the last fight's" % [layer, e])
+			check(Tuning.encounter(e).role == ("regular" if walk.back() == "fight" else walk.back()), "node %d encounter has the node's role" % layer)
+			check(walk.back() != "fight" or Tuning.encounter(e).tier <= layer + 1, "fight encounter tier fits the layer")
 			prev = e
 		elif walk.back() == "event":
 			check(g.run.map.events[layer][slot] in Tuning.EVENTS, "event node rolled an event")
 	check(walk.size() == 5 and walk[2] == "elite" and walk[4] == "boss" and g.run.map.path.size() == 5, "walked every layer")
 	check(not g.reachable(0), "nothing is reachable past the boss")
+	var knight := false
+	for s in 200:  # the first two layers of each map, where tier-1 fights roll
+		g.new_run(s)
+		for layer in 2:
+			var slot: int = range(Tuning.MAP[layer].slots.size()).filter(g.reachable).front()
+			g.enter_node(slot)
+			knight = knight or g.run.map.enemies[layer][slot] == "knight"
+	check(knight, "the knight is rolled onto some map")
 	g.delete_run()
 	g.new_run(11)
 	for s in 50:
@@ -237,6 +245,9 @@ func _init() -> void:
 	var saved: Dictionary = g.run.duplicate(true)
 	g.run = {}
 	check(g.load_run() and g.run == saved and g.run.bag[0].rank is int, "run save round-trips with ints")
+	g.run.version = 1
+	g.save_run()
+	check(not g.load_run(), "a save of an older version is dropped")
 	# Events (docs/content.md "Gold, rewards, shop, events"), rolled at the node stood on.
 	g.new_run(21)
 	g.enter_node(0)
