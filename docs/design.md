@@ -4,7 +4,7 @@
 
 *Status: WIP. Redirected on 2026-11-09 from an incremental (currency, upgrade web, between-round brick placement) to a Peglin-style roguelike. The code now plays a one-act run end to end (map, fights, rewards, shop, events, treasure, relics, meta-unlocks) and the incremental loop is gone; see Migration below. `docs/content.md` fixes the numbers, names and per-moment assets and wins where this file is vaguer. Every decision below is provisional. The name is a leftover and will change.*
 
-*Direction change, 2026-11-10: fights become authored **encounters** of **organs** (enemies that live on the board), damage is cashed in by a ball hitting an organ instead of the paddle, and bombs arm then detonate. The rules are in `docs/content/encounters.md`; the code still plays the old model until that proposal lands. This file describes the new direction.*
+*Direction change, 2026-11-10: fights become authored **encounters** of **organs** (enemies that live on the board), damage is cashed in by a ball hitting an organ instead of the paddle, and bombs arm then detonate. The first slice landed the same day (the knight encounter, organ cash-in, armed bombs, placeholder organ art; every old enemy plays as a one-organ encounter through a bridge) and its rows are in `docs/content.md`; what has not landed (scripts, `grow`, the mouth organ, magnet flipping, per-organ art, converting the enemies) stays in `docs/content/encounters.md`. This file describes the new direction.*
 
 ## Unique selling point
 
