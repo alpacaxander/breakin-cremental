@@ -2,10 +2,10 @@ extends Node2D
 ## One fight: an encounter (Tuning.encounter) of organs living in the board, its portrait in the band above the top wall
 ## (decoration only, _band_play), the bag of balls launched phase by phase at the board, and the damage pipeline. A ball
 ## stores dmg per brick it breaks, cashes it in on touching an organ cell (_organ_hit: a 0-charge touch is refused, one
-## hit per organ per ball per frame) and loses it on a drop; the paddle only bounces. Each Organ node owns its cells, HP,
+## hit per organ per ball per frame; the organ consumes the ball either way) and loses it on a drop; the paddle only bounces. Each Organ node owns its cells, HP,
 ## poison, countdown and intent cycle; the fight is won when the encounter's `win` organs are dead (_organ_die, _won).
-## Crit bricks launch the bag's next ball, a bomb arms on its first hit and blasts its neighbours on its second, a red brick a ball breaks costs the
-## player HP (a blast removes it for free); a phase ends when every ball has dropped, no HP cost. Seconds of flight count
+## A refresh brick regrows the board and moves every refresh brick, a bomb arms on its first hit and blasts its neighbours on its second, a red brick a ball breaks costs the
+## player HP (a blast removes it for free); a phase ends when every ball has dropped or been consumed, no HP cost. Seconds of flight count
 ## down every live organ's intent (_count_down, _tick); at 0 the band's attack strip plays and the hazard spawns from the
 ## organ on frame 3 (_act, _hazard): red bricks painted onto the board, enemy balls and debris that cost HP on paddle touch (Hazard nodes moved by hand, cleared
 ## at phase end), a laser lane snapped to the board column under the paddle (drawn in _draw), a shield row of solids that
@@ -16,7 +16,7 @@ extends Node2D
 ## _act; the encounter's: steal in _drop, the jackpot in _effect, shield_start in _ready, advance in _phase_start. Ball
 ## traits (Tuning.BALLS) live here too: pierce in the collision loop, split, the blaster's and the token's counts in
 ## _break, the sticky catch in _paddle_hit, poison stacks landing on the organ hit and ticking at phase end, the rubber
-## ball's floor bounces in _save, the magnet ball in _move_ball, the junk ball's silent crits. Relics (Tuning.RELICS)
+## ball's floor bounces in _save, the magnet ball in _move_ball, the junk ball's silent opener crits. Relics (Tuning.RELICS)
 ## fire through _relics, one match by id at the on_fight_start, on_break and on_phase_end sites; stat relics are Game.has
 ## reads where their number applies (paddle width, the magnet in _move_ball, twin_crit in _crit, the mini paddle in _pads). won / lost fire as the fight ends and
 ## done(win) after the end beat, for main.gd's reward overlay or end screen; hud.gd draws the run columns.
@@ -327,11 +327,28 @@ func _spawn(i: int, kind: String, delay := 0.0) -> void:
 
 
 ## Every empty layout slot regrows its original brick, except the slot of the refresh brick that fired it: regrown under
-## the ball that just broke it, a wedged ball breaks it again forever.
+## the ball that just broke it, a wedged ball breaks it again forever. A broken refresh (from) also re-rolls the refresh
+## slots (Game.place_refresh, never where one stood): a standing brick whose slot changed kind is swapped for the new kind.
 func _refresh(from: Box = null) -> void:
 	Sfx.play("regrow")
+	var at := slots.find(from) if from else -1
+	if from:
+		var old: Array = layout.filter(func(s): return s.kind == "refresh")
+		# never where one stood, nor under a brick an enemy painted over its slot (a red on a plain slot)
+		var skip: Array = old + range(layout.size()).filter(func(i): return i == at or is_instance_valid(slots[i]) \
+				and not slots[i].is_queued_for_deletion() and slots[i].kind != layout[i].kind).map(func(i): return layout[i])
+		for s in old:
+			s.kind = "plain"
+		var r := RandomNumberGenerator.new()
+		r.randomize()
+		Game.place_refresh(layout, old.size(), enc.board, r, skip)
+		for i in layout.size():
+			var b = slots[i]
+			if i != at and is_instance_valid(b) and not b.is_queued_for_deletion() and b.kind != layout[i].kind and b.kind in ["plain", "refresh"]:
+				breakable -= 1
+				b.queue_free()
 	for i in _empty_slots():
-		if from == null or slots[i] != from:
+		if i != at:
 			_spawn(i, layout[i].kind)
 
 
@@ -603,6 +620,8 @@ func _move_ball(ball: Ball, delta: float) -> void:
 			ball.vel = ball.vel.bounce(n)
 		if hit is Box:
 			_hit(hit, ball)
+			if ball.is_queued_for_deletion():  # an organ consumed it
+				return
 		motion = ball.vel.normalized() * c.get_remainder().length()
 	var min_vy := Tuning.BALL_SPEED * ball.speed * Tuning.MIN_VERTICAL
 	if absf(ball.vel.y) < min_vy:
@@ -668,8 +687,9 @@ func _sticky_fire(b: Ball) -> void:
 	Sfx.play("sticky_fire")
 
 
-## A ball touched a cell of organ o: its stored damage and poison cash in there and it keeps bouncing. A 0-charge touch is
-## refused; a ball touching two cells of one organ in a frame hits once. A big landing ripostes.
+## A ball touched a cell of organ o: its stored damage and poison cash in there and the organ consumes it (to the discard
+## pile, like a quiet drop), so the phase moves on. A 0-charge touch is refused but still consumed; a ball touching two
+## cells of one organ in a frame hits once. A big landing ripostes.
 func _organ_hit(o: Organ, ball: Ball, cell: Box) -> void:
 	if o.dead:
 		return
@@ -680,6 +700,7 @@ func _organ_hit(o: Organ, ball: Ball, cell: Box) -> void:
 	ball.struck_frame = f
 	if ball.stored <= 0 and ball.poison <= 0:
 		Sfx.play("hit_refused")
+		_drop(ball, true)
 		return
 	Fx.play(cell, "damage_fire", 60, 12, Vector2.ZERO).scale = cell.size / Vector2(60, 8)
 	for c in o.cells:
@@ -694,6 +715,7 @@ func _organ_hit(o: Organ, ball: Ball, cell: Box) -> void:
 		_land(o, n)
 	if not o.dead and o.row.get("riposte", 0) > 0 and n >= o.row.riposte:  # the warden's riposte: a big shot hurries it
 		_tick(o, Tuning.RIPOSTE_CUT)
+	_drop(ball, true)
 
 
 ## n damage lands on organ o; below its enrage mark it takes its enraged fields (the maw's faster countdown and longer
@@ -1194,7 +1216,7 @@ func _blast(b: Box, ball: Ball = null) -> void:
 		_trigger(n, ball)
 
 
-## Brick break effects. Crit, refresh and the bomb fire from any break; a red only hurts when a ball broke it directly.
+## Brick break effects. Refresh and the bomb fire from any break; a red only hurts when a ball broke it directly.
 func _effect(kind: String, b: Box, ball: Ball = null, direct := true) -> void:
 	match kind:
 		"bomb":
@@ -1202,8 +1224,6 @@ func _effect(kind: String, b: Box, ball: Ball = null, direct := true) -> void:
 		"red":
 			if ball and direct:
 				hurt(Tuning.BRICKS.red.hurt)
-		"crit":
-			_crit(b, ball)
 		"refresh":
 			_refresh(b)
 		"gold":  # pays its gold; under a jackpot encounter only the phase that breaks every gold brick pays, the jackpot
@@ -1224,7 +1244,7 @@ func _pay(n: int, pos: Vector2) -> void:
 	Sfx.play("coin")
 
 
-## A crit at b: the bag's next ball launches from the paddle (two with relic twin_crit); an empty bag refuses, a stone's
+## A crit at b (relic opener's first break; there is no crit brick): the bag's next ball launches from the paddle (two with relic twin_crit); an empty bag refuses, a stone's
 ## crits launch nothing.
 func _crit(b: Box, ball: Ball) -> void:
 	Fx.play(self, "crit_launch", 30, 12, b.position)

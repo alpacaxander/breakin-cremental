@@ -29,31 +29,31 @@ const BOARD_TOP := 168.0  # centre y of the first brick row (the enemy band and 
 const BOARD_FLOOR := 240.0  # bricks must sit at least this far above the arena floor
 # One row per fight class (the map node kind). cols: the widest layout row, and the lane grid for lasers and the shield
 # row. solid / bomb / red: [chance per "?" brick, hard max], rolled in that order; red_rows limits rolled reds to the first
-# n rows. crit / refresh: at least this many, drawn ones first, the rest converted from plain bricks. Placement rules:
-# game.gd generate. Fit: rows <= 11, 10 for the boss; every brick reachable past the solids (test.gd).
+# n rows. refresh: how many stand on the board (default 1), drawn ones first, the rest converted from plain bricks;
+# breaking one regrows the board and re-rolls every refresh brick's slot. Placement rules: game.gd place_refresh.
+# Fit: rows <= 11, 10 for the boss; every brick reachable past the solids (test.gd).
 const BOARDS := {
-	fight = {cols = 11, solid = [0.03, 2], bomb = [0.03, 2], red = [0.04, 3], red_rows = 4, crit = 3, refresh = 1},
-	elite = {cols = 13, solid = [0.05, 4], bomb = [0.04, 3], red = [0.06, 6], crit = 4, refresh = 2},
-	boss = {cols = 15, solid = [0.06, 6], bomb = [0.05, 4], red = [0.08, 10], crit = 5, refresh = 2},
+	fight = {cols = 11, solid = [0.03, 2], bomb = [0.03, 2], red = [0.04, 3], red_rows = 4},
+	elite = {cols = 13, solid = [0.05, 4], bomb = [0.04, 3], red = [0.06, 6]},
+	boss = {cols = 15, solid = [0.06, 6], bomb = [0.05, 4], red = [0.08, 10]},
 }
-const BOARD_KEYS := {".": "", "x": "plain", "?": "?", "#": "solid", "b": "bomb", "R": "red", "c": "crit", "r": "refresh", "g": "gold"}  # "" empty, "?" rolled
+const BOARD_KEYS := {".": "", "x": "plain", "?": "?", "#": "solid", "b": "bomb", "R": "red", "r": "refresh", "g": "gold"}  # "" empty, "?" rolled
 
 # Board brick kinds. hp: hits to break (-1 never). dmg: damage per break (the ball stores ball.dmg * brick.dmg).
 # face: the still look, a sprite name or [strip, frame width, frame]. idle: a looping [strip, frame width, fps] over it.
 # halo: a looping 60-wide strip behind it. hue: the colour group (docs/palette.md), which picks the <hue>_hit/_break/_spawn
-# strips: mag basic, ora bomb, blue crit, mint refresh, red hazard. armed: the bomb's face and idle once its first hit arms it. hurt: HP a ball
+# strips: mag basic, ora bomb, mint refresh, red hazard. armed: the bomb's face and idle once its first hit arms it. hurt: HP a ball
 # break of a red costs the player. Behaviour: arena.gd _hit, _damage, _effect (adding a kind: CLAUDE.md).
 const BRICKS := {
 	plain = {hp = 1, dmg = 1, hue = "mag", face = "brick_plain_lit"},
 	solid = {hp = -1, dmg = 0, face = "brick_solid"},  # ponytail: no hue, so it spawns with mag_spawn; a chrome_spawn strip is step 9's call
 	bomb = {hp = 2, dmg = 0, hue = "ora", face = ["icon_bomb_pulse", 30, 0], idle = ["icon_bomb_pulse", 30, 8], halo = "halo_pulse_ora",  # first hit arms, second blasts
 		armed = {face = ["bomb_fuse", 30, 0], idle = ["bomb_fuse", 30, 8]}},
-	crit = {hp = 1, dmg = 1, hue = "blue", face = ["crit_pulse", 30, 0], idle = ["crit_pulse", 30, 8], halo = "halo_pulse"},  # launches the bag's next ball
-	refresh = {hp = 1, dmg = 1, hue = "mint", face = ["refresh_pulse", 30, 0], idle = ["refresh_pulse", 30, 8]},  # regrows the layout
+	refresh = {hp = 1, dmg = 1, hue = "mint", face = ["refresh_pulse", 30, 0], idle = ["refresh_pulse", 30, 8]},  # regrows the layout, re-rolls the refresh slots
 	red = {hp = 1, dmg = 0, hue = "red", hurt = 3, face = "brick_red"},  # a ball break costs the player HP; a blast just removes it
 	gold = {hp = 1, dmg = 1, hue = "gold", gold = 5, face = "brick_gold"},  # pays `gold` on a break; an enemy with `jackpot` pays that instead, only when every gold brick breaks in one phase
 }
-const ICON_KINDS := ["crit", "refresh", "bomb"]  # kinds whose face is a pulse strip (an idle row above), not a static
+const ICON_KINDS := ["refresh", "bomb"]  # kinds whose face is a pulse strip (an idle row above), not a static
 
 # Icon effects
 const SPEED_MIN := 0.6  # ball speed multipliers
@@ -133,7 +133,7 @@ const BALLS := {
 	ball_token = {name = "TOKEN", desc = "PAYS OUT EVERY NTH BREAK", rarity = "common", dmg = [1, 2, 3], size = 1.0, speed = 1.0, pays = [8, 6, 4], gold = 1, map = 1},
 	ball_rubber = {name = "RUBBER", desc = "BOUNCES OFF THE FLOOR", rarity = "uncommon", dmg = [1, 2, 3], size = 1.0, speed = 1.0, floor = [1, 2, 3], map = 1},
 	ball_magnet = {name = "MAGNET", desc = "DRAWN TO THE PADDLE", rarity = "uncommon", dmg = [2, 3, 4], size = 1.0, speed = 1.0, magnet = [0.5, 1.0, 1.5], map = 1},
-	ball_junk = {name = "STONE", desc = "STORES NOTHING", rarity = "none", dmg = [0, 0, 0], size = 1.0, speed = 0.9, pitch = 0.6},  # never a card, no ranks, its crits launch nothing
+	ball_junk = {name = "STONE", desc = "STORES NOTHING", rarity = "none", dmg = [0, 0, 0], size = 1.0, speed = 0.9, pitch = 0.6},  # never a card, no ranks, its opener crits launch nothing
 }
 const SPLIT_DEG := 20.0  # a splitter's halves fan from -SPLIT_DEG to +SPLIT_DEG about its heading
 
@@ -151,7 +151,7 @@ const ENEMIES := {
 		"....xxx....",
 		"..xx???xx..",
 		".x??xRx??x.",
-		"x??xRcRx??x",  # the goo core: a crit behind reds
+		"x??xRxRx??x",  # the goo core behind reds
 		".x??xRx??x.",
 		"..xx???xx..",
 		"....xxx....",
@@ -167,7 +167,7 @@ const ENEMIES := {
 	mason = {role = "regular", tier = 3, hp = 55, cd = 12.0, intents = [["shield_row", 1], ["debris", 6]], off = -4, w = 64, board = {rows = [
 		"??xxxxxxx??",
 		"?x#######x?",
-		"?x#?ccc?#x?",  # the vault
+		"?x#?xxx?#x?",  # the vault
 		"?x#?????#x?",
 		"?x##xxx##x?",  # the door
 		"??xxxxxxx??",
@@ -175,20 +175,20 @@ const ENEMIES := {
 	warden = {role = "elite", tier = 4, hp = 120, cd = 10.0, riposte = 10, intents = [["laser_sweep", 1], ["enemy_balls", 3], ["shield_row", 1]], off = -5, w = 64, board = {rows = [
 		"xxx#xxxxx#xxx",
 		"x??#????#??x",  # odd rows one short: honeycomb, so the pillars zigzag
-		"x??#??c??#??x",
+		"x??#??x??#??x",
 		"x??#????#??x",
-		"x??#?c?c?#??x",
+		"x??#?x?x?#??x",
 		"x??#????#??x",
-		"x??#??c??#??x",
+		"x??#??x??#??x",
 		"xxx.xxxx.xxx",
 	]}},
 	rat_king = {role = "regular", tier = 1, hp = 35, cd = 12.0, intents = [["coin_junk", 1], ["debris", 3]], off = 3, w = 64, board = {rows = [
-		"c?xxxxxxx?c",  # the nest: crits in the four corners
+		"x?xxxxxxx?x",  # the nest
 		"?xx?????xx?",
 		"xx???????xx",
 		"xx???????xx",
 		"?xx?????xx?",
-		"c?xxxxxxx?c",
+		"x?xxxxxxx?x",
 	]}},
 	coin_slug = {role = "regular", tier = 1, hp = 40, cd = 10.0, intents = [["coin_junk", 2], ["red_bricks", 2]], off = -1, w = 48, board = {rows = [
 		"...xxxxx...",
@@ -210,23 +210,23 @@ const ENEMIES := {
 	]}},
 	claw_rig = {role = "regular", tier = 2, hp = 50, cd = 10.0, intents = [["pull", 1], ["enemy_balls", 2]], off = -3, w = 64, board = {rows = [
 		"xx???????xx",
-		"x?#..c..#?x",  # two pillars, the prize lane of crits between them
-		"x?#.c.c.#?x",
-		"x?#..c..#?x",
+		"x?#..x..#?x",  # two pillars, the prize lane between them
+		"x?#.x.x.#?x",
+		"x?#..x..#?x",
 		"x?#.....#?x",
 		"xx???????xx",
 	]}},
 	ticket_printer = {role = "regular", tier = 2, hp = 45, cd = 12.0, advance = 1, intents = [["jam", 1], ["red_bricks", 4]], off = 2, w = 48, board = {rows = [
 		"xxxxxxxxxxx",  # the paper: rows that feed toward the paddle a phase at a time
-		"?c???????c?",
+		"?x???????x?",
 		"xxxxxxxxxxx",
-		"????c??????",
+		"????x??????",
 		"xxxxxxxxxxx",
 	]}},
 	bootleg_cabinet = {role = "regular", tier = 3, hp = 55, cd = 10.0, intents = [["enemy_balls", 3], ["debris", 4]], off = -2, w = 48, board = {rows = [
 		"x#########x",  # the case
 		"x#???????#x",
-		"x#?R?c?R?#x",  # the cracked screen
+		"x#?R?x?R?#x",  # the cracked screen
 		"x#???????#x",
 		"x#xxxxxxx#x",
 		"x.........x",
@@ -235,7 +235,7 @@ const ENEMIES := {
 	repo_man = {role = "elite", tier = 4, hp = 110, cd = 10.0, steal = 1, shield_start = true, intents = [["shield_row", 1], ["coin_junk", 2], ["debris", 6]], off = -6, w = 64, board = {rows = [
 		"x???????????x",
 		"x?#########?x",  # the vault
-		"x?#?c?c?c?#?x",
+		"x?#?x?x?x?#?x",
 		"x?#???????#?x",
 		"x?###???###?x",  # the door
 		"x???????????x",
@@ -259,7 +259,7 @@ const ENEMIES := {
 	attract_mode = {role = "boss", tier = 5, hp = 220, cd = 8.0, enraged = {at = 0.5, cd = 8.0, mimic = true},
 		intents = [["jam", 1], ["enemy_balls", 5], ["pull", 1]], off = -8, w = 160, board = {top = 32, no_refresh_rows = 2, rows = [
 		"x#############x",  # the screen frame
-		"x#..ccc..cc..#x",  # the top score
+		"x#..xxx..xx..#x",  # the top score
 		"x#.xxxxx.xx.x#x",  # the table
 		"x#.xxxxx.xx.x#x",
 		"x#.?????.??.?#x",
@@ -276,7 +276,7 @@ const ENEMIES := {
 		"xx???????????xx",
 		"x?#.#.#.#.#.#?x",  # upper teeth
 		"x?...........?x",
-		"x?....ccc....?x",  # the throat
+		"x?....xxx....?x",  # the throat
 		"x?...........?x",
 		"x?#.#.#.#.#.#?x",  # lower teeth
 		"xx???????????xx",

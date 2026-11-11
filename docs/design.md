@@ -6,6 +6,8 @@
 
 *Direction change, 2026-11-10: fights become authored **encounters** of **organs** (enemies that live on the board), damage is cashed in by a ball hitting an organ instead of the paddle, and bombs arm then detonate. The first slice landed the same day (the knight encounter, organ cash-in, armed bombs, placeholder organ art; every old enemy plays as a one-organ encounter through a bridge) and its rows are in `docs/content.md`; what has not landed (scripts, `grow`, the mouth organ, magnet flipping, per-organ art, converting the enemies) stays in `docs/content/encounters.md`. This file describes the new direction.*
 
+*2026-11-11: an organ consumes the ball that touches it (its charge lands, the ball goes to the discard pile), so the player moves on to the next ball; the crit brick is cut; a broken refresh brick regrows the whole board and moves every refresh brick (default 1 per board). docs/content.md has the details; the crit and refresh lines below predate this.*
+
 ## Unique selling point
 
 Peglin's loop (shoot an orb into a peg board, damage is the pegs you hit, collect orbs and relics across a branching map, die and start over) with breakout physics instead of pachinko. In Peglin a shot is a roll of the dice once it leaves the launcher and a phase is one orb; here a phase has no clock and can in principle last forever, because the paddle keeps the ball alive. What ends it is the player: crit bricks launch the next ball in the bag, so a good rally keeps adding balls until there are more than two hands can juggle. Paddle skill is the floor, the ball bag and relics are the engine, generated boards are the variance.

@@ -94,10 +94,10 @@ Event frame: panel (120,60) 400x230 sprite px, title k2 `pay`, body k1 wrapped 3
 | `phase_start` | bag empty: shuffle the discard pile into it. `< regen_below` breakables: free refresh. Rest `bag[0]` on the paddle; click/space launches straight up with the paddle-offset angle | | `ball_launch st(rank-1)` (junk `0.6`) |
 | `discard` | once per phase while a ball rests: D / right-click / DISCARD button; head ball to the discard pile, next rests | | `ui_drop 1.0` |
 | `store` | a ball breaking a brick adds `ball.dmg * brick.dmg` to `ball.stored` (relic `combo` scales) | `stored_tag` 25x8 x4 @8 rides 6 sprite px above the ball, number as a `pay` label, hidden at 0 | |
-| `fire` | a ball touching any cell of an organ (`_organ_hit`): `organ.hp -= stored`, `stored = 0`, poison moves onto the organ, the ball bounces; two cells of one organ in one frame are one hit; 0 stored and 0 poison is refused. A paddle hit lands nothing: the ball keeps its charge. Riposte (warden): 10+ landed takes `RIPOSTE_CUT` 2 s off that organ's countdown | `damage_fire` 60x8 x6 @12 on the cell; `organ_hit` on every cell of the organ, tinted; band `<band>_hit` | `damage_land`: 1-9 `1.0`, 10-29 `st(2)`, 30-99 `st(4)`, 100+ `st(7)`; `bumper_hit 0.6*st(off)`; refused `hit_refused 1.0`; paddle contact: `paddle_hit` speed ladder (heavy `0.7`) |
+| `fire` | a ball touching any cell of an organ (`_organ_hit`): `organ.hp -= stored`, `stored = 0`, poison moves onto the organ, and the organ consumes the ball (to the discard pile like a quiet drop: no `ball_lost`, no `steal`), so the phase moves on once it was the last ball; two cells of one organ in one frame are one hit; 0 stored and 0 poison is refused (and still consumed). A paddle hit lands nothing: the ball keeps its charge. Riposte (warden): 10+ landed takes `RIPOSTE_CUT` 2 s off that organ's countdown | `damage_fire` 60x8 x6 @12 on the cell; `organ_hit` on every cell of the organ, tinted; band `<band>_hit` | `damage_land`: 1-9 `1.0`, 10-29 `st(2)`, 30-99 `st(4)`, 100+ `st(7)`; `bumper_hit 0.6*st(off)`; refused `hit_refused 1.0`; paddle contact: `paddle_hit` speed ladder (heavy `0.7`) |
 | `drop` | past the paddle line: stored lost, ball to the discard pile; relics `shield_floor`, `recall` intercept | `ball_lost` 12x12 x6 @12 (exists) | `ball_lost 1.0` if it carried damage, else `0.7` at gain 0.5 |
 | `countdown` | each live organ's `cd` seconds tick down while a ball is in flight, shown rounded up; at 0 the intent fires, next intent shows, `cd` resets | intent icon pulses alpha 0.6..1 at 2 Hz in the last second | `timed_off 1.0` as it crosses 1 s; `hit_refused 0.5*st(off)` as it fires |
-| `crit` | `crit` breaks: launch `bag.pop_front()` from the paddle straight up; empty bag: nothing | `crit_launch` | `multiball_pop st(2*min(n,4))`, n = balls already in play; empty `hit_refused 0.8` |
+| `crit` | relic `opener` (there is no crit brick): launch `bag.pop_front()` from the paddle straight up; empty bag: nothing | `crit_launch` | `multiball_pop st(2*min(n,4))`, n = balls already in play; empty `hit_refused 0.8` |
 | `empty_board` | no breakable left, a ball live: after 1.0 s one `refresh` spawns at a random original slot | `mint_spawn` | |
 | `phase_end` | `balls_in_play == 0`: `on_phase_end` hooks, poison tick, in-flight hazards (`enemy_balls`, `debris`) removed, placed ones (red bricks, shield row, laser telegraph) stay; 0.8 s beat; `phase_start` | | `combo_drop 0.8`; poison `pips_shrink 0.8` |
 | `organ_die` | `organ.hp <= 0`: its cells break and go, its clock stops, hazards already out keep going | `organ_die` 44x20 x8 @12 per cell, tinted | `enemy_die st(off)` |
@@ -119,7 +119,7 @@ Common: `dmg` is per brick broken, `size` and `speed` multiply `BALL_RADIUS` 8 a
 | `ball_sticky` | GUM | uncommon | 2/3/4 | 1.0 | 1.0 | the first `catches` = 1/2/3 paddle contacts per phase catch it: damage fires, the ball sits `STICKY_HOLD` 1.5 s or until click/space, relaunches toward the mouse clamped to `MAX_BOUNCE_DEG` | `ball_sticky_rank` 8x8 x3; `sticky_hold` 30x16 x6 @8 (exists, holds its last frame) | `sticky_catch 1.0`, `sticky_fire 1.0` |
 | `ball_bomb` | BLASTER | uncommon | 1/2/3 | 1.0 | 1.0 | every `every` = 5/4/3rd brick it breaks (per fight) also fires a `BOMB_RADIUS` blast at that brick through `_trigger`; blast-broken bricks are credited to this ball, no direct damage | `ball_bomb_rank` 8x8 x3; `bomb_ring` 60x60 x4 @12 (exists) | `bomb_boom 1.0` |
 | `ball_poison` | SPORE | rare | 0/0/1 | 1.0 | 1.0 | each brick also stores `poison` = 1/2/3 stacks; stacks land with the damage; tick at phase end (above) | `ball_poison_rank` 8x8 x3; `ball_poison_land` 12x12 x4 @12 on the paddle | tick `pips_shrink 0.8` |
-| `ball_junk` | STONE | none | 0 | 1.0 | 0.9 | breaks bricks, stores nothing, a crit it breaks does not launch; no ranks, never a card, removable at the shop, added by `event_vendor`, `event_coin_return` and the `coin_junk` hazard | `ball_junk_rank` 8x8 x1 | launch `ball_launch 0.6`, its breaks `brick_break 0.6` |
+| `ball_junk` | STONE | none | 0 | 1.0 | 0.9 | breaks bricks, stores nothing, its `opener` crit does not launch; no ranks, never a card, removable at the shop, added by `event_vendor`, `event_coin_return` and the `coin_junk` hazard | `ball_junk_rank` 8x8 x1 | launch `ball_launch 0.6`, its breaks `brick_break 0.6` |
 | `ball_token` | TOKEN | common, `map` 1 | 1/2/3 | 1.0 | 1.0 | every `pays` = 8/6/4th brick it breaks (per fight, counted on the bag entry like the blaster's) pays `gold` 1 (relic `toll`'s path, `_pay`) | `ball_token_rank` 8x8 x3; `toll_pay` on the brick | `coin 1.0` |
 | `ball_rubber` | RUBBER | uncommon, `map` 1 | 1/2/3 | 1.0 | 1.0 | the first `floor` = 1/2/3 drops per phase bounce it straight up off the floor (relic `shield_floor`'s `_save`, the ball's own count first) | `ball_rubber_rank` 8x8 x3; `shield_floor_pop` | `shield_pop 1.0` |
 | `ball_magnet` | MAGNET | uncommon, `map` 1 | 2/3/4 | 1.0 | 1.0 | pulled toward the paddle within `MAGNET_RADIUS` at `magnet` = 0.5/1.0/1.5 x `MAGNET_PULL`, added to relic `magnet_paddle`'s 1.0 | `ball_magnet_rank` 8x8 x3 | |
@@ -128,13 +128,12 @@ Locked: `ball_bomb` until `finished_run`, `ball_poison` until `killed_elite`. In
 
 ## Bricks (`Tuning.BRICKS`, `Tuning.BOARDS`)
 
-`hue` is an explicit field; `Tuning.hue(kind)` returns it. `ICON_KINDS = ["crit", "refresh", "bomb"]` means only "draws `<id>_pulse` instead of a static face" (`bomb` keeps `icon_bomb_pulse`). `pay` is renamed `dmg`. A blast hits each brick in reach once through `_trigger` (= `_damage(b, ball, false)`): a multi-hit brick loses one, an unarmed bomb arms, an armed bomb detonates; a brick it breaks never hurts and never refuses; crit, refresh and gold fire from any break.
+`hue` is an explicit field; `Tuning.hue(kind)` returns it. `ICON_KINDS = ["refresh", "bomb"]` means only "draws `<id>_pulse` instead of a static face" (`bomb` keeps `icon_bomb_pulse`). `pay` is renamed `dmg`. A blast hits each brick in reach once through `_trigger` (= `_damage(b, ball, false)`): a multi-hit brick loses one, an unarmed bomb arms, an armed bomb detonates; a brick it breaks never hurts and never refuses; refresh and gold fire from any break.
 
 | id | hp | dmg | hue | effect | strips | cues |
 |---|---|---|---|---|---|---|
 | `plain` | 1 | 1 | mag | basic | face `brick_plain_lit` (exists); `mag_hit` 30x12 x6 @12, `mag_break` 44x20 x8 @12, `mag_spawn` 30x12 x6 @12 (exist) | `brick_hit 1.0`, `brick_break 1.0` |
-| `crit` | 1 | 1 | blue | on break: launch the next bag ball from the paddle (see `crit` above) | `crit_pulse` 30x12 x4 @8 idle, `halo_pulse` 60x30 x4 @8 (exists), `crit_launch` 30x12 x6 @12 on break; `blue_hit`, `blue_break`, `blue_spawn` (exist); static `brick_crit` 30x12 for cards | `multiball_pop` (ladder above) |
-| `refresh` | 1 | 1 | mint | on break: every missing brick of the generated layout respawns as its original kind (enemy-added bricks, its own slot and slots a ball is in excluded); clears nothing else | `refresh_pulse` 30x12 x4 @8 idle, `refresh_wave` 60x12 x6 @12 tileable swept top to bottom; `mint_hit` 30x12 x6 @12, `mint_break` 44x20 x8 @12, `mint_spawn` 30x12 x6 @12; static `brick_refresh` | `regrow 1.0` once |
+| `refresh` | 1 | 1 | mint | on break: every refresh slot of the layout turns plain and as many plain slots (never one that held a refresh) turn refresh, by the generator's refresh rules; standing bricks whose slot changed kind swap; then every missing brick of the layout respawns as its slot's kind (enemy-added bricks, its own slot and slots a ball is in excluded); clears nothing else. The phase-start and empty-board refreshes only regrow | `refresh_pulse` 30x12 x4 @8 idle, `refresh_wave` 60x12 x6 @12 tileable swept top to bottom; `mint_hit` 30x12 x6 @12, `mint_break` 44x20 x8 @12, `mint_spawn` 30x12 x6 @12; static `brick_refresh` | `regrow 1.0` once |
 | `solid` | -1 | 0 | chrome | unbreakable | face `brick_solid`, `solid_bounce` 44x20 x6 @12 (exist) | `solid_bounce 1.0` |
 | `bomb` | 2 | 0 | ora | the first hit arms it (`armed`: face and idle `bomb_fuse`, `ora_hit` flash, `cond_primed 1.0`); the second breaks it: `_blast` hits every brick with its centre within `BOMB_RADIUS` 72 once (armed bombs chain in the same frame, unarmed ones arm); the charge of every brick it breaks goes to the detonating ball. No direct damage; organs are never touched. A needle bounces off an unarmed bomb. Refresh regrows bombs unarmed | `icon_bomb_pulse` 30x12 x4 @8 (exists, body recoloured orange), `halo_pulse_ora` 60x30 x4 @8, `bomb_ring` 60x60 x4 @12; `ora_hit`, `ora_break`, `ora_spawn` (exist) | `bomb_boom 1.0` |
 | `red` | 1 | 0 | red | a ball breaking it costs the player `hurt` = 3 HP at the moment of the break; a blast just removes it | static `brick_red` 30x12; `red_hit` 30x12 x6 @12, `red_break` 44x20 x8 @12 (debris falls), `red_spawn` 30x12 x6 @12 | `brick_break 0.7`, `hp_lose` (ladder) at delay 0.05 |
@@ -142,35 +141,37 @@ Locked: `ball_bomb` until `finished_run`, `ball_poison` until `killed_elite`. In
 
 ### Generator (`Game.generate(cls, seed, board)`)
 
-Every encounter draws its own board: `board.rows` in `tuning.gd` `ENCOUNTERS` or `ENEMIES` (bridged, see Encounters and organs), one glyph per brick from `BOARD_KEYS`: `.` empty, `x` plain, `?` rolled, `#` solid, `b` bomb, `R` red, `c` crit, `r` refresh, `g` gold; a digit `1`-`9` is a cell of the encounter's organ n (`organs[n - 1]`), never rolled or converted, kind `organ` with `organ = n - 1`. Each row centres on the arena, so a row one shorter than its neighbours sits half a step over (honeycomb). Drawn kinds stand as drawn; each `?` rolls `solid`, `bomb`, `red` at the class's per-brick chance under its hard `max`, in that order; then plain bricks convert until the board holds at least `crit` and `refresh` of each (drawn ones count).
+Every encounter draws its own board: `board.rows` in `tuning.gd` `ENCOUNTERS` or `ENEMIES` (bridged, see Encounters and organs), one glyph per brick from `BOARD_KEYS`: `.` empty, `x` plain, `?` rolled, `#` solid, `b` bomb, `R` red, `r` refresh, `g` gold; a digit `1`-`9` is a cell of the encounter's organ n (`organs[n - 1]`), never rolled or converted, kind `organ` with `organ = n - 1`. Each row centres on the arena, so a row one shorter than its neighbours sits half a step over (honeycomb). Drawn kinds stand as drawn; each `?` rolls `solid`, `bomb`, `red` at the class's per-brick chance under its hard `max`, in that order; then plain bricks convert until the board holds `refresh` (default 1; drawn ones count).
 
 Arena is always `Tuning.ARENA`. `BOARD_TOP = 168`, `BOARD_FLOOR = 240`, step 64x28, max rows 11 (boss 10, it sits 32 lower). `test.gd` asserts every brick fits, the widest row is exactly the class's `cols` (the lane grid for `laser_sweep` and `shield_row`), and every non-solid glyph is reachable from outside the layout past the drawn solids.
 
-| class | cols | solid | bomb | red | crit | refresh |
-|---|---|---|---|---|---|---|
-| `fight` | 11 | 0.03 max 2 | 0.03 max 2 | 0.04 max 3, rows 0-3 only | 3 | 1 |
-| `elite` | 13 | 0.05 max 4 | 0.04 max 3 | 0.06 max 6 | 4 | 2 |
-| `boss` | 15 | 0.06 max 6 | 0.05 max 4 | 0.08 max 10 | 5 | 2 |
+| class | cols | solid | bomb | red | refresh |
+|---|---|---|---|---|---|
+| `fight` | 11 | 0.03 max 2 | 0.03 max 2 | 0.04 max 3, rows 0-3 only | 1 |
+| `elite` | 13 | 0.05 max 4 | 0.04 max 3 | 0.06 max 6 | 1 |
+| `boss` | 15 | 0.06 max 6 | 0.05 max 4 | 0.08 max 10 | 1 |
 
-Placement rules for `?` rolls (a failing roll stays `plain`): `solid` never touching `solid`, never at a row's ends or in the bottom row; `red` never touching `red`. Conversions: `crit` takes a `plain` with no `solid` or `crit` touching, in the column with the fewest crits; `refresh` a `plain` in the top half, not touching a `crit`, never two in one column; if a conversion runs out of eligible bricks the rules drop and the count stays.
+Placement rules for `?` rolls (a failing roll stays `plain`): `solid` never touching `solid`, never at a row's ends or in the bottom row; `red` never touching `red`. Conversions (`Game.place_refresh`, also the arena's re-roll): `refresh` takes a `plain` in the top half, never two in one column; if a conversion runs out of eligible bricks the rules drop and the count stays.
+
+The crit brick was cut on 2026-11-11 (an organ now consumes the ball that touches it, so the phase moves to the next ball instead of multiballing); every drawn `c` became `x`. The `crit` launch lives on only through the `opener` and `twin_crit` relics.
 
 | enemy | layout | idea |
 |---|---|---|
-| `glob` | 7-row blob, a drawn crit ringed by 4 drawn reds | the goo core: the crit costs HP to reach |
+| `glob` | 7-row blob, a plain core ringed by 4 drawn reds | the goo core costs HP to reach |
 | `lobber` | battlements, a wall, solid side towers, a 3-wide gate in the bottom row | a fortress you enter by the gate or by breaking in |
-| `mason` | a solid ring around a vault of 3 drawn crits, a 3-plain door at the bottom | break in; the shield row seals the top |
-| `warden` | two solid pillars full height (zigzag on the honeycomb), 4 drawn crits in the middle chamber | three lanes, and the laser sweeps lanes |
-| `maw` | jaws of plain, two rows of solid teeth with one-brick gaps, 3 drawn crits floating in the throat | shoot between the teeth |
-| `rat_king` | 6-row nest of plains, a drawn crit in each corner | the crits are at the edges, where the ball goes last |
+| `mason` | a solid ring around a vault of plains, a 3-plain door at the bottom | break in; the shield row seals the top |
+| `warden` | two solid pillars full height (zigzag on the honeycomb), plains in the middle chamber | three lanes, and the laser sweeps lanes |
+| `maw` | jaws of plain, two rows of solid teeth with one-brick gaps, plains floating in the throat | shoot between the teeth |
+| `rat_king` | 6-row nest of plains, plains to the corners | the corners are where the ball goes last |
 | `coin_slug` | 7-row blob with one drawn gold brick in the middle | dig for the coin |
 | `fuse_box` | plain walls top and bottom, a diagonal fuse of 5 drawn bombs (each 69.8 px from the next, inside `BOMB_RADIUS`) | light one end and the fuse arms down the line: each blast arms the next bomb, so one more hit apiece sets it off, the bricks it breaks credited to that ball (bombs deal no direct damage) |
-| `claw_rig` | two drawn solid pillars, 4 drawn crits in the open lane between them | the prize lane |
-| `ticket_printer` | 5 rows, plain lines between rows of rolled bricks with 3 drawn crits; `advance` 1: the whole layout slides a row toward the paddle each phase while the lowest row stays above `BOARD_FLOOR` (5 phases) | the paper feeds out |
-| `bootleg_cabinet` | a drawn solid case around a cracked screen (2 drawn reds beside a crit), a plain shelf, an open row and a coin door | break the case or go in by the door |
-| `repo_man` | a solid vault of 3 drawn crits with a 3-wide door at the bottom; `shield_start`: the shield row stands at fight start | the vault opens from below; the shield row seals the top first |
-| `arcade_bouncer` | two drawn solid rope lines narrowing toward the top (a V), plains across the bottom | the lane tightens where the crits convert |
+| `claw_rig` | two drawn solid pillars, plains in the open lane between them | the prize lane |
+| `ticket_printer` | 5 rows, plain lines between rows of rolled bricks; `advance` 1: the whole layout slides a row toward the paddle each phase while the lowest row stays above `BOARD_FLOOR` (5 phases) | the paper feeds out |
+| `bootleg_cabinet` | a drawn solid case around a cracked screen (2 drawn reds beside a plain), a plain shelf, an open row and a coin door | break the case or go in by the door |
+| `repo_man` | a solid vault of plains with a 3-wide door at the bottom; `shield_start`: the shield row stands at fight start | the vault opens from below; the shield row seals the top first |
+| `arcade_bouncer` | two drawn solid rope lines narrowing toward the top (a V), plains across the bottom | the lane tightens toward the top |
 | `jackpot_reel` | three 3-wide reels of plains with a drawn gold brick in each, a plain line below | all three golds in one phase pays the jackpot |
-| `attract_mode` | a solid screen frame, open at the bottom; inside, a high-score table of plains with 5 drawn crits as the top score, `BOARD_TOP` +32, no `refresh` in rows 0-1 | play the table from the bottom up |
+| `attract_mode` | a solid screen frame, open at the bottom; inside, a high-score table of plains with plains as the top score, `BOARD_TOP` +32, no `refresh` in rows 0-1 | play the table from the bottom up |
 
 ### Every existing `tuning.gd` kind and constant
 
@@ -214,21 +215,21 @@ Each row is a one-organ encounter through the bridge. `tier` = earliest layer. I
 
 | id | role | tier | HP | cd | board | intents | strips (W x 48 sprite px) | cues (`off` st) |
 |---|---|---|---|---|---|---|---|---|
-| `glob` | regular | 1 | 30 | 12 s | goo blob, crit behind reds | `red_bricks` x3, `debris` x4 | `glob_idle` 48 x4 @8, `glob_hit` 48 x6 @12, `glob_attack` 48 x6 @12, `glob_die` 48 x8 @12 | 0 |
+| `glob` | regular | 1 | 30 | 12 s | goo blob, a core behind reds | `red_bricks` x3, `debris` x4 | `glob_idle` 48 x4 @8, `glob_hit` 48 x6 @12, `glob_attack` 48 x6 @12, `glob_die` 48 x8 @12 | 0 |
 | `lobber` | regular | 1 | 40 | 10 s | fortress with a gate | `enemy_balls` x1, `enemy_balls` x3 | `lobber_idle/_hit/_attack/_die` 48, same counts | -2 |
-| `mason` | regular | 3 | 55 | 12 s | solid-ringed vault of crits | `shield_row`, `debris` x6 | `mason_*` 64 | -4 |
-| `warden` | elite | 4 | 120 | 10 s | two solid pillars, crits in the middle lane; **riposte**: an organ hit landing 10+ takes 2 s off the countdown | `laser_sweep` x1, `enemy_balls` x3, `shield_row` | `warden_*` 64 | -5 |
-| `maw` | boss | 5 | 240 | 8 s | jaws with solid teeth, crits in the throat, `BOARD_TOP` +32, no `refresh` in rows 0-1; below 50% HP `cd` 6 s and the mouth holds 6 hits | `debris` x8, `mouth`, `laser_sweep` x2 | `maw_*` 160; `maw_mouth_open` 48x16 x6 @12 (hold last), `maw_mouth_close` 48x16 x6 @12 | -7 |
-| `rat_king` | regular | 1 | 35 | 12 s | nest, crits in the corners | `coin_junk` x1, `debris` x3 | `rat_king_*` 64 | +3 |
+| `mason` | regular | 3 | 55 | 12 s | solid-ringed vault | `shield_row`, `debris` x6 | `mason_*` 64 | -4 |
+| `warden` | elite | 4 | 120 | 10 s | two solid pillars, a middle lane; **riposte**: an organ hit landing 10+ takes 2 s off the countdown | `laser_sweep` x1, `enemy_balls` x3, `shield_row` | `warden_*` 64 | -5 |
+| `maw` | boss | 5 | 240 | 8 s | jaws with solid teeth, plains in the throat, `BOARD_TOP` +32, no `refresh` in rows 0-1; below 50% HP `cd` 6 s and the mouth holds 6 hits | `debris` x8, `mouth`, `laser_sweep` x2 | `maw_*` 160; `maw_mouth_open` 48x16 x6 @12 (hold last), `maw_mouth_close` 48x16 x6 @12 | -7 |
+| `rat_king` | regular | 1 | 35 | 12 s | nest | `coin_junk` x1, `debris` x3 | `rat_king_*` 64 | +3 |
 | `coin_slug` | regular | 1 | 40 | 10 s | one gold brick mid blob | `coin_junk` x2, `red_bricks` x2 | `coin_slug_*` 48 | -1 |
 | `fuse_box` | regular | 2 | 45 | 12 s | a diagonal fuse of bombs | `red_bricks` x2, `debris` x6 | `fuse_box_*` 48 | +1 |
-| `claw_rig` | regular | 2 | 50 | 10 s | two pillars, a lane of crits | `pull` x1, `enemy_balls` x2 | `claw_rig_*` 64 | -3 |
+| `claw_rig` | regular | 2 | 50 | 10 s | two pillars, a lane between | `pull` x1, `enemy_balls` x2 | `claw_rig_*` 64 | -3 |
 | `ticket_printer` | regular | 2 | 45 | 12 s | rows that feed toward the paddle; **advance** 1 row per phase | `jam` x1, `red_bricks` x4 | `ticket_printer_*` 48 | +2 |
 | `bootleg_cabinet` | regular | 3 | 55 | 10 s | a solid case, a cracked screen | `enemy_balls` x3, `debris` x4 | `bootleg_cabinet_*` 48 | -2 |
 | `repo_man` | elite | 4 | 110 | 10 s | a vault, the shield row up at fight start; **steal** 1: every ball that drops costs 1 gold (not below 0) | `shield_row`, `coin_junk` x2, `debris` x6 | `repo_man_*` 64 | -6 |
 | `arcade_bouncer` | elite | 4 | 130 | 10 s | solid rope lines narrowing upward; **twice** 0.3: a phase's first intent fires again 0.3 s later | `jam` x2, `enemy_balls` x4 | `arcade_bouncer_*` 64 | -5 |
 | `jackpot_reel` | elite | 4 | 115 | 12 s | three reels with a gold brick each; **jackpot** 30: its gold bricks pay only when all three break in one phase | `pull` x1, `red_bricks` x3, `debris` x8 | `jackpot_reel_*` 64 | -3 |
-| `attract_mode` | boss | 5 | 220 | 8 s | a screen frame, a high-score table of crits, `BOARD_TOP` +32, no `refresh` in rows 0-1; below 50% HP **mimic**: each `enemy_balls` ball copies the run bag's next ball in order (its size and speed; a splitter's fan of `split` copies; a needle has nothing to pass and flies plain) | `jam` x1, `enemy_balls` x5, `pull` x1 | `attract_mode_*` 160 | -8 |
+| `attract_mode` | boss | 5 | 220 | 8 s | a screen frame, a high-score table, `BOARD_TOP` +32, no `refresh` in rows 0-1; below 50% HP **mimic**: each `enemy_balls` ball copies the run bag's next ball in order (its size and speed; a splitter's fan of `split` copies; a needle has nothing to pass and flies plain) | `jam` x1, `enemy_balls` x5, `pull` x1 | `attract_mode_*` 160 | -8 |
 
 Enrage is one rule: a row's `enraged` fields (`cd`, `mouth`, `mimic`) merge into the enemy once its HP is at or below `enraged.at` of its max (`_land`).
 

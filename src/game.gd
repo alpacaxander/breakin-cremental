@@ -445,9 +445,8 @@ func _ints(v: Variant) -> Variant:
 ## organs}, which stand as drawn. board.rows is the drawn layout (Tuning.BOARD_KEYS): drawn kinds stand, and each
 ## "?" rolls solid / bomb / red in that order under their max; a roll that breaks a placement rule (solid off the row's
 ## ends and the bottom row and never touching a solid, red in its rows and never touching a red) stays plain. Then plain
-## bricks convert until there are at least crit and refresh of each: crit away from solids and crits in the column with
-## the fewest, refresh in the top half away from crits and one per column; a conversion with nothing eligible drops its
-## rules so the count holds. Touching means within one column step, so offset rows count their pair.
+## bricks convert to refresh until there are the class's count (place_refresh). Touching means within one column step, so
+## offset rows count their pair.
 ## board: rows, top (px below BOARD_TOP), no_refresh_rows.
 func generate(cls: String, seed: int, board: Dictionary) -> Array:
 	var rng := RandomNumberGenerator.new()
@@ -480,22 +479,20 @@ func generate(cls: String, seed: int, board: Dictionary) -> Array:
 			b.kind = "plain"  # a failing slot rolls plain
 		if b.kind in count:
 			count[b.kind] += 1
-	var plain := func(ok: Callable) -> Array:
-		var e: Array = out.filter(func(b): return b.kind == "plain" and ok.call(b))
-		return e if e else out.filter(func(b): return b.kind == "plain")  # nothing eligible: the rules drop, the count holds
-	var crits := func(col: int) -> int: return out.filter(func(o): return o.kind == "crit" and o.col == col).size()
-	var drawn := func(kind: String) -> int: return out.filter(func(o): return o.kind == kind).size()
-	for i in B.crit - drawn.call("crit"):
-		var e: Array = plain.call(func(b): return not near.call(b, "solid") and not near.call(b, "crit"))
-		if e.is_empty():
-			break
-		var least: int = e.map(func(b): return crits.call(b.col)).min()
-		e = e.filter(func(b): return crits.call(b.col) == least)
-		e[rng.randi() % e.size()].kind = "crit"
-	for i in B.refresh - drawn.call("refresh"):
-		var one_per_col := func(b: Dictionary) -> bool: return not out.any(func(o): return o.kind == "refresh" and o.col == b.col)
-		var e: Array = plain.call(func(b): return b.row >= board.get("no_refresh_rows", 0) and b.row < rows.size() / 2 and not near.call(b, "crit") and one_per_col.call(b))
-		if e.is_empty():
-			break
-		e[rng.randi() % e.size()].kind = "refresh"
+	place_refresh(out, B.get("refresh", 1) - out.filter(func(o): return o.kind == "refresh").size(), board, rng)
 	return out
+
+
+## Turns n plain slots of a generated board into refresh: in the top half below board.no_refresh_rows, one per column,
+## never a slot in skip (an arena refresh passes the old refresh slots, so they move). Nothing eligible drops the rules so
+## the count holds; no plain left stops short.
+func place_refresh(slots: Array, n: int, board: Dictionary, rng: RandomNumberGenerator, skip := []) -> void:
+	for i in n:
+		var plain: Array = slots.filter(func(b): return b.kind == "plain" and not skip.has(b))
+		var e: Array = plain.filter(func(b): return b.row >= board.get("no_refresh_rows", 0) and b.row < board.rows.size() / 2 \
+				and not slots.any(func(o): return o.kind == "refresh" and o.col == b.col))
+		if e.is_empty():
+			e = plain
+		if e.is_empty():
+			return
+		e[rng.randi() % e.size()].kind = "refresh"

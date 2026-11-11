@@ -85,39 +85,53 @@ func _ready() -> void:
 	var cd_e: float = o0.cd_left
 	a._paddle_hit(ball)
 	assert(o0.hp == hp_e and ball.stored == stored, "paddle contact keeps the charge")
+	var in_discard: int = a.discard.size()
 	a._organ_hit(o0, ball, o0.cells[0])
 	assert(o0.hp == hp_e - stored and ball.stored == 0 and ball.tag.text == "" and not ball.tag_s.visible and a.phase_dmg == stored and o0.cd_left == cd_e, "an organ cell cashes the stored damage in and leaves the clock alone")
-	await get_tree().physics_frame
+	assert(not ball in a.balls and ball.is_queued_for_deletion() and a.discard.size() == in_discard + 1, "the organ consumed the ball to the discard pile")
+	ball = a._add_ball({id = "ball_basic", rank = 1}, Vector2(30, 600))
+	a._launch(ball)
 	a._organ_hit(o0, ball, o0.cells[0])
-	assert(o0.hp == hp_e - stored, "a 0-charge touch is refused")
+	assert(o0.hp == hp_e - stored and not ball in a.balls, "a 0-charge touch is refused, and still consumed")
+	ball = a._add_ball({id = "ball_basic", rank = 1}, Vector2(30, 600))
+	a._launch(ball)
 	assert(cd_e < Tuning.ENEMIES.glob.cd, "the organ clock ran while the ball flew")
 	a._count_down(o0.cd_left)
 	assert(o0.intent == 1 and o0.cd_left == Tuning.ENEMIES.glob.cd, "the countdown fired the intent and showed the next")
 	var reds: int = a._bricks("red").size()  # the glob's first intent paints red bricks on the attack's spawn frame; checked after the beat below
-	# Crit launches the bag's next ball; drops end the phase after the beat, then the next ball rests.
+	# A crit (relic opener's) launches the bag's next ball; drops end the phase after the beat, then the next ball rests.
 	var in_bag: int = a.bag.size()
-	var in_play: int = a.balls.size()  # the bomb blast above may have broken a crit and launched one already
-	a._effect("crit", a._bricks("plain").front(), ball)
+	var in_play: int = a.balls.size()
+	in_discard = a.discard.size()
+	var drops: int = Game.run.stats.drops
+	a._crit(a._bricks("plain").front(), ball)
 	assert(a.balls.size() == in_play + 1 and a.bag.size() == in_bag - 1 and a.balls.back().vel.y < 0, "a crit launched the bag's next ball")
 	for b in a.balls.duplicate():
 		b.position.y = a.field.size.y + 100
 	for i in 3:  # physics_frame fires before the step, so the drop lands a frame later
 		await get_tree().physics_frame
-	assert(a.balls.is_empty() and a.discard.size() == in_play + 1 and a.beat > 0 and Game.run.stats.drops == in_play + 1, "dropped balls go to the discard pile and start the beat")
+	assert(a.balls.is_empty() and a.discard.size() == in_discard + in_play + 1 and a.beat > 0 and Game.run.stats.drops == drops + in_play + 1, "dropped balls go to the discard pile and start the beat")
 	await get_tree().create_timer(Tuning.RUN.enemy_turn + 0.2).timeout
 	assert(a.phase == 2 and a.rest != null and a.balls.size() == 1, "the next phase rested a ball")
 	assert(a._bricks("red").size() == reds + Tuning.ENEMIES.glob.intents[0][1], "the intent painted its red bricks onto standing plain ones, and the phase end kept them")
 	var head: String = a.rest.id
 	a._discard()
-	assert(a.discarded and a.discard.size() == in_play + 2 and a.discard.back().id == head and a.rest != null, "discard swaps the resting ball for the next")
-	# Refresh: broken layout slots regrow; a bare board with a ball live grows a refresh brick.
+	assert(a.discarded and a.discard.size() == in_discard + in_play + 2 and a.discard.back().id == head and a.rest != null, "discard swaps the resting ball for the next")
+	# Refresh: broken layout slots regrow; a broken refresh brick also moves the refresh bricks; a bare board with a ball live grows one.
 	before = a.breakable
 	a._trigger(a._bricks("plain").front())
 	a._refresh()
 	assert(a.breakable > before and a._empty_slots().is_empty(), "a refresh regrew every broken slot")
 	var fresh = a._bricks("refresh").front()
+	var n_refresh: int = a._bricks("refresh").size()
+	var at: int = a.slots.find(fresh)
+	a._trigger(a._bricks("plain").front())
 	a._trigger(fresh)
-	assert(a._empty_slots().size() == 1 and fresh.is_queued_for_deletion(), "a refresh brick never regrows itself")
+	await get_tree().process_frame  # the swapped-out bricks free
+	var moved: Array = a._bricks("refresh")
+	assert(a._empty_slots() == [at] and not is_instance_valid(fresh) and a.layout[at].kind == "plain", "a refresh regrew the board but its own slot, which turned plain")
+	assert(moved.size() == n_refresh and moved.all(func(b): return a.layout[a.slots.find(b)].kind == "refresh" and a.slots.find(b) != at), "the refresh bricks stand in new slots, as many as before")
+	assert(a.breakable == a._live().size(), "the swap kept the breakable count")
 	a._refresh()
 	a._launch_rest()
 	a.balls[0].position.x = 30  # off the board, so the live ball meets no brick while the test looks
@@ -209,7 +223,7 @@ func _ready() -> void:
 	a._launch(stone)
 	var in_bag2: int = a.bag.size()
 	a._damage(a._bricks("plain").front(), stone)
-	a._effect("crit", a._bricks("plain").front(), stone)
+	a._crit(a._bricks("plain").front(), stone)
 	assert(stone.stored == 0 and a.bag.size() == in_bag2, "a stone stores nothing and its crits launch nothing")
 	# Blaster: every nth break this fight blasts the brick's neighbours for the ball.
 	var blaster = a._add_ball({id = "ball_bomb", rank = 3}, Vector2(480, 600))
@@ -299,9 +313,10 @@ func _ready() -> void:
 	org.row.riposte = 10
 	org.hp = 999
 	org.cd_left = Tuning.RIPOSTE_CUT * 2
-	a.rest.store(10)
-	a._organ_hit(org, a.rest, org.cells[0])
-	assert(is_equal_approx(org.cd_left, Tuning.RIPOSTE_CUT) and a.rest.stored == 0, "a riposte shot cuts the countdown")
+	var shot = a._add_ball({id = "ball_basic", rank = 1}, Vector2(30, 600))
+	shot.store(10)
+	a._organ_hit(org, shot, org.cells[0])
+	assert(is_equal_approx(org.cd_left, Tuning.RIPOSTE_CUT) and not shot in a.balls, "a riposte shot cuts the countdown")
 	# The win breaks the board outward and clears the hazards.
 	a._hazard(org, "laser_sweep", 1)
 	a._land(org, org.hp)
@@ -433,7 +448,7 @@ func _ready() -> void:
 	var k2 = a._add_ball({id = "ball_basic", rank = 1}, Vector2(480, 600))
 	a._organ_hit(body, k1, body.cells[0])
 	assert(body.hp == body.hp_max, "a 0-charge touch is refused")
-	await get_tree().physics_frame
+	k1 = a._add_ball({id = "ball_basic", rank = 1}, Vector2(480, 600))
 	k1.store(5)
 	a._organ_hit(body, k1, body.cells[0])
 	a._organ_hit(body, k1, body.cells[1])

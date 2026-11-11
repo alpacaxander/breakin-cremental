@@ -55,14 +55,14 @@ func _init() -> void:
 			for c in rows[r].length():
 				if not rows[r][c] in ".#123456789":
 					check(Vector2i(r, c) in seen, "%s's brick at row %d col %d is reachable past the solids" % [id, r, c])
-		var drawn := func(kind: String) -> int: return "".join(rows).count({crit = "c", refresh = "r"}[kind])
 		for s in 200:
 			var bricks: Array = g.generate(cls, s, e.board)
 			check(bricks == g.generate(cls, s, e.board), "generate is deterministic")
 			check(bricks.any(func(b): return b.kind != "organ" and Tuning.BRICKS[b.kind].hp > 0), "%s's board has a breakable brick" % id)
 			var n := func(kind: String) -> int: return bricks.filter(func(b): return b.kind == kind).size()
-			for k in ["crit", "refresh"]:
-				check(n.call(k) == maxi(B[k], drawn.call(k)), "%s seed %d has %d %ss" % [id, s, maxi(B[k], drawn.call(k)), k])
+			var want := maxi(B.get("refresh", 1), "".join(rows).count("r"))
+			check(n.call("refresh") == want, "%s seed %d has %d refresh bricks" % [id, s, want])
+			check(n.call("crit") == 0, "%s seed %d has no crit bricks" % [id, s])
 			var rolled: Array = bricks.filter(func(b): return rows[b.row][b.col] == "?")
 			for k in ["solid", "bomb", "red"]:
 				check(rolled.filter(func(b): return b.kind == k).size() <= B[k][1], "%s seed %d keeps rolled %s at or under its max" % [id, s, k])
