@@ -570,6 +570,40 @@ func _ready() -> void:
 	assert(not Game.has_run() and _button(main, "NEW RUN") and await _click(main, "MENU") and _button(main, "PLAY") and _button(main, "CONTINUE") == null, "the end screen deletes the save; the menu offers no CONTINUE")
 	await get_tree().process_frame
 	assert(main.find_children("*", "Label", true, false).any(func(l): return l.text == "RUNS 1  WINS 0"), "the menu shows the run count")
+	# The encounter editor: paint, move, copy and paste, the setup page, a save round trip, a test play stopped by Esc.
+	assert(await _click(main, "EDITOR"), "the menu opens the editor")
+	await get_tree().process_frame
+	var ed = main.get_child(0)
+	ed.tool = "x"
+	ed.place(Vector2i(0, 0))
+	ed.place(Vector2i(1, 0))  # overlaps the first: refused
+	ed.tool = "1"
+	ed.place(Vector2i(4, 1))
+	assert(ed.cells == {Vector2i(0, 0): "x", Vector2i(4, 1): "1"}, "pieces snap to their cell and never overlap")
+	ed.sel = {Vector2i(0, 0): true}
+	ed.move(Vector2i(1, 2))
+	ed.move(Vector2i(100, 0))  # off the board: refused
+	assert(ed.cells.has(Vector2i(1, 2)) and ed.rows()[2].begins_with(".xx"), "a selection moves by whole cells, half a brick included")
+	ed.copy()
+	ed.paste(Vector2i(5, 2))
+	assert(ed.cells.size() == 3, "a copy pastes beside the original")
+	ed.page = "setup"
+	ed._build()
+	ed.page = "board"
+	ed.file = "_smoke"
+	ed._save()
+	var saved_rows: Array = ed.rows()
+	ed._new()
+	ed._load("res://encounters/_smoke.json")
+	DirAccess.remove_absolute("res://encounters/_smoke.json")
+	assert(ed.rows() == saved_rows and ed.enc.organs.size() == 1, "an encounter file loads back as saved")
+	ed._play()
+	await get_tree().process_frame
+	assert(ed.arena and ed.arena.organs.size() == 1 and ed.arena.organs[0].cells.size() == 1 and ed.arena.breakable == 2, "PLAY runs the encounter in the arena")
+	_key(KEY_ESCAPE)
+	await get_tree().process_frame
+	assert(ed.arena == null and _button(main, "PLAY"), "Esc stops the test fight and returns to the editor")
+	assert(await _click(main, "MENU") and _button(main, "EDITOR"), "MENU leaves the editor")
 	Game.settings.meta = meta0
 	if kept_settings:
 		FileAccess.open(Game.SETTINGS_PATH, FileAccess.WRITE).store_string(kept_settings)

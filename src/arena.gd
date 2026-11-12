@@ -238,7 +238,8 @@ func _ready() -> void:
 	box("wall", Vector2(100, field.size.y * 3), Vector2(-50, field.size.y / 2))
 	box("wall", Vector2(100, field.size.y * 3), Vector2(field.size.x + 50, field.size.y / 2))
 	box("wall", Vector2(field.size.x, 100), Vector2(field.size.x / 2, Tuning.TOP_WALL - 50))
-	enc = Tuning.encounter(encounter_id)
+	if enc.is_empty():  # the encounter editor hands its row in directly
+		enc = Tuning.encounter(encounter_id)
 	cls = "fight" if enc.role == "regular" else enc.role
 	for i in enc.organs.size():
 		var o := Organ.new(enc.organs[i])

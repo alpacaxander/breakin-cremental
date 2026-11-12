@@ -75,6 +75,10 @@ func _init() -> void:
 					check(b.col > 0 and b.col < rows[b.row].length() - 1 and b.row < rows.size() - 1 and touching.all(func(o): return o.kind != "solid"), "%s rolled solid is off the ends and touches no solid" % id)
 				if b.kind == "red":
 					check(b.row < B.get("red_rows", rows.size()) and touching.all(func(o): return o.kind != "red"), "%s rolled red is in its rows and touches no red" % id)
+	# A half-cell board (the encounter editor's): a brick is two glyphs, "." one cell, so a brick sits half a step over.
+	var half: Array = g.generate("fight", 1, {half = true, rows = ["gg.11.", ".bbgg.", "....##"]})
+	check(half.map(func(b): return [b.kind, b.col, b.row, b.pos.x]) == [["gold", 0, 0, 416.0], ["organ", 3, 0, 512.0], ["bomb", 1, 1, 448.0], ["gold", 3, 1, 512.0], ["solid", 4, 2, 544.0]],
+		"a half-cell board places each brick at its left cell, the grid centred")
 	for k in Tuning.ICON_KINDS:
 		check(k in Tuning.BRICKS and Tuning.BRICKS[k].has("idle"), "icon kind %s is a brick kind with a pulse strip" % k)
 	for k in Tuning.BRICKS:

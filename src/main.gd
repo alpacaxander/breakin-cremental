@@ -69,7 +69,8 @@ func _show_menu() -> void:
 	Ui.icon(r, logo, 320 - logo.get_width() / 2, 50)
 	# Logo above a pause-sized card of stacked buttons; CONTINUE joins them while a saved run exists.
 	var saved := Game.has_run()
-	Ui.panel(r, 240, 140, 160, 106 + (24 if saved else 0))
+	var dev := OS.is_debug_build()  # the encounter editor is a dev tool: not in an exported release
+	Ui.panel(r, 240, 140, 160, 106 + (24 if saved else 0) + (24 if dev else 0))
 	var y := 150
 	if saved:
 		Ui.button(r, "CONTINUE", 260, y, 120, 18, _continue, true, 2, "ui_start")
@@ -77,6 +78,9 @@ func _show_menu() -> void:
 	Ui.button(r, "PLAY", 260, y, 120, 18, _confirm_new if saved else _new_run, not saved, 2, "ui_start" if not saved else "ui_click")
 	Ui.button(r, "CATALOG", 260, y + 24, 120, 18, _show_catalog)
 	Ui.button(r, "SETTINGS", 260, y + 48, 120, 18, func(): _swap(Ui.settings(_show_menu)))
+	if dev:
+		Ui.button(r, "EDITOR", 260, y + 72, 120, 18, _show_editor)
+		y += 24
 	Ui.button(r, "QUIT", 260, y + 72, 120, 18, Sfx.quit, false, 2, "")
 	Ui.centre(r, "BREAK THE BOARD. BEAT THE BOSS.", 300, Tuning.COLORS.rivet)
 	var meta: Dictionary = Game.settings.meta
@@ -139,6 +143,13 @@ func _show_catalog(enemies := false) -> void:
 	Ui.button(r, "BALLS" if enemies else "ENEMIES", 328, 330, 112, 18, _show_catalog.bind(not enemies))
 	r.back.connect(_show_menu)
 	_swap(r)
+
+
+## The encounter editor (editor.gd); MENU comes back here.
+func _show_editor() -> void:
+	var e = preload("res://src/editor.gd").new()
+	e.back = _show_menu
+	_swap(e)
 
 
 func _confirm_new() -> void:

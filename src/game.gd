@@ -447,24 +447,33 @@ func _ints(v: Variant) -> Variant:
 ## ends and the bottom row and never touching a solid, red in its rows and never touching a red) stays plain. Then plain
 ## bricks convert to refresh until there are the class's count (place_refresh). Touching means within one column step, so
 ## offset rows count their pair.
-## board: rows, top (px below BOARD_TOP), no_refresh_rows.
+## board: rows, top (px below BOARD_TOP), no_refresh_rows, half. half: the rows are a grid of half-brick cells (the
+## encounter editor's format, src/editor.gd): a brick is two glyphs (its kind's glyph twice), "." one empty cell, the
+## grid centred as a whole; else one glyph per brick, each row centred on its own.
 func generate(cls: String, seed: int, board: Dictionary) -> Array:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed
 	var B: Dictionary = Tuning.BOARDS[cls]
 	var rows: Array = board.rows
 	var step := Tuning.BRICK_SIZE + Vector2.ONE * Tuning.BRICK_GAP
+	var half: bool = board.get("half", false)
+	var w := 2 if half else 1  # glyphs a brick spans
+	var wide: int = rows.map(func(l): return l.length()).max()
 	var out := []
 	for r in rows.size():
 		var line: String = rows[r]
-		for c in line.length():
-			var pos := Vector2(Tuning.ARENA.x / 2 + (c - (line.length() - 1) / 2.0) * step.x, Tuning.BOARD_TOP + board.get("top", 0) + r * step.y)
+		var c := 0
+		while c < line.length():
+			var x := (c + 1 - wide / 2.0) * step.x / 2 if half else (c - (line.length() - 1) / 2.0) * step.x
+			var pos := Vector2(Tuning.ARENA.x / 2 + x, Tuning.BOARD_TOP + board.get("top", 0) + r * step.y)
+			if half and line[c] == ".":  # one empty cell: the next brick may start half a step over
+				c += 1
+				continue
 			if line[c] in "123456789":  # an organ cell: never rolled, never converted
 				out.append({pos = pos, row = r, col = c, kind = "organ", organ = int(line[c]) - 1})
-				continue
-			var kind: String = Tuning.BOARD_KEYS[line[c]]
-			if kind:
-				out.append({pos = pos, row = r, col = c, kind = kind})
+			elif Tuning.BOARD_KEYS[line[c]]:
+				out.append({pos = pos, row = r, col = c, kind = Tuning.BOARD_KEYS[line[c]]})
+			c += w
 	var count := {solid = 0, bomb = 0, red = 0}
 	var near := func(b: Dictionary, kind: String) -> bool:
 		return out.any(func(o): return o != b and o.kind == kind and o.pos.distance_to(b.pos) <= step.x + 1)
@@ -474,7 +483,7 @@ func generate(cls: String, seed: int, board: Dictionary) -> Array:
 			if count[k] < B[k][1] and rng.randf() < B[k][0]:
 				b.kind = k
 				break
-		var edge: bool = b.col == 0 or b.col == rows[b.row].length() - 1 or b.row == rows.size() - 1
+		var edge: bool = b.col == 0 or b.col >= rows[b.row].length() - w or b.row == rows.size() - 1
 		if b.kind == "solid" and (edge or near.call(b, "solid")) or b.kind == "red" and (b.row >= B.get("red_rows", rows.size()) or near.call(b, "red")):
 			b.kind = "plain"  # a failing slot rolls plain
 		if b.kind in count:

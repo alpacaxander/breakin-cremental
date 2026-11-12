@@ -29,7 +29,7 @@ func _ready() -> void:
 		["shop", main._show_shop], ["shop_remove", main._show_shop.bind(true)], ["event", main._show_event],
 		["event_result", main._show_event.bind("IT SHRUGS. OPENER IS YOURS, FREE.")],
 		["run_over", func(): Game.run.stats.killer = "glob"; main._show_end(false)], ["run_won", func(): Game.run.unlocked = ["ball_bomb", "twin_crit"]; main._show_end(true)],
-		["pause", func(): main._play(); main._pause(true)]]
+		["pause", func(): main._play(); main._pause(true)], ["editor", _editor.bind(main, "board")], ["editor_setup", _editor.bind(main, "setup")]]
 	for sc in screens:
 		sc[1].call()
 		for s in SIZES:
@@ -53,6 +53,23 @@ func _ready() -> void:
 	else:
 		Game.delete_run()
 	preload("res://src/sfx.gd").quit()
+
+
+## The encounter editor with a small board drawn: a row of plain, a half-step row of rolled, an organ, a selection.
+func _editor(main: Node, page: String) -> void:
+	main._show_editor()
+	var e = main.get_children().back()
+	for c in 10:
+		e.tool = "x" if c % 4 else "b"
+		e.place(Vector2i(1 + 2 * c, 0))
+		e.tool = "?"
+		e.place(Vector2i(2 + 2 * c, 1))
+	e.tool = "1"
+	e.place(Vector2i(9, 3))
+	e.place(Vector2i(11, 3))
+	e.sel = {Vector2i(1, 0): true, Vector2i(3, 0): true}
+	e.page = page
+	e._build()
 
 
 func _settle() -> void:
