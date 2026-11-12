@@ -383,7 +383,7 @@ func _phase_start() -> void:
 	for o in organs:
 		o.acts = 0
 	var dy: float = enc.get("advance", 0) * (Tuning.BRICK_SIZE.y + Tuning.BRICK_GAP)
-	var low: float = layout.map(func(s): return s.pos.y).max()
+	var low: float = layout.map(func(s): return s.pos.y).max() if layout else 0.0  # an editor board can be organs only
 	for o in organs:
 		low = maxf(low, o.position.y + o.half.y - Tuning.BRICK_SIZE.y / 2)
 	if dy and phase > 1 and low + dy + Tuning.BRICK_SIZE.y / 2 <= field.size.y - Tuning.BOARD_FLOOR:
