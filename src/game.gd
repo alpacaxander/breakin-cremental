@@ -1,8 +1,8 @@
 extends Node
-## Autoload: settings (settings.json, with the meta-unlock flags, run / win counts and the catalog's seen ids under `meta`), the run state (`run`: hp, gold, the bag,
+## Autoload: settings (settings.json, with the meta-unlock flags, run / win counts and the catalog's seen ids under `meta`), the run state (`run`: hp, gold, the bag (each ball a stable uid),
 ## relics, the map with its visited path and rolled encounters and events, `pending` = the node kind entered and not yet
 ## resolved, stats) with its mid-run save (run.json), and the pure rules: map generation, node entry, reward / shop / encounter
-## rolls, event choices, gold and HP, the bag invariant, board generation. No scene dependencies, so test.gd instantiates
+## rolls, event choices, gold and HP, the bag invariant, a fight's effect rows, board generation. No scene dependencies, so test.gd instantiates
 ## it headless. docs/content.md "Run state" is the contract.
 
 const Tuning = preload("res://src/tuning.gd")
@@ -88,6 +88,7 @@ func new_run(seed: int = randi()) -> void:
 	run = {version = RUN_VERSION, seed = seed, hp = Tuning.RUN.hp, hp_max = Tuning.RUN.hp, gold = Tuning.RUN.gold,
 		bag = Tuning.BAG_START.map(func(id): return {id = id, rank = 1}), relics = [], map = gen_map(seed), pending = "", unlocked = [], removed = "",
 		stats = {fights = 0, elites = 0, damage = 0, bricks = 0, best_fire = 0, drops = 0, gold_earned = 0, seconds = 0, killer = ""}}
+	tag_bag()
 	for id in Tuning.BAG_START:
 		see(id)
 
@@ -105,6 +106,7 @@ func load_run(path: String = RUN_PATH) -> bool:
 		DirAccess.remove_absolute(path)  # so the menu drops CONTINUE instead of offering a save that never loads
 		return false
 	run = d
+	tag_bag()  # a run.json saved before uids
 	return true
 
 
@@ -145,7 +147,39 @@ func has(relic: String) -> bool:
 
 func add_ball(id: String, rank: int = 1) -> void:
 	run.bag.append({id = id, rank = rank})
+	tag_bag()
 	see(id)
+
+
+## Gives every bag entry without one a stable `uid` (run.uid is the next one): a ball entering the bag, and every ball of a
+## run.json saved before uids. Only the ball source tag reads it ("ball:<uid>", fight_effects).
+func tag_bag() -> void:
+	for b in run.bag:
+		if not b.has("uid"):
+			b.uid = run.get("uid", 0)
+			run.uid = b.uid + 1
+
+
+## The fight's effect rows in order (docs/encounter-mechanics.md "How effects enter an encounter"): the encounter's
+## (`effects`, else Tuning.KEEP_DEFAULT; source "design"), then each relic's in r.relics order ("relic:<id>"), then each
+## bag ball's in bag order ("ball:<uid>", a per-rank count / every / hp picked at its rank). Each row is a copy with its
+## source set; arena.gd runs the `start` rows and keeps the `keep` rows. balls, relics: the tables (test.gd's seam).
+func fight_effects(enc: Dictionary, r: Dictionary, balls: Dictionary = Tuning.BALLS, relics: Dictionary = Tuning.RELICS) -> Array:
+	var out: Array = []
+	var add := func(rows: Array, src: String, rank: int) -> void:
+		for e in rows:
+			var d: Dictionary = e.duplicate()
+			d.source = src
+			for k in ["count", "every", "hp"]:
+				if d.get(k) is Array:
+					d[k] = d[k][rank - 1]
+			out.append(d)
+	add.call(enc.get("effects", Tuning.KEEP_DEFAULT), "design", 1)
+	for id in r.relics:
+		add.call(relics[id].get("effects", []), "relic:" + id, 1)
+	for b in r.bag:
+		add.call(balls[b.id].get("effects", []), "ball:%d" % b.get("uid", -1), b.rank)
+	return out
 
 
 ## Removes bag[i] unless that would leave no non-junk ball (the bag invariant). True when removed; the id stays in
@@ -440,16 +474,19 @@ func _ints(v: Variant) -> Variant:
 
 # --- Board generation ---
 
-## A board for a fight class (Tuning.BOARDS key) from an encounter's `board`: [{pos, row, col, kind}] in arena px (origin
-## top-left), kinds from Tuning.BRICKS, plus a digit's organ cells {kind = "organ", organ = index into the encounter's
-## organs}, which stand as drawn. board.rows is the drawn layout (Tuning.BOARD_KEYS): drawn kinds stand, and each
-## "?" rolls solid / bomb / red in that order under their max; a roll that breaks a placement rule (solid off the row's
-## ends and the bottom row and never touching a solid, red in its rows and never touching a red) stays plain. Then plain
-## bricks convert to refresh until there are the class's count (place_refresh). Touching means within one column step, so
-## offset rows count their pair.
-## board: rows, top (px below BOARD_TOP), no_refresh_rows, half. half: the rows are a grid of half-brick cells (the
+## A board for a fight class (Tuning.BOARDS key) from an encounter's `board`: [{pos, row, col, slot, kind, source}] in
+## arena px (origin top-left), kinds from Tuning.BRICKS, plus a digit's organ cells {slot = "organ", kind = "organ",
+## organ = index into the encounter's organs}, which stand as drawn. slot is the design's terrain: "solid" for a drawn or
+## rolled solid, "standard" for every other brick. kind is the brick standing there at fight start; source is "design"
+## for a non-plain brick on a standard slot, "" for a plain one and a solid. board.rows is the drawn layout
+## (Tuning.BOARD_KEYS): drawn kinds stand, and each "?" rolls solid / bomb / red in that order under their max; a roll
+## that breaks a placement rule (solid off the row's ends and the bottom row and never touching a solid, red in its rows
+## and never touching a red) stays plain. Touching means within one column step, so offset rows count their pair. No
+## refresh is placed here: the arena's keep effects convert plain bricks (arena.gd _keep).
+## board: rows, top (px below BOARD_TOP), no_refresh_rows (arena.gd _keep), half. half: the rows are a grid of half-brick cells (the
 ## encounter editor's format, src/editor.gd): a brick is two glyphs (its kind's glyph twice), "." one empty cell, the
-## grid centred as a whole; else one glyph per brick, each row centred on its own.
+## grid centred as a whole; else one glyph per brick, each row centred on its own. layers (optional, shaped like rows): a
+## Tuning.LAYER_KEYS glyph at a cell's first glyph gives it `layer` = that kind, a design start layer the arena adds.
 func generate(cls: String, seed: int, board: Dictionary) -> Array:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed
@@ -470,9 +507,12 @@ func generate(cls: String, seed: int, board: Dictionary) -> Array:
 				c += 1
 				continue
 			if line[c] in "123456789":  # an organ cell: never rolled, never converted
-				out.append({pos = pos, row = r, col = c, kind = "organ", organ = int(line[c]) - 1})
+				out.append({pos = pos, row = r, col = c, slot = "organ", kind = "organ", organ = int(line[c]) - 1})
 			elif Tuning.BOARD_KEYS[line[c]]:
 				out.append({pos = pos, row = r, col = c, kind = Tuning.BOARD_KEYS[line[c]]})
+			var coat: String = board.get("layers", [])[r] if r < board.get("layers", []).size() else ""
+			if out and out.back().col == c and out.back().row == r and c < coat.length() and Tuning.LAYER_KEYS[coat[c]]:
+				out.back().layer = Tuning.LAYER_KEYS[coat[c]]
 			c += w
 	var count := {solid = 0, bomb = 0, red = 0}
 	var near := func(b: Dictionary, kind: String) -> bool:
@@ -488,20 +528,8 @@ func generate(cls: String, seed: int, board: Dictionary) -> Array:
 			b.kind = "plain"  # a failing slot rolls plain
 		if b.kind in count:
 			count[b.kind] += 1
-	place_refresh(out, B.get("refresh", 1) - out.filter(func(o): return o.kind == "refresh").size(), board, rng)
+	for b in out:
+		if b.kind != "organ":
+			b.slot = "solid" if b.kind == "solid" else "standard"
+			b.source = "" if b.kind in ["plain", "solid"] else "design"
 	return out
-
-
-## Turns n plain slots of a generated board into refresh: in the top half below board.no_refresh_rows, one per column,
-## never a slot in skip (an arena refresh passes the old refresh slots, so they move). Nothing eligible drops the rules so
-## the count holds; no plain left stops short.
-func place_refresh(slots: Array, n: int, board: Dictionary, rng: RandomNumberGenerator, skip := []) -> void:
-	for i in n:
-		var plain: Array = slots.filter(func(b): return b.kind == "plain" and not skip.has(b))
-		var e: Array = plain.filter(func(b): return b.row >= board.get("no_refresh_rows", 0) and b.row < board.rows.size() / 2 \
-				and not slots.any(func(o): return o.kind == "refresh" and o.col == b.col))
-		if e.is_empty():
-			e = plain
-		if e.is_empty():
-			return
-		e[rng.randi() % e.size()].kind = "refresh"

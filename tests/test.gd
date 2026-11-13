@@ -18,7 +18,7 @@ func _init() -> void:
 	var kept_settings := FileAccess.get_file_as_string(g.SETTINGS_PATH) if FileAccess.file_exists(g.SETTINGS_PATH) else ""
 
 	# Every board fits the arena between the top wall band and the floor line, and the generator keeps its counts and
-	# placement rules (docs/content.md "Generator"). Touching = within one column step, the generator's own definition.
+	# placement rules (docs/encounter-mechanics.md "Generator"). Touching = within one column step, the generator's own definition.
 	var arena := Rect2(Vector2.ZERO, Tuning.ARENA)
 	var step := Tuning.BRICK_SIZE + Vector2.ONE * Tuning.BRICK_GAP
 	var fits := func(b: Dictionary) -> bool:
@@ -60,8 +60,14 @@ func _init() -> void:
 			check(bricks == g.generate(cls, s, e.board), "generate is deterministic")
 			check(bricks.any(func(b): return b.kind != "organ" and Tuning.BRICKS[b.kind].hp > 0), "%s's board has a breakable brick" % id)
 			var n := func(kind: String) -> int: return bricks.filter(func(b): return b.kind == kind).size()
-			var want := maxi(B.get("refresh", 1), "".join(rows).count("r"))
-			check(n.call("refresh") == want, "%s seed %d has %d refresh bricks" % [id, s, want])
+			var want: int = "".join(rows).count("r") / (2 if e.board.get("half", false) else 1)
+			check(n.call("refresh") == want, "%s seed %d places no refresh but the %d drawn (the arena's keeps convert)" % [id, s, want])
+			for b in bricks:
+				if b.kind == "organ":
+					check(b.slot == "organ", "%s organ cell has slot organ" % id)
+					continue
+				check(b.slot == ("solid" if b.kind == "solid" else "standard"), "%s seed %d %s has slot %s" % [id, s, b.kind, b.slot])
+				check(b.source == ("design" if b.slot == "standard" and b.kind != "plain" else ""), "%s seed %d %s has source %s" % [id, s, b.kind, b.source])
 			check(n.call("crit") == 0, "%s seed %d has no crit bricks" % [id, s])
 			var rolled: Array = bricks.filter(func(b): return rows[b.row][b.col] == "?")
 			for k in ["solid", "bomb", "red"]:
@@ -79,6 +85,50 @@ func _init() -> void:
 	var half: Array = g.generate("fight", 1, {half = true, rows = ["gg.11.", ".bbgg.", "....##"]})
 	check(half.map(func(b): return [b.kind, b.col, b.row, b.pos.x]) == [["gold", 0, 0, 416.0], ["organ", 3, 0, 512.0], ["bomb", 1, 1, 448.0], ["gold", 3, 1, 512.0], ["solid", 4, 2, 544.0]],
 		"a half-cell board places each brick at its left cell, the grid centred")
+	check(half.all(func(b): return b.slot == ("organ" if b.kind == "organ" else "solid" if b.kind == "solid" else "standard")) and half.filter(func(b): return b.get("source") == "design").size() == 3, "a half-cell board tags slots and design sources")
+	# board.layers: a LAYER_KEYS glyph at a piece's first cell is its design layer (organ cells too); "." and stray cells none.
+	check(Tuning.LAYER_KEYS.values().filter(func(k): return k).all(func(k): return k in Tuning.LAYERS) and Tuning.LAYERS.keys().all(func(k): return k in Tuning.LAYER_KEYS.values()) and Tuning.LAYER_KEYS["."] == "",
+		"every LAYER_KEYS glyph names a LAYERS kind, every kind has one, '.' is none")
+	var coated: Array = g.generate("fight", 1, {half = true, rows = ["gg.11.", ".bbgg.", "....##"], layers = ["ss.ww.", "..gg..", ".s...."]})
+	check(coated.map(func(b): return b.get("layer", "")) == ["shield", "ward", "", "gilded", ""], "generate carries board.layers onto the cells they start, organ cells included")
+	check(g.generate("fight", 1, {rows = ["xx", "1"], layers = ["s.", "w"]}).map(func(b): return b.get("layer", "")) == ["shield", "", "ward"], "a one-glyph-per-brick board reads layers the same way")
+	# Every effect row in the tables (an encounter's or KEEP_DEFAULT, a relic's, a ball's at each rank): a keep row keeps a
+	# live brick kind (arena.gd _keep); a start row places a LAYERS kind (_apply) or a live brick kind on standard plains (_start).
+	var fx_rows: Array = []
+	for id in Tuning.encounters():
+		fx_rows += Tuning.encounter(id).get("effects", Tuning.KEEP_DEFAULT).map(func(k): return [id, k])
+	for id in Tuning.RELICS:
+		fx_rows += Tuning.RELICS[id].get("effects", []).map(func(k): return [id, k])
+	for id in Tuning.BALLS:
+		for e in Tuning.BALLS[id].get("effects", []):
+			check(["count", "every", "hp"].all(func(n): return not e.get(n) is Array or e[n].size() == Tuning.MAX_RANK), "ball %s effect %s has a number per rank" % [id, e])
+		for r in Tuning.MAX_RANK:
+			fx_rows += g.fight_effects({effects = []}, {relics = [], bag = [{id = id, rank = r + 1}]}).map(func(k): return [id, k])
+	for p in fx_rows:
+		var k: Dictionary = p[1]
+		var n = k.get("every", k.get("count", 0))
+		if k.when == "start" and k.to.begins_with("layer:"):
+			check(k.to.trim_prefix("layer:") in Tuning.LAYERS and k.count > 0, "%s start row %s places a LAYERS kind with a count" % p)
+		else:
+			check(k.when in ["start", "keep"] and k.to in Tuning.BRICKS and Tuning.BRICKS[k.to].hp > 0 and n is int and n > 0 and (k.when == "start" or "count" in k) \
+					and k.get("target", "standard") in ["standard", "no layer"], "%s %s row %s is a live brick kind with a count or every" % [p[0], k.when, k])
+	# How effects enter an encounter: design (else KEEP_DEFAULT), then relics in run order, then bag balls in bag order,
+	# each tagged with its source; a ball's per-rank number is picked at its rank. The rows argument is the test seam.
+	var fake_balls := {ball_x = {effects = [{when = "start", to = "bomb", count = [1, 2, 3]}, {when = "keep", to = "refresh", count = [1, 1, 2]}]}}
+	var fx: Array = g.fight_effects({effects = [{when = "keep", to = "refresh", count = 1}]}, {relics = ["toll", "tenth_bomb"], bag = [{id = "ball_x", rank = 2, uid = 7}, {id = "ball_x", rank = 3, uid = 9}]}, fake_balls)
+	check(fx.map(func(e): return [e.source, e.when, e.get("count", e.get("every"))]) == [["design", "keep", 1], ["relic:tenth_bomb", "start", 10], ["ball:7", "start", 2], ["ball:7", "keep", 1], ["ball:9", "start", 3], ["ball:9", "keep", 2]],
+		"fight effects run design, then relics, then balls, each its own source and its rank's numbers")
+	check(fake_balls.ball_x.effects[0].count is Array and not Tuning.KEEP_DEFAULT[0].has("source"), "fight effects copy their rows, the tables stay as written")
+	fx = g.fight_effects({}, {relics = [], bag = []})
+	check(fx.size() == Tuning.KEEP_DEFAULT.size() and fx.all(func(e): return e.source == "design"), "an encounter without effects keeps KEEP_DEFAULT, from design")
+	check(not Tuning.RELICS.tenth_bomb.has("hook") and Tuning.RELICS.tenth_bomb.effects[0].to == "bomb", "tenth bomb is an effect row, not a relic hook")
+	for k in Tuning.LAYERS:  # layers (arena.gd _through): a face, hp, blocking rows pop with a strip and a cue
+		var L: Dictionary = Tuning.LAYERS[k]
+		check(L.hp >= 1 and L.blocks is bool and FileAccess.file_exists("res://assets/pixel/png/%s.png" % L.face), "layer %s has hp, a blocks flag and an overlay face" % k)
+		check(not L.blocks or (FileAccess.file_exists("res://assets/pixel/png/anim_%s.png" % L.pop) and FileAccess.file_exists("res://assets/audio/wav/%s.wav" % L.pop)), "blocking layer %s pops with a strip and a cue" % k)
+		check(L.get("cut", 1.0) > 0 and L.get("gold", 1) > 0, "layer %s's cut and gold are positive" % k)
+	check(Tuning.HAZARDS.shield_bricks.layer in Tuning.LAYERS and Tuning.ORGANS.values().all(func(o): return o.get("layer", "shield") in Tuning.LAYERS), "shield_bricks and every organ's layer name a LAYERS kind")
+	check(Tuning.BOARDS.values().all(func(B): return not B.has("refresh")), "refresh counts live in keep rows, not BOARDS")
 	for k in Tuning.ICON_KINDS:
 		check(k in Tuning.BRICKS and Tuning.BRICKS[k].has("idle"), "icon kind %s is a brick kind with a pulse strip" % k)
 	for k in Tuning.BRICKS:
@@ -109,10 +159,10 @@ func _init() -> void:
 	for id in Tuning.RELICS:
 		var row: Dictionary = Tuning.RELICS[id]
 		check(row.rarity in Tuning.RELIC_RARITY, "relic %s has a rarity" % id)
-		check(row.hook in Tuning.RELIC_HOOKS and (not row.has("reset") or row.reset in Tuning.RELIC_HOOKS), "relic %s hooks a known site" % id)
+		check((row.has("effects") and not row.has("hook")) or (row.get("hook") in Tuning.RELIC_HOOKS and (not row.has("reset") or row.reset in Tuning.RELIC_HOOKS)), "relic %s hooks a known site or is effect rows" % id)
 		check(not row.has("locked") or row.locked in Tuning.UNLOCKS, "relic %s locks behind an UNLOCKS flag" % id)
 		check(FileAccess.file_exists("res://assets/pixel/png/relic_%s.png" % id), "relic %s has an icon" % id)
-		for k in ["saves", "per", "gold", "every", "cap", "launches", "balls"]:  # the counts arena.gd _relics reads
+		for k in ["saves", "per", "gold", "cap", "launches", "balls"]:  # the counts arena.gd _relics reads
 			check(not row.has(k) or row[k] >= 1, "relic %s %s is at least 1" % [id, k])
 	check(Tuning.RELICS.wide_paddle.width > Tuning.PADDLE_WIDTH and Tuning.RELICS.twin_crit.launches >= 2 and Tuning.RELICS.combo.cap > 1, "wide paddle widens, twin crit doubles, combo climbs")
 	check(Tuning.spec("paddle_mini").has("face") and Tuning.RELICS.mini_paddle.size.x > 0, "the mini paddle has a face and a size")
@@ -247,10 +297,25 @@ func _init() -> void:
 	check(g.run.hp == g.run.hp_max and g.hurt(50), "heal caps at max; hurt to 0 ends the run")
 	g.run.bag = [{id = "ball_basic", rank = 1}, {id = "ball_junk", rank = 1}]
 	check(not g.remove_ball(0) and g.remove_ball(1) and not g.remove_ball(0) and g.run.bag.size() == 1, "removal never leaves the bag without a non-junk ball")
+	g.tag_bag()  # the bag above was set by hand
 	g.save_run()
 	var saved: Dictionary = g.run.duplicate(true)
 	g.run = {}
 	check(g.load_run() and g.run == saved and g.run.bag[0].rank is int, "run save round-trips with ints")
+	# Bag uids: every ball entering the bag gets the next one; a run.json saved without them gets them on load.
+	g.new_run(5)
+	var uids: Array = g.run.bag.map(func(b): return b.uid)
+	g.add_ball("ball_basic")
+	check(uids == range(Tuning.BAG_START.size()) and g.run.bag.back().uid == uids.size() and g.run.uid == uids.size() + 1, "bag balls get stable uids, add_ball the next")
+	g.take_reward({kind = "ball", id = "ball_split"})
+	g.remove_ball(0)
+	check(g.run.bag.back().uid == uids.size() + 1 and g.run.bag.front().uid == 1, "a reward ball takes the next uid and a removal renumbers nothing")
+	for b in g.run.bag:
+		b.erase("uid")
+	g.run.erase("uid")
+	g.save_run()
+	g.run = {}
+	check(g.load_run() and g.run.bag.map(func(b): return b.uid) == range(g.run.bag.size()) and g.run.uid == g.run.bag.size(), "an old run.json without uids migrates on load")
 	g.run.version = 1
 	g.save_run()
 	check(not g.load_run() and not g.has_run(), "a save of an older version is dropped, and CONTINUE with it")
@@ -330,7 +395,7 @@ func _init() -> void:
 			["mag_spawn", 30, 6], ["blue_spawn", 30, 6], ["ora_spawn", 30, 6], ["icon_bomb_pulse", 30, 4], ["halo_pulse", 60, 4], ["halo_pulse_ora", 60, 4], ["bomb_fuse", 30, 16], ["organ_hit", 30, 6], ["organ_die", 44, 8],
 			["solid_bounce", 44, 6], ["dust_puff", 12, 4], ["shield_floor", 32, 4], ["shield_floor_pop", 32, 6], ["magnet_pull", 44, 4], ["combo_chase", 30, 8], ["toll_pay", 30, 6],
 			["spark_burst", 16, 6], ["hazard_strip", 32, 4],
-			["gold_hit", 30, 6], ["gold_break", 44, 8], ["gold_spawn", 30, 6], ["jam_clamp", 60, 6], ["pull_drift", 12, 4]]:  # map 1
+			["gold_hit", 30, 6], ["gold_break", 44, 8], ["gold_spawn", 30, 6], ["jam_clamp", 60, 6], ["pull_drift", 12, 4], ["armor_pop", 44, 8], ["shield_pop", 44, 6]]:  # map 1; the last two are the layer pops
 		var holder := Node2D.new()
 		var s: AnimatedSprite2D = Fx.play(holder, a[0], a[1], 12, Vector2.ZERO)
 		check(s.sprite_frames.get_frame_count("default") == a[2], "anim_%s has %d frames" % [a[0], a[2]])

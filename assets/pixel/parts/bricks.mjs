@@ -1,4 +1,4 @@
-// Peglin-direction brick kinds (docs/content.md, Bricks): crit (blue), refresh (mint), red (enemy). Faces and strips.
+// Peglin-direction brick kinds (docs/encounter-mechanics.md, Bricks): crit (blue), refresh (mint), red (enemy). Faces and strips.
 // gen.mjs exports nothing, so emit(h) takes its helpers: Img, C, SETS, lit, dim, hot, FLASH, frame, center, hold, blank,
 // sparks, withIcon, glyph, ellipse, ICONS, A (statics map, read for A.ball, written for the faces) and def (anim registrar).
 // Wire-up in gen.mjs, one line after the hue-set loop and A.ball exist: emitBricks({ Img, C, SETS, lit, dim, hot, FLASH, frame, center, hold, blank, sparks, withIcon, glyph, ellipse, ICONS, A, def });
@@ -61,4 +61,28 @@ export function emitBricks(h) {
 	// red: a plain lamp in the enemy's hue (red_bricks paints a plain brick, so the shape stays). Its break hurts the player: the debris falls.
 	A.brick_red = lit(red);
 	hueStrips(h, red, "red", true);
+
+	// Layers (Tuning.LAYERS): 30x12 overlays drawn over whatever brick stands, so the middle stays clear for its face and icon.
+	// shield: a chrome rim with rivets; ward: the enemy's red rim, dashed, with bright corners; gilded: gold corner brackets.
+	A.layer_shield = (() => {
+		const b = new Img(30, 12);
+		b.outline(0, 0, 30, 12, C.chromeMid); b.hline(0, 0, 30, C.chromeHi); b.hline(0, 11, 30, C.chromeLo);
+		b.outline(1, 1, 28, 10, C.chromeLo);
+		for (const [x, y] of [[2, 2], [27, 2], [2, 9], [27, 9]]) b.px(x, y, C.chromeHi);
+		b.corners(); return b;
+	})();
+	A.layer_ward = (() => {
+		const b = new Img(30, 12);
+		for (let x = 0; x < 30; x++) if (((x >> 1) & 1) === 0) { b.px(x, 0, red.tube); b.px(x, 11, red.tube); }
+		for (let y = 0; y < 12; y++) if (((y >> 1) & 1) === 0) { b.px(0, y, red.tube); b.px(29, y, red.tube); }
+		for (const [x, y] of [[1, 1], [28, 1], [1, 10], [28, 10]]) b.px(x, y, red.hi);
+		return b;
+	})();
+	A.layer_gilded = (() => {
+		const b = new Img(30, 12), g = SETS.gold;
+		for (const [x, y, dx, dy] of [[0, 0, 1, 1], [29, 0, -1, 1], [0, 11, 1, -1], [29, 11, -1, -1]]) {
+			for (let i = 0; i < 4; i++) { b.px(x + dx * i, y, i ? g.tube : g.hi); b.px(x, y + dy * i, i ? g.tube : g.hi); }
+		}
+		return b;
+	})();
 }

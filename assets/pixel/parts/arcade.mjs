@@ -159,5 +159,5 @@ export function emit({ Img, C, def, blank }) {
 	});
 }
 
-// Strip contract (docs/content.md Enemies): name, frame width, frames. Height is always 48.
+// Strip contract (docs/encounter-mechanics.md Enemies): name, frame width, frames. Height is always 48.
 export const STRIPS = Object.entries(W).flatMap(([id, w]) => [[`${id}_idle`, w, 4], [`${id}_hit`, w, 6], [`${id}_attack`, w, 6], [`${id}_die`, w, 8]]);

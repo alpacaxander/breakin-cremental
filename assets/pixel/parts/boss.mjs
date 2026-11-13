@@ -1,5 +1,5 @@
 // The boss (`maw`): a 160x48 dark creature with one red accent, its mouth, and the mouth gimmick art.
-// Contract: docs/content.md (Enemies table, "Boss intent `mouth`", Asset inventory). Look: docs/art-style.md (enemies are the one non-lamp sprite).
+// Contract: docs/encounter-mechanics.md (Enemies table, "Boss intent `mouth`") and docs/content.md (Asset inventory). Look: docs/art-style.md (enemies are the one non-lamp sprite).
 // gen.mjs exports nothing, so `emit(h)` takes its helpers: h = { Img, C, def, A, frame, hold, blank } (all from gen.mjs top half).
 // Call from gen.mjs after `def` exists: `emitBoss({ Img, C, def, A, frame, hold, blank })`.
 // Strips: maw_idle 160x48 x4 @8, maw_hit 160x48 x6 @12 (hazard spawn frame convention: attack frame 3), maw_attack 160x48 x6 @12,

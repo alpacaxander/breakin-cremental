@@ -17,7 +17,7 @@ Sections headed Legacy belong to the cut incremental build: still generated, kep
 | recall_rise | 12x12 | 6 | 12 | relic `recall` yanks the lowest ball back up |
 | relic_get | 36x48 | 6 | 12 | relic card flips face up (card assets, with `card_frame*`) |
 
-## Peglin bricks (`assets/pixel/parts/bricks.mjs`, docs/content.md Bricks)
+## Peglin bricks (`assets/pixel/parts/bricks.mjs`, docs/encounter-mechanics.md Bricks)
 
 | Name | Frame | Frames | fps | What |
 |---|---|---|---|---|
@@ -31,6 +31,8 @@ Sections headed Legacy belong to the cut incremental build: still generated, kep
 | red_break | 44x20 | 8 | 12 | red brick breaks; it hurts the player, so the halves and chips drop instead of flying out |
 
 `icon_bomb_pulse` takes the orange body (`bomb` is in `SPECIAL_ICONS`).
+
+Layer overlays (statics, 30x12, transparent middle; `Box.add_layer` draws them over any kind): `layer_shield` (chrome rim, rivets), `layer_ward` (red dashed rim, bright corners), `layer_gilded` (gold corner brackets). No new strips: a blocked hit plays `solid_bounce` 44x20 x6 @12, a shield pops with the legacy `armor_pop` 44x20 x8 @12 and a ward with `shield_pop` 44x20 x6 @12 (`Tuning.LAYERS.pop`).
 
 ## Organs (parts/organs.mjs; placeholder, tinted per organ by ORGANS.tint)
 
@@ -80,7 +82,7 @@ Sections headed Legacy belong to the cut incremental build: still generated, kep
 | laser_sweep_fire | 30x6 | 6 | 12 | beam bands, tiles vertically |
 | paddle_hurt | 60x8 | 4 | 12 | red twin of `paddle_hit` |
 
-## Enemies: Back Alley Arcade (`parts/arcade.mjs`, `parts/arcade_bosses.mjs`; landed, docs/content.md Enemies)
+## Enemies: Back Alley Arcade (`parts/arcade.mjs`, `parts/arcade_bosses.mjs`; landed, docs/encounter-mechanics.md Enemies)
 
 Every id gets the four strips of the Enemies section: `<id>_idle` x4 @8 (loop), `_hit` x6 @12, `_attack` x6 @12 (hazard on frame 3), `_die` x8 @12 (ends blank).
 
@@ -202,6 +204,8 @@ Statics: `intent_jam`, `intent_pull`, `intent_coin_junk`, `intent_wall_col`, `in
 
 ## Map (`parts/icons.mjs`)
 
+Statics also drawn here: relic icons `relic_<id>`, intent icons `intent_<id>` (12x12, red on a dark plate; `intent_shield_bricks` for hazard `shield_bricks`), map nodes `map_node_<kind>`, `ui_hp`, `ui_next`.
+
 | Name | Frame | Frames | fps | What |
 |---|---|---|---|---|
 | map_ring_pulse | 16x16 | 4 | 8 | dashed ring round a reachable map node cycles pay, payHi, white, payHi (loop) |
@@ -221,7 +225,7 @@ Statics: `intent_jam`, `intent_pull`, `intent_coin_junk`, `intent_wall_col`, `in
 |---|---|---|---|---|
 | multi_crack | 30x12 | 8 | 12 | 2-hit: full, flash, cracked (hold) |
 | multi3_crack | 30x12 | 12 | 12 | 3-hit: full, flash, cracked, flash, nearly broken (hold) |
-| armor_pop | 44x20 | 8 | 12 | chrome plate flashes, lifts off and falls away, magenta brick revealed |
+| armor_pop | 44x20 | 8 | 12 | chrome plate flashes, lifts off and falls away, magenta brick revealed; reused as the shield layer's pop |
 | pips_shrink | 30x12 | 6 | 12 | 3-pip lamp bar loses one pip with a blink |
 
 ## Solid
@@ -255,7 +259,7 @@ Statics: `intent_jam`, `intent_pull`, `intent_coin_junk`, `intent_wall_col`, `in
 | combo_gate | 30x12 | 6 | 8 | number counts down 3,2,1 then primed flash |
 | sequence_step1, sequence_step2, sequence_step3 | 30x12 | 6 | 12 | number lit, flash, dim face with white check |
 | timed_blink | 30x12 | 8 | 8 | lit 3, unlit 3, with half-lit transitions (loop) |
-| shield_pop | 44x20 | 6 | 12 | pale orange shield ring outside the brick cracks and bursts outward; the last frame is the bare brick's face after the pop |
+| shield_pop | 44x20 | 6 | 12 | pale orange shield ring outside the brick cracks and bursts outward; the last frame is the bare brick's face after the pop; reused as the ward layer's pop |
 
 ## Legacy: placeables (`magnet_pull` and `sticky_hold` are reused by the run)
 

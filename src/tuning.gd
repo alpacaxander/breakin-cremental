@@ -29,14 +29,17 @@ const BOARD_TOP := 168.0  # centre y of the first brick row (the enemy band and 
 const BOARD_FLOOR := 240.0  # bricks must sit at least this far above the arena floor
 # One row per fight class (the map node kind). cols: the widest layout row, and the lane grid for lasers and the shield
 # row. solid / bomb / red: [chance per "?" brick, hard max], rolled in that order; red_rows limits rolled reds to the first
-# n rows. refresh: how many stand on the board (default 1), drawn ones first, the rest converted from plain bricks;
-# breaking one regrows the board and re-rolls every refresh brick's slot. Placement rules: game.gd place_refresh.
-# Fit: rows <= 11, 10 for the boss; every brick reachable past the solids (test.gd).
+# n rows. Fit: rows <= 11, 10 for the boss; every brick reachable past the solids (test.gd).
 const BOARDS := {
 	fight = {cols = 11, solid = [0.03, 2], bomb = [0.03, 2], red = [0.04, 3], red_rows = 4},
 	elite = {cols = 13, solid = [0.05, 4], bomb = [0.04, 3], red = [0.06, 6]},
 	boss = {cols = 15, solid = [0.06, 6], bomb = [0.05, 4], red = [0.08, 10]},
 }
+# The keep effects of an encounter without its own `effects` (docs/encounter-mechanics.md "start and keep"): each row keeps
+# `count` live bricks of kind `to`, converted from plain bricks of no source on standard slots (arena.gd _keep); breaking
+# a refresh regrows the board, its keep brick lands somewhere else. Refresh picks in the top half below the board's
+# no_refresh_rows, one per column, else anywhere a match stands.
+const KEEP_DEFAULT := [{when = "keep", to = "refresh", count = 1}]
 const BOARD_KEYS := {".": "", "x": "plain", "?": "?", "#": "solid", "b": "bomb", "R": "red", "r": "refresh", "g": "gold"}  # "" empty, "?" rolled
 
 # Board brick kinds. hp: hits to break (-1 never). dmg: damage per break (the ball stores ball.dmg * brick.dmg).
@@ -49,10 +52,21 @@ const BRICKS := {
 	solid = {hp = -1, dmg = 0, face = "brick_solid"},  # ponytail: no hue, so it spawns with mag_spawn; a chrome_spawn strip is step 9's call
 	bomb = {hp = 2, dmg = 0, hue = "ora", face = ["icon_bomb_pulse", 30, 0], idle = ["icon_bomb_pulse", 30, 8], halo = "halo_pulse_ora",  # first hit arms, second blasts
 		armed = {face = ["bomb_fuse", 30, 0], idle = ["bomb_fuse", 30, 8]}},
-	refresh = {hp = 1, dmg = 1, hue = "mint", face = ["refresh_pulse", 30, 0], idle = ["refresh_pulse", 30, 8]},  # regrows the layout, re-rolls the refresh slots
+	refresh = {hp = 1, dmg = 1, hue = "mint", face = ["refresh_pulse", 30, 0], idle = ["refresh_pulse", 30, 8]},  # regrows the board (arena.gd _refresh)
 	red = {hp = 1, dmg = 0, hue = "red", hurt = 3, face = "brick_red"},  # a ball break costs the player HP; a blast just removes it
 	gold = {hp = 1, dmg = 1, hue = "gold", gold = 5, face = "brick_gold"},  # pays `gold` on a break; an enemy with `jackpot` pays that instead, only when every gold brick breaks in one phase
 }
+# Layers (docs/encounter-mechanics.md "Layers"): one per brick or organ cell, on top of it, taking hits first. hp: hits it
+# takes (an add of the same kind adds hp); blocks: a hit on it is spent there, the ball bounces and the brick does nothing
+# (false: passive, the hit goes through); face: the 30x12 overlay static; pop: the 44x20 strip and the cue as it goes;
+# cut: on each hit, seconds off the countdown of the organ that owns it (its source); gold: paid when its brick breaks.
+# A pierce ball skips any layer. Placed by `to = "layer:<kind>"` effect rows and a board's `layers` (LAYER_KEYS). Behaviour: arena.gd _through, _apply.
+const LAYERS := {
+	shield = {hp = 2, blocks = true, face = "layer_shield", pop = "armor_pop"},
+	ward = {hp = 2, blocks = true, face = "layer_ward", pop = "shield_pop", cut = 1.0},  # an enemy's: each hit hurries its organ
+	gilded = {hp = 1, blocks = false, face = "layer_gilded", gold = 2},
+}
+const LAYER_KEYS := {".": "", "s": "shield", "w": "ward", "g": "gilded"}  # board.layers glyphs (Game.generate)
 const ICON_KINDS := ["refresh", "bomb"]  # kinds whose face is a pulse strip (an idle row above), not a static
 
 # Icon effects
@@ -70,7 +84,7 @@ const MAGNET_RADIUS := 160.0  # relic magnet_paddle: balls this close above the 
 const MAGNET_PULL := 700.0  # px/s^2
 
 # --- Run (game.gd). docs/content.md "Run state" ---
-# enemy_turn: the between-phase beat. refresh_after: seconds an emptied board waits before growing a refresh brick.
+# enemy_turn: the between-phase beat. refresh_after: seconds an emptied board waits before regrowing a brick (the keeps then convert it).
 # end_beat: seconds between the fight ending and its done signal. hp_floor: the least HP an event's cost leaves. ramp_*: speed
 # ramp on long-lived balls (off by default): after ramp_after s a ball's speed multiplier gains ramp_per_s each second up to ramp_max.
 const RUN := {hp = 50, gold = 0, enemy_turn = 0.8, regen_below = 10, refresh_after = 1.0, end_beat = 0.6, win_break = 0.6, hp_floor = 1,
@@ -122,6 +136,8 @@ const EVENTS := {
 # MAGNET_PULL (stacks with relic magnet_paddle). map: the map whose shop prefers it. catch: the 0-stored
 # paddle cue's pitch; pitch: the launch and break cue pitch (junk). locked names an UNLOCKS flag. Faces are frame rank-1 of
 # <id>_rank. desc: the card line (<= 36 glyphs, wraps at 72 px). Behaviour: arena.gd Ball, _launch, _paddle_hit, _break and _effect.
+# effects (optional): start / keep rows as for ENCOUNTERS, counted from the bag for the whole fight (source "ball:<bag uid>"),
+# a count / every / hp may be per rank like a trait (count = [1, 2, 3]); in-flight traits stay as they are.
 const BALLS := {
 	ball_basic = {name = "PEBBLE", desc = "PLAIN AND STEADY", rarity = "common", dmg = [1, 2, 3], size = 1.0, speed = 1.0},
 	ball_heavy = {name = "BOULDER", desc = "BIG AND SLOW", rarity = "common", dmg = [3, 5, 7], size = 1.5, speed = 0.8, catch = 0.7},
@@ -139,7 +155,8 @@ const SPLIT_DEG := 20.0  # a splitter's halves fan from -SPLIT_DEG to +SPLIT_DEG
 
 # Enemies: one per fight. role picks the node kind (fight = regular), tier the earliest layer a regular appears.
 # cd: seconds between intents, counted only while a ball is in flight. intents cycle: [hazard id or "mouth", count].
-# board: rows = the drawn layout (BOARD_KEYS), top = px below BOARD_TOP, no_refresh_rows (game.gd generate).
+# board: rows = the drawn layout (BOARD_KEYS), top = px below BOARD_TOP, no_refresh_rows (arena.gd _keep), layers (optional:
+# rows shaped like `rows`, a LAYER_KEYS glyph at a brick's or organ cell's first glyph puts a design layer on it).
 # off: cue pitch offset in semitones. w: frame width of its <id>_idle/_hit/_attack/_die strips (48 tall). Behaviour: arena.gd.
 # Signatures: riposte = a landing of this much takes RIPOSTE_CUT s off the countdown; enraged = fields merged into the
 # row below `at` of its HP (cd, mouth, mimic = its enemy balls copy the bag's balls in order); steal = gold a dropped ball
@@ -283,9 +300,10 @@ const ENEMIES := {
 		".xxx???????xxx.",
 	]}},
 }
-# Organs (docs/content/encounters.md): an enemy living in the board, drawn with a digit glyph (1 = the encounter's first
+# Organs (docs/encounter-mechanics.md): an enemy living in the board, drawn with a digit glyph (1 = the encounter's first
 # organ). Fields as an ENEMIES row's hp, cd, intents, off and signatures (riposte, twice, mimic, enraged, mouth), plus tint:
-# its cells' colour. An ENEMIES row doubles as its own organ row (organ()).
+# its cells' colour; layer (optional): the LAYERS kind its shield_bricks places (default the hazard row's). An ENEMIES row
+# doubles as its own organ row (organ()).
 const ORGANS := {
 	knight_body = {hp = 60, cd = 14.0, intents = [["debris", 4]], off = -3, tint = Color("e0a040")},
 	knight_sword = {hp = 25, cd = 8.0, intents = [["laser_sweep", 1], ["enemy_balls", 2]], off = 0, tint = Color("c0d0ff")},
@@ -293,8 +311,12 @@ const ORGANS := {
 }
 # Encounters: one per fight. role and tier as for ENEMIES; organs: ORGANS ids, board digit n is organs[n - 1]; cd_start: each
 # organ's first countdown; win: the organs whose deaths end the fight (default all); band + w: the portrait's
-# <band>_idle/_hit/_attack/_die strips. steal, jackpot, advance, shield_start as for ENEMIES. Every ENEMIES row is an
-# encounter too, through encounter()'s bridge.
+# <band>_idle/_hit/_attack/_die strips; effects (optional): its effect rows (source "design") in place of KEEP_DEFAULT,
+# `when` "keep" (a brick kind kept standing; target "no layer" skips layered bricks) or "start": `to` a brick kind (before
+# the spawn, on plain bricks of no source on standard slots: every `every`th row-major, else `count` at random; arena.gd
+# _start) or "layer:<kind>" (after the spawn on `count` random live bricks; optional hp, target "any" to replace another
+# kind's layer; _apply). RELICS and BALLS rows take the same optional `effects` (Game.fight_effects orders them). steal,
+# jackpot, advance, shield_start as for ENEMIES. Every ENEMIES row is an encounter too, through encounter()'s bridge.
 const ENCOUNTERS := {
 	knight = {role = "regular", tier = 1, band = "warden", w = 64,  # ponytail: borrows warden's band strips until a knight portrait exists; tier 1 so the playtest meets it
 		organs = ["knight_body", "knight_sword", "knight_shield"], cd_start = [14.0, 4.0, 9.0], win = ["knight_body"], board = {rows = [
@@ -317,7 +339,9 @@ const MOUTH := {rect = Rect2(432, 0, 96, 32), spit_gap = 0.4}  # boss intent, no
 # nearest the paddle red_bricks picks from; enemy_balls speed multiplies BALL_SPEED. flight: in the air, so a phase end
 # clears it (and any volley of it still pending); the rest stay placed. jam: the paddle draws at `width` of its build for
 # `hits` paddle hits (a refire resets the count; the mini paddle is never jammed). pull: every ball in flight gets `force`
-# px/s^2 upward for `secs` per count. coin_junk: a `junk` ball on top of the bag per count. Behaviour: arena.gd _hazard.
+# px/s^2 upward for `secs` per count. coin_junk: a `junk` ball on top of the bag per count. shield_bricks: the firing
+# organ's cells and the `count` live bricks nearest it gain a `layer` (the organ row's own wins), source enemy:<organ id>,
+# gone when that organ dies. Behaviour: arena.gd _hazard.
 const HAZARDS := {
 	red_bricks = {hp = 0, rows = 3, stagger = 0.05},  # the red brick's own hurt pays, on a ball break
 	enemy_balls = {hp = 5, flight = true, speed = 0.55, radius = 8.0, spread_deg = 15.0, gap = 0.15, windup = 0.8},  # fired from the organ
@@ -327,18 +351,20 @@ const HAZARDS := {
 	jam = {hp = 0, hits = 6, width = 0.5},
 	pull = {hp = 0, flight = true, secs = 1.0, force = 490.0},  # half gravity; flight, so a pull still pending dies with the phase
 	coin_junk = {hp = 0, junk = "ball_junk"},
+	shield_bricks = {hp = 0, layer = "shield"},  # no enemy intends it yet
 }
 
-# Relics: one passive rule each at hook. on_fight_start / on_break / on_phase_end fire through arena.gd _relics (one match
-# by id; `reset` names a second hook the row also fires at); a stat relic is a Game.has read at its site (the paddle build,
-# _move_ball, _crit). numbers it needs; desc: the card line (<= 36 glyphs); locked as for balls.
+# Relics: one passive rule each, at a hook or as effect rows. on_fight_start / on_break / on_phase_end fire through arena.gd
+# _relics (one match by id; `reset` names a second hook the row also fires at); a stat relic is a Game.has read at its site
+# (the paddle build, _move_ball, _crit); a placement relic has no hook, only `effects` (rows as for ENCOUNTERS, source
+# "relic:<id>"). numbers it needs; desc: the card line (<= 36 glyphs); locked as for balls.
 const RELIC_HOOKS := ["stat", "on_fight_start", "on_break", "on_phase_end"]
 const RELICS := {
 	wide_paddle = {name = "WIDE PADDLE", desc = "PADDLE 160 WIDE", rarity = "common", hook = "stat", width = 160.0},
 	shield_floor = {name = "SHIELD FLOOR", desc = "FIRST DROP A PHASE BOUNCES", rarity = "common", hook = "on_fight_start", reset = "on_phase_end", saves = 1},  # floor bounces per phase
 	opener = {name = "OPENER", desc = "FIRST BREAK A PHASE IS A CRIT", rarity = "common", hook = "on_break"},  # the phase's first break is a crit too
 	toll = {name = "TOLL", desc = "1 GOLD PER 10 BRICKS", rarity = "common", hook = "on_break", per = 10, gold = 1},  # gold per `per` breaks a fight
-	tenth_bomb = {name = "TENTH BOMB", desc = "EVERY 10TH BRICK IS A BOMB", rarity = "uncommon", hook = "on_fight_start", every = 10},  # every nth plain (row-major) is a bomb, at least one
+	tenth_bomb = {name = "TENTH BOMB", desc = "EVERY 10TH BRICK IS A BOMB", rarity = "uncommon", effects = [{when = "start", every = 10, to = "bomb", target = "standard"}]},  # every nth plain (row-major) is a bomb, at least one
 	magnet_paddle = {name = "MAGNET PADDLE", desc = "PULLS BALLS TO THE PADDLE", rarity = "uncommon", hook = "stat"},  # MAGNET_RADIUS / MAGNET_PULL
 	combo = {name = "COMBO", desc = "FAST BREAKS STORE MORE", rarity = "uncommon", hook = "on_break", cap = 3.0},  # COMBO_WINDOW_START / COMBO_MULT_PER_HIT, mult capped
 	twin_crit = {name = "TWIN CRIT", desc = "A CRIT LAUNCHES TWO", rarity = "rare", hook = "on_break", launches = 2, locked = "won_boss"},  # read in _crit, the one break site that launches

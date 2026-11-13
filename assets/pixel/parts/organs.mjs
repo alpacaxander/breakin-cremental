@@ -1,4 +1,4 @@
-// Encounter organs (docs/content/encounters.md): one neutral grey-white cell face and its hit and die strips, tinted per organ
+// Encounter organs (docs/encounter-mechanics.md): one neutral grey-white cell face and its hit and die strips, tinted per organ
 // at runtime by ORGANS.tint (self_modulate). emit(h) takes gen.mjs's helpers, the same object emitBricks gets.
 // ponytail: one tinted placeholder for every organ; per-organ face, hit and die keys on ORGANS replace the tint later.
 import { hueStrips } from "./bricks.mjs";

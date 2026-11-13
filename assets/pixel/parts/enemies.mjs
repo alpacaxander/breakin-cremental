@@ -1,4 +1,4 @@
-// Regular enemies and the elite (docs/content.md, Enemies table): glob, lobber, mason (48/48/64 wide) and warden (64, elite), all 48 tall.
+// Regular enemies and the elite (docs/encounter-mechanics.md, Enemies table): glob, lobber, mason (48/48/64 wide) and warden (64, elite), all 48 tall.
 // Strips per enemy: <id>_idle x4 @8 (loop), <id>_hit x6 @12, <id>_attack x6 @12 (the hazard spawns on frame 3, the release pose), <id>_die x8 @12 (ends blank).
 // Feet on the bottom row, body centred, so the arena anchors bottom centre at field sprite (240,54). Static enemy_<id> is frame 0 of <id>_idle, no separate sprite.
 // Look (docs/art-style.md): a dark creature, the boss's body colours (trimLo fill, chromeLo rim), one lit accent in red. Flash and hot frames follow the lamp rule by recolour.
@@ -114,5 +114,5 @@ export function emit({ Img, C, def, hold, blank }) {
 	def(GROUP, "warden_die", 12, [flash(W0), hot(W0), warden({ visor: RED.dim, tip: RED.dim, lanceDy: 4 }), warden({ dy: 3, lanceDy: 12, visor: RED.dim, tip: RED.dim, shieldDy: 4 }), warden({ dy: 7, lanceDy: 22, visor: null, tip: RED.deep, shieldDy: 10 }), fade(warden({ dy: 9, lanceDy: 30, visor: null, tip: RED.deep, shieldDy: 14 }), 170), fade(warden({ dy: 9, lanceDy: 30, visor: null, tip: RED.deep, shieldDy: 14 }), 90), blank(64, 48)]);
 }
 
-// Strip contract (docs/content.md Enemies): name, frame width, frames. Height is always 48.
+// Strip contract (docs/encounter-mechanics.md Enemies): name, frame width, frames. Height is always 48.
 export const STRIPS = ["glob", "lobber", "mason", "warden"].flatMap((id) => { const w = id === "glob" || id === "lobber" ? 48 : 64; return [[`${id}_idle`, w, 4], [`${id}_hit`, w, 6], [`${id}_attack`, w, 6], [`${id}_die`, w, 8]]; });

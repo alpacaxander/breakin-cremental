@@ -1,4 +1,4 @@
-// Hazard art for the Peglin direction (docs/content.md, Hazards table): every hazard's telegraph and strike,
+// Hazard art for the Peglin direction (docs/encounter-mechanics.md, Hazards table): every hazard's telegraph and strike,
 // the intent icons, and the paddle's red hurt flash. Red set per docs/art-style.md ("proposed; not in SETS yet").
 // gen.mjs exports nothing, so this takes its helpers as one object:
 //   emit({ Img, C, A, def, frame, lamp, hot, ellipse, ring })

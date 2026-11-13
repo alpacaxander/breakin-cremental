@@ -2,9 +2,12 @@ extends Node
 ## The encounter editor, a dev tool off the run (the menu's EDITOR, debug builds only). The board is a grid of half-brick
 ## cells (a brick is 2 cells by 1), drawn where the arena puts it, under the band portrait and above the floor line.
 ## Bricks and organ cells come from the TOOLS column: pick one and click or drag-paint, or drag the entry onto the board;
+## a layer tool (Tuning.LAYER_KEYS) coats the piece under the cursor instead, and right button with it strips just the coat;
 ## a click on a piece selects it and dragging moves the selection, snapped; right button erases. The SETUP page holds the
-## role, tier, band, organs (id, first countdown, win) and the test loadout (HP, gold, bag, relics). SAVE writes
-## encounters/<name>.json: an ENCOUNTERS row whose board is `half` (Game.generate reads it as is) plus the loadout. PLAY runs
+## role, tier, band, organs (id, first countdown, win) and the test loadout (HP, gold, bag, relics); KEEP on the right is the
+## refresh keep count (effects, saved only when it differs from Tuning.KEEP_DEFAULT). SAVE writes
+## encounters/<name>.json: an ENCOUNTERS row whose board is `half`, with `layers` when any piece is coated (Game.generate
+## reads it as is: painted non-plain bricks and coats are design start placements) plus the loadout. PLAY runs
 ## it in arena.gd on a throwaway Game.run (run.json is never written; Esc stops it). Moving a design into the game is hand
 ## work: its row goes into Tuning.ENCOUNTERS.
 
@@ -19,15 +22,15 @@ const CELL := Vector2(16, 14)  # a cell in sprite px: half the arena's brick ste
 const MAX := Vector2i(30, 12)  # cells across the arena; rows down to BOARD_FLOOR
 const TOOLS := [["", "SELECT"], ["x", "PLAIN"], ["?", "ROLLED"], ["#", "SOLID"], ["b", "BOMB"], ["R", "RED"], ["r", "REFRESH"], ["g", "GOLD"]]
 const ROW := 17  # setup page row pitch: a dropdown stands 15 tall
-const HELP := ["LMB PAINT, MOVE", "RMB ERASE", "SHIFT+CLICK ADD", "SELECT: DRAG BOX", "CTRL C V D A", "DEL ERASE SEL"]
+const HELP := ["LMB PAINT, MOVE", "RMB ERASE, +COAT", "SHIFT+CLICK ADD", "SELECT: DRAG BOX", "CTRL C V D A", "DEL ERASE SEL"]
 
 var back: Callable  # main.gd's menu
 var file := "untitled"
 var enc := {}  # the ENCOUNTERS row, minus its board
 var dims := Vector2i(22, 6)  # cells across, rows
-var cells := {}  # Vector2i(col, row) of a piece's left cell -> its glyph: a Tuning.BOARD_KEYS key or an organ digit
+var cells := {}  # Vector2i(col, row) of a piece's left cell -> its glyph (a Tuning.BOARD_KEYS key or an organ digit), then its layer's Tuning.LAYER_KEYS key if coated
 var loadout := {}
-var tool := "x"  # the painting glyph; "" selects
+var tool := "x"  # the painting glyph; "" selects; "+" and a LAYER_KEYS key coats
 var sel := {}  # piece cells -> true
 var clip := []  # [offset from the copy's top-left, glyph]
 var page := "board"  # board, setup, load
@@ -59,7 +62,7 @@ func _build() -> void:
 	add_child(root)
 	grid = null
 	var C := Tuning.COLORS
-	# Right column: the file, the page, the board size, play.
+	# Right column: the file, the page, the board size, the refresh keep count, play.
 	Ui.label(root.right, "NAME", Ui.RX + 4, 20, C.rivet)
 	var name_e := LineEdit.new()
 	name_e.position = Vector2(Ui.RX + 4, 28)
@@ -73,13 +76,18 @@ func _build() -> void:
 	Ui.button(root.right, "SETUP" if page == "board" else "BOARD", Ui.RX + 4, 108, 70, 14, func(): page = "setup" if page == "board" else "board"; _build())
 	_num(root.right, Ui.RX + 4, 130, "W", dims.x, 2, MAX.x, func(v): dims.x = v; _crop())
 	_num(root.right, Ui.RX + 4, 144, "H", dims.y, 1, MAX.y, func(v): dims.y = v; _crop())
+	_num(root.right, Ui.RX + 4, 166, "KEEP", keep(), 0, 3, set_keep)
 	Ui.button(root.right, "PLAY", Ui.RX + 4, 300, 70, 18, _play, true, 2, "ui_start")
 	Ui.button(root.right, "MENU", Ui.RX + 4, 322, 70, 18, back, false, 2, "ui_back")
-	# Left column: the palette, then the organs, then the keys.
+	# Left column: the palette, the layer coats, the organs, then the keys.
 	var y := 20
 	for t in TOOLS:
 		_tool(t[0], t[1], y)
 		y += 13
+	for g in Tuning.LAYER_KEYS:
+		if Tuning.LAYER_KEYS[g]:
+			_tool("+" + g, "+" + Tuning.LAYER_KEYS[g].to_upper(), y)
+			y += 13
 	for i in enc.organs.size():
 		_tool(str(i + 1), "%d %s" % [i + 1, enc.organs[i].to_upper().replace("_", " ")], y)
 		y += 13
@@ -216,15 +224,36 @@ func _drop_organ(i: int) -> void:
 	if not id in enc.organs:
 		enc.win.erase(id)
 	for k in cells.keys():
-		var g: String = cells[k]
+		var g: String = cells[k][0]
 		if g.is_valid_int():
 			if int(g) == i + 1:
 				cells.erase(k)
 			elif int(g) > i + 1:
-				cells[k] = str(int(g) - 1)
+				cells[k] = str(int(g) - 1) + cells[k].substr(1)  # its coat moves with it
 	if tool.is_valid_int() and int(tool) > enc.organs.size():
 		tool = "x"
 	_build()
+
+
+## The refresh keep count: its keep row's in enc.effects, else Tuning.KEEP_DEFAULT's.
+func keep() -> int:
+	var k: Array = enc.get("effects", Tuning.KEEP_DEFAULT).filter(_refresh_keep)
+	return k[0].count if k else 0
+
+
+## Sets the refresh keep count; the other effect rows stay. A result equal to KEEP_DEFAULT drops the field.
+func set_keep(v: int) -> void:
+	var rest: Array = enc.get("effects", Tuning.KEEP_DEFAULT).filter(func(e): return not _refresh_keep(e))
+	if v:
+		rest.append({when = "keep", to = "refresh", count = v})
+	if rest == Tuning.KEEP_DEFAULT:
+		enc.erase("effects")
+	else:
+		enc.effects = rest
+
+
+func _refresh_keep(e: Dictionary) -> bool:
+	return e.when == "keep" and e.to == "refresh"
 
 
 func _load_page() -> void:
@@ -239,7 +268,11 @@ func _load_page() -> void:
 
 # --- Board ---
 
+## A piece's look by its glyph (a coat after it is ignored), or a layer tool's overlay.
 func face(g: String) -> Texture2D:
+	if g.begins_with("+"):
+		return Box.tex_of(Tuning.LAYERS[Tuning.LAYER_KEYS[g[1]]].face)
+	g = g[0]
 	return Box.tex_of("organ_cell" if g.is_valid_int() else "brick_plain_dim" if g == "?" else Tuning.BRICKS[Tuning.BOARD_KEYS[g]].face)
 
 
@@ -268,9 +301,20 @@ func place(c: Vector2i) -> void:
 		Sfx.play("ui_click", 1.3)
 
 
+## A layer tool coats the piece over cell c (replacing its coat).
+func coat(c: Vector2i) -> void:
+	var k = at(c)
+	if k != null and cells[k] != cells[k][0] + tool[1]:
+		cells[k] = cells[k][0] + tool[1]
+		Sfx.play("ui_click", 1.3)
+
+
+## Erases the piece over cell c; with a layer tool, only its coat.
 func erase(c: Vector2i) -> void:
 	var k = at(c)
-	if k != null:
+	if k != null and tool.begins_with("+"):
+		cells[k] = cells[k][0]
+	elif k != null:
 		cells.erase(k)
 		sel.erase(k)
 		Sfx.play("ui_click", 0.8)
@@ -351,8 +395,8 @@ func _unhandled_input(e: InputEvent) -> void:
 
 # --- File, play ---
 
-## The board as half-cell rows, every row dims.x glyphs.
-func rows() -> Array:
+## The board as half-cell rows, every row dims.x glyphs; part 1: the coats' rows (board.layers) instead.
+func rows(part := 0) -> Array:
 	var out := []
 	for r in dims.y:
 		var line := []
@@ -360,8 +404,8 @@ func rows() -> Array:
 		line.fill(".")
 		for k in cells:
 			if k.y == r:
-				line[k.x] = cells[k]
-				line[k.x + 1] = cells[k]
+				line[k.x] = cells[k].substr(part, 1) if part < cells[k].length() else "."
+				line[k.x + 1] = line[k.x]
 		out.append("".join(line))
 	return out
 
@@ -370,6 +414,8 @@ func rows() -> Array:
 func row() -> Dictionary:
 	var e := enc.duplicate(true)
 	e.board = {half = true, rows = rows()}
+	if cells.values().any(func(g): return g.length() > 1):
+		e.board.layers = rows(1)
 	return e
 
 
@@ -400,7 +446,8 @@ func _load(path: String) -> void:
 			if rs[r][c] == ".":
 				c += 1
 				continue
-			cells[Vector2i(c, r)] = rs[r][c]
+			var lay: String = d.board.get("layers", [])[r] if r < d.board.get("layers", []).size() else ""
+			cells[Vector2i(c, r)] = rs[r][c] + (lay[c] if c < lay.length() and lay[c] != "." else "")
 			c += 2
 	d.erase("board")
 	d.erase("loadout")
@@ -413,7 +460,7 @@ func _load(path: String) -> void:
 
 ## Runs the encounter in arena.gd on a fresh in-memory run with the loadout. Never saved: run.json is only written by main.gd.
 func _play() -> void:
-	var glyphs := cells.values()
+	var glyphs := cells.values().map(func(g): return g[0])
 	for i in enc.organs.size():
 		if not str(i + 1) in glyphs:
 			_say("ORGAN %d HAS NO CELLS" % (i + 1))
@@ -426,6 +473,7 @@ func _play() -> void:
 		return
 	Game.new_run()
 	Game.run.merge({hp = loadout.hp, hp_max = loadout.hp, gold = loadout.gold, bag = loadout.bag.duplicate(true), relics = loadout.relics.duplicate()}, true)
+	Game.tag_bag()  # the loadout's balls get uids for their effect sources
 	var a := Arena.new()
 	a.enc = row()
 	a.done.connect(func(win): _played(win, "WON" if win else "LOST"))
@@ -458,8 +506,15 @@ class Grid extends Control:
 	## A palette entry dragged onto the board: it becomes the tool and lands where it was let go.
 	func _drop(p: Vector2, d: Dictionary) -> void:
 		ed.tool = d.glyph
-		ed.place(brick(p))
+		paint(p)
 		ed._build()
+
+	## A piece tool places at the brick nearest p; a layer tool coats the piece over p.
+	func paint(p: Vector2) -> void:
+		if ed.tool.begins_with("+"):
+			ed.coat(cell(p))
+		else:
+			ed.place(brick(p))
 
 	func cell(p: Vector2) -> Vector2i:
 		return Vector2i(((p - o) / CELL).floor())
@@ -484,6 +539,8 @@ class Grid extends Control:
 				ed.erase(cell(e.position))
 			elif e.button_index == MOUSE_BUTTON_LEFT:
 				var k = ed.at(cell(e.position))
+				if ed.tool.begins_with("+"):  # a layer tool coats, never selects
+					k = null
 				if k != null:
 					if e.shift_pressed and ed.sel.has(k):
 						ed.sel.erase(k)
@@ -494,7 +551,7 @@ class Grid extends Control:
 					drag = {mode = "move", from = cell(e.position)}
 				elif ed.tool:
 					drag = {mode = "paint"}
-					ed.place(brick(e.position))
+					paint(e.position)
 				else:
 					if not e.shift_pressed:
 						ed.sel = {}
@@ -502,7 +559,7 @@ class Grid extends Control:
 			queue_redraw()
 		elif e is InputEventMouseMotion:
 			match drag.get("mode"):
-				"paint": ed.place(brick(e.position))
+				"paint": paint(e.position)
 				"erase": ed.erase(cell(e.position))
 			queue_redraw()
 
@@ -526,13 +583,18 @@ class Grid extends Control:
 				draw_rect(Rect2(p, CELL * Vector2(2, 1)), C.pay, false)
 		if drag.get("mode") == "box":
 			draw_rect(Rect2(drag.a, m - drag.a).abs(), C.pay, false)
-		elif not drag and ed.tool and Rect2(Vector2.ZERO, size).has_point(m) and ed.fits(brick(m)):
+		elif not drag and ed.tool and not ed.tool.begins_with("+") and Rect2(Vector2.ZERO, size).has_point(m) and ed.fits(brick(m)):
 			_piece(ed.tool, o + Vector2(brick(m)) * CELL + Vector2(CELL.x, CELL.y / 2), 0.4)  # where a click lands
 
 	func _piece(g: String, centre: Vector2, a := 1.0) -> void:
 		var t: Texture2D = ed.face(g)
+		var coat := g.substr(1)
+		g = g[0]
 		var organ: bool = g.is_valid_int()
 		var tint: Color = Tuning.organ(ed.enc.organs[int(g) - 1]).get("tint", Color.WHITE) if organ else Color.WHITE
 		draw_texture(t, (centre - t.get_size() / 2).floor(), Color(tint, a))
+		if coat:
+			var l: Texture2D = ed.face("+" + coat)
+			draw_texture(l, (centre - l.get_size() / 2).floor(), Color(1, 1, 1, a))
 		if organ or g == "?":
 			draw_string(get_theme_default_font(), centre + Vector2(-1, 3), g, HORIZONTAL_ALIGNMENT_LEFT, -1, 5, Color(Tuning.COLORS.white if organ else Tuning.COLORS.bg, a))  # dark on the pale rolled brick

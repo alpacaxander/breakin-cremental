@@ -55,7 +55,7 @@ func _ready() -> void:
 	preload("res://src/sfx.gd").quit()
 
 
-## The encounter editor with a small board drawn: a row of plain, a half-step row of rolled, an organ, a selection.
+## The encounter editor with a small board drawn: a row of plain, a half-step row of rolled, an organ, two coats, a selection.
 func _editor(main: Node, page: String) -> void:
 	main._show_editor()
 	var e = main.get_children().back()
@@ -67,6 +67,10 @@ func _editor(main: Node, page: String) -> void:
 	e.tool = "1"
 	e.place(Vector2i(9, 3))
 	e.place(Vector2i(11, 3))
+	e.tool = "+s"
+	e.coat(Vector2i(5, 0))
+	e.tool = "+g"
+	e.coat(Vector2i(4, 1))
 	e.sel = {Vector2i(1, 0): true, Vector2i(3, 0): true}
 	e.page = page
 	e._build()

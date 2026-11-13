@@ -22,6 +22,7 @@ func _ready() -> void:
 	add_child(a)
 	await get_tree().process_frame
 	assert(a.breakable > 0 and a.balls.size() == 1 and a.rest == a.balls[0] and a.phase == 1, "the board built with a resting ball")
+	assert(a.phase_golds == a._bricks("gold").size(), "the jackpot counts the golds standing at the phase start")
 	assert(a.organs.size() == 1 and a.organs[0].hp == Tuning.ENEMIES.glob.hp and a.organs[0].cd_left == Tuning.ENEMIES.glob.cd and a.bag.size() == Game.run.bag.size() - 1, "the bridged glob organ is up and the bag holds the rest")
 	a._launch_rest()
 	await get_tree().physics_frame
@@ -117,21 +118,38 @@ func _ready() -> void:
 	var head: String = a.rest.id
 	a._discard()
 	assert(a.discarded and a.discard.size() == in_discard + in_play + 2 and a.discard.back().id == head and a.rest != null, "discard swaps the resting ball for the next")
-	# Refresh: broken layout slots regrow; a broken refresh brick also moves the refresh bricks; a bare board with a ball live grows one.
+	# Refresh: broken standard slots regrow plain with no source, standing bricks stay put, and the keep tops its refresh
+	# brick back up somewhere other than the slot that fired; a bare board with a ball live regrows one brick.
 	before = a.breakable
 	a._trigger(a._bricks("plain").front())
 	a._refresh()
-	assert(a.breakable > before and a._empty_slots().is_empty(), "a refresh regrew every broken slot")
-	var fresh = a._bricks("refresh").front()
-	var n_refresh: int = a._bricks("refresh").size()
+	assert(a.breakable > before and a._empty_slots().is_empty() and a.pending == 0, "a refresh regrew every broken slot")
+	var keeper := func() -> Array: return a._live().filter(func(b): return b.keep >= 0)
+	assert(keeper.call().size() == a.keeps.size() and keeper.call().all(func(b): return b.kind == "refresh" and b.source == "design" and b.keep == 0), "the default keep stands one refresh brick of its own, from design")
+	var other = a._bricks("plain").front()
+	a._convert(other, "refresh", "design")  # a refresh no keep counts: it must not move
+	var other_at: int = a.slots.find(other)
+	var fresh = keeper.call().front()
 	var at: int = a.slots.find(fresh)
-	a._trigger(a._bricks("plain").front())
+	var gone = a._bricks("plain").front()
+	var gone_at: int = a.slots.find(gone)
+	a._trigger(gone)
 	a._trigger(fresh)
-	await get_tree().process_frame  # the swapped-out bricks free
-	var moved: Array = a._bricks("refresh")
-	assert(a._empty_slots() == [at] and not is_instance_valid(fresh) and a.layout[at].kind == "plain", "a refresh regrew the board but its own slot, which turned plain")
-	assert(moved.size() == n_refresh and moved.all(func(b): return a.layout[a.slots.find(b)].kind == "refresh" and a.slots.find(b) != at), "the refresh bricks stand in new slots, as many as before")
-	assert(a.breakable == a._live().size(), "the swap kept the breakable count")
+	var regrown = a.slots[gone_at]
+	assert(a._empty_slots() == [at] and not fresh in a._live(), "a refresh regrew the board but its own slot")
+	assert(regrown != gone and regrown.kind == "plain" and regrown.source == "" and regrown.keep == -1, "a broken slot regrew plain, no source")
+	assert(other in a._live() and a.slots.find(other) == other_at and other.kind == "refresh", "the other refresh brick did not move")
+	assert(keeper.call().size() == a.keeps.size() and keeper.call().all(func(b): return b.kind == "refresh" and a.slots.find(b) != at), "the keep's refresh stands again, elsewhere")
+	assert(a.breakable == a._live().size(), "the conversions kept the breakable count")
+	# Pending: no plain target, so the keep places nothing and owes; the next refresh's regrowth gives it one.
+	_pull_refresh(a)
+	for b in a._bricks("plain"):
+		a._convert(b, "red", "design")
+	a._keep()
+	assert(a.pending == a.keeps.size() and a._bricks("refresh").is_empty() and a.breakable == a._live().size(), "no plain target: the keep placed nothing and owes")
+	a._trigger(a._bricks("red").front())  # a blast's removal: no HP cost
+	a._refresh()
+	assert(a.pending == 0 and keeper.call().size() == a.keeps.size() and a._bricks("refresh").size() == a.keeps.size(), "the regrown plain brick took the pending refresh")
 	a._refresh()
 	a._launch_rest()
 	a.balls[0].position.x = 30  # off the board, so the live ball meets no brick while the test looks
@@ -140,9 +158,9 @@ func _ready() -> void:
 	_pull_refresh(a)
 	while not a._live().is_empty():  # an unarmed bomb takes two
 		a._trigger(a._live()[0])
-	assert(a.breakable == 0 and a.refresh_in > 0 and a.in_play() == 1, "a bare board with a ball live waits for a refresh brick")
+	assert(a.breakable == 0 and a.refresh_in > 0 and a.in_play() == 1, "a bare board with a ball live waits to regrow a brick")
 	await get_tree().create_timer(Tuning.RUN.refresh_after + 0.1).timeout
-	assert(a._bricks("refresh").size() == 1 and a.breakable == 1, "the refresh brick grew")
+	assert(a._bricks("refresh").size() == 1 and a.breakable == 1 and a._bricks("refresh")[0].keep == 0, "one brick regrew and the keep turned it refresh")
 	# HP loss short of 0 keeps the fight going; the win organ at 0 wins it, then done(true) after the end beat.
 	hp_run = Game.run.hp
 	a.hurt(1)
@@ -317,10 +335,99 @@ func _ready() -> void:
 	shot.store(10)
 	a._organ_hit(org, shot, org.cells[0])
 	assert(is_equal_approx(org.cd_left, Tuning.RIPOSTE_CUT) and not shot in a.balls, "a riposte shot cuts the countdown")
+	# Layers (docs/encounter-mechanics.md "Layers"): a shield takes its hp in hits and the brick stores nothing, then the
+	# next hit reaches the brick; a blast strips a shield instead of breaking; a needle skips it.
+	var LY := Tuning.LAYERS
+	org.cd_left = 100.0  # so no ward cut below lets the organ act
+	var tap = a._add_ball({id = "ball_basic", rank = 1}, Vector2(30, 600))
+	var bare := func() -> Array: return a._bricks("plain").filter(func(b): return b.layer.is_empty() and b.source == "")
+	var sb = bare.call()[0]
+	sb.add_layer("shield", LY.shield.hp, "design")
+	for i in LY.shield.hp:
+		a._hit(sb, tap)
+	assert(sb in a._live() and sb.layer.is_empty() and tap.stored == 0, "a shield took its hits and the brick stored nothing")
+	a._hit(sb, tap)
+	assert(not sb in a._live() and tap.stored > 0, "the next hit broke the bare brick")
+	tap.store(-tap.stored)
+	sb = bare.call()[0]
+	sb.add_layer("shield", 1, "design")
+	a._trigger(sb)
+	assert(sb in a._live() and sb.layer.is_empty(), "a blast stripped the shield and left the brick")
+	sb = bare.call()[0]
+	sb.add_layer("shield", LY.shield.hp, "design")
+	var pin = a._add_ball({id = "ball_pierce", rank = 1}, Vector2(30, 600))
+	a._hit(sb, pin)
+	assert(not sb in a._live(), "a needle broke a shielded brick in one hit")
+	a.balls.erase(pin)
+	pin.free()
+	sb = bare.call()[0]
+	sb.add_layer("shield", LY.shield.hp, "design")
+	assert(not sb.add_layer("ward", 1, "x") and sb.add_layer("shield", 1, "design") and sb.layer.hp == LY.shield.hp + 1, "one layer per brick: another kind is refused, the same kind adds hp")
+	assert(not sb.add_layer("shield", 1, "enemy:x") and sb.layer.source == "design", "the same kind from another source is refused, so a death drops only its own")
+	# A keep converts a shielded plain and the shield stays, unless its target is "no layer".
+	_pull_refresh(a)
+	for b in a._bricks("plain"):
+		b.add_layer("shield", 1, "design")
+	var keeps0: Array = a.keeps
+	a.keeps = [{when = "keep", to = "refresh", count = 1, target = "no layer", source = "design"}]
+	a._keep()
+	assert(a.pending == 1 and a._bricks("refresh").is_empty(), "a no-layer keep passed over the shielded plains and owes")
+	a.keeps = keeps0
+	a._keep()
+	assert(not a._bricks("refresh").is_empty() and a._bricks("refresh").all(func(b): return b.layer.get("kind") == "shield"), "the converted refresh kept its shield")
+	_pull_refresh(a)
+	for b in a._live():
+		b.drop_layer()
+	# Gilded is passive: the hit goes through and the break pays.
+	sb = bare.call()[0]
+	sb.add_layer("gilded", 1, "design")
+	var gold_g: int = Game.run.gold
+	a._trigger(sb)
+	assert(not sb in a._live() and Game.run.gold == gold_g + LY.gilded.gold, "a gilded brick paid its gold on break")
+	# A ward on an organ cell refuses the cash-in: the ball stays live and charged, the organ's clock hurries.
+	var cell = org.cells[0]
+	cell.add_layer("ward", LY.ward.hp, "enemy:" + org.id)
+	tap.store(5)
+	var org_hp: int = org.hp
+	a._hit(cell, tap)
+	a._hit(cell, tap)  # the same touch again in this physics frame: the one-hit guard holds for the ward too
+	assert(org.hp == org_hp and tap in a.balls and tap.stored == 5 and is_equal_approx(org.cd_left, 100.0 - LY.ward.cut) and cell.layer.hp == LY.ward.hp - 1, "a ward refused the cash-in and hurried its organ")
+	cell.drop_layer()
+	a.balls.erase(tap)
+	tap.free()
+	# shield_bricks: the nearest live bricks and the organ's own cells gain a shield from that organ.
+	var src: String = "enemy:" + org.id
+	var nearest: Array = a._live()
+	nearest.sort_custom(func(x, y): return x.position.distance_to(org.position) < y.position.distance_to(org.position))
+	a._hazard(org, "shield_bricks", 3)
+	assert(nearest.slice(0, 3).all(func(b): return b.layer.get("source") == src) and a._live().filter(func(b): return b.layer.get("source") == src).size() == 3, "shield_bricks shielded the three nearest bricks")
+	assert(org.cells.all(func(c): return c.layer.get("kind") == "shield" and c.layer.source == src), "shield_bricks shielded the organ's cells")
+	var red = bare.call()[0]
+	a._paint(red.get_instance_id(), 0, org.id)
+	assert(red.kind == "red" and red.source == src, "the organ painted a red")
+	# Jackpot: breaking every gold standing at the phase start pays it, though the start picture held more.
+	a.enc.jackpot = 9
+	var golds: Array = bare.call().slice(0, 2)
+	for g in golds:
+		a._convert(g, "gold")
+	a.phase_golds = golds.size()
+	a.phase_gold = 0
+	var gold_j: int = Game.run.gold
+	for g in golds:
+		a._trigger(g)
+	assert(Game.run.gold == gold_j + 9, "the phase that broke every standing gold paid the jackpot")
+	a.enc.erase("jackpot")
+	org.cells[0].add_layer("gilded", 1, "design", true)
+	var gold_d: int = Game.run.gold
 	# The win breaks the board outward and clears the hazards.
 	a._hazard(org, "laser_sweep", 1)
 	a._land(org, org.hp)
 	assert(a.over and a.hazards.is_empty(), "the win cleared the hazards")
+	assert(Game.run.gold == gold_d + LY.gilded.gold, "a gilded coat on an organ cell paid as the organ died")
+	var late = bare.call()[0]  # picked after the death: its keeps may have taken a plain
+	a._paint(late.get_instance_id(), 0, org.id)
+	assert(late.kind == "plain" and late.source == "", "a paint landing after its organ died does nothing")
+	assert(red.kind != "red" and red.source != src and a.get_children().all(func(b): return not "layer" in b or b.is_queued_for_deletion() or b.layer.get("source") != src), "the organ's death reverted its red (the keeps may take it) and dropped its layers")
 	await get_tree().create_timer(Tuning.RUN.win_break + 0.2).timeout
 	assert(a._live().is_empty(), "the win broke every brick outward")
 	a.queue_free()
@@ -335,6 +442,9 @@ func _ready() -> void:
 	await get_tree().process_frame
 	assert(a.paddle.size.x == R.wide_paddle.width and a.mini and a.mini.size == R.mini_paddle.size and a.saves_left == R.shield_floor.saves, "wide paddle, mini paddle and shield floor are up at fight start")
 	assert(a.layout.filter(func(s): return s.kind == "bomb").size() > Tuning.BOARDS.fight.bomb[1], "tenth bomb turned plain bricks into bombs past the generator's max")
+	assert(a._bricks("bomb").filter(func(b): return b.source == "relic:tenth_bomb").size() == a.layout.filter(func(s): return s.source == "relic:tenth_bomb").size() and a._bricks("bomb").any(func(b): return b.source == "relic:tenth_bomb"), "tenth bomb's bombs carry its source")
+	var tenth: Array = a.layout.filter(func(s): return s.slot == "standard" and s.source in ["", "relic:tenth_bomb"])  # the plain start picture, row-major
+	assert(tenth.size() >= 10 and range(tenth.size()).all(func(i): return (tenth[i].source == "relic:tenth_bomb") == ((i + 1) % 10 == 0)), "tenth bomb's effect row converted every 10th standard plain")
 	a.paddle.position.x = 300
 	a._move_paddle(0)
 	assert(a.mini.position.x == a.field.size.x - a.paddle.position.x, "the mini paddle mirrors the main one")
@@ -431,7 +541,7 @@ func _ready() -> void:
 	a.queue_free()
 	await get_tree().process_frame
 
-	# The knight (docs/content/encounters.md): three organs on their own clocks; a cell cashes in once a frame, refuses a
+	# The knight (docs/encounter-mechanics.md): three organs on their own clocks; a cell cashes in once a frame, refuses a
 	# 0-charge touch; the sword dying leaves the fight on; a hazard's organ is the killer; the body dying wins.
 	Game.run.hp = Game.run.hp_max
 	a = load("res://src/arena.gd").new()
@@ -587,6 +697,19 @@ func _ready() -> void:
 	ed.copy()
 	ed.paste(Vector2i(5, 2))
 	assert(ed.cells.size() == 3, "a copy pastes beside the original")
+	ed.tool = "+s"
+	ed.coat(Vector2i(2, 2))  # the plain's right cell
+	ed.tool = "+w"
+	ed.coat(Vector2i(4, 1))
+	ed.tool = "+g"
+	ed.coat(Vector2i(5, 2))
+	ed.erase(Vector2i(6, 2))  # a layer tool's right button strips the coat only
+	assert(ed.cells == {Vector2i(1, 2): "xs", Vector2i(4, 1): "1w", Vector2i(5, 2): "x"} and ed.row().board.layers[2].begins_with(".ss....") and ed.row().board.layers[1].begins_with("....ww.."),
+		"a layer tool coats the piece under it, its right button strips the coat, and board.layers carries the coats")
+	ed.set_keep(1)
+	assert(not ed.enc.has("effects") and ed.keep() == 1, "the default refresh keep saves no effects")
+	ed.set_keep(2)
+	assert(ed.enc.effects == [{when = "keep", to = "refresh", count = 2}] and ed.keep() == 2, "a refresh keep count off the default saves as the encounter's effects")
 	ed.page = "setup"
 	ed._build()
 	ed.page = "board"
@@ -596,10 +719,15 @@ func _ready() -> void:
 	ed._new()
 	ed._load("res://encounters/_smoke.json")
 	DirAccess.remove_absolute("res://encounters/_smoke.json")
-	assert(ed.rows() == saved_rows and ed.enc.organs.size() == 1, "an encounter file loads back as saved")
+	assert(ed.rows() == saved_rows and ed.cells[Vector2i(1, 2)] == "xs" and ed.cells[Vector2i(4, 1)] == "1w" and ed.keep() == 2 and ed.enc.organs.size() == 1, "an encounter file loads back as saved, coats and keep count included")
 	ed._play()
 	await get_tree().process_frame
 	assert(ed.arena and ed.arena.organs.size() == 1 and ed.arena.organs[0].cells.size() == 1 and ed.arena.breakable == 2, "PLAY runs the encounter in the arena")
+	var shielded: Array = ed.arena.slots.filter(func(b): return b.layer.get("kind") == "shield")
+	assert(shielded.size() == 1 and shielded[0].layer.source == "design" and shielded[0].layer.hp == Tuning.LAYERS.shield.hp and ed.arena.organs[0].cells[0].layer.get("kind") == "ward",
+		"PLAY stands the painted coats as design layers, on the organ cell too")
+	assert(ed.arena.keeps.map(func(e): return [e.to, e.count, e.source]) == [["refresh", 2, "design"]] and ed.arena.slots.all(func(b): return b.kind == "refresh" and b.source == "design"),
+		"PLAY keeps the edited refresh count: both plains turn refresh")
 	_key(KEY_ESCAPE)
 	await get_tree().process_frame
 	assert(ed.arena == null and _button(main, "PLAY"), "Esc stops the test fight and returns to the editor")
@@ -618,7 +746,6 @@ func _ready() -> void:
 	load("res://src/sfx.gd").quit()  # not get_tree().quit(): a cue still mixing at exit logs a leak
 
 
-## Pulls the refresh bricks without their effect: a broken refresh regrows the layout, itself included, which no board-emptying step can allow.
 ## Swaps the live brick p for a fresh, unarmed bomb in its layout slot.
 func _bomb_at(a: Node2D, p) -> Node:
 	var i: int = a.slots.find(p)
@@ -628,6 +755,7 @@ func _bomb_at(a: Node2D, p) -> Node:
 	return a.slots[i]
 
 
+## Pulls the refresh bricks without their effect: a broken refresh regrows the layout, itself included, which no board-emptying step can allow.
 func _pull_refresh(a: Node2D) -> void:
 	for b in a._bricks("refresh"):
 		a.breakable -= 1

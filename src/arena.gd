@@ -4,23 +4,31 @@ extends Node2D
 ## stores dmg per brick it breaks, cashes it in on touching an organ cell (_organ_hit: a 0-charge touch is refused, one
 ## hit per organ per ball per frame; the organ consumes the ball either way) and loses it on a drop; the paddle only bounces. Each Organ node owns its cells, HP,
 ## poison, countdown and intent cycle; the fight is won when the encounter's `win` organs are dead (_organ_die, _won).
-## A refresh brick regrows the board and moves every refresh brick, a bomb arms on its first hit and blasts its neighbours on its second, a red brick a ball breaks costs the
+## A refresh brick regrows every broken standard slot plain (_refresh) and the keep effects top their bricks back up by
+## converting plain ones (_keep: Tuning.KEEP_DEFAULT keeps one refresh standing). The fight's effect rows come from
+## Game.fight_effects (design, then relics, then bag balls): `start` rows run once (_start on the layout before the spawn,
+## _apply for layers after it), `keep` rows go to _keep. A bomb arms on its first hit and blasts its neighbours on its second, a red brick a ball breaks costs the
 ## player HP (a blast removes it for free); a phase ends when every ball has dropped or been consumed, no HP cost. Seconds of flight count
 ## down every live organ's intent (_count_down, _tick); at 0 the band's attack strip plays and the hazard spawns from the
 ## organ on frame 3 (_act, _hazard): red bricks painted onto the board, enemy balls and debris that cost HP on paddle touch (Hazard nodes moved by hand, cleared
 ## at phase end), a laser lane snapped to the board column under the paddle (drawn in _draw), a shield row of solids that
-## crumbles after so many paddle hits, the boss's mouth that eats balls and spits them back, and map 1's three: jam (the
+## crumbles after so many paddle hits, the boss's mouth that eats balls and spits them back, map 1's three: jam (the
 ## paddle at half width for so many hits, _paddle_fit), pull (an upward force on every ball in flight for a second,
-## _move_ball) and coin_junk (stones on top of the bag). The organ signatures live at their sites: the riposte in
+## _move_ball) and coin_junk (stones on top of the bag), and shield_bricks (layers on the organ's cells and nearest bricks).
+## Layers (Tuning.LAYERS, Box.layer) take a hit first (_through, in front of _damage and an organ cell's cash-in; a pierce
+## ball skips them), a gilded one pays on the break; the board design (generate's `layer`, added in _ready) and effect rows
+## place them (_apply: layer start rows, the hazard).
+## An organ's death reverts the bricks and layers it made (_organ_die). The organ signatures live at their sites: the riposte in
 ## _organ_hit, enrage in _land (the row's enraged fields merge in; mimic makes _enemy_ball copy the bag's balls), twice in
 ## _act; the encounter's: steal in _drop, the jackpot in _effect, shield_start in _ready, advance in _phase_start. Ball
 ## traits (Tuning.BALLS) live here too: pierce in the collision loop, split, the blaster's and the token's counts in
 ## _break, the sticky catch in _paddle_hit, poison stacks landing on the organ hit and ticking at phase end, the rubber
 ## ball's floor bounces in _save, the magnet ball in _move_ball, the junk ball's silent opener crits. Relics (Tuning.RELICS)
-## fire through _relics, one match by id at the on_fight_start, on_break and on_phase_end sites; stat relics are Game.has
+## fire through _relics, one match by id at the on_fight_start, on_break and on_phase_end sites (a placement relic, tenth_bomb,
+## is effect rows instead); stat relics are Game.has
 ## reads where their number applies (paddle width, the magnet in _move_ball, twin_crit in _crit, the mini paddle in _pads). won / lost fire as the fight ends and
 ## done(win) after the end beat, for main.gd's reward overlay or end screen; hud.gd draws the run columns.
-## docs/content.md "Fight pipeline", "Balls", "Enemies", "Hazards" and "Relics" are the contract; docs/content/encounters.md
+## docs/content.md "Balls" and "Relics" and docs/encounter-mechanics.md "Fight pipeline", "Enemies", "Hazards" are the contract (the latter not verified); the same file
 ## for organs.
 
 signal won
@@ -205,9 +213,11 @@ var discarded := false  # one discard per phase
 var over := false
 var rest: Ball = null  # the ball waiting on the paddle
 var beat := 0.0  # seconds left of the between-phase pause; 0 while a phase runs
-var refresh_in := 0.0  # seconds until an emptied board grows a refresh brick; 0 when none is pending
+var refresh_in := 0.0  # seconds until an emptied board regrows a brick; 0 when none is pending
 var flash := 0.0  # seconds left of the red field flash
-var layout: Array = []  # Game.generate's slots; slots[i] is the brick standing there (freed once broken)
+var layout: Array = []  # Game.generate's slots, the START picture (slot, kind, source); slots[i] is the brick standing there (freed once broken)
+var keeps: Array = []  # the fight's keep effect rows (Game.fight_effects, each with its source); a Box's keep indexes this
+var pending := 0  # bricks the keeps owe and found no target for; placed by the next _keep
 var slots: Array = []
 var breaks := 0  # bricks broken this fight (relic toll)
 var phase_breaks := 0  # and this phase (relic opener)
@@ -219,6 +229,7 @@ var mini: Box = null  # relic mini_paddle's second paddle, mirroring the main on
 var jam_left := 0  # hazard jam: paddle hits the paddle stays at half width; persists past a phase
 var pull_t := 0.0  # hazard pull: seconds left of the upward force on every ball in flight
 var phase_gold := 0  # gold bricks broken this phase (the jackpot)
+var phase_golds := 0  # gold bricks standing at this phase's start: breaking them all pays the jackpot
 var mimic_i := 0  # the bag index the next mimicked enemy ball copies
 var paddle_w := Tuning.PADDLE_WIDTH  # the paddle's built width, what a jam halves
 
@@ -255,19 +266,32 @@ func _ready() -> void:
 			b.organ = o
 			b.self_modulate = o.row.get("tint", Color.WHITE)
 			o.cells.append(b)
+			if d.has("layer"):  # a drawn layer: design, the first start row
+				b.add_layer(d.layer, Tuning.LAYERS[d.layer].hp, "design")
 	for o in organs:
 		add_child(o)
 		o.fit()
 		_show_intent(o)
 	slots.resize(layout.size())
-	_relics("on_fight_start")  # before the spawn: tenth_bomb rewrites layout kinds
+	var fx := Game.fight_effects(enc, Game.run)
+	keeps = fx.filter(func(e): return e.when == "keep")
+	var starts: Array = fx.filter(func(e): return e.when == "start")
+	for e in starts.filter(func(e): return not e.to.begins_with("layer:")):  # brick kinds rewrite the start picture
+		_start(e)
+	_relics("on_fight_start")
 	var rows := {}
 	for i in layout.size():
 		var row: int = layout[i].row
 		if not row in rows:  # one tick per row as it lands
 			rows[row] = true
 			Sfx.play("count_tick", 1.0 + 0.06 * row, 0.08 * row)
-		_spawn(i, layout[i].kind, 0.08 * row)
+		_spawn(i, layout[i].kind, 0.08 * row, layout[i].source)
+	for i in layout.size():  # drawn layers are design start rows: ahead of the relics' and balls'
+		if layout[i].has("layer"):
+			slots[i].add_layer(layout[i].layer, Tuning.LAYERS[layout[i].layer].hp, "design")
+	for e in starts.filter(func(e): return e.to.begins_with("layer:")):  # layers need the Boxes; before the keeps
+		_apply(e, e.source)
+	_keep()
 	paddle_w = Tuning.RELICS.wide_paddle.width if Game.has("wide_paddle") else Tuning.PADDLE_WIDTH
 	paddle = box("paddle", Vector2(paddle_w, Tuning.PADDLE_HEIGHT), Vector2(field.size.x / 2, field.size.y - Tuning.PADDLE_UP))
 	target_x = paddle.position.x
@@ -312,10 +336,11 @@ func box(kind: String, size: Vector2, pos: Vector2) -> Box:
 	return b
 
 
-## A brick of `kind` in layout slot i, hidden until its spawn strip ends after `delay`.
-func _spawn(i: int, kind: String, delay := 0.0) -> void:
+## A brick of `kind` in layout slot i, hidden until its spawn strip (in the colour of what stands there by then) ends after `delay`.
+func _spawn(i: int, kind: String, delay := 0.0, src := "") -> void:
 	var pos: Vector2 = layout[i].pos
 	var brick := box(kind, Tuning.BRICK_SIZE, pos)
+	brick.source = src
 	slots[i] = brick
 	if brick.hp > 0:
 		breakable += 1
@@ -323,40 +348,68 @@ func _spawn(i: int, kind: String, delay := 0.0) -> void:
 	var id := brick.get_instance_id()  # not the box itself: a lambda holding a freed object logs an engine error
 	create_tween().tween_callback(func():
 		if instance_from_id(id):
-			Fx.play(self, "%s_spawn" % Tuning.hue(kind), 30, 12, pos).animation_finished.connect(func(): if instance_from_id(id): instance_from_id(id).show())
+			Fx.play(self, "%s_spawn" % Tuning.hue(instance_from_id(id).kind), 30, 12, pos).animation_finished.connect(func(): if instance_from_id(id): instance_from_id(id).show())
 	).set_delay(delay)
 
 
-## Every empty layout slot regrows its original brick, except the slot of the refresh brick that fired it: regrown under
-## the ball that just broke it, a wedged ball breaks it again forever. A broken refresh (from) also re-rolls the refresh
-## slots (Game.place_refresh, never where one stood): a standing brick whose slot changed kind is swapped for the new kind.
+## Every empty standard slot regrows a plain brick of no source, except the slot of the refresh brick that fired it
+## (from): regrown under the ball that just broke it, a wedged ball breaks it again forever. Standing bricks never move or
+## swap; then the keeps top up (_keep), so the broken refresh's replacement lands somewhere else.
 func _refresh(from: Box = null) -> void:
 	Sfx.play("regrow")
 	var at := slots.find(from) if from else -1
-	if from:
-		var old: Array = layout.filter(func(s): return s.kind == "refresh")
-		# never where one stood, nor under a brick an enemy painted over its slot (a red on a plain slot)
-		var skip: Array = old + range(layout.size()).filter(func(i): return i == at or is_instance_valid(slots[i]) \
-				and not slots[i].is_queued_for_deletion() and slots[i].kind != layout[i].kind).map(func(i): return layout[i])
-		for s in old:
-			s.kind = "plain"
-		var r := RandomNumberGenerator.new()
-		r.randomize()
-		Game.place_refresh(layout, old.size(), enc.board, r, skip)
-		for i in layout.size():
-			var b = slots[i]
-			if i != at and is_instance_valid(b) and not b.is_queued_for_deletion() and b.kind != layout[i].kind and b.kind in ["plain", "refresh"]:
-				breakable -= 1
-				b.queue_free()
 	for i in _empty_slots():
 		if i != at:
-			_spawn(i, layout[i].kind)
+			_spawn(i, "plain")
+	_keep()
 
 
-## Layout slots with no live brick and no ball inside, so nothing regrows around a ball.
+## Standard layout slots with no live brick and no ball inside, so nothing regrows around a ball.
 func _empty_slots() -> Array:
-	return range(layout.size()).filter(func(i): return (not is_instance_valid(slots[i]) or slots[i].is_queued_for_deletion()) \
-			and not balls.any(func(b): return Rect2(layout[i].pos - Tuning.BRICK_SIZE / 2, Tuning.BRICK_SIZE).grow(b.radius).has_point(b.position)))
+	return range(layout.size()).filter(func(i): return layout[i].slot == "standard" and not _standing(i) and not _ball_in(i))
+
+
+func _standing(i: int) -> bool:
+	return is_instance_valid(slots[i]) and not slots[i].is_queued_for_deletion()
+
+
+## A ball overlaps layout slot i's rect.
+func _ball_in(i: int) -> bool:
+	return balls.any(func(b): return Rect2(layout[i].pos - Tuning.BRICK_SIZE / 2, Tuning.BRICK_SIZE).grow(b.radius).has_point(b.position))
+
+
+## A live brick becomes kind k in place (Box.set_kind resets hp and look), keeping the breakable count.
+func _convert(b: Box, k: String, src := "", keep_i := -1) -> void:
+	breakable -= int(b.hp > 0)
+	b.set_kind(k, src, keep_i)
+	breakable += int(b.hp > 0)
+
+
+## Every keep row tops its live bricks back up to its count (docs/encounter-mechanics.md "start and keep"): it owes
+## count minus its live bricks and converts that many targets (a live plain brick of no source on a standard slot, no
+## ball inside; a layered one too, keeping its layer, unless the row's target is "no layer") to its kind, tagged with its
+## row's source and index. It never creates a brick: what finds no
+## target stays owed in `pending` until the next call. Refresh picks in the top half below board.no_refresh_rows, never a
+## second in a column, else any target.
+func _keep() -> void:
+	pending = 0
+	for k in keeps.size():
+		var K: Dictionary = keeps[k]
+		var owes: int = K.count - _live().filter(func(b): return b.keep == k).size()
+		var bare: bool = K.get("target") == "no layer"
+		for n in owes:
+			var e: Array = range(slots.size()).filter(func(i): return _standing(i) and slots[i].kind == "plain" and slots[i].source == "" \
+					and layout[i].slot == "standard" and not _ball_in(i) and not (bare and slots[i].layer))
+			if K.to == "refresh":
+				var cols: Array = range(slots.size()).filter(func(i): return _standing(i) and slots[i].kind == "refresh").map(func(i): return layout[i].col)
+				var fit: Array = e.filter(func(i): return layout[i].row >= enc.board.get("no_refresh_rows", 0) \
+						and layout[i].row < enc.board.rows.size() / 2 and not layout[i].col in cols)
+				if fit:
+					e = fit
+			if e.is_empty():
+				pending += owes - n
+				break
+			_convert(slots[e.pick_random()], K.to, K.source, k)
 
 
 func _add_ball(ball: Dictionary, pos: Vector2) -> Ball:
@@ -397,6 +450,7 @@ func _phase_start() -> void:
 		Sfx.play("count_tick", 0.7)
 	if breakable < Tuning.RUN.regen_below:
 		_refresh()
+	phase_golds = _bricks("gold").size()
 	_rest_next()
 
 
@@ -499,7 +553,11 @@ func _physics_process(delta: float) -> void:
 		refresh_in -= delta
 		if refresh_in <= 0:
 			var empty := _empty_slots()
-			_spawn(empty[randi() % empty.size()], "refresh")
+			if empty:
+				_spawn(empty.pick_random(), "plain")
+			else:  # a ball sitting in every empty slot: try again after another wait
+				refresh_in = Tuning.RUN.refresh_after
+			_keep()
 	for b in balls.duplicate():
 		if b == rest:
 			_rest_ball()
@@ -699,6 +757,8 @@ func _organ_hit(o: Organ, ball: Ball, cell: Box) -> void:
 		return
 	ball.struck = o.get_instance_id()
 	ball.struck_frame = f
+	if not _through(cell, ball.row.has("pierce")):  # a ward on the cell refuses the cash-in: the ball bounces off, still live
+		return
 	if ball.stored <= 0 and ball.poison <= 0:
 		Sfx.play("hit_refused")
 		_drop(ball, true)
@@ -736,14 +796,27 @@ func _land(o: Organ, n: int) -> void:
 		o.row.merge(o.row.enraged, true)
 
 
-## Organ o at 0 HP: its cells break and go, its clock stops (hazards already out keep going); the win organs all dead win.
+## Organ o at 0 HP: its cells break and go, its clock stops (hazards already out keep going), everything it made goes
+## (its bricks revert to plain of no source, its layers drop, then the keeps top up); the win organs all dead win.
 func _organ_die(o: Organ) -> void:
 	o.dead = true
 	for c in o.cells:
 		Fx.play(self, "organ_die", 44, 12, c.position).modulate = o.row.get("tint", Color.WHITE)
+		if c.layer.has("kind") and Tuning.LAYERS[c.layer.kind].has("gold"):  # a gilded coat pays as its cell goes, like _break
+			_pay(Tuning.LAYERS[c.layer.kind].gold, c.position)
 		c.queue_free()
 	o.hide()
 	Sfx.play("enemy_die", Sfx.st(o.row.off))
+	var src := "enemy:" + o.id
+	for b in _live():
+		if b.source == src:
+			_convert(b, "plain")
+			b.flash("mag_spawn", 30)
+		if b.layer.get("source") == src:
+			if Tuning.LAYERS[b.layer.kind].has("pop"):
+				Fx.play(self, Tuning.LAYERS[b.layer.kind].pop, 44, 12, b.position)
+			b.drop_layer()
+	_keep()
 	if _won():
 		_end(true)
 
@@ -796,14 +869,14 @@ func _later(delay: float, fn: Callable, flight := false) -> void:
 		volley.append(tw)
 
 
-# --- Hazards (docs/content.md "Hazards") ---
+# --- Hazards (docs/encounter-mechanics.md "Hazards") ---
 
 ## Organ o's intent takes effect on the board.
 func _hazard(o: Organ, id: String, count: int) -> void:
 	if over or o.dead:  # a dead organ's wind-up fizzles; hazards already out keep going
 		return
 	match id:
-		"red_bricks": _red_bricks(count)
+		"red_bricks": _red_bricks(o, count)
 		"enemy_balls": _enemy_balls(o, count)
 		"debris": _debris(o, count)
 		"laser_sweep": _laser(count, o.id)
@@ -812,6 +885,18 @@ func _hazard(o: Organ, id: String, count: int) -> void:
 		"jam": _jam()
 		"pull": _pull(count)
 		"coin_junk": _coin_junk(count)
+		"shield_bricks": _shield_bricks(o, count)
+
+
+## shield_bricks: organ o's own cells and the `count` live bricks nearest it gain its layer (the organ row's, else the
+## hazard row's), source enemy:<organ id>; a brick wearing another kind is passed over for the next nearest.
+func _shield_bricks(o: Organ, count: int) -> void:
+	var e := {to = "layer:" + o.row.get("layer", Tuning.HAZARDS.shield_bricks.layer), count = count}
+	var near := _live()
+	near.sort_custom(func(x, y): return x.position.distance_to(o.position) < y.position.distance_to(o.position))
+	_apply(e, "enemy:" + o.id, near)
+	_apply(e.merged({count = o.cells.size()}, true), "enemy:" + o.id, o.cells)
+	Sfx.play("armor_pop", 0.7)
 
 
 ## A Hazard node at pos, with a looping 8x8 strip when given; src: the organ id that fired it.
@@ -873,7 +958,7 @@ func _tick_hazards(delta: float) -> void:
 
 
 ## red_bricks: count live plain bricks in the rows nearest the paddle turn red, staggered, away from other reds if it can.
-func _red_bricks(count: int) -> void:
+func _red_bricks(o: Organ, count: int) -> void:
 	var H: Dictionary = Tuning.HAZARDS.red_bricks
 	var plain := _bricks("plain")
 	var ys := {}
@@ -892,16 +977,15 @@ func _red_bricks(count: int) -> void:
 		var pick: Box = (clear if clear else pool).pick_random()
 		pool.erase(pick)
 		reds.append(pick)
-		_later(i * H.stagger, _paint.bind(pick.get_instance_id(), i))
+		_later(i * H.stagger, _paint.bind(pick.get_instance_id(), i, o.id))
 
 
-## A brick becomes a red in place, so its layout slot still regrows the original kind.
-func _paint(id: int, i: int) -> void:
+## A brick becomes a red in place, tagged enemy:<organ id>; once broken its slot regrows plain.
+func _paint(id: int, i: int, organ_id: String) -> void:
 	var b = instance_from_id(id)
-	if not b or b.is_queued_for_deletion():
+	if not b or b.is_queued_for_deletion() or not _organ_of("enemy:" + organ_id):  # its organ died mid-stagger: no orphan red
 		return
-	b.kind = "red"
-	b.face(Tuning.BRICKS.red.face)
+	_convert(b, "red", "enemy:" + organ_id)
 	Fx.play(self, "red_bricks_paint", 30, 12, b.position)
 	Sfx.play("cond_primed", 0.6 * Sfx.st(-i))
 
@@ -1064,7 +1148,7 @@ func _coin_junk(count: int) -> void:
 	var junk: String = Tuning.HAZARDS.coin_junk.junk
 	for i in count:
 		Game.add_ball(junk)
-		bag.push_front({id = junk, rank = 1})
+		bag.push_front(Game.run.bag.back().duplicate())  # the same entry, uid and all
 		Sfx.play("coin", 0.7 * Sfx.st(2 * i), 0.1 * i)
 		Sfx.play("teleport_out", 0.5 * Sfx.st(2 * i), 0.1 + 0.1 * i)
 
@@ -1114,9 +1198,10 @@ func _hit(b: Box, ball: Ball) -> void:
 				_damage(b, ball)
 
 
-## Every hit on a breakable, a ball's own (direct) or a blast's: one hp off. A bomb's first hit arms it.
+## Every hit on a breakable, a ball's own (direct) or a blast's: its layer first (_through), then one hp off. A bomb's
+## first hit arms it.
 func _damage(b: Box, ball: Ball = null, direct := true) -> void:
-	if b.is_queued_for_deletion():
+	if b.is_queued_for_deletion() or not _through(b, ball != null and direct and ball.row.has("pierce")):
 		return
 	b.hp -= 1
 	if b.hp <= 0:
@@ -1127,6 +1212,75 @@ func _damage(b: Box, ball: Ball = null, direct := true) -> void:
 		return
 	b.flash("%s_hit" % Tuning.hue(b.kind), 30)
 	Sfx.play("brick_hit")
+
+
+## A hit on b meets its layer first (docs/encounter-mechanics.md "Hit resolution"): the layer's on_hit fires (a ward's
+## cut hurries the organ that owns it); a blocking one takes the hit, -1 hp, popping at 0, and the brick does nothing; a
+## passive one lets it through. pierce (the ball's trait) skips the layer. True when the hit reaches the brick.
+func _through(b: Box, pierce := false) -> bool:
+	if b.layer.is_empty() or pierce:
+		return true
+	var L: Dictionary = Tuning.LAYERS[b.layer.kind]
+	if L.has("cut"):
+		var o = _organ_of(b.layer.source)
+		if o:
+			_tick(o, L.cut)
+	if not L.blocks:
+		return true
+	b.layer.hp -= 1
+	if b.layer.hp > 0:
+		Fx.play(self, "solid_bounce", 44, 12, b.position)
+		Sfx.play("solid_bounce")
+		return false
+	Fx.play(self, L.pop, 44, 12, b.position)
+	Sfx.play(L.pop)
+	b.drop_layer()
+	return false
+
+
+## The live organ an "enemy:<organ id>" source names, else null.
+## ponytail: by id, so two organs of one id in an encounter share their bricks; key by organ index if one ever repeats
+func _organ_of(src: String) -> Organ:
+	for o in organs:
+		if not o.dead and "enemy:" + o.id == src:
+			return o
+	return null
+
+
+## One brick-kind `start` row on the start picture, before the spawn: of the layout's plain entries of no source on a
+## standard slot (the row's target "standard"), every `every`th in row-major order, else `count` at random, become e.to
+## tagged e.source.
+## ponytail: `every` keeps tenth_bomb's "at least one" (the last match when fewer than `every` stand) and target is always
+## "standard"; make both select / target rules when a second row wants otherwise
+func _start(e: Dictionary) -> void:
+	var m: Array = layout.filter(func(s): return s.slot == "standard" and s.kind == "plain" and s.source == "")
+	var picks: Array
+	if "every" in e:
+		picks = range(e.every - 1, m.size(), e.every).map(func(i): return m[i])
+		if m and m.size() < e.every:
+			picks = [m.back()]
+	else:
+		m.shuffle()
+		picks = m.slice(0, e.count)
+	for s in picks:
+		s.kind = e.to
+		s.source = e.source
+
+
+## One `to = "layer:<kind>"` effect row placed now (docs/encounter-mechanics.md "Effects"): `count` pieces from pool, in
+## order (default every live brick, shuffled), gain the layer (hp: the row's, else the kind's), tagged src. Target
+## defaults to "no layer": a piece wearing another kind is skipped; target "any" replaces it. A brick-kind start row goes
+## through _start on the layout instead; drawn bricks and coats are generator output by decision, not rows.
+func _apply(e: Dictionary, src: String, pool: Array = []) -> void:
+	var k: String = e.to.trim_prefix("layer:")
+	if pool.is_empty():
+		pool = _live()
+		pool.shuffle()
+	var n := 0
+	for b in pool:
+		if n >= e.count:
+			break
+		n += int(b.add_layer(k, e.get("hp", Tuning.LAYERS[k].hp), src, e.get("target") == "any"))
 
 
 ## Every box still standing: breakable, not already broken this frame.
@@ -1181,8 +1335,12 @@ func _break(b: Box, ball: Ball = null, direct := true) -> void:
 			if ball.entry.pays % ball.at_rank("pays") == 0:
 				_pay(ball.row.gold, b.position)
 	_effect(b.kind, b, ball, direct)
+	if b.layer.has("kind") and Tuning.LAYERS[b.layer.kind].has("gold"):  # a gilded layer pays as its brick goes
+		_pay(Tuning.LAYERS[b.layer.kind].gold, b.position)
+	if b.keep >= 0 and b.kind != "refresh" and not over:  # a refresh's own break already ran the keeps
+		_keep()
 	if breakable == 0 and refresh_in <= 0 and in_play() > 0:
-		refresh_in = Tuning.RUN.refresh_after  # the board is bare with a ball still live: a refresh brick grows
+		refresh_in = Tuning.RUN.refresh_after  # the board is bare with a ball still live: a brick regrows, the keeps convert it
 
 
 ## Balls in flight: every ball but the one resting on the paddle.
@@ -1233,7 +1391,7 @@ func _effect(kind: String, b: Box, ball: Ball = null, direct := true) -> void:
 				_pay(Tuning.BRICKS.gold.gold, b.position)
 				return
 			phase_gold += 1
-			if phase_gold == layout.filter(func(s): return s.kind == "gold").size():
+			if phase_gold == phase_golds:
 				_pay(enc.jackpot, b.position)
 				Sfx.play("jackpot")
 
@@ -1269,17 +1427,11 @@ func _crit(b: Box, ball: Ball) -> void:
 func _relics(hook: String, ball: Ball = null, b: Box = null) -> void:
 	for id in Game.run.relics:
 		var R: Dictionary = Tuning.RELICS[id]
-		if hook != R.hook and hook != R.get("reset"):
+		if hook != R.get("hook") and hook != R.get("reset"):
 			continue
 		match id:
 			"shield_floor":
 				saves_left = R.saves
-			"tenth_bomb":
-				var plain: Array = layout.filter(func(s): return s.kind == "plain")
-				for i in range(R.every - 1, plain.size(), R.every):
-					plain[i].kind = "bomb"
-				if plain and plain.size() < R.every:
-					plain.back().kind = "bomb"
 			"mini_paddle":
 				mini = box("paddle_mini", R.size, Vector2(field.size.x / 2, field.size.y - Tuning.PADDLE_UP))
 			"opener":

@@ -13,7 +13,7 @@ const RED = { tube: "ff0000", ring: "a30000", deep: "3a0000", hi: "ff8a8a" };  /
 const GOLD = "ebdb57";
 
 export const RELICS = ["wide_paddle", "shield_floor", "opener", "toll", "tenth_bomb", "magnet_paddle", "combo", "twin_crit", "recall", "mini_paddle"];
-export const INTENTS = ["red_bricks", "enemy_balls", "debris", "laser_sweep", "shield_row", "mouth"];
+export const INTENTS = ["red_bricks", "enemy_balls", "debris", "laser_sweep", "shield_row", "mouth", "shield_bricks"];
 export const NODES = ["fight", "elite", "treasure", "shop", "event"];
 
 // Glyphs are at most 10x10 and sit centred in the 12x12 (1 px clear of the edge). '#' main colour, 'o' second.
@@ -35,6 +35,7 @@ const INTENT = {
 	debris: [".##...##..", ".oo...oo..", "..........", "....##....", "....oo....", "..........", "..........", ".########."],
 	laser_sweep: ["....#o....", "....#o....", ".#..#o..#.", "##..#o..##", ".#..#o..#.", "....#o....", "....#o....", "....#o...."],
 	shield_row: ["..........", "###.##.###", "ooo.oo.ooo", "..........", "..........", "....#.....", "...###....", "..#.#.#...", "....#....."],
+	shield_bricks: ["..######..", "..#oooo#..", "..#oooo#..", "...#oo#...", "....##....", "..........", "##########", "#oooooooo#", "##########"],
 	mouth: ["##########", "#..#..#..#", ".o..o..o..", "..........", "..........", ".o..o..o..", "#..#..#..#", "##########"],
 };
 const NODE = {
