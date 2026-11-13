@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="Upgrade" format=3]
+
+[ext_resource type="Script" path="res://src/content/upgrade.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+title = "Paddle Size"
+category = 0
+text = "+15% paddle length"
+first_cost = 10
+max_rank = 3
+stat = &"paddle_size"
+amount = 0.15
+percent = true

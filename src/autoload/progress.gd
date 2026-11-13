@@ -1,9 +1,6 @@
 extends Node
 ## Autoload `Progress`: the one save slot, and the stats that come out of it.
 ##
-## STUB: the state lane writes the bodies and the fifteen files in data/upgrades/. As shipped here it keeps
-## everything in memory, reads and writes no file, finds no upgrades and returns base stats.
-##
 ## THE SAVE is one JSON file:
 ##     {
 ##       "version": 1,
@@ -58,6 +55,13 @@ var layouts: Dictionary[int, Array] = {}
 ## How many levels there are: Levels.count(). A test may set it; use() puts it back.
 var level_count := Levels.count()
 
+## Upgrade id -> upgrade, in id order. Read once, on first use.
+var _upgrades: Dictionary[StringName, Upgrade] = {}
+
+
+func _ready() -> void:
+	use(path)
+
 
 ## Switches to another save file: forgets everything in memory, then loads `new_path` (a missing file is a fresh
 ## save). Tests and the screenshot harness call this with a path inside the checkout before they do anything
@@ -66,6 +70,7 @@ func use(new_path: String) -> void:
 	path = new_path
 	level_count = Levels.count()
 	reset()
+	_load()
 
 
 ## Back to a fresh save in memory. Does not write the file.
@@ -78,17 +83,28 @@ func reset() -> void:
 
 ## Writes the save to `path`.
 func save() -> void:
-	pass
+	var data := {"version": VERSION, "coins": coins, "ranks": ranks, "unlocked": unlocked, "layouts": layouts}
+	# Written beside the save and then moved over it, so a crash mid-write never leaves half a save.
+	var tmp := path + ".tmp"
+	var f := FileAccess.open(tmp, FileAccess.WRITE)
+	if f == null:
+		push_error("cannot write the save to %s: %s" % [tmp, error_string(FileAccess.get_open_error())])
+		return
+	f.store_string(JSON.stringify(data, "\t"))  # int keys (layouts) become "1", as the format says
+	f.close()
+	DirAccess.rename_absolute(tmp, path)
 
 
 ## Every upgrade: each .tres in UPGRADES, sorted by id. The id is the file name (see Upgrade.id).
 func upgrades() -> Array[Upgrade]:
-	return []
+	var out: Array[Upgrade] = []
+	out.assign(_all().values())
+	return out
 
 
 ## The upgrade with this id, or null.
-func upgrade(_id: StringName) -> Upgrade:
-	return null
+func upgrade(id: StringName) -> Upgrade:
+	return _all().get(id)
 
 
 ## Ranks owned of an upgrade.
@@ -114,21 +130,36 @@ func can_buy(u: Upgrade) -> bool:
 
 ## Buys the next rank if can_buy: takes the coins, raises the rank, saves, and emits coins_changed and
 ## rank_changed. Returns false and changes nothing otherwise.
-func buy(_u: Upgrade) -> bool:
-	return false
+func buy(u: Upgrade) -> bool:
+	if not can_buy(u):
+		return false
+	var price := cost(u)
+	ranks[u.id] = rank(u) + 1
+	coins -= price
+	save()
+	rank_changed.emit(u)
+	return true
 
 
 ## The value of a stat: its base value from balance.tres plus, for every upgrade that changes it, its amount
 ## times the ranks owned. A percent amount is a share of the base value, so Ball Speed at rank 5 is
 ## base + base * 0.15 * 5. Stat names are Balance's "Stats" properties and the counts, `<kind id>_count`.
 func stat(stat_name: StringName) -> float:
-	return balance.base(stat_name)
+	var base := balance.base(stat_name)
+	var value := base
+	for u: Upgrade in _all().values():
+		if u.stat == stat_name:
+			value += rank(u) * (u.amount * base if u.percent else u.amount)
+	return value
 
 
 ## Every number a round needs, with the upgrades applied: a copy of balance.tres in which each stat is stat().
 ## The level screen takes one when a round starts and passes it to Round.new. Changing the copy changes nothing else.
 func snapshot() -> Balance:
-	return balance.copy()
+	var b := balance.copy()
+	for u: Upgrade in _all().values():  # only an upgrade moves a stat off its base
+		b.put(u.stat, stat(u.stat))
+	return b
 
 
 ## True if the level may be played.
@@ -138,16 +169,66 @@ func is_unlocked(level: int) -> bool:
 
 ## Called once when a round ends, however it ends: adds `earned` coins, unlocks level + 1 if `cleared` and that
 ## level exists (level < level_count) and is still locked (emitting level_unlocked), and saves.
-func finish_round(_level: int, _earned: int, _cleared: bool) -> void:
-	pass
+func finish_round(level: int, earned: int, cleared: bool) -> void:
+	coins += earned
+	if cleared and level < level_count and level >= unlocked:
+		unlocked = level + 1
+		level_unlocked.emit(unlocked)
+	save()
 
 
 ## The saved layout of a level, or an empty one. It is not fitted: build the round from it and the round drops
 ## what no longer fits, or call Layout.fitted yourself.
-func layout(_level: int) -> Layout:
-	return Layout.new()
+func layout(level: int) -> Layout:
+	return Layout.from_data(layouts.get(level, []))
 
 
 ## Stores a level's layout and saves.
-func set_layout(_level: int, _layout: Layout) -> void:
-	pass
+func set_layout(level: int, l: Layout) -> void:
+	layouts[level] = l.to_data()
+	save()
+
+
+func _all() -> Dictionary[StringName, Upgrade]:
+	if _upgrades.is_empty():
+		var files := Array(ResourceLoader.list_directory(UPGRADES))
+		files.sort()  # the id is the file name, so this is id order
+		for file: String in files:
+			var u: Upgrade = load(UPGRADES.path_join(file)) as Upgrade if file.get_extension() == "tres" else null
+			if u:
+				_upgrades[u.id] = u
+	return _upgrades
+
+
+## Reads the file at `path` into the fresh state reset() left. Keeps every field it can read and skips the rest.
+func _load() -> void:
+	if not FileAccess.file_exists(path):
+		return
+	var json := JSON.new()  # not JSON.parse_string, which logs an error on a broken file
+	var data: Variant = json.data if json.parse(FileAccess.get_file_as_string(path)) == OK else null
+	var version: Variant = data.get("version") if data is Dictionary else null
+	if not data is Dictionary or (_num(version) and version > VERSION):
+		push_warning("%s cannot be read: it is kept as %s.bad and the game starts fresh" % [path, path])
+		DirAccess.rename_absolute(path, path + ".bad")
+		return
+	# ponytail: VERSION 1 is the only format, so a missing or older version is read as it is. The first format
+	# change adds an upgrade step here, keyed on `version`.
+	if _num(data.get("coins")):
+		coins = maxi(0, int(data.coins))
+	if _num(data.get("unlocked")):
+		unlocked = maxi(1, int(data.unlocked))
+	var saved_ranks: Variant = data.get("ranks")
+	if saved_ranks is Dictionary:
+		for id: Variant in saved_ranks:
+			var u := upgrade(StringName(str(id)))
+			if u and _num(saved_ranks[id]):
+				ranks[u.id] = clampi(int(saved_ranks[id]), 0, u.max_rank)
+	var saved_layouts: Variant = data.get("layouts")
+	if saved_layouts is Dictionary:
+		for key: Variant in saved_layouts:
+			if str(key).is_valid_int() and saved_layouts[key] is Array:
+				layouts[int(str(key))] = saved_layouts[key]
+
+
+static func _num(v: Variant) -> bool:
+	return v is float or v is int
