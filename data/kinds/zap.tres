@@ -1,0 +1,12 @@
+[gd_resource type="Resource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/kinds/zap.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+title = "Zap"
+colour = &"placeable"
+cue = &"zap"
+order = 5
+placement = 2
+size = Vector2(6, 6)

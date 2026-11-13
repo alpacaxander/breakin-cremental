@@ -1,0 +1,14 @@
+[gd_resource type="Resource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/kinds/bumper.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+title = "Bumper"
+colour = &"placeable"
+cue = &"bumper"
+order = 1
+placement = 0
+shape = 0
+size = Vector2(30, 30)
+turn = 45.0
