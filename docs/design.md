@@ -2,7 +2,7 @@
 
 **Logline:** A breakout-style incremental game where you set up the board you're about to break. "Sir, We Have an Orc Problem" meets breakout.
 
-*Status: WIP. Every decision below is provisional. Details are in `docs/design/`: `overview.md` (flow, phases, save), `levels.md` (grid, layouts) and `upgrades.md` (web, categories).*
+*Status: WIP. Every decision below is provisional. Details are in `docs/design/`: `overview.md` (flow, phases, coins, save), `levels.md` (grid, arena size, layouts), `physics.md` (ball and paddle), `placeables.md` (placement kinds and rules) and `upgrades.md` (web, categories).*
 
 ## Unique selling point
 
@@ -15,30 +15,33 @@ Feel like a high-score engineer: clever setup turns a stubborn wall of bricks in
 ## Core loop
 
 1. **Upgrades:** spend coins in the upgrade web, then pick an unlocked level.
-2. **Setup:** place unlocked items on the board while the timer is stopped.
-3. **Play:** a timed round. Every brick broken pays coins, whether or not the level is cleared.
-4. **Summary:** shows coins earned, bricks broken, and whether the level was cleared. Back to step 1.
+2. **Setup:** place unlocked items on the board while the timer is stopped. The level remembers its layout.
+3. **Play:** a timed round. Bricks broken and combos are tallied, whether or not the level is cleared.
+4. **Summary:** shows the tally, the coins it pays, and whether the level was cleared. Retry the level (step 2) or go back to Upgrades (step 1).
 
 ## Key mechanics
 
-- **Arena:** horizontal. The paddle sits on the left edge and moves up and down; the back wall is on the right. The board is a 64 × 16 grid. A brick is 1 column × 2 rows and has HP, the number of hits needed to break it (default 1).
+- **Arena:** horizontal. The paddle sits on the left edge and moves up and down; the back wall is on the right; the paddle side is open. The board is a grid whose size is set per level: a level picks its row count, there are always 4 columns per row, and the view zooms to fit. The base size is 64 × 16.
+- **Bricks:** a brick is 1 column × 2 rows and has HP, the number of hits needed to break it (default 1). Its colour shows the hits it has left and changes with every hit.
 - **Levels:** made by hand, one Godot scene each, edited in the editor. There is no procedural generation.
-- **Ball drop:** if the ball gets past the paddle, the round ends immediately. You keep the coins for bricks broken so far but lose the remaining time.
+- **Ball:** it moves at a constant speed and only changes direction when it bounces. The angle off the paddle depends on where the ball hits it, as in classic Breakout. Ball and paddle both start slow, and upgrades speed them up.
+- **Ball drop:** if the last ball gets past the paddle, the round ends immediately. You are still paid for the bricks broken so far but lose the remaining time.
 - **Timer:** 20 s base, extended by Arena upgrades and hourglass bricks.
-- **Coins:** the only currency. Each brick broken pays 1 coin, multiplied by the combo once combos are unlocked.
+- **Coins:** the only currency. They are calculated from the round's tally of bricks broken (by type) and combos. The formula is an open question; until it is decided each brick pays 1 coin, multiplied by the combo.
 - **Combos:** off at the start, then unlocked and upgraded through Arena upgrades. Each brick broken within the combo window extends the combo and raises a multiplier on coins per brick. The window shrinks as the combo grows, so long combos need dense hits. If the window runs out, the combo resets. Higher ranks widen the window.
-- **Upgrade web:** grows out from one seed node, paddle speed (the paddle starts slow). Buying a node unlocks its neighbours. A node has one or more ranks, each more expensive than the last. There are three categories:
-  - **Placeables:** items you place during setup, for example a bumper, a wall segment or a ball splitter.
-  - **Bricks:** at level start, some standard bricks are randomly replaced by special bricks that do something when hit or destroyed, for example explosive, coin ×2 or hourglass (+time).
-  - **Arena:** base stats, for example paddle size, paddle speed, round time and combos.
+- **Placeables:** items placed during Setup. There are three kinds: free-form items that go anywhere clear of bricks and the paddle lane (some can be rotated), placeable bricks that snap to the grid, and brick mods that go on an existing brick. Fencing the ball into the board is allowed.
+- **Upgrade web:** grows out from one seed node, paddle speed. Buying a node unlocks its neighbours. A node has one or more ranks, each more expensive than the last. There are three categories:
+  - **Placeables:** unlock the items above. Each rank lets you place one more.
+  - **Bricks:** at level start, some standard bricks are randomly replaced by special bricks that do something when hit or destroyed, for example explosive, coin ×2 or hourglass (+time). Each rank replaces one more brick, and the bricks are picked again on every attempt.
+  - **Arena:** base stats, for example paddle size, paddle speed, ball speed, round time and combos.
 
 ## Progression
 
 - Clearing every brick before time runs out unlocks the next level.
 - A new level is usually too hard on the first try. Failed attempts still pay out, so upgrades make the retry easier.
 - Any unlocked level can be replayed. There is no deliberate payout curve, but later levels hold more bricks, so they happen to pay more.
-- There is one save slot. It holds the coin balance, the upgrade ranks and the highest level unlocked.
-- There is no prestige or reset layer; that is out of scope for v1.
+- There is one save slot. It holds the coin balance, the upgrade ranks, the highest level unlocked and each level's placed layout.
+- There is no prestige or reset layer; that is out of scope for the demo.
 
 ## Win / lose
 
@@ -46,8 +49,8 @@ Win by clearing the final level. There is no loss state: a round that times out 
 
 ## Controls
 
-- In a round: W/S, the up/down arrows, or the mouse's vertical position move the paddle.
-- Between rounds: the mouse. Click to buy upgrades and drag to place items.
+- In a round: W/S or the up/down arrows move the paddle. With the mouse, the paddle chases the cursor's vertical position at paddle speed.
+- Between rounds: the mouse. Click to buy upgrades and drag to place items. The scroll wheel, or Q and E, rotates a rotatable item.
 
 ## Target audience & platform
 
@@ -67,19 +70,37 @@ A modern take on arcade and Atari: everything on screen is as simple as a 2600 g
 - **Audio:** square-wave bleeps whose pitch climbs with each hit in a combo, given modern punch.
 - **Accessibility:** a "reduce flashing" toggle in Settings.
 
-## MVP
+## Demo
 
-- 1 paddle and 1 ball, a 20 s timer, and a ball drop ends the round.
-- Levels 1–3 from `docs/design/levels.md`, with plain and high HP bricks.
+The demo is the first build. It is the whole loop with its look and sound, on three levels:
+
+- Levels 1–3 from `docs/design/levels.md`.
+- Setup → play → summary, with Retry and Upgrades on the summary.
+- The ball and paddle from `docs/design/physics.md`.
+- The upgrade web, with all three categories: placeables, special bricks and arena stats, including paddle speed and combos. The list of nodes is an open question.
+- The three kinds of placeables, with layouts saved per level.
 - Coins only.
-- About 5 upgrades in a tiny web, including paddle speed and combos.
-- 1 placeable.
-- Setup → play → summary, with a retry after a failed attempt.
+- Art, effects, the CRT filter and audio as described above and in `docs/art.md`.
+- Main menu, Settings (CRT, reduce flashing) and one save slot.
 
-Deliberately out of the MVP: effects, audio, the CRT filter and special bricks. The MVP exists to test whether placement + combos is fun and whether hand-made levels hit the difficulty target.
+Out of the demo: more levels, a prestige layer.
+
+The demo exists to test whether placement + combos is fun and whether hand-made levels hit the difficulty target. It is judged by playing it. Where the docs don't give a number, the implementation makes its best guess and keeps the value easy to tune.
+
+## Open questions
+
+These need deciding before or during the demo build:
+
+1. **Initial upgrades.** Which nodes the demo has and their costs, ranks and effects. This also decides which placeables, brick mods and special bricks exist (see `docs/design/upgrades.md`).
+2. **Architecture.** The scene tree, autoloads, signals and file layout.
+3. **How audio is generated.**
+4. **The coin formula.** How the tally of bricks and combos turns into coins.
+5. **Combo numbers.** Left to the implementation and tuned later.
+6. **A ceiling on arena size.** Very big levels shrink the ball and bricks to a few pixels (see `docs/art.md`).
+7. **Screens with no mockup.** The summary, the main menu and Settings are not in `docs/art.md` yet.
 
 ## Risks
 
-1. **Difficulty tuning.** Every hand-made level needs to be too hard on the first try but doable after upgrades. This is the biggest risk, and the MVP is built to test it.
+1. **Difficulty tuning.** Every hand-made level needs to be too hard on the first try but doable after upgrades. This is the biggest risk, and the demo is built to test it.
 2. **Paddle feel.** Breakout lives or dies on ball physics and paddle response, so prototype it early. Because a drop ends the round, a bad-feeling paddle makes every drop feel unfair.
 3. **Effects feel.** Flat rectangles keep the art cheap, so the polish has to come from effects, sound and the CRT filter. Making them punchy without hiding the ball is the part most likely to fall flat.

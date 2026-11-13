@@ -2,7 +2,7 @@
 
 A horizontal Breakout game with roguelite progression. Each level is a short timed run that earns coins. Coins buy permanent upgrades.
 
-See also: [levels.md](levels.md), [upgrades.md](upgrades.md).
+See also: [levels.md](levels.md), [physics.md](physics.md), [placeables.md](placeables.md), [upgrades.md](upgrades.md).
 
 ## Flow
 
@@ -16,14 +16,17 @@ See also: [levels.md](levels.md), [upgrades.md](upgrades.md).
 └──────────────┘        │   └──────────┘   ┌──────┴──────────────┐ │
                         │                  │ LEVEL               │ │
                         │                  │ setup → play → summ.│ │
+                        │                  │   ▲           retry │ │
+                        │                  │   └───────────────┘ │ │
                         │                  └─────────────────────┘ │
                         └──────────────────────────────────────────┘
 ```
 
 - **Main menu:** Play, Settings, Exit.
+- **Settings:** the CRT filter toggle and the "reduce flashing" toggle.
 - **Play scene:** you switch between two modes:
   - **Upgrades:** spend coins in the upgrade web, then choose an unlocked level to play.
-  - **Level:** a single run, made up of the three phases below. It always returns to Upgrades.
+  - **Level:** a single run, made up of the three phases below. From the Summary you either retry the level or return to Upgrades.
 
 ## Save data
 
@@ -32,26 +35,37 @@ There is one save slot. It holds:
 - the coin balance
 - the rank of each upgrade
 - the highest level unlocked
+- each level's placed layout (see [placeables.md](placeables.md#rules))
 
-Nothing about a level in progress is saved.
+Nothing else about a level in progress is saved. Settings are stored separately from the save slot.
 
 ## Level phases
 
 ```
-┌─────────┐  start   ┌──────────────┐  timer ends / ball lost /  ┌─────────┐
-│  SETUP  ├─────────►│  PLAY (20 s) ├───────────────────────────►│ SUMMARY │──► Upgrades
-└─────────┘          └──────────────┘  all bricks cleared        └─────────┘
+     ┌───────────────────────── Retry ──────────────────────────┐
+     ▼                                                          │
+┌─────────┐  start   ┌──────────────┐  timer ends / last ball   ┌┴────────┐
+│  SETUP  ├─────────►│  PLAY (20 s) ├──────────────────────────►│ SUMMARY │──► Upgrades
+└─────────┘          └──────────────┘  lost / all bricks cleared└─────────┘
 ```
 
 | Phase | What happens |
 |---|---|
-| **Setup** | The timer is stopped. You place any unlocked placeables in the arena. Brick upgrades have already swapped some bricks for special bricks. Press Start to begin. |
-| **Play** | The timer runs: 20 s base, extended by Arena upgrades and hourglass bricks. Each brick destroyed gives +1 coin, multiplied by the combo once combos are unlocked. The run ends when the timer reaches 0, when the ball is lost, or when every brick is cleared. |
-| **Summary** | Shows coins earned and bricks destroyed, and whether the level was cleared. Returns to Upgrades. |
+| **Setup** | The timer is stopped. The level's saved layout is already on the board, and you place, move or remove any unlocked placeables. Brick upgrades have already swapped some bricks for special bricks. The ball waits a little to the right of the paddle. Press Start to begin. |
+| **Play** | The timer runs: 20 s base, extended by Arena upgrades and hourglass bricks. The round keeps a tally of the bricks broken, by type, and of the combos reached. The run ends when the timer reaches 0, when the last ball is lost, or when every brick is cleared. |
+| **Summary** | Shows the tally (bricks broken by type, combos), the coins it pays, and whether the level was cleared. Two buttons: Retry goes back to Setup on the same level, and Upgrades returns to the hub. |
 
-- **Ball loss** ends the run immediately and goes to Summary.
-- **Clearing every brick** before time runs out unlocks the next level.
-- Coins are added the moment a brick breaks, so you keep them however the run ends.
+- **Ball loss** ends the run immediately and goes to Summary. With several balls, only losing the last one ends the run.
+- **Clearing every brick** before time runs out unlocks the next level. Bricks the player placed don't count.
+- **Special bricks are rolled again on every attempt**, including a retry.
+
+## Coins
+
+- Coins are calculated from the round's tally: the number and type of bricks broken, and the combos.
+- The tally pays out however the run ends, so a ball drop or a timeout still pays for everything broken so far.
+- The HUD shows the running coin total during Play.
+- Bricks the player placed pay nothing.
+- The formula is not decided yet. It is settled together with the initial upgrades. Until then, each brick pays 1 coin, multiplied by the combo multiplier at the moment it broke.
 
 ## Replaying levels
 

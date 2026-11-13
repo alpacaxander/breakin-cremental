@@ -4,13 +4,22 @@ How to build real assets that match the mockups. Colours and what they mean are 
 
 Mockups: [BreakIn cremental look](https://claude.ai/artifact/6Kpd6EhDk1VkAwn1KGsMgk), a canvas with a level (Setup and Play, levels 1–3) and the upgrade screen. If this file and the mockups disagree, fix whichever one is wrong so they match again.
 
+**The mockups are behind the docs in five places.** Until they are redrawn, the docs are right:
+
+- The ball in Setup rests against the paddle. It should sit a little to the right of it.
+- Level 1's bricks are all 1 HP. The columns should be 3 HP, 2 HP and 1 HP.
+- Level 3 is drawn at 64 × 16 with the tunnel below centre and 3 HP strong bricks. It should be 72 × 18, zoomed to fit, with 4 HP strong bricks.
+- The bumper ghost snaps to a grid cell. The bumper is free-form and doesn't snap.
+- Special bricks are a share of the level's bricks, and the web has "Explosive Chance" and "Bumper Count" nodes. Counts now come from the unlock node's ranks (see [upgrades.md](design/upgrades.md#counts-come-from-ranks)).
+
 ## Rules
 
 - **Reference frame: 1280 × 720.** Every size here is in whole pixels at that frame. The game scales the frame to the window and keeps the aspect ratio (in Godot: stretch mode `canvas_items`, aspect `keep`).
+- **Arena sizes are for a 16-row level.** Things inside the arena shrink or grow with the level's size (see [Arena zoom](#arena-zoom)).
 - **Draw shapes, don't paint them.** Bricks, the paddle, the ball, placeables, bars, panels and upgrade nodes are flat rectangles drawn in the engine (`ColorRect`, `Polygon2D` or `draw_rect`). They have no textures, outlines, bevels, gradients or rounded corners. If something does need a texture, make it white and tint it with a palette colour, so every colour is defined only in `palette.md`.
 - **Bake no glow.** Halos, shadows and flashes all come from bloom. Lit colours bloom and slate never does: set the bloom threshold above the slate neutrals and push lit colours over it (in Godot: WorldEnvironment glow with HDR 2D on).
 - **Squares, never circles.** The ball, particles and the coin glyph are squares. The coin glyph and the bumper are squares turned 45°.
-- **Snap to the grid.** Bricks sit on the 64 × 16 grid from [levels.md](design/levels.md). Placeables snap to it too: a bumper takes 2 × 1 cells (32 × 32 px).
+- **Snap to the grid.** Bricks sit on the level's grid from [levels.md](design/levels.md). Placeable bricks and brick mods snap to it too. Free-form placeables, such as the bumper and the wall segment, don't snap (see [placeables.md](design/placeables.md)).
 - **Bloom target.** The mockups fake bloom with CSS shadows: a tight halo of about 6 px and a soft one of about 15 px around bricks, with a stronger one around the ball. Tune bloom to that at ×1 and let the combo push it higher.
 
 ## Level screen
@@ -19,17 +28,28 @@ Mockups: [BreakIn cremental look](https://claude.ai/artifact/6Kpd6EhDk1VkAwn1KGs
 |---|---|---|
 | HUD | x 96–1184, y 10–96 | Three columns: time on the left, combo (Play) or SETUP (Setup) in the centre, coins on the right |
 | Arena | 1088 × 524 at (96, 104) | Walls 6 px thick in `2a2f4e` on the top, bottom and back. The paddle side is open |
-| Grid | 1024 × 512, starting 58 px in from the arena's left edge | Cell 16 × 32. The 58 px in front of it is the paddle lane |
+| Grid | 1024 × 512, starting 58 px in from the arena's left edge | Cell 16 × 32 on a 16-row level. The 58 px in front of it is the paddle lane |
 | Backdrop grid | The whole grid | Play: 2 px lines every 64 px (one square) in `1a1932`. Setup: those lines turn `2a2f4e`, with 1 px `1a1932` lines on every cell |
 | Brick | A 16 × 64 cell, drawn at 14 × 62 | 1 px gap on every side, so 2 px between bricks. The colour comes from HP or kind |
 | Paddle | 12 × 96, 24 px in from the arena's left edge | Body `657392`, with a 4 px cyan stripe on the side facing the board |
-| Ball | 12 × 12 | White. In Setup it rests against the paddle's stripe |
-| Bumper | 30 × 30, turned 45° | Blue |
-| Wall segment | 10 × 112 | Blue |
-| Placement ghost | Same as the item | Fill `00396d`, a 2 px dashed blue border and no glow. The cell under it gets a cyan fill at 12% and a 1 px cyan border at 50% |
+| Ball | 12 × 12 | White. In Setup it sits about 48 px to the right of the paddle's stripe, vertically centred like the paddle |
+| Bumper | 30 × 30, turned 45° | Blue. Free-form |
+| Wall segment | 10 × 112 | Blue. Free-form, and it can be rotated |
+| Placeable brick | A brick cell, drawn like a brick | Blue, so it can't be mistaken for a brick that pays |
+| Placement ghost | Same as the item | Fill `00396d`, a 2 px dashed blue border and no glow. For an item that snaps, the cell under it gets a cyan fill at 12% and a 1 px cyan border at 50% |
 | Footer | x 96–1184, y 640–704 | Play: level number and name, a brick legend with 6 × 22 swatches, bricks left. Setup: the placeable tray, a count of this run's special bricks, Start |
 
 **HUD numbers:** a 12 px Silkscreen label in secondary text with 2 px letter spacing. Below it a 68 px Jersey 10 number (the combo is 84 px), and below that a 6 px bar. Each bar is lit over the dim shade of its meaning: the timer is 220 px of green over `1e6f50`, and the combo window is 160 px of gold over `8a4836`.
+
+## Arena zoom
+
+Levels have different grid sizes (see [levels.md](design/levels.md#arena-size)). The sizes in the table above are for a 16-row level.
+
+- **Fixed on screen:** the arena frame and its 6 px walls, the 1024 × 512 grid area, the 58 px paddle lane, the HUD and the footer. They are the same at every level size.
+- **Zoomed:** everything inside the walls is drawn at zoom = 16 ÷ rows. That covers bricks and their gaps, the backdrop grid, the paddle and its distance from the edge, the ball and its trail, placeables, ghosts, particles and shockwaves. On an 18-row level a cell is about 14.2 × 28.4 px.
+- **Not zoomed:** text. Coin pop-ups keep their size so the pixel fonts stay sharp.
+- **Whole pixels only hold at 16 rows.** At other sizes the zoomed shapes land on fractional pixels, and that is accepted.
+- **Small sizes.** As the row count grows, the 1 px gaps between bricks and the bloom halos fade out first. A ceiling on level size is an open question in [design.md](design.md#open-questions).
 
 ## Effects
 
@@ -97,7 +117,7 @@ The selected node keeps its state's look and adds a 2 px cyan outline 4 px outsi
 
 **Level panel:**
 - ◄ ► icon buttons around the level number (48 px Jersey 10) and the level's name.
-- A 256 × 128 thumbnail of the layout: 4 px per column and 8 px per row, with bricks drawn 3 × 15 in their HP colours. A locked level's thumbnail is at 35% opacity.
+- A 256 × 128 thumbnail of the layout, scaled so the whole grid fits. On a 16-row level that is 4 px per column and 8 px per row, with bricks drawn 3 × 15 in their HP colours. A locked level's thumbnail is at 35% opacity.
 - Then Play Level, or a disabled "Clear level N to unlock".
 
 ## CRT

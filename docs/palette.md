@@ -33,7 +33,7 @@ Source: [Endesga 64](https://lospec.com/palette-list/endesga-64) by ENDESGA. The
 |---|---|---|---|
 | Ball | `ffffff` | | The ball and nothing else |
 | Player (cyan) | `0cf1ff` | `134c4c` | Paddle stripe, cursor, selection, buttons, Arena upgrade nodes |
-| Placeables (blue) | `0098dc` | `00396d` | Bumpers, wall segments, splitters, the placement tray, Placeables upgrade nodes |
+| Placeables (blue) | `0098dc` | `00396d` | Bumpers, wall segments, splitters, placeable bricks, brick mods, the placement tray, Placeables upgrade nodes |
 | Coins (gold) | `ffc825` | `8a4836` | Coin counter, coin pop-ups, combo counter, coin ×2 bricks, prices |
 | Time (green) | `99e65f` | `1e6f50` | Timer, hourglass bricks |
 | Explosive (orange) | `ff5000` | `c64524` | Explosive bricks and their blasts |
@@ -44,7 +44,7 @@ Source: [Endesga 64](https://lospec.com/palette-list/endesga-64) by ENDESGA. The
 
 ## Brick HP
 
-A brick glows brighter the more HP it has, and drops a step each time it's hit. HP 4 and up share the top step; if a level needs more steps than that, show a number on the brick.
+A brick glows brighter the more HP it has, and drops a step each time it's hit, so its colour always shows the hits it has left. HP 4 and up share the top step; if a level needs more steps than that, show a number on the brick.
 
 | HP | Colour |
 |---|---|
