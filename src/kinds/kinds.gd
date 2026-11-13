@@ -38,10 +38,17 @@ static func placeables() -> Array[PlaceableKind]:
 	return out
 
 
-## Adds a kind that has no file, or replaces one. For tests.
+## Adds a kind that has no file, or replaces one. For tests. It lasts until reset().
 static func add(kind: Kind) -> void:
 	_load()
 	_all[kind.id] = kind
+
+
+## Forgets every kind, so the next call reads the files again. The test runner calls it before each case, so a
+## kind one case added is never seen by the next.
+static func reset() -> void:
+	_all.clear()
+	_loaded = false
 
 
 static func _load() -> void:

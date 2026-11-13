@@ -24,7 +24,8 @@ extends Node
 ##   size    the window size. Default Vector2i(1280, 720)
 ##   setup   a Callable taking the Main node, run once the state above is in place and Main shows a new main
 ##           menu. It may await. Use it to navigate (Main.show_level(1)), to change Progress or Settings further,
-##           or to reach into the screen: main.screen.get_child(0) is the current screen
+##           or to reach into the screen: main.screen.get_child(0) is the current screen, and Main.show_level(n)
+##           returns the level's root, which has `round`, `fx` and `start(seed)` (see src/play.gd)
 ##   settle  frames to wait after setup before the first capture. Default 4. Use 0 when setup has just set off
 ##           an effect
 ##   frames  how many pictures to take. Default 1. More than one makes a strip: <name>_00.png, <name>_01.png, ...
@@ -65,6 +66,7 @@ func _take(main: Main, list: String, shot: Dictionary) -> void:
 	for key: String in shot:
 		assert(key in KEYS, "%s: a shot has no key \"%s\"" % [list, key])
 	_seed(shot.get("save", "fresh"))
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(OUT.path_join("settings.cfg")))  # Settings saves on every change, so the last shot's file is there
 	Settings.use(OUT.path_join("settings.cfg"))
 	Settings.crt = shot.get("crt", true)
 	Settings.reduce_flashing = shot.get("calm", false)

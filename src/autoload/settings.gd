@@ -7,7 +7,8 @@ extends Node
 ##
 ## Who reacts to what: Main applies `crt` and the bloom cap of `reduce_flashing`. Effects read `reduce_flashing`
 ## themselves. This script sets the volume of the BUS_MUSIC and BUS_SOUND buses from the two volumes
-## (AudioServer.set_bus_volume_linear), so nothing else touches a bus.
+## (AudioServer.set_bus_volume_linear), so nothing else touches a bus. It does so on every change and in use().
+## The check that a volume reaches its bus is in the state lane's case; Sfx only picks which bus a player is on.
 
 ## A setting changed, or use() loaded another file.
 signal changed

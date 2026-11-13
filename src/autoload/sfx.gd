@@ -4,10 +4,28 @@ extends Node
 ## STUB: the audio lane writes the bodies, assets/audio/gen.mjs and the wavs. As shipped here it is silent.
 ##
 ## A cue is a StringName and the name of its file: assets/audio/wav/<cue>.wav. Sounds play on the Settings.BUS_SOUND
-## bus and the music on Settings.BUS_MUSIC; this script never sets a volume.
+## bus and the music on Settings.BUS_MUSIC. This script never sets a volume: Settings sets the two bus volumes,
+## and the check that a volume setting reaches its bus is in the state lane's case, not the audio lane's.
 ##
-## Screens play the UI cues themselves (CLICK, BUY, CANT_AFFORD, PLACE_ITEM, TALLY_TICK). Everything a round
-## makes is wired by connect_round, so no scene holds audio glue for the rules.
+## Everything a round makes is wired by connect_round, so no scene holds audio glue for the rules. Until the
+## rules are written a Round emits nothing, so this lane's case drives a round by hand: it emits the round's
+## signals itself (round.brick_broken.emit(...)) and sets round.combo.count and round.time_left.
+##
+## UI CUES, and who plays each:
+##   CLICK        this script, for every button in the game. It listens to the scene tree's node_added and
+##                connects to `pressed` on each BaseButton that enters, so no screen and no widget plays a click.
+##                A button in the group QUIET is skipped. The group is read at the press, so a screen may add
+##                it in _ready.
+##   BUY          the hub, when Progress.buy returns true.
+##   CANT_AFFORD  the hub, when Buy is pressed and the coins do not cover it. That Buy button stays enabled (a
+##                disabled Button emits no `pressed`) and shows art.md's "Can't afford" look.
+##   PLACE_ITEM   the level screen, when an item is put down in Setup.
+##   TALLY_TICK   the level screen, as the Summary counts up.
+## A button whose press has a cue of its own goes in QUIET: Buy (BUY or CANT_AFFORD) and Start (ROUND_START, which
+## connect_round plays).
+
+## The group of buttons that play no CLICK.
+const QUIET := &"quiet"
 
 # Ball and paddle
 const PADDLE_HIT := &"paddle_hit"

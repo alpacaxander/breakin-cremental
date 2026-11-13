@@ -46,6 +46,9 @@ func _numbers(t: Node) -> void:
 	t.check(Progress.coins == 0 and Progress.unlocked == 1, "a fresh save has 0 coins and level 1 unlocked")
 	t.check(Progress.is_unlocked(1) and not Progress.is_unlocked(2), "a fresh save can play level 1 only")
 	t.check(Progress.snapshot() != Progress.balance, "Progress.snapshot is a copy")
+	Progress.level_count = 99
+	Progress.use(Progress.path)
+	t.check(Progress.level_count == Levels.count(), "Progress.use puts the level count back")
 
 	var u := Upgrade.new()
 	u.first_cost = 5
@@ -82,6 +85,12 @@ func _round(t: Node) -> void:
 	t.check(round.board != board and round.board.brick(Vector2i(10, 4)) != board.brick(Vector2i(10, 4)), "a round plays on its own copy of the board")
 	t.check(round.stats == stats and round.layout != null and round.paddle != null and round.combo != null and round.tally != null, "a round holds its stats, layout, paddle, combo and tally")
 	t.check(Kinds.of(&"") == null and Kinds.of(&"no_such_kind") == null, "an unknown kind id gives null")
+	var kind := BrickKind.new()
+	kind.id = &"made_in_a_test"
+	Kinds.add(kind)
+	t.check(Kinds.of(&"made_in_a_test") == kind and kind in Kinds.bricks(), "Kinds.add makes a kind findable")
+	Kinds.reset()
+	t.check(Kinds.of(&"made_in_a_test") == null, "Kinds.reset forgets a kind that has no file")
 	t.check(Layout.from_data([]).to_data() == [], "an empty layout saves as an empty list")
 
 
@@ -109,10 +118,10 @@ func _walk(t: Node) -> void:
 	var play := screen.call() as Play
 	t.check(play != null and play._hub.scene_file_path == Play.HUB and play._hub.visible, "show_hub opens the hub")
 	var hub := play._hub
-	Main.show_level(1)
+	var level := Main.show_level(1)
 	t.check(screen.call() == play and play._hub == hub and not hub.visible, "show_level keeps the hub, hidden")
-	t.check(play._level != null and play._level.scene_file_path == Play.LEVEL and play._level.get("level") == 1, "show_level opens the level scene with its number set")
-	var level := play._level
+	t.check(level != null and level == play._level and level.scene_file_path == Play.LEVEL and level.get("level") == 1, "show_level opens the level scene with its number set, and returns it")
+	t.check(main.screen.theme == UiTheme.build(), "the screens carry the one theme")
 	Main.show_hub()
 	await t.tree().process_frame
 	t.check(not is_instance_valid(level) and play._hub == hub and hub.visible, "show_hub frees the level and shows the same hub again")
@@ -159,3 +168,23 @@ func _input(t: Node, main: Main) -> void:
 	var wheel := InputEventMouseButton.new()
 	wheel.button_index = MOUSE_BUTTON_WHEEL_DOWN
 	t.check(wheel.is_action(&"rotate_cw"), "the wheel rotates too")
+	# Back (see main.gd): Esc reaches a screen's _unhandled_input, and a handled Esc stops at the first screen.
+	var behind := EscListener.new()
+	var front := EscListener.new()
+	main.screen.add_child(behind)
+	main.screen.add_child(front)
+	var esc := InputEventKey.new()
+	esc.keycode = KEY_ESCAPE
+	esc.pressed = true
+	t.get_viewport().push_input(esc, true)
+	t.check(front.heard == 1 and behind.heard == 0, "Esc reaches the screen in front as ui_cancel, and stops there once it is handled")
+
+
+class EscListener:
+	extends Node
+	var heard := 0
+
+	func _unhandled_input(event: InputEvent) -> void:
+		if event.is_action_pressed(&"ui_cancel"):
+			heard += 1
+			get_viewport().set_input_as_handled()

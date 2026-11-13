@@ -15,7 +15,8 @@ extends Node
 ## script error in the rules can't pass unseen.
 ##
 ## Before each case Progress and Settings are pointed at fresh files under tests/out/, so a case starts from a
-## fresh save and can never touch the player's files. Anything a case writes goes under OUT.
+## fresh save and can never touch the player's files. Anything a case writes goes under OUT. Kinds is reset
+## too, so a kind a case made with Kinds.add is gone before the next case.
 ##
 ## A case that needs a screen makes the real Main (load("res://src/main.tscn").instantiate(), added under t) and
 ## frees it at the end. Headless, the window is 64 x 64 and nothing is drawn, so send input straight into the
@@ -88,3 +89,4 @@ func _fresh_state() -> void:
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(OUT.path_join(file)))
 	Progress.use(OUT.path_join("test_save.json"))
 	Settings.use(OUT.path_join("test_settings.cfg"))
+	Kinds.reset()

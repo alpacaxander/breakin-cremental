@@ -11,8 +11,8 @@ See also: [levels.md](levels.md), [physics.md](physics.md), [placeables.md](plac
 │  MAIN MENU   │        │               PLAY SCENE                 │
 │              │  Play  │                                          │
 │  > Play  ────┼───────►│   ┌──────────┐  pick unlocked level      │
-│    Settings  │        │   │ UPGRADES ├──────────────┐            │
-│    Exit      │        │   │  (hub)   │◄─────────┐   ▼            │
+│    Settings  │◄───────┼───┤ UPGRADES ├──────────────┐            │
+│    Exit      │  back  │   │  (hub)   │◄─────────┐   ▼            │
 └──────────────┘        │   └──────────┘   ┌──────┴──────────────┐ │
                         │                  │ LEVEL               │ │
                         │                  │ setup → play → summ.│ │
@@ -27,6 +27,7 @@ See also: [levels.md](levels.md), [physics.md](physics.md), [placeables.md](plac
 - **Play scene:** you switch between two modes:
   - **Upgrades:** spend coins in the upgrade web, then choose an unlocked level to play.
   - **Level:** a single run, made up of the three phases below. From the Summary you either retry the level or return to Upgrades.
+- **Going back:** a back button, or Esc, goes one step back: from Settings to the main menu, from Upgrades to the main menu, and from a level's Setup or Summary to Upgrades. During Play there is no way out; the round is short. Nothing is lost by leaving, because purchases and layouts are saved as they happen.
 
 ## Save data
 

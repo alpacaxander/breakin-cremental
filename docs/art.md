@@ -4,8 +4,9 @@ How to build real assets that match the mockups. Colours and what they mean are 
 
 Mockups: [BreakIn cremental look](https://claude.ai/artifact/6Kpd6EhDk1VkAwn1KGsMgk), a canvas with a level (Setup and Play, levels 1–3) and the upgrade screen. If this file and the mockups disagree, fix whichever one is wrong so they match again.
 
-**The mockups are behind the docs in seven places.** Until they are redrawn, the docs are right:
+**The mockups are behind the docs in eight places.** Until they are redrawn, the docs are right:
 
+- Neither screen has a back button. The upgrade screen's top bar and the Setup footer each get one (see [UI pieces](#ui-pieces)).
 - The ball in Setup rests against the paddle. It should sit a little to the right of it.
 - Level 1's bricks are all 1 HP. The columns should be 3 HP, 2 HP and 1 HP.
 - Level 3 is drawn at 64 × 16 with the tunnel below centre and 3 HP strong bricks. It should be 72 × 18, zoomed to fit, with 4 HP strong bricks.
@@ -41,7 +42,7 @@ Mockups: [BreakIn cremental look](https://claude.ai/artifact/6Kpd6EhDk1VkAwn1KGs
 | Placeable brick (Splitter) | A brick cell, drawn like a brick | Blue, so it can't be mistaken for a brick that pays |
 | Zap mark | A 6 × 6 square in the centre of the tagged brick | Blue. The brick keeps its own colour |
 | Placement ghost | Same as the item | Fill `00396d`, a 2 px dashed blue border and no glow. For an item that snaps, the cell under it gets a cyan fill at 12% and a 1 px cyan border at 50% |
-| Footer | x 96–1184, y 640–704 | Play: level number and name, a brick legend with 6 × 22 swatches, bricks left. Setup: the placeable tray, a count of this run's special bricks, Start |
+| Footer | x 96–1184, y 640–704 | Play: level number and name, a brick legend with 6 × 22 swatches, bricks left. Setup: a back button (to Upgrades), the placeable tray, a count of this run's special bricks, Start |
 
 **HUD numbers:** a 12 px Silkscreen label in secondary text with 2 px letter spacing. Below it a 68 px Jersey 10 number (the combo is 84 px), and below that a 6 px bar. Each bar is lit over the dim shade of its meaning: the timer is 220 px of green over `1e6f50`, and the combo window is 160 px of gold over `8a4836`.
 
@@ -86,15 +87,18 @@ Effects take the colour of whatever made them. Sizes below are at their peak. Ea
 | Panel | Fill `1a1932`, a 2 px `424c6e` border, square corners, about 20 px of padding |
 | Primary button | Cyan fill, base-colour text in 36 px Jersey 10, 56 px tall |
 | Disabled button | Fill `2a2f4e`, text `92a1b9` |
-| Can't afford | No fill, a 2 px danger outline, primary text |
+| Can't afford | No fill, a 2 px danger outline, primary text. It can still be pressed: it plays the "can't afford" sound and buys nothing |
 | Icon button | 44 × 44 with a base fill and a 2 px border: cyan when it can be used, `424c6e` when it can't |
+| Back button | An icon button with a left-pointing arrow. Esc does the same |
+| Toggle | A 44 × 44 square with a 2 px cyan border: base fill when off, lit cyan fill when on. Its label sits to the right in primary text |
+| Slider | A 6 px track in `2a2f4e`, lit cyan from the left end to the grabber. The grabber is a 16 × 28 cyan rectangle. The row is 44 px tall, so it meets the hit target |
 | Icons | Flat filled shapes or 2.5 px strokes in the text colour. No emoji or font glyphs for arrows |
 | Coin glyph | A gold square turned 45°, about a quarter of the number's height |
 | Hit target | At least 44 × 44 |
 
 ## Upgrade screen
 
-**Layout:** a top bar 84 px tall with the title on the left and coins on the right. Below it, the web view at (24, 88), 864 × 608. On the right, the detail panel at (904, 88), 352 × 284, and the level panel at (904, 388), 352 × 308.
+**Layout:** a top bar 84 px tall with a back button (to the main menu) and the title on the left and coins on the right. Below it, the web view at (24, 88), 864 × 608. On the right, the detail panel at (904, 88), 352 × 284, and the level panel at (904, 388), 352 × 308.
 
 **Web view:**
 - **Frame:** a 2 px `2a2f4e` border over a dot grid of 3 px dots every 24 px, also in `2a2f4e`.

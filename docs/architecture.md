@@ -150,11 +150,13 @@ Main                         never unloaded (src/main.tscn)
 └─ Crt                       shows View through the CRT shader
 ```
 
-- **Navigation.** Screens call `Main.show_menu()`, `Main.show_settings()`, `Main.show_hub()`, `Main.show_level(n)` and `Main.quit()`. `Main` swaps the child of `Screen` and `Play` switches between the hub and a level. Nothing uses `change_scene_to_file`, so bloom, the CRT and the music are set up once.
-- **Entry scenes.** Each screen lane owns one or two scenes at fixed paths: `src/menu/main_menu.tscn`, `src/menu/settings.tscn`, `src/hub/hub.tscn` and `src/level/level.tscn`. Each root is a full-rect `Control`. The level's root has a property `level: int`, which `Play` sets before the scene enters the tree.
+- **Navigation.** Screens call `Main.show_menu()`, `Main.show_settings()`, `Main.show_hub()`, `Main.show_level(n)` and `Main.quit()`. `Main` swaps the child of `Screen` and `Play` switches between the hub and a level. Nothing uses `change_scene_to_file`, so bloom, the CRT and the music are set up once. `Main.show_level(n)` returns the level scene's root.
+- **Back.** Every screen but the main menu has a back icon button and handles `ui_cancel` (Esc) itself: Settings and the hub go to the main menu, and a level in Setup or in the Summary goes to the hub. During Play there is no way out. A handler marks the event handled (`get_viewport().set_input_as_handled()`) before it navigates, or the screen it wakes gets the same Esc.
+- **Entry scenes.** Each screen lane owns one or two scenes at fixed paths: `src/menu/main_menu.tscn`, `src/menu/settings.tscn`, `src/hub/hub.tscn` and `src/level/level.tscn`. Each root is a full-rect `Control`.
+- **The level's root** has four members, written out in `src/play.gd`: `level: int`, which `Play` sets before the scene enters the tree; `round`, the round on screen; `fx`, its `Fx` node; and `start(seed := -1)`, which does what the Start button does, with a fixed seed if one is given. Tests, shots and the effects drive the real level screen through them.
 - `Level` holds the phase as an enum (setup, play, summary) and a `match`. There is no state machine library.
 - Bricks are not nodes. `BoardView` draws them from the board grid.
-- **The seam between the level screen and the effects** is written at the top of `src/level/fx/fx.gd`: where the `Fx` node sits, `watch(round)` and `clear()`, the `frozen` flag, the `shake` offset, and the z order inside `Arena`.
+- **The seam between the level screen and the effects** is written at the top of `src/level/fx/fx.gd`: where the `Fx` node sits, `watch(round)` and `clear()`, the `frozen` flag, the `shake` offset, and the z order. `z_index` sorts across the whole canvas layer, so the numbers are shared: what the level screen draws in `Arena` is at 0, 10 and 20, `Fx` uses 1 to 99, and `Hud`, `SetupUi` and `Summary` are at 100.
 
 ### Input
 
@@ -189,9 +191,9 @@ A render spike settled this in Godot 4.7.2 before any screen was built.
 
 | Autoload | Holds | Signals |
 |---|---|---|
-| `Progress` | The save slot: coins, upgrade ranks, highest level unlocked, each level's layout. Also `upgrades()`, `rank`, `cost`, `can_buy`, `buy`, `stat(name)`, `snapshot()`, `is_unlocked`, `finish_round`, `layout`, `set_layout` and `save()` | `coins_changed(coins)`, `rank_changed(upgrade)`, `level_unlocked(level)` |
+| `Progress` | The save slot: coins, upgrade ranks, highest level unlocked, each level's layout. Also `upgrades()`, `rank`, `cost`, `can_buy`, `buy`, `stat(name)`, `snapshot()`, `is_unlocked`, `finish_round`, `layout`, `set_layout` and `save()`. `level_count` is the number of levels, which a test may set | `coins_changed(coins)`, `rank_changed(upgrade)`, `level_unlocked(level)` |
 | `Settings` | CRT, reduce flashing, music volume, sound volume. It also sets the two bus volumes | `changed` |
-| `Sfx` | A constant for every cue, `play(cue, pitch)`, `start_music()`, and `connect_round(round)`, which wires a round's signals to their cues so no scene holds audio glue (see [audio.md](audio.md)) | |
+| `Sfx` | A constant for every cue, `play(cue, pitch)`, `start_music()`, and `connect_round(round)`, which wires a round's signals to their cues so no scene holds audio glue (see [audio.md](audio.md)). It also plays the click of every button itself, by listening for buttons entering the tree, except those in the group `Sfx.QUIET`; the header of `sfx.gd` says which screen plays each other UI cue | |
 
 - The save is `user://save.json` with a `version` field, so a later build can read an older save. Its shape is written at the top of `src/autoload/progress.gd`. Settings are `user://settings.cfg`.
 - `user://` is `~/.local/share/breakin-cremental/` on Linux (a custom user dir), so the purged build's files under `godot/app_userdata/` are never read.
@@ -236,7 +238,7 @@ tests/
   out/                    what tests write; ignored by git and by Godot
 ```
 
-The theme is built in code (`UiTheme.build()` in `src/ui/theme.gd`), because a theme saved with colours in it would be a second place that defines them. `Main` puts it on `Screen`.
+The theme is built in code (`UiTheme.build()` in `src/ui/theme.gd`), because a theme saved with colours in it would be a second place that defines them. `build()` always returns the same `Theme`, and `Main` puts it on `Screen`. A theme only passes down through `Control` nodes, so text under a `Node2D` (the effects' pop-ups) takes its font from `UiTheme.numbers()` and its size from `UiTheme.number_size(px)`. The top of `theme.gd` lists the type variations and shared widgets by name.
 
 Godot's generated `.import` and `.uid` files are committed. `.godot/` is not. Folders that are still empty (`data/kinds/`, `data/upgrades/`, `levels/`, `assets/audio/`) appear with their first file.
 
@@ -252,7 +254,7 @@ Everything runs through `tests/run.sh`, which moves `user://` inside the checkou
 | `tests/run.sh shots [list…]` | Boots the real `Main` under `xvfb-run` and saves PNGs to `tests/out/shots/<list>/`, bloom and CRT included. Each file in `tests/shots/` is a list of shots; a shot can start from a fresh, mid-game or maxed save and can capture a strip of frames |
 | `tests/run.sh bot [args…]` | `tests/balance.tscn`: a bot plays each level headless at a given set of upgrade ranks and reports bricks broken, coins and whether it cleared. It is the tool for the difficulty risk in [design.md](design.md#risks) |
 
-A lane adds its own `tests/cases/<lane>.gd` and `tests/shots/<lane>.gd` and never edits another's. The cases cover the physics rules (constant speed, minimum angles, no tunnelling), the brick and hit counts of each level against [levels.md](design/levels.md), upgrade costs, the coin formula, a save round trip, and the layer rules. The shots are for the check in [art.md](art.md#checking-an-asset).
+A lane adds its own `tests/cases/<lane>.gd` and `tests/shots/<lane>.gd` and never edits another's. All the cases run in one process, so the runner gives each a fresh save, the default settings and only the kinds that have files (`Kinds.reset()`), whatever the case before it did. The cases cover the physics rules (constant speed, minimum angles, no tunnelling), the brick and hit counts of each level against [levels.md](design/levels.md), upgrade costs, the coin formula, a save round trip, and the layer rules. The shots are for the check in [art.md](art.md#checking-an-asset).
 
 ## Left out on purpose
 
@@ -275,7 +277,7 @@ The folders are also how the work divides. A lane writes only in its own folders
    | State | `src/autoload/progress.gd`, `src/autoload/settings.gd`, `data/upgrades/` | `state` |
    | Levels | `levels/`, `src/content/levels.gd` | `levels` |
    | Audio | `assets/audio/`, `src/autoload/sfx.gd` | `audio` |
-   | UI kit | `src/ui/` except `palette.gd` | `ui` |
+   | UI kit | `src/ui/` except `palette.gd`, and the import settings of `assets/fonts/` | `ui` |
 
 3. **Screens, in parallel, on the finished rules:**
 
@@ -291,3 +293,9 @@ The folders are also how the work divides. A lane writes only in its own folders
 6. **Tuning**, which changes only files under `data/`.
 
 The screens wait for the rules so a screen lane can render a real board and check its own work.
+
+Three rules keep parallel lanes from colliding:
+
+- **A lane's case passes in its own worktree,** where the files of the lanes beside it are still stubs, and it still passes after the merge. Where a contract leans on another lane's stub, its header says how to test without it (`Progress.level_count`, the raw `Progress.layouts`, emitting a stub round's signals by hand).
+- **Class names are global.** A script gets a `class_name` only when another file has to name the type. The screen lanes can't see each other, so theirs start with `Level`, `Hub` or `Menu`. No class is named after an autoload.
+- **Shared files have no owner.** `project.godot`, `data/balance.tres`, `src/main.*`, `src/play.*`, `src/ui/palette.gd`, the resource scripts in `src/content/` other than `levels.gd`, the test runner and the docs are changed only between steps. A lane that needs a change there says so in its report.

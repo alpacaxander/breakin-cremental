@@ -9,6 +9,9 @@ extends RefCounted
 ##     {"kind": "splitter", "col": 30, "row": 3}                        a BRICK or MOD item
 ## "kind" is the PlaceableKind's id. x, y are the item's centre in round units; rot is in degrees. col, row are
 ## a brick cell (Board). from_data() reads the same thing and skips an entry whose kind no longer exists.
+## The save is JSON, which hands every number back as a float, so from_data() reads "col": 30.0 as column 30.
+## to_data() always writes col and row as ints and x, y and rot as floats: a layout that has been through the
+## save file gives the same to_data() as it did before.
 ##
 ## VALIDITY. fits() is the only place that decides whether an item may be where it is. Setup calls it for the
 ## ghost under the cursor; loading calls it through fitted(). Overlap means sharing area: touching does not count.

@@ -50,7 +50,7 @@ Win by clearing the final level. There is no loss state: a round that times out 
 ## Controls
 
 - In a round: W/S or the up/down arrows move the paddle. With the mouse, the paddle chases the cursor's vertical position at paddle speed.
-- Between rounds: the mouse. Click to buy upgrades and drag to place items. The scroll wheel, or Q and E, rotates a rotatable item.
+- Between rounds: the mouse. Click to buy upgrades and drag to place items. The scroll wheel, or Q and E, rotates a rotatable item. Esc, or the back button, goes one step back (see `docs/design/overview.md`).
 
 ## Target audience & platform
 

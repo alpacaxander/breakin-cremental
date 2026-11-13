@@ -7,6 +7,14 @@ extends Node
 ## Main swaps the one child of Screen between the main menu, Settings and Play; Play (play.gd) switches between
 ## the Hub and a Level. A scene run on its own, without Main, can still call them: they do nothing.
 ##
+## BACK. Every screen but the main menu has a way back, and each screen handles its own: a back icon button, and
+## `ui_cancel` (Esc) in its _unhandled_input. The handler calls get_viewport().set_input_as_handled() before it
+## navigates: Main.show_hub() wakes the Hub while the same event is still being handed out, so without that call
+## one Esc in a level goes on through the Hub to the main menu.
+##     Settings -> Main.show_menu()        the Hub -> Main.show_menu()
+##     a Level in Setup or in the Summary -> Main.show_hub()        a Level in Play: nothing, a round runs out
+## Leaving loses nothing: a purchase and a layout change are saved when they happen.
+##
 ## THE RENDER CHAIN (measured in the render spike, see docs/architecture.md "Rendering"):
 ##     Main
 ##     ├─ View              a SubViewport with HDR 2D on. The whole game draws in here, at 1280 x 720 coordinates
@@ -61,10 +69,10 @@ static func show_hub() -> void:
 		(_it._show(PLAY) as Play).show_hub()
 
 
-## Opens level `number` in Setup. The caller checks Progress.is_unlocked first.
-static func show_level(number: int) -> void:
-	if _it:
-		(_it._show(PLAY) as Play).show_level(number)
+## Opens level `number` in Setup and returns the level scene's root (see play.gd for what it has), or null when
+## there is no Main. The caller checks Progress.is_unlocked first.
+static func show_level(number: int) -> Control:
+	return (_it._show(PLAY) as Play).show_level(number) if _it else null
 
 
 static func quit() -> void:

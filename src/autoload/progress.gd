@@ -23,6 +23,12 @@ extends Node
 ##
 ## It saves after every purchase (buy), after every round (finish_round) and when a layout changes (set_layout).
 ## Changing a field directly does not save.
+##
+## WHAT THIS SCRIPT DOES NOT LOOK INTO. A layout is stored as the Array that Layout.to_data() gave, and handed to
+## Layout.from_data() as the file returned it; Progress never reads what is inside. After a trip through JSON
+## every number in it is a float (30 comes back as 30.0), and from_data accepts that. So the save round trip can
+## be checked on the `layouts` field with any Array of Dictionaries, before Layout is written. The number of
+## levels is `level_count`, which a test may set, so unlocking can be checked before any level scene exists.
 
 ## The coin balance changed.
 signal coins_changed(coins: int)
@@ -49,6 +55,8 @@ var ranks: Dictionary[StringName, int] = {}
 var unlocked := 1
 ## Level number -> Layout.to_data(). Read and write it with layout() and set_layout().
 var layouts: Dictionary[int, Array] = {}
+## How many levels there are: Levels.count(). A test may set it; use() puts it back.
+var level_count := Levels.count()
 
 
 ## Switches to another save file: forgets everything in memory, then loads `new_path` (a missing file is a fresh
@@ -56,6 +64,7 @@ var layouts: Dictionary[int, Array] = {}
 ## else, so the real save is never touched.
 func use(new_path: String) -> void:
 	path = new_path
+	level_count = Levels.count()
 	reset()
 
 
@@ -128,7 +137,7 @@ func is_unlocked(level: int) -> bool:
 
 
 ## Called once when a round ends, however it ends: adds `earned` coins, unlocks level + 1 if `cleared` and that
-## level exists and is still locked (emitting level_unlocked), and saves.
+## level exists (level < level_count) and is still locked (emitting level_unlocked), and saves.
 func finish_round(_level: int, _earned: int, _cleared: bool) -> void:
 	pass
 
