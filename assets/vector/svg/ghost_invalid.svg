@@ -1,7 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="60" height="24" viewBox="0 0 60 24"><defs>
-<filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.2"/></filter>
-<filter id="glowBig" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="5"/></filter>
-<linearGradient id="gloss" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
-<linearGradient id="chrome" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e7e7ff"/><stop offset=".45" stop-color="#9797d5"/><stop offset=".5" stop-color="#5454a7"/><stop offset="1" stop-color="#7777bb"/></linearGradient>
-<radialGradient id="halo"><stop offset="0" stop-color="#ff4aff" stop-opacity=".7"/><stop offset="1" stop-color="#ff4aff" stop-opacity="0"/></radialGradient>
-</defs><rect x="2" y="2" width="56" height="20" rx="4" fill="#ff0000" fill-opacity=".15" stroke="#ff0000" stroke-width="2" stroke-dasharray="5 3"/><path d="M24 6l12 12M36 6l-12 12" stroke="#ff0000" stroke-width="2.5" stroke-linecap="round"/></svg>
