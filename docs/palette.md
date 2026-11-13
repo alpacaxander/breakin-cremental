@@ -8,7 +8,7 @@ Source: [Endesga 64](https://lospec.com/palette-list/endesga-64) by ENDESGA. The
 
 - **Base:** the background is `0e071b`, a near-black and never pure black, so glow has something to brighten.
 - **One hue per meaning.** A hue never appears outside its meaning. Effects (sparks, particles, pop-ups) take the hue of whatever made them.
-- **White belongs to the ball.** Nothing else in the arena is white, so the ball is always the brightest, clearest object on screen. UI text uses `c7cfdd`.
+- **White belongs to the ball.** Nothing else in the arena is white except the ball's own trail, so the ball is always the brightest, clearest object on screen. UI text uses `c7cfdd`.
 - **Unlit things are slate:** walls, panels, the paddle body and locked upgrade nodes. They stay dim so lit things stand out.
 - **Text contrast:** text needs about 7:1 contrast against the base. Danger red is around 5:1, so use it for bars, flashes and outlines, never for numbers.
 - **Flashes are a render effect.** A hit flash comes from bloom and brightness, not from an extra palette colour.
@@ -20,9 +20,9 @@ Source: [Endesga 64](https://lospec.com/palette-list/endesga-64) by ENDESGA. The
 | Use | Colour |
 |---|---|
 | Background | `0e071b` |
-| Backdrop grid | `1a1932` |
-| Walls, panels | `2a2f4e` |
-| Panel borders, locked nodes | `424c6e` |
+| Backdrop grid, panel fill | `1a1932` |
+| Walls, disabled buttons, setup grid lines | `2a2f4e` |
+| Panel borders, locked nodes, unlit connections, empty rank pips | `424c6e` |
 | Paddle body | `657392` |
 | Secondary text | `92a1b9` |
 | Primary text | `c7cfdd` |
@@ -38,7 +38,7 @@ Source: [Endesga 64](https://lospec.com/palette-list/endesga-64) by ENDESGA. The
 | Time (green) | `99e65f` | `1e6f50` | Timer, hourglass bricks |
 | Explosive (orange) | `ff5000` | `c64524` | Explosive bricks and their blasts |
 | Danger (red) | `ff0040` | `891e2b` | Low-timer warning, the flash when the ball is lost, "can't afford". Not for numbers |
-| Bricks (magenta glass) | see below | | Plain bricks, Bricks upgrade nodes |
+| Bricks (magenta glass) | see below | `622461` | Plain bricks, Bricks upgrade nodes |
 
 "Dim" is for inactive states, such as a locked node in that category or an empty slot.
 

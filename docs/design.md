@@ -55,7 +55,7 @@ Steam players who like incremental games, especially bright, flashy, casual ones
 
 ## Art & audio
 
-A modern take on arcade and Atari: everything on screen is as simple as a 2600 game, and the modern part is how it moves and lights up.
+A modern take on arcade and Atari: everything on screen is as simple as a 2600 game, and the modern part is how it moves and lights up. Sizes, effects, type and UI rules for building real assets are in `docs/art.md`.
 
 - **Shapes:** bricks, paddle and ball are flat, solid rectangles with no textures, outlines or bevels. A plain brick's colour shows its HP; a special brick's colour shows its kind.
 - **Palette:** a subset of Endesga 64, with about 11 lit colours on a dark background and one hue per meaning. The ball is always the brightest, clearest object on screen, and effects never use its colour. The colours and their meanings are in `docs/palette.md`.
