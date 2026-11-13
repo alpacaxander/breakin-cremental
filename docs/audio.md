@@ -10,7 +10,8 @@ Every sound is synthesised by one script. Nothing is recorded or downloaded.
 - **Cues:** each sound is one recipe in the script. Replace the old build's cue list with the list below.
 - **Output:** 44.1 kHz mono 16-bit WAV files, committed to the repo. The noise is seeded, so running the script again only changes the cues whose recipe changed.
 - **Audition page:** the script also writes a `demo.html` with a play button for every cue. Sounds are judged by ear on that page.
-- **Dev shell:** add `pkgs.nodejs` to `flake.nix` so the script runs under `nix develop`.
+- **Dev shell:** `flake.nix` provides Node, so the script runs under `nix develop`.
+- **In the game:** a cue's name is its file name, `assets/audio/wav/<cue>.wav`. `Sfx` (`src/autoload/sfx.gd`) has a constant for each cue below, and `Sfx.connect_round(round)` wires a round's signals to them.
 
 ## Sound cues
 

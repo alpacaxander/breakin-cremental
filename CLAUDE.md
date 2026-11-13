@@ -6,17 +6,27 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 BreakIn cremental: a horizontal breakout incremental game in Godot 4.7 (GDScript). Before each timed round you place items on a hand-made level, then play it to earn coins; coins buy nodes in an upgrade web. The pitch, core loop, demo scope, open questions and risks are in `docs/design.md`.
 
-**Current state: design docs only.** The repo was purged on 2026-11-12 (commit `1aa951b`), so there is no `project.godot`, no code and no tests yet. The next code work is the demo described in `docs/design.md`: the full loop on three levels, with effects, audio and the CRT filter.
+**Current state: the contracts.** The repo was purged on 2026-11-12 (commit `1aa951b`) and the demo described in `docs/design.md` is being rebuilt from the docs. What exists is the skeleton every later piece is built against: `project.godot`, the render chain with bloom and the CRT (`src/main.*`), navigation, the palette, `data/balance.tres`, the test runner and the screenshot harness. The rules (`src/sim/`, `src/kinds/`), the autoloads, the level reader, the theme and the effects are stubs: each has its full API and doc comments and a header that says STUB, and does nothing yet. Each screen is a placeholder at its final path. There are no levels, upgrades, kinds or sounds yet. `docs/architecture.md` ("Build order") says which lane fills in which folder.
 
 ## Commands
 
-Godot and xvfb-run are not on PATH. They come from the Nix dev shell: run `nix develop`, or prefix commands with `nix develop -c`.
+Godot, xvfb-run and Node are not on PATH. They come from the Nix dev shell. `tests/run.sh` enters it by itself; for anything else run `nix develop`, or prefix the command with `nix develop -c`.
 
 ```sh
-nix develop -c godot      # open the editor (once project.godot exists)
+tests/run.sh import           # import assets: once in a new checkout, and after adding files
+tests/run.sh test             # headless self-check: "ok" or FAIL lines, exit 1 on a failure
+tests/run.sh test rules       # only tests/cases/rules.gd
+tests/run.sh boot             # the main scene, headless, for 5 seconds; fails on any error
+tests/run.sh shots            # screenshots of the real game, bloom and CRT included, to tests/out/shots/
+tests/run.sh shots hub fx     # only those shot lists
+tests/run.sh bot              # the balance bot (tests/balance.tscn), once it exists
+nix develop -c godot          # open the editor
 ```
 
-There is no test, lint or build step yet.
+- `tests/run.sh` moves `user://` to `tests/out/user`, so worktrees running at once share nothing and no run touches the player's save. `tests/run.sh <godot args>` passes anything else to Godot.
+- Tests are plain checks with no framework: one case file per lane in `tests/cases/` and one shot list per lane in `tests/shots/`. `tests/test.gd` and `tests/shots.gd` describe the format. A Godot error during a case fails it.
+- Tests and shots run as scenes, because a `godot -s` script cannot see the autoloads. Screenshots need the virtual display; `--headless` renders nothing.
+- There is no lint or build step.
 
 ## Docs
 

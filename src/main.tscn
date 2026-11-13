@@ -1,0 +1,63 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/main.gd" id="1"]
+[ext_resource type="Shader" path="res://assets/shaders/crt.gdshader" id="2"]
+
+[sub_resource type="Environment" id="env"]
+background_mode = 3
+glow_enabled = true
+glow_levels/1 = 1.0
+glow_levels/2 = 0.35
+glow_levels/3 = 0.0
+glow_levels/5 = 0.0
+glow_intensity = 0.06
+glow_strength = 1.0
+glow_bloom = 0.0
+glow_blend_mode = 0
+glow_hdr_threshold = 0.75
+glow_hdr_scale = 0.5
+glow_hdr_luminance_cap = 12.0
+
+[sub_resource type="ShaderMaterial" id="crt"]
+shader = ExtResource("2")
+shader_parameter/enabled = true
+shader_parameter/curve = 0.08
+shader_parameter/scanline = 0.26
+shader_parameter/vignette = 0.6
+shader_parameter/vignette_start = 0.58
+
+[node name="Main" type="Node"]
+script = ExtResource("1")
+
+[node name="View" type="SubViewport" parent="."]
+own_world_3d = true
+use_hdr_2d = true
+gui_embed_subwindows = true
+size = Vector2i(1280, 720)
+size_2d_override = Vector2i(1280, 720)
+size_2d_override_stretch = true
+render_target_update_mode = 4
+
+[node name="Backdrop" type="ColorRect" parent="View"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+
+[node name="Screen" type="Control" parent="View"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="View"]
+environment = SubResource("env")
+
+[node name="Crt" type="TextureRect" parent="."]
+material = SubResource("crt")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+expand_mode = 1

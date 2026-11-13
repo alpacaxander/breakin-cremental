@@ -1,0 +1,30 @@
+[gd_resource type="Resource" script_class="Balance" format=3]
+
+[ext_resource type="Script" path="res://src/sim/balance.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+paddle_speed = 360.0
+paddle_size = 96.0
+ball_speed = 560.0
+round_time = 20.0
+combo_rank = 0.0
+blast_size = 1.0
+shockwave = 0.0
+ball_size = 12.0
+launch_gap = 48.0
+min_angle_vertical = 20.0
+min_angle_horizontal = 8.0
+boost_cap = 3.0
+shockwave_boost = 2.0
+paddle_thickness = 12.0
+paddle_inset = 24.0
+paddle_max_angle = 60.0
+low_time = 5.0
+combo_window = 1.6
+combo_window_per_rank = 0.5
+combo_breaks_per_step = 4
+combo_window_shrink = 0.9
+combo_window_min = 0.5
+coins_per_brick = 1.0
+rotate_step = 15.0

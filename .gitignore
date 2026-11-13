@@ -1,2 +1,5 @@
 .godot/
 result
+# test saves, screenshots and the test runs' user:// (see tests/run.sh); the .gdignore keeps Godot from importing them
+tests/out/*
+!tests/out/.gdignore

@@ -129,13 +129,13 @@ The selected node keeps its state's look and adds a 2 px cyan outline 4 px outsi
 The CRT is one full-screen pass over everything, UI included. It's on by default and can be turned off in Settings.
 
 - **Scanlines:** every 3 px, one row darkened by 26%.
-- **Vignette:** clear out to 58% of the radius, then darkening to 60% at the corners.
-- **Curvature:** real barrel distortion. The mockups only fake it with 28 px rounded corners and an inner shadow.
+- **Vignette:** clear out to 58% of the radius, then darkening by 60% at the corners.
+- **Curvature:** real barrel distortion, which moves the corners in by about 12 px. The mockups only fake it with 28 px rounded corners and an inner shadow.
 
 ## Checking an asset
 
 1. Screenshot the game at 1280 × 720 and compare it side by side with the mockup artboard.
-2. Every colour is a `palette.md` value before the CRT.
+2. Every unlit colour is a `palette.md` value before the CRT. A lit colour shows as the full-brightness version of its hue, which for some is brighter than its hex (see [architecture.md](architecture.md#rendering)).
 3. Only lit things glow, and nothing outshines the ball.
 4. Text stays readable with the CRT on and off.
 5. Turn on reduce flashing and check that nothing strobes.

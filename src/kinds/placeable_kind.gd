@@ -1,0 +1,27 @@
+class_name PlaceableKind
+extends Kind
+## An item the player places during Setup. The player may place stats.count(id) of it.
+## The three placements are docs/design/placeables.md's three kinds; Layout.fits holds their rules.
+
+enum Placement {
+	FREE,  ## Anywhere in the grid area, not snapped. An obstacle the ball bounces off. Uses shape, size, turn
+	BRICK,  ## Snaps to an empty brick cell and becomes a brick of this kind there, with `hp`
+	MOD,  ## Goes on a brick that is already there and sets Brick.mod. Drawn as a mark of `size` at the brick's centre
+}
+
+enum Shape {
+	RECT,  ## `size` is width by height before rotation
+	CIRCLE,  ## `size.x` is the diameter. The Booster only
+}
+
+@export var placement: Placement
+## FREE only.
+@export var shape: Shape
+## In round units. FREE: the shape's size. MOD: the mark's size. BRICK: unused, it fills its brick cell.
+@export var size: Vector2
+## FREE only: degrees the shape is always turned by, clockwise on screen. The Bumper is a 30 x 30 RECT with turn 45.
+@export var turn: float
+## FREE only: true if the player may rotate it. Its Layout.Item.rot is then added to `turn`.
+@export var rotatable: bool
+## BRICK only: the placed brick's HP.
+@export var hp := 1
