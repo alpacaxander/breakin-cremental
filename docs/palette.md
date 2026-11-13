@@ -33,8 +33,8 @@ Source: [Endesga 64](https://lospec.com/palette-list/endesga-64) by ENDESGA. The
 |---|---|---|---|
 | Ball | `ffffff` | | The ball and nothing else |
 | Player (cyan) | `0cf1ff` | `134c4c` | Paddle stripe, cursor, selection, buttons, Arena upgrade nodes |
-| Placeables (blue) | `0098dc` | `00396d` | Bumpers, wall segments, splitters, placeable bricks, brick mods, the placement tray, Placeables upgrade nodes |
-| Coins (gold) | `ffc825` | `8a4836` | Coin counter, coin pop-ups, combo counter, coin ×2 bricks, prices |
+| Placeables (blue) | `0098dc` | `00396d` | Bumpers, boosters, wall segments, splitters, Zap marks, the placement tray, Placeables upgrade nodes |
+| Coins (gold) | `ffc825` | `8a4836` | Coin counter, coin pop-ups, combo counter, gold bricks, prices |
 | Time (green) | `99e65f` | `1e6f50` | Timer, hourglass bricks |
 | Explosive (orange) | `ff5000` | `c64524` | Explosive bricks and their blasts |
 | Danger (red) | `ff0040` | `891e2b` | Low-timer warning, the flash when the ball is lost, "can't afford". Not for numbers |

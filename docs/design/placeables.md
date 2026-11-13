@@ -6,13 +6,27 @@ See also: [overview.md](overview.md#level-phases), [levels.md](levels.md), [phys
 
 ## Kinds
 
-| Kind | Where it can go | Examples (placeholders) |
+| Kind | Where it can go | Items in the demo |
 |---|---|---|
-| **Free-form** | Anywhere in the arena where it doesn't overlap a brick, another placed item or the paddle lane. It doesn't snap to the grid. Some free-form items can be rotated | Bumper, Wall segment (rotatable) |
-| **Placeable brick** | Snaps to the brick grid, on empty brick cells only | To be decided |
-| **Brick mod** | Only on a brick that is already on the board. It gives that one brick an effect | To be decided |
+| **Free-form** | Anywhere in the arena where it doesn't overlap a brick, another placed item or the paddle lane. It doesn't snap to the grid. Some free-form items can be rotated | Bumper, Booster, Wall Segment (rotatable) |
+| **Placeable brick** | Snaps to the brick grid, on empty brick cells only | Splitter |
+| **Brick mod** | Only on a brick that is already on the board. It gives that one brick an effect | Zap |
 
 The paddle lane is the strip between the open side and the first grid column (see [art.md](../art.md#level-screen)).
+
+## Items
+
+Each item is unlocked by the node of the same name in the [upgrade web](upgrades.md#the-demos-web).
+
+| Item | Kind | What it does |
+|---|---|---|
+| **Bumper** | Free-form | A diamond. The ball bounces off its faces. It doesn't change the ball's speed |
+| **Booster** | Free-form | A circle. The ball bounces off it at the point where it touches, and leaves faster by 25% of its base speed. The extra speed is a boost (see [physics.md](physics.md#ball)) |
+| **Wall Segment** | Free-form, rotatable | A straight wall the ball bounces off |
+| **Splitter** | Placeable brick | A 1 HP brick. When a ball breaks it, that ball splits in two. If a blast or a Zap breaks it, it just breaks |
+| **Zap** | Brick mod | When the tagged brick breaks, every other brick in its row, from the paddle side to the back wall, takes 1 hit. That is 3 bricks on level 1, up to 16 on level 2 and 64 on level 3 |
+
+A Zap can go on any brick, including a special brick or a Splitter. If the brick it was saved on is gone when the level loads, the Zap is dropped like any other item that no longer fits.
 
 ## Rules
 
@@ -24,14 +38,9 @@ The paddle lane is the strip between the open side and the first grid column (se
   - pay no coins
   - don't count toward clearing the level
   - do extend the combo when broken
-- **Ball speed.** A placeable can change a ball's speed if its effect says so. Otherwise it only bounces the ball (see [physics.md](physics.md#ball)).
+- **Ball speed.** Only the Booster changes a ball's speed. Every other placeable just bounces the ball (see [physics.md](physics.md#ball)).
 
 ## Controls
 
 - Drag an item from the tray onto the board to place it.
 - Rotate a rotatable item with the scroll wheel or with Q and E while dragging it.
-
-## Open questions
-
-- The list of placeables in the demo and what each one does. This is decided together with the initial upgrades (see [upgrades.md](upgrades.md#open-questions)).
-- How a brick mod is shown on its brick.

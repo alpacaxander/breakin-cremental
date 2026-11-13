@@ -23,7 +23,7 @@ See also: [levels.md](levels.md), [physics.md](physics.md), [placeables.md](plac
 ```
 
 - **Main menu:** Play, Settings, Exit.
-- **Settings:** the CRT filter toggle and the "reduce flashing" toggle.
+- **Settings:** the CRT filter toggle, the "reduce flashing" toggle, and volume sliders for music and sound.
 - **Play scene:** you switch between two modes:
   - **Upgrades:** spend coins in the upgrade web, then choose an unlocked level to play.
   - **Level:** a single run, made up of the three phases below. From the Summary you either retry the level or return to Upgrades.
@@ -65,7 +65,7 @@ Nothing else about a level in progress is saved. Settings are stored separately 
 - The tally pays out however the run ends, so a ball drop or a timeout still pays for everything broken so far.
 - The HUD shows the running coin total during Play.
 - Bricks the player placed pay nothing.
-- The formula is not decided yet. It is settled together with the initial upgrades. Until then, each brick pays 1 coin, multiplied by the combo multiplier at the moment it broke.
+- The formula is not decided yet. Until then, each brick pays 1 coin, multiplied by the combo multiplier at the moment it broke. A gold brick counts as 5 bricks.
 
 ## Replaying levels
 

@@ -6,11 +6,13 @@ See also: [overview.md](overview.md), [levels.md](levels.md), [placeables.md](pl
 
 ## Ball
 
-- **Constant speed.** The ball never speeds up or slows down on its own. A bounce off the paddle, a brick, a wall or a placeable changes its direction only. Its speed changes only through an upgrade or a placeable whose effect says so.
-- **Slow at first.** The base speed is low, and upgrades raise it.
+- **Constant speed.** The ball never speeds up or slows down on its own. A bounce off the paddle, a brick, a wall or a placeable changes its direction only. Its speed changes only through the Ball Speed upgrade and through boosts.
+- **Slow at first.** The base speed is low, and the Ball Speed upgrade raises it.
+- **Boosts.** Two things make one ball faster during play: a Booster adds 25% of the ball's base speed each time the ball hits it, and a Shockwave explosion doubles the ball's current speed. Boosts stack up to 3× the base speed. A boosted ball keeps its speed until it next touches the paddle, where it drops back to base speed. So a fast ball is a risk on its way back, and a ball fenced into the board stays fast.
 - **Start position.** During Setup the paddle is vertically centred and the ball sits a little to the right of it, also vertically centred. On Start the ball travels straight left into the paddle, so the player's first touch sets the first angle.
 - **Paddle bounce.** The angle the ball leaves at depends only on where it hits along the paddle, as in classic Breakout: the centre sends it straight back toward the board, and the ends send it steeply up or down. The angle it came in at doesn't matter.
-- **Minimum angles.** After any bounce the direction is nudged so it is never within a small angle of vertical (the ball would bounce between the top and bottom walls and never come back) or of horizontal (it would go back and forth along one line). The launch is exempt, because it is exactly horizontal.
+- **Placeable bounces.** The ball bounces off the flat faces of a Bumper or a Wall Segment. Off a Booster, which is round, it bounces off the point where it touches. A Shockwave throws the ball straight away from the centre of the blast.
+- **Minimum angles.** After any bounce or throw the direction is nudged so it is never within a small angle of vertical (the ball would bounce between the top and bottom walls and never come back) or of horizontal (it would go back and forth along one line). The launch is exempt, because it is exactly horizontal.
 - **Collision.** Movement is swept, so a fast ball can't pass through a brick or the paddle. A hit on a brick resolves against exactly one of its edges. There are no corner bounces: a hit on a corner picks one edge.
 - **Damage.** Each hit takes 1 HP off the brick.
 - **Several balls.** If an item or upgrade adds balls, each one follows the same rules. The round ends when the last ball is lost.
