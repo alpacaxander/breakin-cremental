@@ -23,7 +23,7 @@ shader = ExtResource("2")
 shader_parameter/enabled = true
 shader_parameter/curve = 0.08
 shader_parameter/scanline = 0.26
-shader_parameter/vignette = 0.6
+shader_parameter/vignette = 0.3
 shader_parameter/vignette_start = 0.58
 
 [node name="Main" type="Node"]

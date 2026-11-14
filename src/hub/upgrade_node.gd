@@ -45,6 +45,8 @@ var selected := false:
 func _ready() -> void:
 	flat = true
 	mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	mouse_entered.connect(queue_redraw)
+	mouse_exited.connect(queue_redraw)
 	_place()
 	if not Engine.is_editor_hint():  # a rank of this node was bought: it swells for a moment
 		Progress.rank_changed.connect(func(u: Upgrade) -> void:
@@ -108,3 +110,5 @@ func _draw() -> void:
 	if selected:
 		# Over the theme's focus ring (2 px, 4 px out), so a focused, selected node shows one cyan ring.
 		draw_rect(Rect2(-Vector2(3, 3), size + Vector2(6, 6)), Palette.lit(Palette.PLAYER, Palette.LIT_TEXT), false, 2)
+	elif is_hovered():
+		draw_rect(Rect2(-Vector2(3, 3), size + Vector2(6, 6)), Palette.TEXT_DIM, false, 2)  # where the selection goes, unlit

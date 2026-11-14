@@ -190,8 +190,8 @@ static func _build(t: Theme) -> void:
 	_button(t, &"SecondaryButton", Palette.TEXT, [
 		_box(Palette.BASE, Palette.PLAYER, 24, pad_y),
 		_box(Palette.PLAYER_DIM, Palette.PLAYER, 24, pad_y),
-		_box(Palette.PLAYER_DIM, Palette.lit(Palette.PLAYER), 24, pad_y),
-		_box(Palette.WALL, Palette.CLEAR, 24, pad_y)])
+		_box(Palette.PLAYER, Palette.CLEAR, 24, pad_y),
+		_box(Palette.WALL, Palette.CLEAR, 24, pad_y)], Palette.BASE)
 	t.set_type_variation(&"CantAfford", &"Button")
 	_button(t, &"CantAfford", Palette.TEXT, [
 		_box(Palette.CLEAR, Palette.lit(Palette.DANGER), 24, pad_y),
@@ -203,8 +203,8 @@ static func _build(t: Theme) -> void:
 	_button(t, &"IconButton", Palette.TEXT, [
 		_box(Palette.BASE, Palette.PLAYER, icon_pad, icon_pad),
 		_box(Palette.PLAYER_DIM, Palette.PLAYER, icon_pad, icon_pad),
-		_box(Palette.PLAYER_DIM, Palette.lit(Palette.PLAYER), icon_pad, icon_pad),
-		_box(Palette.BASE, Palette.BORDER, icon_pad, icon_pad)])
+		_box(Palette.PLAYER, Palette.CLEAR, icon_pad, icon_pad),
+		_box(Palette.BASE, Palette.BORDER, icon_pad, icon_pad)], Palette.BASE)
 
 	# The toggle. Its square is the icon; the button itself draws nothing but its focus.
 	var off := UiGlyph.new(UiGlyph.Shape.BOX, Vector2(HIT, HIT), Palette.PLAYER, Palette.BASE)
@@ -248,8 +248,8 @@ static func _build(t: Theme) -> void:
 	_button(t, &"OptionButton", Palette.TEXT, [
 		_box(Palette.BASE, Palette.PLAYER, 16, row_y),
 		_box(Palette.PLAYER_DIM, Palette.PLAYER, 16, row_y),
-		_box(Palette.PLAYER_DIM, Palette.lit(Palette.PLAYER), 16, row_y),
-		_box(Palette.WALL, Palette.CLEAR, 16, row_y)])
+		_box(Palette.PLAYER, Palette.CLEAR, 16, row_y),
+		_box(Palette.WALL, Palette.CLEAR, 16, row_y)], Palette.BASE)
 	for s in [&"normal", &"hover", &"pressed", &"disabled"]:
 		t.set_stylebox(s + "_mirrored", &"OptionButton", t.get_stylebox(s, &"OptionButton"))
 	t.set_stylebox(&"focus", &"OptionButton", focus)
@@ -301,12 +301,13 @@ static func _build(t: Theme) -> void:
 
 
 ## One button look: its four styleboxes (normal, hover, pressed, disabled) and its text and icon colours, which
-## are `ink` until it is disabled.
-static func _button(t: Theme, type: StringName, ink: Color, boxes: Array) -> void:
+## are `ink` until it is disabled, and `pressed_ink` while it is held down if that is given.
+static func _button(t: Theme, type: StringName, ink: Color, boxes: Array, pressed_ink := ink) -> void:
 	for i in 4:
 		t.set_stylebox([&"normal", &"hover", &"pressed", &"disabled"][i], type, boxes[i])
-	for c in [&"font_color", &"font_pressed_color", &"font_hover_color", &"font_hover_pressed_color", &"font_focus_color",
-			&"icon_normal_color", &"icon_pressed_color", &"icon_hover_color", &"icon_hover_pressed_color", &"icon_focus_color"]:
+	for c in [&"font_color", &"font_hover_color", &"font_focus_color", &"icon_normal_color", &"icon_hover_color", &"icon_focus_color"]:
 		t.set_color(c, type, ink)
+	for c in [&"font_pressed_color", &"font_hover_pressed_color", &"icon_pressed_color", &"icon_hover_pressed_color"]:
+		t.set_color(c, type, pressed_ink)
 	t.set_color(&"font_disabled_color", type, Palette.TEXT_DIM)
 	t.set_color(&"icon_disabled_color", type, Palette.TEXT_DIM)

@@ -5,7 +5,9 @@ extends Control
 ## press on the tray or the board comes here.
 ##
 ## PLACING. Press on a tray slot or on a placed item and drag: the item leaves the layout and follows the cursor
-## as the Arena's ghost, blue where it fits and red where it does not (Layout.fits is the only judge). Release:
+## as the Arena's ghost, from the press on and over the tray too. In the arena it is blue where it fits and red
+## where it does not (Layout.fits is the only judge); outside the arena nothing has refused it yet, so it is
+## blue there. Release:
 ##   on the board, where it fits   it is placed there
 ##   on the board, anywhere else   refused: a new item goes back to the tray, a moved one back where it was
 ##   outside the arena             a new item goes back to the tray, a moved one is removed
@@ -264,7 +266,7 @@ func _aim() -> void:
 	var at := _arena.to_units(_mouse)
 	_held.pos = at + _grab
 	_held.cell = _board.cell_at(at)
-	_arena.ghost(_held, _layout.fits(_held, _board, _stats))
+	_arena.ghost(_held, not LevelArena.FRAME.has_point(_mouse) or _layout.fits(_held, _board, _stats))
 
 
 ## Ends the drag. The held item is placed where it is if `there` and it fits. If not, a moved item goes back

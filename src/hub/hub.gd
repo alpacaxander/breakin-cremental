@@ -22,14 +22,22 @@ func _ready() -> void:
 	Progress.coins_changed.connect(_refresh.unbind(1))
 	Progress.rank_changed.connect(_refresh.unbind(1))
 	Progress.level_unlocked.connect(_levels.pick)
-	visibility_changed.connect(_refresh)
-	_refresh()
+	visibility_changed.connect(_shown)
+	_shown()
 
 
-## Shows `node` in the detail panel.
+## Shows `node` in the detail panel, and gives it the focus so the focus ring never sits on another node.
 func select(node: HubNode) -> void:
 	selected = node
 	_refresh()
+	if is_visible_in_tree():
+		node.grab_focus()  # from focus_entered, it has it already and this does nothing
+
+
+## Redraws, and gives the selected node the keyboard focus: a keyboard player arrives here by Enter on the
+## menu's Play or the Summary's Upgrades, and Godot moves focus only from a control that has it.
+func _shown() -> void:
+	select(selected)
 
 
 func _refresh() -> void:

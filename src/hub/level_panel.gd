@@ -28,7 +28,7 @@ func _ready() -> void:
 
 ## Shows level `n`, kept between 1 and the last level.
 func pick(n: int) -> void:
-	level = clampi(n, 1, maxi(1, Progress.level_count))
+	level = n
 	refresh()
 
 

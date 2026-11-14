@@ -10,7 +10,8 @@ extends Node2D
 ##   ItemViews   10  the free-form placed items                with the round
 ##   PaddleView  10  the paddle; it is moved, not redrawn      with the round
 ##   BallViews   20  the balls                                 every frame of Play
-##   Ghost       20  the item being dragged in Setup           when it moves
+##   Ghost      101  the item being dragged in Setup           when it moves. Over SetupUi (100): it follows the
+##                   cursor over the tray
 ##   Fx              the effects, last, so their children sort between these (src/level/fx/fx.gd)
 ##
 ## The round steps 120 times a second and the screen draws at its own rate, so the paddle and the balls are

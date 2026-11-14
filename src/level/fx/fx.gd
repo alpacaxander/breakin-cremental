@@ -16,7 +16,8 @@ extends Node2D
 ##      them: the backdrop grid at 0, bricks, placed items and the paddle at 10, balls at 20. Arena and the Fx
 ##      node themselves stay at z_index 0.
 ##   6. It gives Hud, SetupUi and Summary a z_index of 100. z_index sorts across the whole canvas layer, not
-##      inside a parent, so without this anything in Arena above 0 would draw over the Summary.
+##      inside a parent, so without this anything in Arena above 0 would draw over the Summary. The one thing
+##      over them is Setup's ghost, at 101: the held item follows the cursor over the tray.
 ##   7. Its root script has the three members a test or a shot drives it with (see play.gd): `round`, `fx` and
 ##      `start(seed)`. So an effect can be set off on the real screen:
 ##          var level := Main.show_level(1)
@@ -179,6 +180,7 @@ class Shape:
 	var boost := RING_BOOST  ## Its strength as it starts (see _lit)
 	var width := 0.0  ## The outline's width; 0 fills it
 	var turn := 0.0
+	var circle := false  ## A circle as wide as `from.x`, then `to.x`: the Booster's outline, and nothing else
 	var life := 0.3
 	var age := 0.0  ## Below 0 it has not started
 
@@ -466,11 +468,13 @@ func _on_ball_bounced(ball: Ball, hit: Hit) -> void:
 			_ring(at, PADDLE_RING, 2.0, Palette.PLAYER, ITEM_TIME)
 			_ask(Rect2(at, Vector2.ZERO), Palette.PLAYER, ball.dir, PADDLE_SPARKS, HIT_THROW * 1.5)
 		Hit.Surface.ITEM:
-			# The item's own outline, growing: a diamond off the Bumper, a bar off the Wall Segment.
+			# The item's own outline, growing: a diamond off the Bumper, a bar off the Wall Segment, a circle off
+			# the Booster.
 			var kind := hit.item.kind
 			var colour := Palette.of(kind.colour)
 			var size := kind.size if kind.shape == PlaceableKind.Shape.RECT else Vector2.ONE * kind.size.x
-			_shape(_shapes, hit.item.pos, size, size + Vector2.ONE * ITEM_RING, colour, 2.0, ITEM_TIME, 0.0, deg_to_rad(kind.turn + hit.item.rot))
+			_shape(_shapes, hit.item.pos, size, size + Vector2.ONE * ITEM_RING, colour, 2.0, ITEM_TIME, 0.0,
+					deg_to_rad(kind.turn + hit.item.rot)).circle = kind.shape == PlaceableKind.Shape.CIRCLE
 			_ask(Rect2(hit.point - hit.normal * ball.size * 0.5, Vector2.ZERO), colour, ball.dir,
 					BOOST_SPARKS * ball.boost if ball.boost > 1.0 else ITEM_SPARKS, BREAK_THROW)
 	# A wall bounce shows nothing: the wall is slate and the ball's own colour is the ball's alone.
@@ -681,7 +685,9 @@ func _draw_sparks() -> void:
 		var size := shape.from.lerp(shape.to, 1.0 - (1.0 - t) * (1.0 - t))  # fast out, then easing
 		var colour := _lit(shape.colour, shape.boost * pow(1.0 - t, FADE))
 		_sparks.draw_set_transform(shape.at, shape.turn)
-		if shape.width > 0.0:
+		if shape.circle:
+			_sparks.draw_arc(Vector2.ZERO, size.x * 0.5, 0.0, TAU, 48, colour, shape.width)
+		elif shape.width > 0.0:
 			_sparks.draw_rect(Rect2(-size * 0.5, size), colour, false, shape.width)
 		else:
 			_sparks.draw_rect(Rect2(-size * 0.5, size), colour)

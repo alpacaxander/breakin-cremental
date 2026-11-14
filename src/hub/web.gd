@@ -83,6 +83,21 @@ func _ready() -> void:
 	clip_contents = true
 	if Engine.is_editor_hint():
 		child_order_changed.connect(queue_redraw)
+		return
+	# The arrows go to the nearest node in line on the grid. Godot's own search goes by the boxes, and the seed's
+	# larger box sticks out past its neighbours, so Up or Down from beside it would land on it. With no node in
+	# line, Godot's search stays: Right from the last column still reaches the panels.
+	for n in nodes():
+		for side: Side in [SIDE_LEFT, SIDE_TOP, SIDE_RIGHT, SIDE_BOTTOM]:
+			var step: Vector2i = [Vector2i.LEFT, Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN][side]
+			var best: HubNode
+			for m in nodes():
+				var d := m.cell - n.cell
+				var along := d.x * step.x + d.y * step.y
+				if along > 0 and d == step * along and (best == null or along < (best.cell - n.cell).length()):
+					best = m
+			if best:
+				n.set_focus_neighbor(side, n.get_path_to(best))
 
 
 func _draw() -> void:
