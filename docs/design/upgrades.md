@@ -76,6 +76,7 @@ Bracket shape shows the category: `( )` Arena, `[ ]` Placeables, `{ }` Bricks.
 - **The costs assume the placeholder coin formula** of 1 coin per brick (see [overview.md](overview.md#coins)). A first run on level 1 should pay roughly 5 to 15 coins.
 - Shockwave sits one step from the first ring because it has to connect to Explosive Brick. Its price is what keeps it late.
 - That is 15 nodes and 41 purchases.
+- **The text in the detail panel** is the "Each rank" wording, then, on a node that unlocks an item or changes one, a sentence on what it does. That sentence names no number that tuning may change, and the whole text has to fit the panel's two lines, about 80 characters.
 
 ## What the special bricks do
 

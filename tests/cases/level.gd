@@ -204,6 +204,11 @@ func _paddle() -> void:
 	main._notification(Node.NOTIFICATION_WM_MOUSE_EXIT)
 	await _steps(120)
 	t.check(y > 400.0 and round.paddle.y == y, "the pointer leaving the window leaves the paddle where it was (%.0f, then %.0f)" % [y, round.paddle.y])
+	# Only that motion is ignored. A real pointer outside the frame is in a wide screen's bars, or at the left
+	# edge, which the CRT's curve puts a few pixels outside: the paddle's own edge.
+	_mouse(Vector2(-40, _screen(Vector2(0, 200)).y))
+	await _steps(240)
+	t.check(is_equal_approx(round.paddle.y, 200.0), "a pointer left of the frame still steers the paddle (%.0f)" % round.paddle.y)
 
 	_key(KEY_ESCAPE)
 	await _steps(2)

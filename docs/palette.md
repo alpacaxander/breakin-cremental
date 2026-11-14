@@ -38,7 +38,7 @@ Source: [Endesga 64](https://lospec.com/palette-list/endesga-64) by ENDESGA. The
 | Coins (gold) | `ffc825` | `8a4836` | Coin counter, coin pop-ups, combo counter, gold bricks, prices |
 | Time (green) | `99e65f` | `1e6f50` | Timer, hourglass bricks |
 | Explosive (orange) | `ff5000` | `c64524` | Explosive bricks and their blasts |
-| Danger (red) | `ff0040` | `891e2b` | Low-timer warning, the flash when the ball is lost, "can't afford". Not for numbers |
+| Danger (red) | `ff0040` | `891e2b` | Low-timer warning, the flash when the ball is lost, "can't afford", a placement that does not fit. Not for numbers |
 | Bricks (magenta to violet glass) | see below | `622461` | Plain bricks, Bricks upgrade nodes |
 
 "Dim" is for inactive states, such as a locked node in that category or an empty slot.

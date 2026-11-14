@@ -92,7 +92,7 @@ The demo's kinds. The id is the file name in `data/kinds/`, and `<id>_count` is 
 | `bumper` | PlaceableKind, FREE | RECT 30 × 30, turn 45 | `placeable` | `bumper` | |
 | `booster` | PlaceableKind, FREE | CIRCLE, 32 across | `placeable` | `booster` | Adds 0.25 to the ball's boost |
 | `wall_segment` | PlaceableKind, FREE, rotatable | RECT 10 × 112 | `placeable` | `wall_bounce` | |
-| `splitter` | PlaceableKind, BRICK | A brick cell, 1 HP | `placeable` | `splitter` | |
+| `splitter` | PlaceableKind, BRICK | A brick cell, 1 HP | `placeable` | none (`ball_added` has its own) | |
 | `zap` | PlaceableKind, MOD | A 6 × 6 mark | `placeable` | `zap` | |
 | `explosive` | BrickKind | 1 HP | `explosive` | none (`exploded` has its own) | Reach comes from the `blast_size` stat |
 | `gold` | BrickKind | 1 HP, worth 5 | `coins` | `gold_brick` | |
@@ -169,7 +169,7 @@ Main                         never unloaded (src/main.tscn)
 - `Hud`, `SetupUi` and `Summary` build their controls in code, like the theme and the UI kit. The Summary appears half a second after the round ends, over an Arena that stays as it was, so effects keep running under it.
 - **The hub** is drawn from `Progress`: it redraws on `coins_changed`, `rank_changed`, `level_unlocked` and its own `visibility_changed`, never from `_process`, because `Play` turns its processing off while a level is open. Whether a node can be reached is `HubWeb.state(node)`, worked out from the links in `web.tscn`: the seed, or a node next to one with a rank. The web has no pan or zoom yet; the demo's 5 × 5 web fills the view.
 - **The menu screens** share `src/menu/cursor.gd`, a lit triangle beside the focused control. It is how keyboard focus shows on a slider, which draws no focus outline.
-- **The seam between the level screen and the effects** is written at the top of `src/level/fx/fx.gd`: where the `Fx` node sits, `watch(round)` and `clear()`, the `frozen` flag, the `shake` offset, and the z order. `z_index` sorts across the whole canvas layer, so the numbers are shared: what the level screen draws in `Arena` is at 0 (backdrop), 10 (bricks, items, paddle) and 20 (balls, ghost), `Fx` uses 1 to 99, and `Hud`, `SetupUi` and `Summary` are at 100.
+- **The seam between the level screen and the effects** is written at the top of `src/level/fx/fx.gd`: where the `Fx` node sits, `watch(round)` and `clear()`, the `frozen` flag, the `shake` offset, and the z order. `z_index` sorts across the whole canvas layer, so the numbers are shared: what the level screen draws in `Arena` is at 0 (backdrop), 10 (bricks, items, paddle) and 20 (balls), `Fx` uses 1 to 99, and `Hud`, `SetupUi` and `Summary` are at 100. The one thing above them is Setup's ghost, at 101: the held item follows the cursor over the tray.
 - **`Fx`** is one script with four layers, each drawn from a plain list and clipped to `board.field()`: light pools at z 5, squares and shockwaves at 15, pop-ups at 18 and the trail at 19, so nothing it draws covers a ball. It holds the round it watches until `clear()`, which also disconnects it; a round that is thrown away without `clear()` is never freed. `frozen` is true during a freeze of its own or while someone holds it (a test, to stand a round still); `Fx` never clears a flag it did not set. The pop-up layer is scaled back by 1 ÷ zoom and draws in screen pixels. What each effect looks like is in [art.md](art.md#effects).
 - **The HUD and the hub answer too.** A HUD number swells for a moment when it goes up, and an upgrade node when a rank of it is bought, through `UiTheme.pulse`. They read the round and `Progress`; `Fx` does not touch them.
 
@@ -254,9 +254,9 @@ assets/
 tests/
   run.sh                  every command below
   test.gd  test.tscn      the headless runner
-  cases/                  one case file per lane
+  cases/                  one case file per lane, plus the few that belong to none (see Tests)
   shots.gd  shots.tscn    the screenshot harness
-  shots/                  one shot list per lane
+  shots/                  one shot list per lane, plus the two play-test lists
   balance.gd  balance.tscn   the bot
   out/                    what tests write; ignored by git and by Godot
 ```
@@ -282,6 +282,11 @@ Everything runs through `tests/run.sh`, which moves `user://` inside the checkou
 A lane adds its own `tests/cases/<lane>.gd` and `tests/shots/<lane>.gd` and never edits another's. All the cases run in one process, so the runner gives each a fresh save, the default settings and only the kinds that have files (`Kinds.reset()`), whatever the case before it did. The cases cover the physics rules (constant speed, minimum angles, no tunnelling), the brick and hit counts of each level against [levels.md](design/levels.md), upgrade costs, the coin formula, a save round trip, the layer rules, and each screen through the real `Main` with pushed input events.
 
 `tests/cases/loop.gd` walks the whole game in one go, with the CRT on and through input events alone (only the coins for its two purchases are handed to it): the menu, the hub on a fresh save, a round with nothing placed, the Summary, two purchases, a round with a Bumper placed, Retry, the way back out, and the CRT toggle in Settings. After each step it checks the screen and the save file, and after Retry that the round just played has been freed. It belongs to no lane; it is the check that the lanes still fit together.
+
+Four more cases and two shot lists belong to no lane. They overlap the lane cases on purpose and are kept apart from them:
+
+- `tests/cases/fuzz_logic.gd` and `tests/cases/fuzz_physics.gd` play random rounds against the rules, with the docs as the oracle: the first checks what counts and chains (hits, blasts, Zaps, the tally, coins), the second the ball and the sweep at every step. Both use fixed seeds, so a run always gives the same result. For a longer hunt, `FUZZ_N=500 FUZZ_SEED=7 tests/run.sh test fuzz_logic` and `FUZZ_ROUNDS=<n> FUZZ_FROM=<seed> tests/run.sh test fuzz_physics`.
+- `tests/cases/play_level.gd` and `tests/cases/play_hub_menu.gd` are a first player's pass, with real input events, over the level screen on all three levels and over the hub, the menu, Settings and the joins between the screens. They hold the regressions for what the play tests found (a double click that crosses a change of screen, the panels' sizes, each node's text against [upgrades.md](design/upgrades.md)). `tests/shots/play_level.gd` and `tests/shots/play_hub_menu.gd` are their pictures.
 
 A case that connects a lambda to a round's own signal must not read that round inside the lambda, or must disconnect it when done: the round then holds itself and is never freed, and Godot reports thousands of leaked objects when the run exits.
 

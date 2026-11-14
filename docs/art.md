@@ -51,8 +51,8 @@ The main menu, Settings and the Summary have no mockup. They are described below
 | Wall segment | 10 × 112 | Blue. Free-form, and it can be rotated |
 | Placeable brick (Splitter) | A brick cell, drawn like a brick | Blue, so it can't be mistaken for a brick that pays |
 | Zap mark | A 6 × 6 square in the centre of the tagged brick | Blue, with a 2 px base-colour rim so it shows on a brick of any colour, a blue Splitter included. The brick keeps its own colour |
-| Placement ghost | Same as the item | Where it fits: fill `00396d`, a 2 px dashed blue border and no glow. For an item that snaps, the cell under it gets a cyan fill at 12% and a 1 px cyan border at 50%. Where it does not fit: fill `891e2b`, a dashed `ff0040` border, and the cell in red instead of cyan. A snapping item whose cell is off the board is drawn at the cursor |
-| Footer | x 96–1184, y 644–700 | Play: level number and name, a legend with 6 × 22 swatches of the HP steps and special bricks on this board, bricks left. Setup: a back button (to Upgrades), the placeable tray, a count of this run's special bricks, Start (see [Setup](#setup)). Summary: only the back button |
+| Placement ghost | Same as the item | Where it fits: fill `00396d`, a 2 px dashed blue border and no glow. For an item that snaps, the cell under it gets a cyan fill at 12% and a 1 px cyan border at 50%. Where it does not fit: fill `891e2b`, a dashed `ff0040` border, and the cell in red instead of cyan. A snapping item whose cell is off the board is drawn at the cursor. The held item is drawn from the press on and above everything else on the screen; outside the arena frame (over the tray and the footer) it is in the look of one that fits, because nothing has refused it yet |
+| Footer | x 96–1184, y 644–700 | Play: level number and name, a legend with 6 × 22 swatches of every HP step up to this board's toughest brick and of its special bricks, bricks left. Setup: a back button (to Upgrades), the placeable tray, a count of this run's special bricks, Start (see [Setup](#setup)). Summary: only the back button |
 
 **HUD numbers:** a 12 px Silkscreen label in secondary text with 2 px letter spacing. Below it a 68 px Jersey 10 number (the combo is 84 px), and below that a 6 px bar. Each bar is lit over the dim shade of its meaning: the timer is 220 px of green over `1e6f50`, and the combo window is 160 px of gold over `8a4836`.
 
@@ -134,7 +134,7 @@ At most 600 squares are alive at once, and one frame's breaks share 240 new ones
 
 - All three come from Google Fonts under the SIL Open Font License. Commit each font file together with its licence.
 - Jersey 10 and Silkscreen are pixel fonts. Turn antialiasing off for them and round each size above to the nearest one where every stem renders at the same width.
-- **The sizes that exist.** Jersey 10 has even stems at 19, 37, 56, 75 and 93 px (multiples of 56 ÷ 3), so the sizes above come out as 93 combo, 75 HUD numbers, 56 screen title and 37 for panel titles, buttons and pop-ups. Any Jersey size in this file rounds the same way through `UiTheme.number_size`: 40 and 46 give 37, 48 gives 56. Silkscreen has even stems at 8, 16 and 24 px; 8 can't be read through the CRT, so every Silkscreen label is 16 and the two tag styles differ only in letter spacing.
+- **The sizes that exist.** Jersey 10 has even stems at 19, 37, 56, 75 and 93 px (multiples of 56 ÷ 3), so the sizes above come out as 93 combo, 75 HUD numbers, 56 screen title and 37 for panel titles, buttons and pop-ups. Any Jersey size in this file rounds the same way through `UiTheme.number_size`: 40 and 46 give 37. Silkscreen has even stems at 8, 16 and 24 px; 8 can't be read through the CRT, so every Silkscreen label is 16 and the two tag styles differ only in letter spacing.
 - Lit numbers (time, combo, coins, prices) bloom like lit shapes. Labels and body text use the text neutrals and don't bloom.
 
 ## UI pieces
@@ -144,7 +144,7 @@ At most 600 squares are alive at once, and one frame's breaks share 240 new ones
 | Panel | Fill `1a1932`, a 2 px `424c6e` border, square corners, about 20 px of padding |
 | Primary button | Cyan fill, base-colour text in 36 px Jersey 10, 56 px tall |
 | Secondary button | The second choice beside a primary one (Retry, Settings, Quit): base fill, a 2 px cyan border, primary text, the same size and font. No mockup |
-| Button states | Hover is a brighter lit fill on a primary button and a dim cyan fill on a secondary or icon button. Pressed is plain, unlit cyan. Keyboard focus is a 2 px `92a1b9` outline 4 px outside the button. No mockup |
+| Button states | Hover is a brighter lit fill on a primary button and a dim cyan fill on a secondary or icon button. Pressed is a plain, unlit cyan fill with base-colour text and icon on every button: primary, secondary, icon and option. Keyboard focus is a 2 px `92a1b9` outline 4 px outside the button. No mockup |
 | Disabled button | Fill `2a2f4e`, text `92a1b9` |
 | Can't afford | No fill, a 2 px danger outline, primary text. It can still be pressed: it plays the "can't afford" sound and buys nothing |
 | Icon button | 44 × 44 with a base fill and a 2 px border: cyan when it can be used, `424c6e` when it can't |
@@ -179,7 +179,9 @@ At most 600 squares are alive at once, and one frame's breaks share 240 new ones
 
 A maxed node's fill is not lit: a lit fill blooms over the 14 px name and washes it out. Its lit border carries the glow.
 
-The selected node keeps its state's look and adds a 2 px cyan outline 4 px outside the node, plus a cyan glow. Prices are gold when you can afford them and secondary text when you can't, never red. A locked node shows its price too, in secondary text, so the player can see what to save for.
+The selected node keeps its state's look and adds a 2 px cyan outline 4 px outside the node, plus a cyan glow. A node under the pointer that is not the selected one gets the same outline in unlit secondary text (`92a1b9`), with no glow. Prices are gold when you can afford them and secondary text when you can't, never red. A locked node shows its price too, in secondary text, so the player can see what to save for.
+
+**Keyboard:** whenever the upgrade screen is shown, the selected node takes the keyboard focus, and focusing a node selects it, so the focus and the selection are always on the same node. An arrow key moves to the nearest node in the same row or column of the web's grid; where there is none in that direction, it goes wherever Godot's own search finds a control, which is how Right from the last column reaches the panels.
 
 **Detail panel:** from the top:
 - the category in its colour, with the state on the right
@@ -189,7 +191,7 @@ The selected node keeps its state's look and adds a 2 px cyan outline 4 px outsi
 - the next rank's price in 40 px Jersey 10, beside the Buy button. Buy reads BUY when the node is open: the primary button if the coins cover it, the can't-afford look and a grey price if not. On a locked node it is disabled and reads LOCKED; on a maxed one it reads MAXED and the price is gone
 
 **Level panel:**
-- ◄ ► icon buttons around the level number (48 px Jersey 10) and the level's name.
+- ◄ ► icon buttons around the level number (46 px Jersey 10, the panel title size, drawn at 37) and the level's name.
 - A 256 × 128 thumbnail of the layout, scaled so the whole grid fits. On a 16-row level that is 4 px per column and 8 px per row, with bricks drawn 3 × 15 in their HP colours. A locked level's thumbnail is at 35% opacity.
 - Then Play Level, or a disabled "CLEAR LEVEL N FIRST".
 - The status on the right of the panel's tag reads CLEARED, NOT CLEARED YET or LOCKED. The last level reads CLEARED once it is cleared; that is the only mark of having won.
@@ -220,7 +222,7 @@ Every control applies and saves as it changes; there is nothing to confirm. The 
 The CRT is one full-screen pass over everything, UI included. It's on by default and can be turned off in Settings.
 
 - **Scanlines:** every 3 px, one row darkened by 26%.
-- **Vignette:** clear out to 58% of the radius, then darkening by 60% at the corners.
+- **Vignette:** clear out to 58% of the radius, then darkening by 30% at the corners. It is that weak because the counters sit in the corners: the coin balance, the HUD's coins and the timer.
 - **Curvature:** real barrel distortion, which moves the corners in by about 12 px. The mockups only fake it with 28 px rounded corners and an inner shadow.
 
 ## Checking an asset

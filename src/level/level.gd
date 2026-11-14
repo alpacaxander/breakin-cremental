@@ -85,9 +85,10 @@ func _physics_process(delta: float) -> void:
 
 
 func _input(event: InputEvent) -> void:
-	# Main clears hover with a motion far outside the frame when the pointer leaves the window. That is not the
-	# player's aim: the paddle keeps the last height the pointer had inside.
-	if event is InputEventMouseMotion and Rect2(Vector2.ZERO, Main.FRAME).has_point(event.position):
+	# Main clears hover with a motion to Main.AWAY when the pointer leaves the window. That is not the player's
+	# aim: the paddle keeps the last height the pointer had inside. Every other motion steers, also one outside
+	# the frame: a wide screen's bars, or the left edge, which the CRT's curve puts a few pixels outside.
+	if event is InputEventMouseMotion and event.position != Main.AWAY:
 		_mouse_y = (make_input_local(event) as InputEventMouseMotion).position.y
 		if absf(_mouse_y - _mouse_rest) >= MOUSE_WAKES:
 			_by_mouse = true

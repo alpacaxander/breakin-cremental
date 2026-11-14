@@ -37,6 +37,9 @@ extends Node
 ##     during Play. Nothing has one now: the back button's cost the first Esc, or Space, Q or E in Setup.
 
 const FRAME := Vector2(1280, 720)
+## Where the pointer is said to be once it has left the window (see _notification): on no control, and not a
+## place the player aimed at, so the level screen does not steer the paddle by it.
+const AWAY := Vector2(-1000, -1000)
 const MENU := "res://src/menu/main_menu.tscn"
 const SETTINGS := "res://src/menu/settings.tscn"
 const PLAY := "res://src/play.tscn"
@@ -191,7 +194,7 @@ func _notification(what: int) -> void:
 		view.notification(NOTIFICATION_VP_MOUSE_ENTER)
 	elif what == NOTIFICATION_WM_MOUSE_EXIT:
 		var away := InputEventMouseMotion.new()  # clears hover when the pointer leaves the window
-		away.position = Vector2(-1000, -1000)
+		away.position = AWAY
 		away.global_position = away.position
 		view.push_input(away, true)
 		view.notification(NOTIFICATION_VP_MOUSE_EXIT)

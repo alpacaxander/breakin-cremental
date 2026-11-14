@@ -6,7 +6,9 @@ extends RefCounted
 ##     colour literal.
 
 const RULES := ["res://src/sim", "res://src/kinds"]
-const SCREEN_CLASSES := ["Main", "Play", "Palette", "UiTheme"]
+## Where the screen side lives. Every class_name under these is a name no rule may use, so a new screen class is
+## covered without a change here.
+const SCREENS := ["res://src/level/", "res://src/hub/", "res://src/menu/", "res://src/ui/", "res://src/main.gd", "res://src/play.gd"]
 const PALETTE := "res://src/ui/palette.gd"
 const SKIP := ["res://.godot", "res://tests/out"]
 const SCANNED := ["gd", "tscn", "tres", "godot", "cfg"]
@@ -22,7 +24,11 @@ const LITERALS := {
 
 
 func run(t: Node) -> void:
-	var forbidden := SCREEN_CLASSES.duplicate()
+	var forbidden: Array[String] = []
+	for c in ProjectSettings.get_global_class_list():
+		if SCREENS.any(func(dir: String) -> bool: return String(c.path).begins_with(dir)):
+			forbidden.append(String(c["class"]))
+	t.check(forbidden.has("Main") and forbidden.has("Palette"), "the class list names the screen side (%d classes)" % forbidden.size())
 	for p in ProjectSettings.get_property_list():
 		if String(p.name).begins_with("autoload/"):
 			forbidden.append(String(p.name).trim_prefix("autoload/"))

@@ -24,7 +24,7 @@ Each item is unlocked by the node of the same name in the [upgrade web](upgrades
 | **Booster** | Free-form | A circle. The ball bounces off it at the point where it touches, and leaves faster by 25% of its base speed. The extra speed is a boost (see [physics.md](physics.md#ball)) |
 | **Wall Segment** | Free-form, rotatable | A straight wall the ball bounces off |
 | **Splitter** | Placeable brick | A 1 HP brick. When a ball breaks it, that ball splits in two. If a blast or a Zap breaks it, it just breaks |
-| **Zap** | Brick mod | When the tagged brick breaks, every other brick in its row, from the paddle side to the back wall, takes 1 hit. That is 3 bricks on level 1, up to 16 on level 2 and 64 on level 3 |
+| **Zap** | Brick mod | When the tagged brick breaks, every other brick in its row, from the paddle side to the back wall, takes 1 hit. That is the rest of a full row: 2 bricks on level 1, 15 on level 2 and 63 on level 3 |
 
 A Zap can go on any brick, including a special brick or a Splitter. If the brick it was saved on is gone when the level loads, the Zap is dropped like any other item that no longer fits.
 

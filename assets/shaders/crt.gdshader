@@ -7,7 +7,7 @@ shader_type canvas_item;
 uniform bool enabled = true;
 uniform float curve = 0.08;           // barrel distortion, 0 is flat. main.gd's _warp() reads this value
 uniform float scanline = 0.26;        // how much one row in every three is darkened
-uniform float vignette = 0.6;         // how much the corners are darkened
+uniform float vignette = 0.3;         // how much the corners are darkened
 uniform float vignette_start = 0.58;  // share of the centre-to-corner radius that stays clear
 
 const float FRAME_HEIGHT = 720.0;     // scanlines are counted in reference-frame pixels, not window pixels
