@@ -46,6 +46,10 @@ func _ready() -> void:
 	flat = true
 	mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	_place()
+	if not Engine.is_editor_hint():  # a rank of this node was bought: it swells for a moment
+		Progress.rank_changed.connect(func(u: Upgrade) -> void:
+			if u == upgrade:
+				UiTheme.pulse(self))
 
 
 ## Shows the node in `s`. `affordable` lights the price gold.

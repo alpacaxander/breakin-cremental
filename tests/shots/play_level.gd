@@ -122,7 +122,9 @@ func _clear(main: Main, number: int, unlocked: int) -> Control:
 ## Every level open, level 3 cleared, then Upgrades: what the hub says about level 3.
 func _hub_after_final(main: Main) -> void:
 	var level := await _clear(main, 3, 3)
-	for i in 4:
+	for i in 60:  # the round ends on its next step, which the freeze of the last explosion holds back a moment
+		if (level.get("round") as Round).over:
+			break
 		await main.get_tree().physics_frame
 	var upgrades := level.get_node("Summary").find_child("Upgrades", true, false) as Button
 	upgrades.pressed.emit()

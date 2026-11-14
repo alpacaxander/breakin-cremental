@@ -2,7 +2,8 @@ class_name LevelHud
 extends Control
 ## The level screen's HUD (docs/art.md, "Level screen" and "HUD numbers"): time on the left, the combo (Play) or
 ## SETUP (Setup) in the centre, coins on the right, and under the arena Play's footer: the level's name, a legend
-## of the bricks on this board and the bricks left. It only reads the round.
+## of the bricks on this board and the bricks left. It only reads the round. A number swells for a moment when
+## it goes up (UiTheme.pulse): the coins, the combo, the multiplier, and the time when an hourglass adds to it.
 ##
 ## The pixel fonts are taller than their digits (Jersey 10 at 75 is an 82 px line around 40 px digits), so every
 ## piece is placed by hand against the sizes theme.gd gives, not stacked in a container.
@@ -16,10 +17,14 @@ const TIME_BAR := 220.0
 const COMBO_BAR := 160.0
 const FOOTER := Rect2(96, 644, 1088, 56)
 const SWATCH := Vector2(6, 22)  ## A legend swatch
+const STEP_PULSE := 1.5  ## How far the multiplier swells when it steps up
 
 var _round: Round
 var _playing := false
 var _bricks := 0  ## Level bricks on the board when Play began
+var _time_was := 0.0  ## What the round's clock, combo and multiplier were a frame ago
+var _count_was := 0
+var _times_was := 1
 
 var _time_tag := _label(&"Tag", Rect2(LEFT, 3, COLUMN, 21), HORIZONTAL_ALIGNMENT_LEFT)
 var _time := _label(&"HudNumber", Rect2(LEFT, 11, COLUMN, 82), HORIZONTAL_ALIGNMENT_LEFT)
@@ -85,6 +90,10 @@ func _ready() -> void:
 func show_round(round: Round, data: LevelData, setup: bool, footer: bool) -> void:
 	_round = round
 	_playing = not setup
+	_time_was = round.time_left
+	_count_was = 0
+	_times_was = 1
+	_coins.amount = round.coins
 	var combos := round.stats.combo_rank >= 1.0
 	_time_tag.text = "TIME · STOPPED" if setup else "TIME"
 	for c: Control in [_setup_title, _hint]:
@@ -127,6 +136,11 @@ func _process(_delta: float) -> void:
 	_time_bar.value = _round.time_left / _round.stats.round_time
 	# The warning is the bar turning red; the number stays green, because red is never a number (palette.md).
 	_time_bar.meaning = &"danger" if _playing and _round.time_left <= _round.stats.low_time else &"time"
+	if _round.time_left > _time_was:
+		UiTheme.pulse(_time, 0.0)
+	_time_was = _round.time_left
+	if _round.coins > _coins.amount:
+		UiTheme.pulse(_coins, 1.0)
 	_coins.amount = _round.coins
 	if _combo.visible:
 		var combo := _round.combo
@@ -134,6 +148,12 @@ func _process(_delta: float) -> void:
 		_combo.add_theme_color_override(&"font_color", Palette.lit(Palette.COINS) if combo.count else Palette.COINS_DIM)
 		_combo_bar.value = combo.time_left / combo.window if combo.window > 0.0 else 0.0
 		_multiplier.text = "×%d" % combo.multiplier if combo.multiplier > 1 else ""
+		if combo.count > _count_was:
+			UiTheme.pulse(_combo)
+		if combo.multiplier > _times_was:
+			UiTheme.pulse(_multiplier, 0.0, STEP_PULSE)
+		_count_was = combo.count
+		_times_was = combo.multiplier
 		_multiplier.position.x = CENTRE + _combo.get_theme_font(&"font").get_string_size(_combo.text, HORIZONTAL_ALIGNMENT_LEFT, -1,
 				_combo.get_theme_font_size(&"font_size")).x * 0.5 + 10.0
 	if _footer.visible:

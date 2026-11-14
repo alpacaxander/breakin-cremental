@@ -29,7 +29,7 @@ extends Node
 ##   settle  frames to wait after setup before the first capture. Default 4. Use 0 when setup has just set off
 ##           an effect
 ##   frames  how many pictures to take. Default 1. More than one makes a strip: <name>_00.png, <name>_01.png, ...
-##   every   for a strip, frames from one capture to the next. Default 1
+##   every   for a strip, frames from one capture to the next: with 4, three frames go by unseen. Default 1
 ## Godot runs at a fixed 60 frames a second here, so a strip covers the same game time on any machine.
 ##
 ## Every shot starts from its own save and settings files under tests/out/, never from user://.
@@ -82,7 +82,7 @@ func _take(main: Main, list: String, shot: Dictionary) -> void:
 	var frames: int = shot.get("frames", 1)
 	for i in frames:
 		if i > 0:
-			for j: int in shot.get("every", 1) - 1:
+			for j: int in shot.get("every", 1):  # the picture is taken as this last frame is drawn
 				await get_tree().process_frame
 		await RenderingServer.frame_post_draw
 		var file := "%s.png" % shot.name if frames == 1 else "%s_%02d.png" % [shot.name, i]

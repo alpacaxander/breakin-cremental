@@ -43,7 +43,7 @@ class_name UiTheme
 ##   UiBar         the 6 px timer or combo meter
 ##   UiBackButton  the back button. Connect `pressed`; it has no shortcut, no tooltip and plays no sound
 ##   UiTopBar      the 84 px top bar of the hub and Settings: the back button and the screen's title
-## And here: build(), icon(), light(), numbers(), number_size().
+## And here: build(), icon(), light(), pulse(), numbers(), number_size().
 ##
 ## A widget here plays no sound: Sfx plays the click of every button by itself.
 ##
@@ -70,6 +70,8 @@ const SILKSCREEN_PIXEL := 8.0  ## Silkscreen draws on a grid of 1/8 em
 const HIT := 44  ## art.md's hit target
 const BUTTON_HEIGHT := 56
 const BORDER := 2
+const PULSE := 1.15  ## How far pulse() swells a control
+const PULSE_TIME := 0.18  ## and for how long, in seconds
 
 static var _theme: Theme
 
@@ -105,6 +107,14 @@ static func light(control: Control, colour: Color) -> void:
 	var type := control.theme_type_variation if control.theme_type_variation else StringName(control.get_class())
 	var px := build().get_font_size(&"font_size", type) if build().has_font_size(&"font_size", type) else build().default_font_size
 	control.add_theme_color_override(&"font_color", Palette.lit(colour, Palette.LIT if px >= 36 else Palette.LIT_TEXT))
+
+
+## A quick swell on a control that has just changed: a HUD number, an upgrade node just bought. `anchor` is
+## where across its width it grows from: 0 the left edge, 0.5 the middle, 1 the right edge.
+static func pulse(control: Control, anchor := 0.5, by := PULSE) -> void:
+	control.pivot_offset = control.size * Vector2(anchor, 0.5)
+	control.scale = Vector2.ONE * by
+	control.create_tween().tween_property(control, ^"scale", Vector2.ONE, PULSE_TIME)
 
 
 static func _pixel_size(px: int, unit: float) -> int:

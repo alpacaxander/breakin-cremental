@@ -6,7 +6,7 @@
 - The layout is a grid of cells. Each cell is twice as tall as it is wide.
 - Each brick is **1 column wide × 2 rows tall**.
 - A **square** is a block of 4 columns × 2 rows, which is 4 bricks side by side. Because cells are twice as tall as wide, a square really is square on screen.
-- Bricks have **HP**, the number of hits needed to destroy them. The default is 1. A brick's colour shows the hits it has left and changes each time it is hit (see [palette.md](../palette.md#brick-hp)). The three levels here use 1 to 4 HP, and 4 is the brightest colour step.
+- Bricks have **HP**, the number of hits needed to destroy them. The default is 1. A brick's colour shows the hits it has left and changes each time it is hit (see [palette.md](../palette.md#brick-hp)). The three levels here use 1 to 4 HP, and 4 is the top colour step, a deep violet.
 - Every brick is a standard brick unless the level says otherwise.
 - **Editable in Godot:** each level is its own scene, `levels/level_<n>.tscn`, and you paint its bricks in the editor. The scene's root is a TileMapLayer with a `title` and a `rows` field. One tile is one brick, and the tile set has a tile for each HP, with the number on it. The grid's edge is outlined, because the columns follow from the rows. To add a level, duplicate a scene under the next number.
 - Clearing every brick unlocks the next level. Phases and end conditions are described in [overview.md](overview.md#level-phases).

@@ -22,6 +22,8 @@ The main menu, Settings and the Summary have no mockup. They are described below
 - The web view has a legend of the node states, zoom buttons and a "drag to pan" hint. The web has none of them: it does not pan or zoom yet.
 - A Buy the player can't afford reads "CAN'T AFFORD" in a small font. It reads BUY in the can't-afford look.
 - A locked level's button reads "CLEAR LEVEL N TO UNLOCK". It reads "CLEAR LEVEL N FIRST", which fits in the button font.
+- Older coin pop-ups shrink to 30 px and 26 px. They keep their size and dim (see [Effects](#effects)).
+- The strong bricks are pale pink. The top HP step is deep violet (see [palette.md](palette.md#brick-hp)).
 
 ## Rules
 
@@ -29,7 +31,7 @@ The main menu, Settings and the Summary have no mockup. They are described below
 - **Arena sizes are for a 16-row level.** Things inside the arena shrink or grow with the level's size (see [Arena zoom](#arena-zoom)).
 - **Draw shapes, don't paint them.** Bricks, the paddle, the ball, placeables, bars, panels and upgrade nodes are flat rectangles drawn in the engine (`ColorRect`, `Polygon2D` or `draw_rect`). They have no textures, outlines, bevels, gradients or rounded corners. If something does need a texture, make it white and tint it with a palette colour, so every colour is defined only in `palette.md`.
 - **Bake no glow.** Halos, shadows and flashes all come from bloom. Lit colours bloom and slate never does: set the bloom threshold above the slate neutrals and push lit colours over it (in Godot: WorldEnvironment glow with HDR 2D on).
-- **Squares, never circles, with one exception.** The ball, particles and the coin glyph are squares. The coin glyph and the bumper are squares turned 45°. The Booster is the only circle in the game (`draw_circle`): it has to bounce like a round thing, and its shape sets it apart from the Bumper.
+- **Squares, never circles, with one exception.** The ball, particles and the coin glyph are squares. The coin glyph and the bumper are squares turned 45°. The Booster is the only round object in the game (`draw_circle`): it has to bounce like a round thing, and its shape sets it apart from the Bumper. The light pool under an explosion is round too, because it is light and not an object: as a square it showed edges and diagonal creases.
 - **Snap to the grid.** Bricks sit on the level's grid from [levels.md](design/levels.md). Placeable bricks and brick mods snap to it too. Free-form placeables, such as the bumper and the wall segment, don't snap (see [placeables.md](design/placeables.md)).
 - **Bloom target.** The mockups fake bloom with CSS shadows: a tight halo of about 6 px and a soft one of about 15 px around bricks, with a stronger one around the ball. Tune bloom to that at ×1 and let the combo push it higher.
 
@@ -91,15 +93,36 @@ Levels have different grid sizes (see [levels.md](design/levels.md#arena-size)).
 
 ## Effects
 
-Effects take the colour of whatever made them. Sizes below are at their peak. Ease effects in and fade them out. Effects scale with the combo: more particles, bigger shockwaves and stronger bloom as it climbs. The mockup shows ×12.
+Effects take the colour of whatever made them. Sizes below are at their peak, in pixels on a 16-row level. Ease effects in and fade them out. Every number here is a named constant at the top of `src/level/fx/fx.gd`, and all of them are first values, not yet tuned by play.
+
+- **Fading.** A lit colour shows at the full brightness of its hue however far it is pushed, so lowering its alpha shows nothing until the last frame. An effect fades by brightness first: it glows less and less, and only then turns see-through.
+- **The combo.** Effects grow with the combo. `heat` is how far the combo is up its curve, from 0 to 1: ((count − 1) ÷ 39) to the power 0.5, which is 0.53 at ×12 and 1 from ×40 on. At full heat a burst has twice the squares, shockwaves are 1.3 times as big, squares fly 30% further, and the shake is twice as strong. The bloom follows the heat up to 70% of its range and the rest is left to flashes, so a blast still lights the screen at the top of a combo. The bloom falls back in half a second when the combo or the round ends. The mockup shows ×12.
+- **Layers.** The light pool is under the bricks. Squares and shockwaves are over them. Pop-ups are over those, and the trail and the ball are on top of everything, so no effect covers a ball. Everything is clipped to the inside of the walls.
 
 | Effect | Look |
 |---|---|
-| Brick break | 8 squares of 3–5 px in the brick's colour, thrown out ahead of the ball |
-| Explosion | Two square shockwaves: 96 px with a 3 px `ff5000` border, and 160 px with a 2 px `c64524` border at 40%. Under them, an orange light pool 360 px wide: 24% at the centre, fading to nothing at 68% of the radius. 24 squares of 3–6 px spread 24–120 px out, fading with distance; two thirds are orange and a third take the colour of the bricks it broke |
-| Coin pop-up | 36 px gold Jersey 10 that rises and fades. Older pop-ups shrink to 30 px at 60%, then 26 px at 35% |
-| Ball trail | 7 squares behind the ball, 13 px apart, shrinking from 11 to 5 px and fading from 44% to 8%. It's white because it's part of the ball |
-| Reduce flashing | Drops the light pool and screen flashes and caps bloom. Shockwaves and particles stay |
+| Brick break | 8 squares of 3–5 px in the brick's colour, each with a 1 px base-colour rim so it shows over bricks of its own colour. A ball's break throws them back the way the ball came, into the open; a blast's fly away from the blast and a Zap's along the row. A special or placed brick throws twice as many. A brick a ball broke is also filled once more for 0.08 s, swelling by 8 px |
+| Combo break | In a combo, a ball's break adds a gold ring and gold squares: a 40 px ring with a 2 px line as the combo starts, 120 px with a 5 px line at the top, and up to 10 squares thrown 1.6 times as far as the brick's own |
+| Brick hit that holds | By a ball: the brick is filled once more for 0.15 s, swelling by 6 px, and 6 chips fly 14–60 px off the face that was hit. By a blast or a Zap: 3 chips, every way |
+| Explosion | Two square shockwaves: 96 px with a lit 3 px `ff5000` border, and 160 px with an unlit 2 px `c64524` border at 40%. Under them, an orange light pool 360 px wide, round: 24% at the centre, fading to nothing at 68% of the radius. 24 squares of 3–6 px spread 24–120 px out, fading with distance; two thirds are orange and a third take the colour of the bricks it hit. All of it grows with the blast's reach. Blasts that set each other off start 0.07 s apart, so a chain reads as a chain. An explosion also shakes the screen, freezes the game for 0.05 s and flashes |
+| Zap | A blue bar along the row, 10 px thick, thinning out over 0.3 s, with a shake and a 0.035 s freeze |
+| Gold brick, hourglass brick, Splitter | A 72 px ring with a 2 px line, in gold, green or blue. The hourglass adds a green "+2s" pop-up under its brick; the Splitter's ring is at the new ball |
+| Multiplier step | A gold 72 px ring at the brick and a small flash |
+| Bumper, Booster, Wall Segment | The item's own outline, growing by 18 px over 0.25 s, and 4 blue squares (more off a boosted ball) |
+| Paddle hit | A 34 px cyan ring and 5 cyan squares |
+| Ball lost | On the edge it left through: a red 72 px ring and 12 red squares. A red bar 10 px wide runs down the open side for 0.4 s. A shake |
+| Time up | A green 72 px ring and 12 green squares at every ball |
+| Level cleared | Three cyan rings (300, 600 and 900 px) from the last brick, 40 cyan squares, a shake and a flash |
+| Coin pop-up | 36 px gold Jersey 10 with a 3 px base-colour rim, so it reads on a brick of any colour. One pop-up carries everything a frame pays, above the first brick that broke. It rises 40 px over 0.9 s and fades. Older pop-ups keep their size and dim to 60%, then 35%, unlit. Coins from a brick within 60 px of a pop-up under 0.3 s old are added to it, so numbers don't pile up |
+| Ball trail | 7 squares behind the ball, 13 px apart, shrinking from 11 to 5 px and fading from 44% to 8%, along the path the ball took. It's white because it's part of the ball. A boosted ball's trail is longer by its boost |
+| Shake | Up to 8 px, in whole pixels. Strengths add up and the offset goes with the square of the total, so one break isn't felt and a chain is |
+| Freeze | Only an explosion and a Zap freeze the game, and never twice within 0.4 s |
+| Flash | A kick on top of the bloom that dies away at once. It has no colour of its own |
+| Reduce flashing | Drops the light pool, every flash and the lost ball's red bar, caps bloom and halves the shake. The Zap's bar is unlit, and a hit brick's flash is no brighter than the brick. Shockwaves, squares, pop-ups and the trail stay |
+
+No effect yet: a wall bounce, and the Shockwave upgrade (the ball it throws leaves with a longer trail). The HUD's numbers swell for a moment when they go up, and an upgrade node swells when it is bought.
+
+At most 600 squares are alive at once, and one frame's breaks share 240 new ones evenly, so a Zap row sparkles along its whole length.
 
 ## Type
 
@@ -204,6 +227,6 @@ The CRT is one full-screen pass over everything, UI included. It's on by default
 
 1. Screenshot the game at 1280 × 720 and compare it side by side with the mockup artboard.
 2. Every unlit colour is a `palette.md` value before the CRT. A lit colour shows as the full-brightness version of its hue, which for some is brighter than its hex (see [architecture.md](architecture.md#rendering)).
-3. Only lit things glow, and nothing outshines the ball.
+3. Only lit things glow, and nothing outshines the ball. `tests/run.sh shots contracts` measures the bricks of every level against the ball (see [palette.md](palette.md#rules)).
 4. Text stays readable with the CRT on and off.
 5. Turn on reduce flashing and check that nothing strobes.

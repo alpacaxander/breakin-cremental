@@ -9,6 +9,7 @@ Source: [Endesga 64](https://lospec.com/palette-list/endesga-64) by ENDESGA. The
 - **Base:** the background is `0e071b`, a near-black and never pure black, so glow has something to brighten.
 - **One hue per meaning.** A hue never appears outside its meaning. Effects (sparks, particles, pop-ups) take the hue of whatever made them.
 - **White belongs to the ball.** Nothing else in the arena is white except the ball's own trail, so the ball is always the brightest, clearest object on screen. UI text uses `c7cfdd`.
+- **No lit colour is pale.** A lit colour shows at the full brightness of its hue, so a pale one shows almost white. `tests/run.sh shots contracts` measures every level: the brick pixel that holds the most white (its weakest channel) must hold under 70% of the ball's.
 - **Unlit things are slate:** walls, panels, the paddle body and locked upgrade nodes. They stay dim so lit things stand out.
 - **Text contrast:** text needs about 7:1 contrast against the base. Danger red is around 5:1, so use it for bars, flashes and outlines, never for numbers.
 - **Flashes are a render effect.** A hit flash comes from bloom and brightness, not from an extra palette colour.
@@ -38,20 +39,22 @@ Source: [Endesga 64](https://lospec.com/palette-list/endesga-64) by ENDESGA. The
 | Time (green) | `99e65f` | `1e6f50` | Timer, hourglass bricks |
 | Explosive (orange) | `ff5000` | `c64524` | Explosive bricks and their blasts |
 | Danger (red) | `ff0040` | `891e2b` | Low-timer warning, the flash when the ball is lost, "can't afford". Not for numbers |
-| Bricks (magenta glass) | see below | `622461` | Plain bricks, Bricks upgrade nodes |
+| Bricks (magenta to violet glass) | see below | `622461` | Plain bricks, Bricks upgrade nodes |
 
 "Dim" is for inactive states, such as a locked node in that category or an empty slot.
 
 ## Brick HP
 
-A brick glows brighter the more HP it has, and drops a step each time it's hit, so its colour always shows the hits it has left. HP 4 and up share the top step; if a level needs more steps than that, show a number on the brick.
+A brick drops a step each time it's hit, so its colour always shows the hits it has left. Every step is lit alike, so the steps differ by hue, not by brightness. HP 4 and up share the top step; if a level needs more steps than that, show a number on the brick.
 
-| HP | Colour |
-|---|---|
-| 1 | `ca52c9` |
-| 2 | `db3ffd` |
-| 3 | `f389f5` |
-| 4+ | `fdd2ed` |
+| HP | Colour | On screen, lit | Reads as |
+|---|---|---|---|
+| 1 | `ca52c9` | `ff6afe` | Magenta |
+| 2 | `db3ffd` | `dd40ff` | Violet-magenta |
+| 3 | `f389f5` | `fd8fff` | Light pink, the palest step |
+| 4+ | `7a09fa` | `7d09ff` | Deep violet: the densest glass, and the one dark step |
+
+The top step was `fdd2ed` once. Lit, it showed as `ffd4ef`, almost white, and level 3's two rows of it outshone the ball. Deep violet keeps the strong bricks apart from the other three steps and from the blue of the placeables, and leaves white to the ball.
 
 ## Full Endesga 64 (reference)
 

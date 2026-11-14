@@ -1,8 +1,8 @@
 extends RefCounted
 ## The effects (src/level/fx/fx.gd), as far as they can be checked without eyes: what clear() leaves, that the
 ## round is let go, the freeze and its cap, the caps in the worst burst and what that burst costs, the layers,
-## what reduce flashing drops, the bloom against the combo, and that a watched round plays exactly like one
-## nobody watches. How they look is tests/shots/fx.gd.
+## what reduce flashing drops, the bloom against the combo, how pop-ups join and stay unzoomed, and that a
+## watched round plays exactly like one nobody watches. How they look is tests/shots/fx.gd.
 ##
 ## Every upgrade is owned, so combos are on and the round has its special bricks. Fx's own clock is driven by
 ## hand (fx._process(seconds)) wherever a check needs an exact time.
@@ -29,6 +29,7 @@ func run(p_t: Node) -> void:
 	await _seam_and_clear()
 	await _freeze()
 	await _bloom()
+	await _pop_ups()
 	await _calm()
 	await _bursts()
 	await _same_round()
@@ -78,6 +79,11 @@ func _seam_and_clear() -> void:
 	t.check(fx.squares() > 0 and not fx._shapes.is_empty() and not fx._pools.is_empty() and fx._pops.size() >= 2 and not fx._paths.is_empty(),
 			"a blast leaves squares, shockwaves, a light pool and a pop-up, and the ball has a trail")
 	t.check(main._bloom > 0.0, "and the bloom is up")
+	t.check(fx._shapes.any(func(s: Fx.Shape) -> bool: return s.boost == Fx.BLAST_OUTER) and fx._shapes.any(func(s: Fx.Shape) -> bool: return s.boost == Fx.RING_BOOST),
+			"the inner shockwave is lit and the outer one is an unlit echo of it")
+	var dim := Fx._lit(Palette.EXPLOSIVE, 0.4)
+	t.check(is_equal_approx(dim.a, 0.4) and is_equal_approx(dim.r, Palette.EXPLOSIVE.r) and Fx._lit(Palette.EXPLOSIVE, 2.0).a == 1.0 and Fx._lit(Palette.EXPLOSIVE, 2.0).r < Fx._lit(Palette.EXPLOSIVE, 8.0).r,
+			"a fade lowers a lit colour's brightness first and its alpha only under a strength of 1")
 	t.check(fx._pops[0].coins == round.coins and fx._pops[0].text == "+%d" % round.coins, "one pop-up carries everything a frame paid (%s for %d)" % [fx._pops[0].text, round.coins])
 	t.check(fx._paths.size() == round.balls.size() and fx._paths[round.balls[0].id].size() <= Fx.TRAIL_SAMPLES, "every ball has a path for its trail, of TRAIL_SAMPLES at most")
 
@@ -130,6 +136,9 @@ func _freeze() -> void:
 	fx.frozen = true
 	fx._process(1.0)
 	t.check(fx.frozen, "a freeze somebody else holds is left alone")
+	round.blast(Vector2i(53, 2), 64.0)
+	fx._process(1.0)
+	t.check(fx.frozen, "also when a freeze of Fx's own ends while it is held")
 	fx.frozen = false
 
 
@@ -151,12 +160,16 @@ func _bloom() -> void:
 	round.hit_brick(plain[0], Round.Cause.BALL, Vector2.RIGHT)
 	fx._process(1.0)
 	var at_12: float = main._bloom
-	t.check(is_equal_approx(fx.heat, Fx.heat_of(12)) and is_equal_approx(at_12, Fx.heat_of(12)), "at a combo of 12 the bloom is heat_of(12) (it is %.2f)" % at_12)
+	t.check(is_equal_approx(fx.heat, Fx.heat_of(12)) and is_equal_approx(at_12, Fx.heat_of(12) * Fx.HEAT_BLOOM), "at a combo of 12 the bloom is heat_of(12) of what the heat may reach (it is %.2f)" % at_12)
 	t.check(main.env.glow_intensity > Main.GLOW, "and the picture glows more than at rest")
 	_combo(round, Fx.COMBO_TOP - 1)
 	round.hit_brick(plain[1], Round.Cause.BALL, Vector2.RIGHT)
 	fx._process(1.0)
-	t.check(main._bloom == 1.0 and main._bloom > at_12, "at COMBO_TOP the bloom is at its top")
+	t.check(is_equal_approx(main._bloom, Fx.HEAT_BLOOM) and main._bloom > at_12, "at COMBO_TOP the bloom is as high as the heat takes it")
+	round.blast(plain[2], 64.0)
+	fx._process(0.0)
+	t.check(main._bloom > Fx.HEAT_BLOOM, "and a blast still flashes on top of that (%.2f)" % main._bloom)
+	fx._process(1.0)
 
 	# The combo runs out: the round says so, and the bloom comes down over half a second, not at once.
 	round.combo.time_left = 1.0 / 240.0
@@ -166,7 +179,7 @@ func _bloom() -> void:
 	fx._kick = 0.0
 	fx._glow = 1.0
 	fx._process(0.1)
-	t.check(main._bloom < 1.0 and main._bloom > 0.5, "the bloom comes down smoothly (%.2f a tenth of a second on)" % main._bloom)
+	t.check(main._bloom < Fx.HEAT_BLOOM and main._bloom > Fx.HEAT_BLOOM * 0.5, "the bloom comes down smoothly (%.2f a tenth of a second on)" % main._bloom)
 	fx._process(1.0)
 	t.check(main._bloom == 0.0, "and is back at rest within the second")
 
@@ -177,6 +190,33 @@ func _bloom() -> void:
 	for i in 3:
 		await t.tree().physics_frame
 	t.check(round.over and fx.heat == 0.0, "the heat is gone when the round ends, so the Summary opens over a calm picture")
+	t.check(round.reason == Round.End.TIME and fx._shapes.size() >= round.balls.size() and fx.squares() > 0, "time running out leaves a ring and squares at every ball")
+
+
+## Coin pop-ups from bricks side by side join, and a pop-up is drawn in screen pixels on a zoomed level.
+func _pop_ups() -> void:
+	await _play(2)
+	var plain: Array[Vector2i] = []
+	for cell: Vector2i in round.board.bricks:
+		if round.board.brick(cell).kind == &"":
+			plain.append(cell)
+	plain.sort()
+	var first: Vector2i = plain.filter(func(c: Vector2i) -> bool: return c + Vector2i(3, 0) in plain and c.y > 1)[0]
+	round.hit_brick(first, Round.Cause.BALL, Vector2.RIGHT)
+	fx._process(1.0 / 60.0)
+	round.hit_brick(first + Vector2i.RIGHT, Round.Cause.BALL, Vector2.RIGHT)
+	fx._process(1.0 / 60.0)
+	t.check(fx._pops.size() == 1 and fx._pops[0].coins == round.coins, "coins from the brick next door, a frame later, join the pop-up that is there (%d pop-ups)" % fx._pops.size())
+	round.hit_brick(plain[-1], Round.Cause.BALL, Vector2.RIGHT)
+	t.check(fx._pops.size() == 2, "a break far away starts its own")
+	fx._process(Fx.POP_JOIN)
+	round.hit_brick(first + Vector2i(2, 0), Round.Cause.BALL, Vector2.RIGHT)
+	t.check(fx._pops.size() == 3, "and so does one next door after POP_JOIN")
+
+	await _play(3)
+	round.blast(Vector2i(40, 2), 64.0)
+	t.check(not fx._pops.is_empty() and round.board.zoom() < 1.0 and fx._text.get_global_transform().get_scale().is_equal_approx(Vector2.ONE),
+			"on a zoomed level a pop-up is still drawn one font pixel to one screen pixel")
 
 
 func _calm() -> void:
@@ -185,6 +225,13 @@ func _calm() -> void:
 	round.blast(Vector2i(55, 3), 64.0)
 	fx._process(1.0 / 60.0)
 	t.check(fx._pools.is_empty() and fx._kick == 0.0, "reduce flashing: no light pool and no flash")
+	var tagged := round.board.bricks.keys()[0] as Vector2i
+	round.board.brick(tagged).mod = &"zap"
+	round.board.brick(tagged).hp = 2
+	round.hit_brick(tagged, Round.Cause.BALL, Vector2.RIGHT)
+	round.hit_brick(tagged, Round.Cause.BALL, Vector2.RIGHT)
+	t.check(fx._shapes.any(func(s: Fx.Shape) -> bool: return s.width == 0.0 and s.boost == 1.0), "reduce flashing: the Zap's bolt is unlit")
+	t.check(fx._marks.size() >= 2 and fx._marks.all(func(s: Fx.Shape) -> bool: return s.width > 0.0 or s.boost <= Palette.LIT), "reduce flashing: a hit brick's flash is no brighter than a brick")
 	t.check(fx._shapes.size() >= 2 and fx.squares() > 0 and not fx._pops.is_empty(), "reduce flashing: shockwaves, squares and pop-ups stay")
 	var shapes := fx._shapes.size()
 	round.ball_lost.emit(round.balls[0])
@@ -226,7 +273,7 @@ func _bursts() -> void:
 	for i in Fx.BLAST_MOST:
 		most += Fx.BLAST_SPARKS * (1.0 + Fx.MORE_SPARKS) / (1 + i)
 	t.check(fx.squares() > 100 and fx.squares() <= most, "the burst adds no more squares than a frame may (%d of %d)" % [fx.squares(), most])
-	t.check(fx._marks.size() == 2, "a burst of more than MARKS breaks leaves no mark on each brick, only the rings of the two a ball broke (%d)" % fx._marks.size())
+	t.check(fx._marks.size() == 4, "a burst leaves no mark on each brick: only the two a ball broke flash and ring (%d)" % fx._marks.size())
 	t.check(fx._shapes.size() >= 8 and fx._shapes.size() <= Fx.SHAPES, "its shockwaves and bolts are all there (%d)" % fx._shapes.size())
 	t.check(fx._pools.size() <= Fx.POOLS and fx._pops.size() <= Fx.POPS, "pools and pop-ups stay under their caps")
 

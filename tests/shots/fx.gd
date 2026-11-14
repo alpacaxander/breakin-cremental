@@ -25,6 +25,9 @@ func shots() -> Array[Dictionary]:
 		{"name": "break_x12", "save": "maxed", "crt": false, "setup": _breaks.bind(1, 12)},
 		{"name": "break_top", "save": "maxed", "crt": false, "setup": _breaks.bind(1, Fx.COMBO_TOP)},
 		{"name": "break_top_crt", "save": "maxed", "setup": _breaks.bind(1, Fx.COMBO_TOP)},
+		# The same on level 3's full wall, where the combo has to show too.
+		{"name": "l3_break_x0", "save": "maxed", "setup": _breaks.bind(3, 0)},
+		{"name": "l3_break_top", "save": "maxed", "setup": _breaks.bind(3, Fx.COMBO_TOP)},
 		# The explosion, at the base blast size every time so the combo is the only difference.
 		{"name": "blast_x0", "crt": false, "setup": _blast.bind(1, 0)},
 		{"name": "blast_x12", "save": "maxed", "crt": false, "setup": _blast.bind(1, 12)},
@@ -40,6 +43,7 @@ func shots() -> Array[Dictionary]:
 		{"name": "paddle_lost", "crt": false, "setup": _paddle_lost},
 		{"name": "paddle_lost_calm", "crt": false, "calm": true, "setup": _paddle_lost},
 		{"name": "cleared", "save": "maxed", "setup": _cleared, "settle": 0, "frames": 8, "every": 6},
+		{"name": "time_up", "setup": _time_up},
 		# Level 3: smaller, and bursts. A Zap along a 4 HP row and along a 1 HP row, an explosive, and the worst
 		# burst there is: every brick at 1 HP, a Zap on a row and the three explosives next to it.
 		{"name": "l3_break_x12", "save": "maxed", "crt": false, "setup": _breaks.bind(3, 12)},
@@ -149,6 +153,14 @@ func _boost(main: Main) -> void:
 	round.set_boost(round.add_ball(Vector2(60, 300), Vector2(1, 0.15).normalized()), 3.0)
 	for i in 10:
 		await main.get_tree().physics_frame
+
+
+## The timer runs out with two balls in play.
+func _time_up(main: Main) -> void:
+	var round := await _start(main, 1)
+	round.add_ball(Vector2(500, 380), Vector2(1, 0.5).normalized())
+	round.time_left = 0.0
+	await main.get_tree().physics_frame
 
 
 ## The launch into the paddle, and a second ball that goes out past it.

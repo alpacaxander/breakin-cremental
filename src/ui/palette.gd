@@ -34,7 +34,10 @@ const BRICKS := Color("ca52c9")  ## Magenta: Bricks upgrade nodes. Same value as
 const BRICKS_DIM := Color("622461")
 
 ## Plain brick colour by hits left: HP[0] is 1 HP, HP[3] is 4 and up. Use hp() to index it.
-const HP: Array[Color] = [Color("ca52c9"), Color("db3ffd"), Color("f389f5"), Color("fdd2ed")]
+## No step may be a pale colour. Lit, a colour shows at the full brightness of its hue, so a pale one shows
+## almost white, and rows of it outshine the ball (the top step was fdd2ed once). tests/shots/contracts.gd
+## measures it.
+const HP: Array[Color] = [Color("ca52c9"), Color("db3ffd"), Color("f389f5"), Color("7a09fa")]
 
 ## The meaning names a kind's `colour` and Upgrade.meaning() use, each with its lit and dim colour.
 const MEANINGS: Dictionary = {
@@ -91,6 +94,6 @@ static func brick(b: Brick) -> Color:
 
 ## The colour to draw a brick in on the board: lit(brick(b)). Every brick is lit at the same boost, so the HP
 ## steps differ on screen by hue, not by brightness (1 HP shows as ff6afe, 2 as dd40ff, 3 as fd8fff, 4 as
-## ffd4ef). This is the one place to change if 1 HP bricks should be drawn dimmer or unlit.
+## 7d09ff). This is the one place to change if 1 HP bricks should be drawn dimmer or unlit.
 static func lit_brick(b: Brick) -> Color:
 	return lit(brick(b))
