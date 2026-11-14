@@ -1,0 +1,181 @@
+class_name LevelHud
+extends Control
+## The level screen's HUD (docs/art.md, "Level screen" and "HUD numbers"): time on the left, the combo (Play) or
+## SETUP (Setup) in the centre, coins on the right, and under the arena Play's footer: the level's name, a legend
+## of the bricks on this board and the bricks left. It only reads the round.
+##
+## The pixel fonts are taller than their digits (Jersey 10 at 75 is an 82 px line around 40 px digits), so every
+## piece is placed by hand against the sizes theme.gd gives, not stacked in a container.
+
+const LEFT := 96.0
+const RIGHT := 1184.0
+const COLUMN := 280.0  ## The width of the time and coin columns
+const CENTRE := 640.0
+const BAR_Y := 86.0
+const TIME_BAR := 220.0
+const COMBO_BAR := 160.0
+const FOOTER := Rect2(96, 644, 1088, 56)
+const SWATCH := Vector2(6, 22)  ## A legend swatch
+
+var _round: Round
+var _playing := false
+var _bricks := 0  ## Level bricks on the board when Play began
+
+var _time_tag := _label(&"Tag", Rect2(LEFT, 3, COLUMN, 21), HORIZONTAL_ALIGNMENT_LEFT)
+var _time := _label(&"HudNumber", Rect2(LEFT, 11, COLUMN, 82), HORIZONTAL_ALIGNMENT_LEFT)
+var _time_bar := UiBar.new()
+var _coins := UiPrice.new()
+var _combo_tag := _label(&"Tag", Rect2(CENTRE - 200, 3, 400, 21), HORIZONTAL_ALIGNMENT_CENTER, "COMBO")
+var _combo := _label(&"ComboNumber", Rect2(CENTRE - 200, 1, 400, 100), HORIZONTAL_ALIGNMENT_CENTER)
+var _multiplier := _label(&"Number", Rect2(CENTRE, 36, 120, 40), HORIZONTAL_ALIGNMENT_LEFT)
+var _combo_bar := UiBar.new()
+var _setup_title := _label(&"Title", Rect2(CENTRE - 264, -1, 528, 60), HORIZONTAL_ALIGNMENT_CENTER, "SETUP")
+var _hint := _label(&"Hint", Rect2(CENTRE - 264, 52, 528, 40), HORIZONTAL_ALIGNMENT_CENTER)
+var _footer := HBoxContainer.new()
+var _level_tag := Label.new()
+var _level_name := Label.new()
+var _legend := HBoxContainer.new()
+var _left := Label.new()
+
+
+## A lit swatch in a legend: the kit has none, so this is a ColorRect in a Palette colour.
+static func swatch(colour: Color, px := SWATCH) -> ColorRect:
+	var s := ColorRect.new()
+	s.color = Palette.lit(colour)
+	s.custom_minimum_size = px
+	s.size_flags_vertical = SIZE_SHRINK_CENTER
+	s.mouse_filter = MOUSE_FILTER_IGNORE
+	return s
+
+
+func _ready() -> void:
+	UiTheme.light(_time, Palette.TIME)
+	UiTheme.light(_multiplier, Palette.COINS)
+	UiTheme.light(_setup_title, Palette.PLAYER)
+	_place(_time_bar, Rect2(LEFT, BAR_Y, TIME_BAR, UiBar.HEIGHT))
+	_combo_bar.meaning = &"coins"
+	_place(_combo_bar, Rect2(CENTRE - COMBO_BAR * 0.5, BAR_Y, COMBO_BAR, UiBar.HEIGHT))
+	_place(_coins, Rect2(RIGHT - COLUMN, 11, COLUMN, 82))
+	_label(&"Tag", Rect2(RIGHT - COLUMN, 3, COLUMN, 21), HORIZONTAL_ALIGNMENT_RIGHT, "COINS")
+
+	_place(_footer, FOOTER)
+	_footer.mouse_filter = MOUSE_FILTER_IGNORE
+	var level := _column(BoxContainer.ALIGNMENT_BEGIN)
+	_level_tag.theme_type_variation = &"Tag"
+	_level_name.theme_type_variation = &"Name"
+	level.add_child(_level_tag)
+	level.add_child(_level_name)
+	_legend.alignment = BoxContainer.ALIGNMENT_CENTER
+	_legend.size_flags_horizontal = SIZE_EXPAND_FILL
+	_legend.add_theme_constant_override(&"separation", 18)
+	_footer.add_child(_legend)
+	var left := _column(BoxContainer.ALIGNMENT_END)
+	var left_tag := Label.new()
+	left_tag.theme_type_variation = &"Tag"
+	left_tag.text = "BRICKS LEFT"
+	left_tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_left.theme_type_variation = &"Number"
+	_left.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	left.add_theme_constant_override(&"separation", -8)
+	left.add_child(left_tag)
+	left.add_child(_left)
+
+
+## Shows `round`, in Setup's dress or in Play's. The Summary keeps Play's HUD, without the footer.
+func show_round(round: Round, data: LevelData, setup: bool, footer: bool) -> void:
+	_round = round
+	_playing = not setup
+	var combos := round.stats.combo_rank >= 1.0
+	_time_tag.text = "TIME · STOPPED" if setup else "TIME"
+	for c: Control in [_setup_title, _hint]:
+		c.visible = setup
+	for c: Control in [_combo_tag, _combo, _combo_bar, _multiplier]:
+		c.visible = not setup and combos
+	_footer.visible = footer
+	var places := Kinds.placeables().any(func(k: PlaceableKind) -> bool: return round.stats.count(k.id) > 0)
+	_hint.text = "Drag items onto the board, then press Start\nQ / E or the wheel turns one  ·  right-click removes one" if places \
+			else "Press Start, or Space, to launch the ball\nW / S, the arrow keys or the mouse move the paddle"
+	if setup or not footer:
+		return
+	_bricks = round.board.remaining()
+	_level_tag.text = "LEVEL %d" % data.number
+	_level_name.text = data.title
+	for old in _legend.get_children():
+		old.free()
+	# What is on this board: its HP steps, lowest first, then its special bricks.
+	# ponytail: one row. Four HP steps and the demo's three special bricks come to about 660 px of the 708
+	# between the two columns; a fourth special brick needs shorter names or swatches alone.
+	var steps := {}
+	var kinds := {}
+	for brick: Brick in round.board.bricks.values():
+		if brick.kind == &"":
+			steps[mini(brick.hp, Palette.HP.size())] = true
+		elif not brick.placed:
+			kinds[brick.kind] = true
+	for hp in range(1, Palette.HP.size() + 1):
+		if steps.has(hp):
+			_entry(Palette.hp(hp), "%d%s HP" % [hp, "+" if hp == Palette.HP.size() else ""])
+	for kind in Kinds.bricks():
+		if kinds.has(kind.id):
+			_entry(Palette.of(kind.colour), kind.title.trim_suffix(" Brick").to_upper())
+
+
+func _process(_delta: float) -> void:
+	if _round == null:
+		return
+	_time.text = "%.1f" % _round.time_left
+	_time_bar.value = _round.time_left / _round.stats.round_time
+	# The warning is the bar turning red; the number stays green, because red is never a number (palette.md).
+	_time_bar.meaning = &"danger" if _playing and _round.time_left <= _round.stats.low_time else &"time"
+	_coins.amount = _round.coins
+	if _combo.visible:
+		var combo := _round.combo
+		_combo.text = str(combo.count)
+		_combo.add_theme_color_override(&"font_color", Palette.lit(Palette.COINS) if combo.count else Palette.COINS_DIM)
+		_combo_bar.value = combo.time_left / combo.window if combo.window > 0.0 else 0.0
+		_multiplier.text = "×%d" % combo.multiplier if combo.multiplier > 1 else ""
+		_multiplier.position.x = CENTRE + _combo.get_theme_font(&"font").get_string_size(_combo.text, HORIZONTAL_ALIGNMENT_LEFT, -1,
+				_combo.get_theme_font_size(&"font_size")).x * 0.5 + 10.0
+	if _footer.visible:
+		var broken := 0
+		for n: int in _round.tally.broken.values():
+			broken += n
+		_left.text = "%d / %d" % [_bricks - broken, _bricks]
+
+
+func _entry(colour: Color, text: String) -> void:
+	var entry := HBoxContainer.new()
+	entry.add_theme_constant_override(&"separation", 8)
+	entry.add_child(swatch(colour))
+	var label := Label.new()
+	label.theme_type_variation = &"SmallTag"
+	label.text = text
+	entry.add_child(label)
+	_legend.add_child(entry)
+
+
+func _column(alignment: BoxContainer.AlignmentMode) -> VBoxContainer:
+	var column := VBoxContainer.new()
+	column.alignment = BoxContainer.ALIGNMENT_CENTER
+	column.custom_minimum_size.x = 190
+	column.add_theme_constant_override(&"separation", 0)
+	column.size_flags_horizontal = SIZE_SHRINK_BEGIN if alignment == BoxContainer.ALIGNMENT_BEGIN else SIZE_SHRINK_END
+	_footer.add_child(column)
+	return column
+
+
+func _label(variation: StringName, rect: Rect2, align: HorizontalAlignment, text := "") -> Label:
+	var label := Label.new()
+	label.theme_type_variation = variation
+	label.horizontal_alignment = align
+	label.text = text
+	_place(label, rect)
+	return label
+
+
+func _place(control: Control, rect: Rect2) -> void:
+	control.position = rect.position
+	control.size = rect.size
+	control.mouse_filter = MOUSE_FILTER_IGNORE
+	if control.get_parent() == null:
+		add_child(control)
