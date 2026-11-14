@@ -90,13 +90,13 @@ The demo's kinds. The id is the file name in `data/kinds/`, and `<id>_count` is 
 | Id | Base | Shape and size (units) | Colour | Cue | Its own numbers |
 |---|---|---|---|---|---|
 | `bumper` | PlaceableKind, FREE | RECT 30 × 30, turn 45 | `placeable` | `bumper` | |
-| `booster` | PlaceableKind, FREE | CIRCLE, 32 across | `placeable` | `booster` | Adds 0.25 to the ball's boost |
+| `booster` | PlaceableKind, FREE | CIRCLE, 32 across | `placeable` | `booster` | Adds 0.1 to the ball's boost |
 | `wall_segment` | PlaceableKind, FREE, rotatable | RECT 10 × 112 | `placeable` | `wall_bounce` | |
 | `splitter` | PlaceableKind, BRICK | A brick cell, 1 HP | `placeable` | none (`ball_added` has its own) | |
 | `zap` | PlaceableKind, MOD | A 6 × 6 mark | `placeable` | `zap` | |
 | `explosive` | BrickKind | 1 HP | `explosive` | none (`exploded` has its own) | Reach comes from the `blast_size` stat |
-| `gold` | BrickKind | 1 HP, worth 5 | `coins` | `gold_brick` | |
-| `hourglass` | BrickKind | 1 HP | `time` | `hourglass_brick` | Adds 2 s |
+| `gold` | BrickKind | 1 HP, worth 20 | `coins` | `gold_brick` | |
+| `hourglass` | BrickKind | 1 HP | `time` | `hourglass_brick` | Adds 10 s |
 
 `order` runs 1 to 5 down the placeables and 1 to 3 down the bricks; it is the tray order and the order special bricks are rolled in.
 
@@ -114,12 +114,12 @@ The demo's upgrades. The id is the file name in `data/upgrades/`:
 
 | Id | Stat | Amount per rank |
 |---|---|---|
-| `paddle_speed` | `paddle_speed` | 20% |
-| `ball_speed` | `ball_speed` | 15% |
-| `paddle_size` | `paddle_size` | 15% |
-| `round_time` | `round_time` | 3 |
+| `paddle_speed` | `paddle_speed` | 100% |
+| `ball_speed` | `ball_speed` | 10% |
+| `paddle_size` | `paddle_size` | 20% |
+| `round_time` | `round_time` | 5 |
 | `combo` | `combo_rank` | 1 |
-| `blast_size` | `blast_size` | 0.5 |
+| `blast_size` | `blast_size` | 1 |
 | `shockwave` | `shockwave` | 1 |
 | `bumper`, `booster`, `wall_segment`, `splitter`, `zap` | `<id>_count` | 1 |
 | `explosive_brick`, `gold_brick`, `hourglass_brick` | `explosive_count`, `gold_count`, `hourglass_count` | 1 |
@@ -326,7 +326,7 @@ The folders are also how the work divides. A lane writes only in its own folders
 
 4. **Feel:** the effects, in `src/level/fx/` (`fx`). The HUD's and the hub's pulses and the top HP colour came with it.
 5. **An audit** against the docs, with fixes.
-6. **Tuning**, which changes only files under `data/`.
+6. **Tuning** with the balance bot. It changed the files under `data/`, the brick HP of levels 1 and 3, and the effects' `COMBO_TOP`.
 
 The screens wait for the rules so a screen lane can render a real board and check its own work.
 

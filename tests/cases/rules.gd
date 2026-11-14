@@ -189,14 +189,14 @@ func _kinds() -> void:
 		t.check(k != null and [k.placement, k.shape, k.size, k.turn, k.rotatable, k.cue] == want and k.colour == &"placeable" and k.hp == 1 and k.title != "",
 				"the %s is as the kinds table has it" % id)
 	# id: [colour, cue, worth]
-	var bricks := {&"explosive": [&"explosive", &"", 1], &"gold": [&"coins", Sfx.GOLD_BRICK, 5], &"hourglass": [&"time", Sfx.HOURGLASS_BRICK, 1]}
+	var bricks := {&"explosive": [&"explosive", &"", 1], &"gold": [&"coins", Sfx.GOLD_BRICK, 20], &"hourglass": [&"time", Sfx.HOURGLASS_BRICK, 1]}
 	for id: StringName in bricks:
 		var k := Kinds.of(id) as BrickKind
 		t.check(k != null and [k.colour, k.cue, k.worth] == bricks[id] and k.hp == 1 and k.title != "", "the %s brick is as the kinds table has it" % id)
 	for k in Kinds.all():
 		t.check(Palette.MEANINGS.has(k.colour), "%s's colour is a Palette meaning" % k.id)
 	# The three amounts are pinned here and nowhere else: the other checks read them from the kinds.
-	t.check(Kinds.of(&"booster").get("boost") == 0.25 and Kinds.of(&"hourglass").get("seconds") == 2.0, "the Booster adds 0.25 and the hourglass 2 s, from their files")
+	t.check(Kinds.of(&"booster").get("boost") == 0.1 and Kinds.of(&"hourglass").get("seconds") == 10.0, "the Booster adds 0.1 and the hourglass 10 s, from their files")
 
 
 # --- building and the first step -------------------------------------------------------------------------------
@@ -244,7 +244,7 @@ func _speed() -> void:
 	stats = _sealed(board, {&"booster_count": 1, &"wall_segment_count": 4})
 	var round := Round.new(board, _pen(Vector2(351, 261), 0.0), stats, 1)
 	round.balls[0].put(Vector2(320, 230), Vector2(0.8, 0.6))
-	_run(round, 2.0)
+	_run(round, 8.0)
 	t.check(round.balls[0].boost == stats.boost_cap, "boosts stack up to the cap and stop there")
 	var worst := _speed_error(round, 5.0, TICK)
 	t.check(worst < NEAR and is_equal_approx(round.speed_of(round.balls[0]), stats.ball_speed * stats.boost_cap), "a boosted ball holds its boosted speed until the paddle (off by %f)" % worst)
@@ -1095,8 +1095,8 @@ func _coins() -> void:
 	board.bricks[Vector2i(30, 0)].kind = &"hourglass"
 	board.bricks[Vector2i(50, 6)].kind = &"explosive"
 	var stats := _stats({&"splitter_count": 1})
-	var worth: int = (Kinds.of(&"gold") as BrickKind).worth  # 5
-	var seconds: float = Kinds.of(&"hourglass").get("seconds")  # 2
+	var worth: int = (Kinds.of(&"gold") as BrickKind).worth  # 20
+	var seconds: float = Kinds.of(&"hourglass").get("seconds")  # 10
 	var round := Round.new(board, _layout([_item(&"splitter", Vector2i(40, 3))]), stats, 1)
 	var paid: Array[int] = []
 	round.brick_broken.connect(func(_c: Vector2i, _b: Brick, _cause: Round.Cause, _d: Vector2, n: int) -> void: paid.append(n))

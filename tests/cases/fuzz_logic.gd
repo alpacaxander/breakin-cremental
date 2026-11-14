@@ -733,9 +733,9 @@ func _fuzz_round(sd: int) -> void:
 			m.points[brick.kind] = m.points.get(brick.kind, 0) + mult
 		var sum := 0
 		for k: StringName in m.points:
-			sum += m.points[k] * (5 if k == &"gold" else 1)
+			sum += m.points[k] * (20 if k == &"gold" else 1)
 		var total := floori(stats.coins_per_brick * sum)
-		_fail(coins == total - m.coins and spy.coins == total, "each brick pays 1 x its multiplier, a gold brick 5, a placed brick nothing; `coins` is the running total (overview.md)")
+		_fail(coins == total - m.coins and spy.coins == total, "each brick pays 1 x its multiplier, a gold brick 20, a placed brick nothing; `coins` is the running total (overview.md)")
 		_fail(not placed[c] or coins == 0, "a placed brick pays nothing (placeables.md)")
 		m.coins = total
 		_fail(absf(dir.length() - 1.0) < 1e-4, "brick_broken's dir is a unit vector")
@@ -777,7 +777,7 @@ func _fuzz_round(sd: int) -> void:
 	spy.time_changed.connect(func(left_now: float, added: float) -> void:
 		if m.ended:
 			m.after += 1
-		_fail(m.last == "broken" and m.expect == "time" and added == 2.0 and left_now == spy.time_left, "an hourglass brick adds 2 s when it breaks, and only then (upgrades.md)")
+		_fail(m.last == "broken" and m.expect == "time" and added == 10.0 and left_now == spy.time_left, "an hourglass brick adds 10 s when it breaks, and only then (upgrades.md)")
 		m.added += added
 		_seen.hourglass = _seen.get("hourglass", 0) + 1
 		m.last = "time")
@@ -808,9 +808,9 @@ func _fuzz_round(sd: int) -> void:
 		if hit.surface == Hit.Surface.PADDLE:
 			want = 1.0
 		elif hit.surface == Hit.Surface.ITEM and hit.item.kind.id == &"booster":
-			want = minf(was + 0.25, cap)
+			want = minf(was + 0.1, cap)
 			_seen.booster = _seen.get("booster", 0) + 1
-		_fail(is_equal_approx(ball.boost, want), "a Booster adds 25% of base speed, up to 3x; the paddle takes the boost away; nothing else changes it (physics.md)",
+		_fail(is_equal_approx(ball.boost, want), "a Booster adds 10% of base speed, up to 3x; the paddle takes the boost away; nothing else changes it (physics.md)",
 				"ball %d off %s: boost %s -> %s" % [ball.id, Hit.Surface.keys()[hit.surface], was, ball.boost])
 		spy.boosts[ball.id] = ball.boost
 		m.last = "bounced")
@@ -1089,8 +1089,8 @@ func _r2_timer() -> void:
 		stats.round_time = 20.0
 		var round := Round.new(board, null, stats, 1)
 		var n := _r2_count_steps(round, 1.0 / rate, {rate * 3: Vector2i(40, 2), rate * 21 + 7: Vector2i(44, 6)})
-		if n != rate * 24 or round.reason != Round.End.TIME:
-			wrong.append("20 s + two hourglasses at %d/s: %d steps, want %d" % [rate, n, rate * 24])
+		if n != rate * 40 or round.reason != Round.End.TIME:
+			wrong.append("20 s + two hourglasses at %d/s: %d steps, want %d" % [rate, n, rate * 40])
 	t.check(wrong.is_empty(), "a round whose time is a whole number of steps plays exactly that many, any other to the end of the step its time runs out in (Round ONE STEP 4): %s" % [wrong])
 
 
@@ -1121,11 +1121,11 @@ func _r2_end_order() -> void:
 	round = Round.new(board, null, stats, 1)
 	round.balls[0].put(Vector2(470, 224), Vector2(0.8, 0.6))
 	round.step(1.0 / 60.0, round.paddle.y)
-	t.check(not round.over and round.board.bricks.size() == 1 and absf(round.time_left - 2.0) < 1e-9, "an hourglass broken in the last step adds its 2 s before the timer is read (Round ONE STEP 4): time %s, over %s" % [round.time_left, round.over])
+	t.check(not round.over and round.board.bricks.size() == 1 and absf(round.time_left - 10.0) < 1e-9, "an hourglass broken in the last step adds its 10 s before the timer is read (Round ONE STEP 4): time %s, over %s" % [round.time_left, round.over])
 
 
 ## One hit that breaks ten bricks: each pays at the multiplier its own break reached (Round ONE BRICK HIT,
-## overview.md "Coins"), gold 5 times that, the placed Splitter nothing, though it still counts in the combo.
+## overview.md "Coins"), gold 20 times that, the placed Splitter nothing, though it still counts in the combo.
 func _r2_chain_pay() -> void:
 	var bricks := {FAR: SOLID, Vector2i(20, 4): 1, Vector2i(20, 3): 1}
 	for x in range(17, 25):
@@ -1140,12 +1140,12 @@ func _r2_chain_pay() -> void:
 		round.brick_broken.connect(func(c: Vector2i, _b: Brick, _cause: Round.Cause, _d: Vector2, n: int) -> void: paid.append([c, n]))
 		round.hit_brick(Vector2i(20, 4), Round.Cause.BALL, Vector2.RIGHT)
 		var order := [Vector2i(20, 4), Vector2i(17, 4), Vector2i(18, 4), Vector2i(19, 4), Vector2i(20, 3), Vector2i(20, 5), Vector2i(21, 4), Vector2i(22, 4), Vector2i(23, 4), Vector2i(24, 4)]
-		var coins := [1, 1, 1, 1, 10, 0, 2, 2, 3, 3] if rank else [1, 1, 1, 1, 5, 0, 1, 1, 1, 1]
+		var coins := [1, 1, 1, 1, 40, 0, 2, 2, 3, 3] if rank else [1, 1, 1, 1, 20, 0, 1, 1, 1, 1]
 		var want := []
 		for i in order.size():
 			want.append([order[i], coins[i]])
 		t.check(paid == want, "combo rank %d: a blast's ten breaks pay %s, in blast order (overview.md 'Coins'): %s" % [rank, coins, paid])
-		var total := 24 if rank else 13
+		var total := 54 if rank else 28
 		t.check(round.coins == total and Coins.total(round.tally, round.stats) == total and round.tally.placed_broken == 1 and round.tally.broken == {&"explosive": 1, &"": 7, &"gold": 1},
 				"combo rank %d: the chain pays %d and the tally holds 7 standard, 1 explosive, 1 gold and 1 placed brick: %d %s" % [rank, total, round.coins, round.tally.broken])
 		if rank:

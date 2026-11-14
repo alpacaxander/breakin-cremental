@@ -141,8 +141,8 @@ func _placing() -> void:
 		BUMPER: [Vector2(300, 100), Vector2(300, 420), Vector2(500, 100)],
 		BOOSTER: [Vector2(400, 200), Vector2(400, 330)],
 		WALL: [Vector2(600, 200), Vector2(600, 330)],
-		SPLITTER: [Vector2(700, 100), Vector2(720, 400)],
-		ZAP: [Vector2(856, 100), Vector2(856, 480)],
+		SPLITTER: [Vector2(700, 100), Vector2(720, 400), Vector2(760, 200), Vector2(780, 300), Vector2(800, 480)],
+		ZAP: [Vector2(856, 100), Vector2(856, 480), Vector2(888, 300)],
 	}
 	## Refused wherever the layout stands: off the grid, in the paddle lane, on the launch path, on a brick.
 	var refused := {
@@ -225,7 +225,7 @@ func _clear_1() -> void:
 	var specials := _specials(level.round)
 	(level.get_node("SetupUi").find_child("Start", true, false) as Button).pressed.emit()
 	var round: Round = level.round
-	t.check(level.phase == PLAY and round.layout.items.size() == 10 and _specials(round) == specials, "Start plays the board Setup showed")
+	t.check(level.phase == PLAY and round.layout.items.size() == 14 and _specials(round) == specials, "Start plays the board Setup showed")
 	await _follow(30)
 	for cell: Vector2i in round.board.bricks.keys():
 		while not round.over and round.board.brick(cell):

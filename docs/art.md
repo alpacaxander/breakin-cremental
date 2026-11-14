@@ -10,8 +10,7 @@ The main menu, Settings and the Summary have no mockup. They are described below
 
 - Neither screen has a back button. The upgrade screen's top bar and the Setup footer each get one (see [UI pieces](#ui-pieces)).
 - The ball in Setup rests against the paddle. It should sit a little to the right of it.
-- Level 1's bricks are all 1 HP. The columns should be 3 HP, 2 HP and 1 HP.
-- Level 3 is drawn at 64 × 16 with the tunnel below centre and 3 HP strong bricks. It should be 72 × 18, zoomed to fit, with 4 HP strong bricks.
+- Level 3 is drawn at 64 × 16 with the tunnel below centre. It should be 72 × 18, zoomed to fit.
 - The bumper ghost snaps to a grid cell. The bumper is free-form and doesn't snap.
 - Special bricks are a share of the level's bricks, and the web has "Explosive Chance" and "Bumper Count" nodes. Counts now come from the unlock node's ranks (see [upgrades.md](design/upgrades.md#counts-come-from-ranks)).
 - The web is grouped by category, with a label over each group and a junction square under the seed. The demo's web mixes the categories around a seed in the centre (see [upgrades.md](design/upgrades.md#the-demos-web)).
@@ -96,7 +95,7 @@ Levels have different grid sizes (see [levels.md](design/levels.md#arena-size)).
 Effects take the colour of whatever made them. Sizes below are at their peak, in pixels on a 16-row level. Ease effects in and fade them out. Every number here is a named constant at the top of `src/level/fx/fx.gd`, and all of them are first values, not yet tuned by play.
 
 - **Fading.** A lit colour shows at the full brightness of its hue however far it is pushed, so lowering its alpha shows nothing until the last frame. An effect fades by brightness first: it glows less and less, and only then turns see-through.
-- **The combo.** Effects grow with the combo. `heat` is how far the combo is up its curve, from 0 to 1: ((count − 1) ÷ 39) to the power 0.5, which is 0.53 at ×12 and 1 from ×40 on. At full heat a burst has twice the squares, shockwaves are 1.3 times as big, squares fly 30% further, and the shake is twice as strong. The bloom follows the heat up to 70% of its range and the rest is left to flashes, so a blast still lights the screen at the top of a combo. The bloom falls back in half a second when the combo or the round ends. The mockup shows ×12.
+- **The combo.** Effects grow with the combo. `heat` is how far the combo is up its curve, from 0 to 1: ((count − 1) ÷ 119) to the power 0.5, which is 0.30 at ×12, 0.45 at level 1's 25 and 1 from ×120 on. A round with every upgrade tops out near there on levels 2 and 3. At full heat a burst has twice the squares, shockwaves are 1.3 times as big, squares fly 30% further, and the shake is twice as strong. The bloom follows the heat up to 70% of its range and the rest is left to flashes, so a blast still lights the screen at the top of a combo. The bloom falls back in half a second when the combo or the round ends. The mockup shows ×12.
 - **Layers.** The light pool is under the bricks. Squares and shockwaves are over them. Pop-ups are over those, and the trail and the ball are on top of everything, so no effect covers a ball. Everything is clipped to the inside of the walls.
 
 | Effect | Look |

@@ -9,4 +9,4 @@ colour = &"coins"
 cue = &"gold_brick"
 order = 2
 hp = 1
-worth = 5
+worth = 20

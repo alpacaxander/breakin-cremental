@@ -6,9 +6,10 @@
 script = ExtResource("1")
 title = "Ball Speed"
 category = 0
-text = "+15% ball speed"
-first_cost = 10
-max_rank = 5
+text = "+10% ball speed"
+first_cost = 6
+growth = 2.5
+max_rank = 3
 stat = &"ball_speed"
-amount = 0.15
+amount = 0.1
 percent = true

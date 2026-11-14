@@ -21,7 +21,7 @@ Each item is unlocked by the node of the same name in the [upgrade web](upgrades
 | Item | Kind | What it does |
 |---|---|---|
 | **Bumper** | Free-form | A diamond. The ball bounces off its faces. It doesn't change the ball's speed |
-| **Booster** | Free-form | A circle. The ball bounces off it at the point where it touches, and leaves faster by 25% of its base speed. The extra speed is a boost (see [physics.md](physics.md#ball)) |
+| **Booster** | Free-form | A circle. The ball bounces off it at the point where it touches, and leaves faster by 10% of its base speed. The extra speed is a boost (see [physics.md](physics.md#ball)) |
 | **Wall Segment** | Free-form, rotatable | A straight wall the ball bounces off |
 | **Splitter** | Placeable brick | A 1 HP brick. When a ball breaks it, that ball splits in two. If a blast or a Zap breaks it, it just breaks |
 | **Zap** | Brick mod | When the tagged brick breaks, every other brick in its row, from the paddle side to the back wall, takes 1 hit. That is the rest of a full row: 2 bricks on level 1, 15 on level 2 and 63 on level 3 |

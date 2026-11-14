@@ -32,7 +32,7 @@ Feel like a high-score engineer: clever setup turns a stubborn wall of bricks in
 - **Placeables:** items placed during Setup. There are three kinds: free-form items that go anywhere clear of bricks and the paddle lane (some can be rotated), placeable bricks that snap to the grid, and brick mods that go on an existing brick. Fencing the ball into the board is allowed.
 - **Upgrade web:** grows out from one seed node, paddle speed. Buying a node unlocks its neighbours. A node has one or more ranks, each more expensive than the last. The demo has 15 nodes in three categories, which are mixed across the web so every path out picks up some of each:
   - **Placeables:** unlock the items above (Bumper, Booster, Wall Segment, Splitter, Zap). Each rank lets you place one more.
-  - **Bricks:** at level start, some standard bricks are randomly replaced by special bricks that do something when broken: explosive, gold (worth 5 bricks) and hourglass (+time). Each rank replaces one more brick, and the bricks are picked again on every attempt. Blast Size and Shockwave improve the explosion.
+  - **Bricks:** at level start, some standard bricks are randomly replaced by special bricks that do something when broken: explosive, gold (worth 20 bricks) and hourglass (+time). Each rank replaces one more brick, and the bricks are picked again on every attempt. Blast Size and Shockwave improve the explosion.
   - **Arena:** base stats: paddle size, paddle speed, ball speed, round time and combos.
 
 ## Progression
@@ -91,8 +91,8 @@ The demo exists to test whether placement + combos is fun and whether hand-made 
 
 These need deciding before or during the demo build:
 
-1. **The coin formula.** How the tally of bricks and combos turns into coins. The upgrade costs move with it.
-2. **Combo numbers.** Left to the implementation and tuned later.
+1. **The coin formula.** How the tally of bricks and combos turns into coins. The upgrade costs move with it. Tuning kept the placeholder: 1 coin per brick times the combo multiplier, and a gold brick counts as 20.
+2. **Combo numbers.** Tuned with the balance bot, not yet by hand (see `docs/design/upgrades.md`, "Open questions").
 3. **A ceiling on arena size.** Very big levels shrink the ball and bricks to a few pixels (see `docs/art.md`).
 4. **Screens with no mockup.** The summary, the main menu and Settings were built without one and are described in `docs/art.md` as built. Nobody has judged their look yet.
 

@@ -6,8 +6,8 @@
 script = ExtResource("1")
 title = "Shockwave"
 category = 2
-text = "Explosions throw balls away, much faster until they touch the paddle."
-first_cost = 80
+text = "Explosions throw balls away, faster until they touch the paddle."
+first_cost = 300
 max_rank = 1
 stat = &"shockwave"
 amount = 1.0

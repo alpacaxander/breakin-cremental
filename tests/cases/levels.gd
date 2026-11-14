@@ -3,16 +3,16 @@ extends RefCounted
 ## Cells are brick cells, Vector2i(column, brick row); levels.md's "rows 8-9" is brick row 4.
 
 const LEVELS := {
-	1: {"title": "Three Columns", "rows": 16, "bricks": 24, "hp4": 0, "hits": 48},
-	2: {"title": "Checkerboard", "rows": 16, "bricks": 128, "hp4": 0, "hits": 128},
-	3: {"title": "The Tunnel", "rows": 18, "bricks": 512, "hp4": 134, "hits": 914},
+	1: {"title": "Three Columns", "rows": 16, "bricks": 24, "top": 1, "at_top": 24, "hits": 24},
+	2: {"title": "Checkerboard", "rows": 16, "bricks": 128, "top": 1, "at_top": 128, "hits": 128},
+	3: {"title": "The Tunnel", "rows": 18, "bricks": 512, "top": 3, "at_top": 134, "hits": 780},
 }
 ## HP at a cell, 0 for empty: grid corners, the first and last brick columns, and the pattern's edges.
 const CELLS := {
 	1: {
 		Vector2i(0, 0): 0, Vector2i(63, 0): 0, Vector2i(0, 7): 0, Vector2i(63, 7): 0,
-		Vector2i(52, 3): 0, Vector2i(53, 0): 3, Vector2i(53, 7): 3, Vector2i(54, 4): 0,
-		Vector2i(55, 0): 2, Vector2i(55, 7): 2, Vector2i(56, 2): 0, Vector2i(57, 0): 1, Vector2i(57, 7): 1, Vector2i(58, 5): 0,
+		Vector2i(52, 3): 0, Vector2i(53, 0): 1, Vector2i(53, 7): 1, Vector2i(54, 4): 0,
+		Vector2i(55, 0): 1, Vector2i(55, 7): 1, Vector2i(56, 2): 0, Vector2i(57, 0): 1, Vector2i(57, 7): 1, Vector2i(58, 5): 0,
 	},
 	2: {
 		Vector2i(0, 0): 0, Vector2i(63, 0): 0, Vector2i(0, 7): 0, Vector2i(63, 7): 0, Vector2i(23, 0): 0, Vector2i(56, 7): 0,
@@ -22,8 +22,8 @@ const CELLS := {
 	},
 	3: {
 		Vector2i(0, 0): 0, Vector2i(71, 0): 0, Vector2i(0, 8): 0, Vector2i(71, 8): 0, Vector2i(3, 0): 0, Vector2i(68, 8): 0,
-		Vector2i(4, 0): 4, Vector2i(4, 8): 4, Vector2i(5, 0): 1, Vector2i(67, 0): 1, Vector2i(67, 8): 1, Vector2i(30, 2): 1,
-		Vector2i(4, 3): 4, Vector2i(30, 3): 4, Vector2i(67, 3): 4, Vector2i(5, 5): 4, Vector2i(67, 5): 4, Vector2i(30, 6): 1,
+		Vector2i(4, 0): 3, Vector2i(4, 8): 3, Vector2i(5, 0): 1, Vector2i(67, 0): 1, Vector2i(67, 8): 1, Vector2i(30, 2): 1,
+		Vector2i(4, 3): 3, Vector2i(30, 3): 3, Vector2i(67, 3): 3, Vector2i(5, 5): 3, Vector2i(67, 5): 3, Vector2i(30, 6): 1,
 		Vector2i(4, 4): 0, Vector2i(30, 4): 0, Vector2i(67, 4): 0,
 	},
 }
@@ -43,16 +43,20 @@ func run(t: Node) -> void:
 		t.check(level.number == n and level.title == want.title, "level %d is number %d, %s" % [n, n, want.title])
 		t.check(board.rows == want.rows and board.cols == want.rows * 4, "level %d is %d x %d" % [n, want.rows * 4, want.rows])
 		var hits := 0
-		var hp4 := 0
+		var top := 0
+		var at_top := 0
 		var legal := true
 		for cell: Vector2i in board.bricks:
 			var b := board.brick(cell)
 			hits += b.hp
-			hp4 += 1 if b.hp == 4 else 0
+			if b.hp > top:
+				top = b.hp
+				at_top = 0
+			at_top += 1 if b.hp == top else 0
 			legal = legal and board.has_cell(cell) and b.hp >= 1 and b.hp <= 4 and b.kind == &"" and b.mod == &"" and not b.placed
 		t.check(legal, "level %d's bricks are standard, 1 to 4 HP, on cells of its grid" % n)
 		t.check(board.bricks.size() == want.bricks and board.remaining() == want.bricks, "level %d has %d bricks" % [n, want.bricks])
-		t.check(hp4 == want.hp4, "level %d has %d bricks at 4 HP" % [n, want.hp4])
+		t.check(top == want.top and at_top == want.at_top, "level %d's toughest bricks have %d HP, and there are %d of them" % [n, want.top, want.at_top])
 		t.check(hits == want.hits, "level %d takes %d hits to clear" % [n, want.hits])
 		for cell: Vector2i in CELLS[n]:
 			var b := board.brick(cell)

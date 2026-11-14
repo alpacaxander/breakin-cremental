@@ -621,7 +621,7 @@ func _attack(p_seed: int, wrong: Dictionary, seen: Dictionary, cfg := {}) -> voi
 	var start_pos := round.balls[0].pos
 	var start_dir := round.balls[0].dir
 	var lasted := 0.0
-	var limit := stats.round_time + 2.0 * stats.count(&"hourglass") * 2.0 + 5.0
+	var limit := stats.round_time + 10.0 * stats.count(&"hourglass") * 2.0 + 5.0
 	var history := {}  # ball id -> positions over the last second
 	var step := 0
 	while not round.over:

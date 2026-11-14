@@ -62,7 +62,7 @@ func _seam() -> void:
 	t.check(arena.get_child_count() < 10 and round.board.bricks.size() == 512, "512 bricks are drawn by one node, not by 512")
 	for part: String in ["Hud", "SetupUi", "Summary"]:
 		t.check((level.get_node(part) as Control).z_index == 100, "%s is at z 100" % part)
-	t.check(_specials(round).size() == 8, "Setup shows this attempt's special bricks")
+	t.check(_specials(round).size() == 9, "Setup shows this attempt's special bricks")
 	# Called by hand, here and for the freeze below: the real effects set shake and frozen themselves every frame.
 	level.fx.shake = Vector2(3, -2)
 	arena._process(0.0)
@@ -71,7 +71,7 @@ func _seam() -> void:
 	# Level 3 starts with 1 and 4 HP bricks only, and a 4 HP brick shows 3 and 2 on its way down.
 	level.start(7)
 	var legend: Array = _texts(level.get_node("Hud")._legend).filter(func(s: String) -> bool: return s.ends_with("HP"))
-	t.check(legend == ["1 HP", "2 HP", "3 HP", "4+ HP"], "Play's legend lists every HP step up to the board's toughest brick (%s)" % [legend])
+	t.check(legend == ["1 HP", "2 HP", "3 HP"], "Play's legend lists every HP step up to the board's toughest brick (%s)" % [legend])
 
 
 ## Setup: drag to place, move and remove; refusals; rotation; snapping; each change saved.
@@ -130,7 +130,7 @@ func _placing() -> void:
 	t.check(_items().size() == 3, "a Zap on an empty cell is refused")
 	await _drag(_slot(ZAP), _screen(Vector2(856, 224)))
 	t.check(level.round.board.brick(Vector2i(53, 3)).mod == &"zap" and _items().size() == 4, "a Zap goes on an existing brick")
-	t.check(level.get_node("SetupUi")._slots[BUMPER].left == 2 and level.get_node("SetupUi")._slots[ZAP].left == 1, "the tray counts what is left to place")
+	t.check(level.get_node("SetupUi")._slots[BUMPER].left == 2 and level.get_node("SetupUi")._slots[ZAP].left == 2, "the tray counts what is left to place")
 
 
 ## Esc goes back to the hub and no further, and the layout is there on the way back in.

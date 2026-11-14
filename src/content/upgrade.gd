@@ -31,7 +31,7 @@ var id: StringName:
 
 
 ## The price of the next rank for someone who owns `owned` ranks: first_cost * growth ^ owned, rounded to a whole
-## coin. Paddle Speed (5, 1.8) costs 5, 9, 16, 29, 52.
+## coin. Explosive Brick (8, 2.5) costs 8, 20, 50, 125.
 func cost(owned: int) -> int:
 	return roundi(first_cost * pow(growth, owned))
 
