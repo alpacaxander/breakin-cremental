@@ -459,8 +459,10 @@ func _fits() -> void:
 		[empty, _item(&"bumper", Vector2(8, 32)), false, "a Bumper on a brick at the grid's corner"],
 		[empty, _item(&"bumper", Vector2(-30, 256)), false, "a Bumper in the paddle lane"],
 		[empty, _item(&"wall_segment", Vector2(4, 300)), false, "a Wall Segment reaching into the paddle lane"],
-		[empty, _item(&"wall_segment", Vector2(5, 300)), true, "a Wall Segment touching the lane's edge"],
+		[empty, _item(&"wall_segment", Vector2(5, 400)), true, "a Wall Segment touching the lane's edge"],
 		[empty, _item(&"bumper", rest), false, "a Bumper on the ball at rest"],
+		[empty, _item(&"wall_segment", Vector2(5, 300)), false, "a Wall Segment between the ball at rest and the paddle"],
+		[empty, _item(&"splitter", Vector2i(0, 3)), false, "a Splitter between the ball at rest and the paddle"],
 		[empty, _item(&"booster", rest + Vector2(18, 0)), false, "a Booster over the ball at rest"],
 		[empty, _item(&"booster", Vector2(1100, 300)), false, "a Booster off the board"],
 		[empty, _item(&"booster", Vector2(500, -10)), false, "a Booster over the top wall"],
@@ -952,9 +954,11 @@ func _fuzz_fits(sd: int) -> void:
 		var item := _random_item(rng, board, layout)
 		if layout.fits(item, board, stats):
 			layout.add(item)
+	# The launch path: the ball at rest and its way straight left to the paddle's face.
 	var rest := Round.ball_start(board, stats)
 	var half := Vector2.ONE * stats.ball_size * 0.5
-	var ball := Collide.box(Rect2(rest - half, half * 2.0))
+	var face := Round.paddle_face(board, stats)
+	var ball := Collide.box(Rect2(face, rest.y - half.y, rest.x + half.x - face, half.y * 2.0))
 	for i in 20:
 		var item := _random_item(rng, board, layout)
 		var expect := 1  # 1 fits, 0 does not, -1 too close to tell
@@ -991,7 +995,7 @@ func _fuzz_fits(sd: int) -> void:
 		if expect == -1:
 			continue
 		var got := layout.fits(item, board, stats)
-		_fail(got == (expect == 1), "Layout.fits takes an item exactly when it is inside the grid, over no brick, item or the ball at rest, a mod on a free host, and under its count (%s %s)" % [item.kind.id, "fits" if expect == 1 else "does not fit"],
+		_fail(got == (expect == 1), "Layout.fits takes an item exactly when it is inside the grid, over no brick, item or the launch path, a mod on a free host, and under its count (%s %s)" % [item.kind.id, "fits" if expect == 1 else "does not fit"],
 				"%s at %s rot %s cell %s on %d rows; layout %s" % [item.kind.id, item.pos, item.rot, item.cell, board.rows, layout.to_data()])
 		if got and rng.randf() < 0.3:
 			layout.add(item)
@@ -1211,8 +1215,10 @@ func _r2_painted() -> void:
 	t.check(wrong.is_empty(), "bricks the level made special are kept, and rank N replaces N of the standard ones: %s" % [wrong.slice(0, 3)])
 
 
-## Layout.fits keeps items off the ball at rest on every level size: touching it is fine, overlapping is not
-## ("Overlap means sharing area: touching does not count").
+## Layout.fits keeps items off the launch path on every level size: the ball at rest and its way straight left to
+## the paddle (Round.launch_path). An item may touch the right side of the ball ("Overlap means sharing area:
+## touching does not count") but must stay Layout.CLEAR from the path above and below, where a touch that is a
+## hair too deep would take the launch's first bounce.
 func _r2_fits_rest() -> void:
 	var wrong := []
 	for rows: int in [14, 16, 18, 20]:
@@ -1225,10 +1231,11 @@ func _r2_fits_rest() -> void:
 			if empty.fits(_item(&"wall_segment", Vector2(c[0], rest.y)), board, stats) != c[1]:
 				wrong.append("%d rows: Wall Segment at x %.2f" % [rows, c[0]])
 		var below := rest.y + 6.0 + 5.0  # a flat Wall Segment's centre with its top face on the ball's bottom edge
-		for c: Array in [[below, true], [below - 0.1, false]]:
+		for c: Array in [[below + 0.1, true], [below, false]]:
 			if empty.fits(_item(&"wall_segment", Vector2(maxf(rest.x, 57.0), c[0]), 90.0), board, stats) != c[1]:
 				wrong.append("%d rows: flat Wall Segment at y %.2f" % [rows, c[0]])
-		var ball := Rect2(rest - Vector2.ONE * 6.0, Vector2.ONE * 12.0)
+		var face := Round.paddle_face(board, stats)
+		var ball := Rect2(face, rest.y - 6.0, rest.x + 6.0 - face, 12.0)
 		for x in 4:
 			for y in range(rows / 4 - 2, rows / 4 + 2):
 				var cell := Vector2i(x, y)
@@ -1236,7 +1243,7 @@ func _r2_fits_rest() -> void:
 				var want := not (r.size.x > 0.0 and r.size.y > 0.0)
 				if empty.fits(_item(&"splitter", cell), board, stats) != want:
 					wrong.append("%d rows: Splitter at %s" % [rows, cell])
-	t.check(wrong.is_empty(), "on 14, 16, 18 and 20 rows an item may touch the ball at rest but not overlap it (Layout.fits): wrong on %s" % [wrong])
+	t.check(wrong.is_empty(), "on 14, 16, 18 and 20 rows an item may touch the right side of the ball at rest, but not the launch path from above or below, nor overlap it (Layout.fits): wrong on %s" % [wrong])
 
 
 ## Layout SAVED FORM: "a layout that has been through the save file gives the same to_data() as it did before".

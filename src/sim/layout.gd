@@ -13,11 +13,17 @@ extends RefCounted
 ##
 ## VALIDITY. fits() is the only place that decides whether an item may be where it is. Setup calls it for the
 ## ghost under the cursor; loading calls it through fitted(). Overlap means sharing area: touching does not count.
+## The one exception is the launch path (Round.launch_path), which an item may not touch from above or below.
 
 ## Sides of the polygon that stands in for a CIRCLE item in fits().
 # ponytail: the polygon is drawn around the circle, so a Booster is refused up to 0.3 units before it really
 # touches something on a diagonal. Test the true circle if that margin is ever felt.
 const ROUND := 16
+## How far, in units, an item must stay from the launch path above and below it. Collide.overlap lets an overlap
+## under SKIN pass, but the sweep has no such allowance: a corner that far into the path would take the launch's
+## first bounce. So the path is tested this much taller than it is. One SKIN is the overlap that does not count,
+## the other is the gap that is left, which is far more than rounding.
+const CLEAR := Collide.SKIN * 2.0
 
 class Item:
 	extends RefCounted
@@ -99,10 +105,11 @@ func add(item: Item) -> void:
 ## item, take it out, test the new place, then add it back. All of these must hold:
 ##   - Its count allows one more: count(kind.id) < stats.count(kind.id).
 ##   - FREE: the whole shape is inside board.grid(), which keeps it out of the paddle lane and off the walls. It
-##     overlaps no brick of the board, no BRICK item's cell, no other FREE item, and not the ball at rest (see
-##     Round, "Building").
-##   - BRICK: board.has_cell(cell). The cell holds no brick and no other BRICK item, and no FREE item and not the
-##     ball at rest overlap it.
+##     overlaps no brick of the board, no BRICK item's cell and no other FREE item. It is clear of the launch
+##     path, which is the ball at rest and its way straight left to the paddle (Round.launch_path), by CLEAR
+##     above and below. It may touch the right side of the ball at rest.
+##   - BRICK: board.has_cell(cell). The cell holds no brick and no other BRICK item, no FREE item overlaps it,
+##     and it is clear of the launch path in the same way.
 ##   - MOD: the cell holds a brick of the board or a BRICK item, and no other MOD item is on that cell.
 ## Pass the level's board as read (Levels.read), not a round's board, which already has the layout's bricks on it.
 func fits(item: Item, board: Board, stats: Balance) -> bool:
@@ -129,8 +136,7 @@ func fits(item: Item, board: Board, stats: Balance) -> bool:
 			for y in range(first.y, last.y + 1):
 				if board.bricks.has(Vector2i(x, y)) and Collide.overlap(shape, Collide.box(board.cell_rect(Vector2i(x, y)))):
 					return false
-	var half := Vector2.ONE * stats.ball_size * 0.5
-	if Collide.overlap(shape, Collide.box(Rect2(Round.ball_start(board, stats) - half, half * 2.0))):
+	if Collide.overlap(shape, Collide.box(Round.launch_path(board, stats).grow_individual(0.0, CLEAR, 0.0, CLEAR))):
 		return false
 	for other in items:
 		match other.kind.placement:

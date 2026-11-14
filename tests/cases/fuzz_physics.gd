@@ -21,8 +21,7 @@ func run(p_t: Node) -> void:
 		return
 	_timer_steps()
 	_timer_rates()
-	_launch_through_wall()
-	_launch_blocked()
+	_launch()
 	_hunt(1, 18)
 
 
@@ -68,26 +67,11 @@ func _timer_rates() -> void:
 	t.check(at60[1] == at120[1] and at60[2] == at120[2], "tick rate: one ball, still paddle, 1 s round: %d broken (end %d) at 60/s but %d broken (end %d) at 120/s" % [at60[1], at60[2], at120[1], at120[2]])
 
 
-## physics.md: "The ball bounces off the flat faces of a Bumper or a Wall Segment", and Collide: "no speed and no
-## step size passes through anything". Layout.fits lets a FREE item touch the ball at rest, with an overlap under
-## Collide.SKIN not counting. The sweep lets a ball out of anything it is more than SKIN inside. The two measure
-## the same overlap with different rounding, so a wall that fits() placed 0.0099 into the ball at rest is
-## 0.0100002 into it for the sweep, and the launch goes straight through the wall into the paddle. Found as
-## seed 201 (14 rows); this is the base 16-row board, the wall turned 15 degrees and slid against the ball.
-func _launch_through_wall() -> void:
-	var stats := _stats_base.copy()
-	stats.put(&"wall_segment_count", 1)
-	stats.paddle_size = 512.0
-	var board := Board.new(16)
-	board.bricks[Vector2i(63, 0)] = Brick.new(1000000)
-	var item := Layout.Item.new()
-	item.kind = Kinds.of(&"wall_segment")
-	item.rot = 15.0
-	item.pos = Vector2(29.210062, 218.74)
+## The first surface the launch bounces off, on `board` with `item` placed. -1 if it bounces off nothing.
+func _first_bounce(board: Board, stats: Balance, item: Layout.Item) -> int:
 	var layout := Layout.new()
-	t.check(layout.fits(item, board, stats), "launch through a wall: the wall fits beside the ball at rest")
 	layout.add(item)
-	var round := Round.new(board, layout, stats, 1)
+	var round := Round.new(board, layout, stats, 1)  # the round drops the item if it does not fit
 	var first := [-1]
 	round.ball_bounced.connect(func(_b: Ball, hit: Hit) -> void:
 		if first[0] == -1:
@@ -95,34 +79,67 @@ func _launch_through_wall() -> void:
 	for i in 30:
 		round.step(1.0 / 120.0, round.paddle.y)
 	_drop(round)
-	t.check(first[0] == Hit.Surface.ITEM, "launch through a wall: the first ball bounces off a Wall Segment touching it at rest, not through it (first bounce is surface %d, not ITEM %d)" % [first[0], Hit.Surface.ITEM])
+	return first[0]
 
 
 ## physics.md, Ball: "On Start the ball travels straight left into the paddle, so the player's first touch sets
-## the first angle" and "The first launch always lands on the centre unless the paddle has moved." Layout.fits
-## keeps items off the ball at rest but not off its way to the paddle, and on a 16-row board that way crosses the
-## grid from x = 26 to x = 0. A Wall Segment fits there, and the launch bounces off it and never reaches the paddle.
-func _launch_blocked() -> void:
+## the first angle" and "The first launch always lands on the centre unless the paddle has moved." Two findings,
+## one cause: Layout.fits kept items off the ball at rest but not off its way to the paddle.
+##   - An upright Wall Segment at (10, 256) fitted, and took the launch's first bounce.
+##   - A wall turned 15 degrees and slid against the ball at rest fitted with an overlap just under Collide.SKIN
+##     by fits' arithmetic and just over it by the sweep's, so the sweep took the ball for one already inside the
+##     wall and let it out through it. (Seed 201 on 14 rows; here cut to 16 rows.)
+## fits now refuses anything on Round.launch_path, with Layout.CLEAR to spare above and below. So both of those
+## are refused, and whatever does fit, slid as close to the path as fits allows, leaves the launch to the paddle.
+func _launch() -> void:
+	var wall: PlaceableKind = Kinds.of(&"wall_segment")
 	var stats := _stats_base.copy()
 	stats.put(&"wall_segment_count", 1)
+	stats.put(&"bumper_count", 1)
 	stats.paddle_size = 512.0
-	var board := Board.new(16)
-	board.bricks[Vector2i(63, 0)] = Brick.new(1000000)
-	var item := Layout.Item.new()
-	item.kind = Kinds.of(&"wall_segment")
-	item.pos = Vector2(10, 256)  # 10 x 112, upright: x 5 to 15, across the ball's line at y = 256
-	var layout := Layout.new()
-	var fits := layout.fits(item, board, stats)
-	layout.add(item)
-	var round := Round.new(board, layout if fits else null, stats, 1)
-	var first := [-1]
-	round.ball_bounced.connect(func(_b: Ball, hit: Hit) -> void:
-		if first[0] == -1:
-			first[0] = hit.surface)
-	for i in 30:
-		round.step(1.0 / 120.0, round.paddle.y)
-	_drop(round)
-	t.check(first[0] == Hit.Surface.PADDLE, "launch blocked: the first ball travels straight left into the paddle, but a Wall Segment that fits between them takes the first bounce (surface %d, not PADDLE %d)" % [first[0], Hit.Surface.PADDLE])
+	var wrong := []
+	var tried := 0
+	for rows: int in [14, 16]:
+		var board := Board.new(rows)
+		board.bricks[Vector2i(board.cols - 1, 0)] = Brick.new(1000000)
+		var rest := Round.ball_start(board, stats)
+		var item := Layout.Item.new()
+		if rows == 16:
+			item.kind = wall
+			for c: Array in [[Vector2(10, 256), 0.0, "across the way to the paddle"], [Vector2(29.210062, 218.74), 15.0, "slid against the ball at rest"]]:
+				item.pos = c[0]
+				item.rot = c[1]
+				t.check(not Layout.new().fits(item, board, stats), "launch: a Wall Segment %s does not fit" % c[2])
+				t.check(_first_bounce(board, stats, item) == Hit.Surface.PADDLE, "launch: with a Wall Segment %s in the layout the first bounce is still the paddle" % c[2])
+		# [kind, rot] slid along `d` from `from` until fits() says no: down and up onto the path, and left onto the ball.
+		var slides := []
+		for x: float in [60.0, rest.x - 20.0, rest.x, rest.x + 9.0]:
+			slides.append([Vector2(x, rest.y - 150.0), Vector2.DOWN])
+			slides.append([Vector2(x, rest.y + 150.0), Vector2.UP])
+		for y: float in [-40.0, -5.5, 0.0, 30.0]:
+			slides.append([Vector2(rest.x + 200.0, rest.y + y), Vector2.LEFT])
+		for shape: Array in [[wall, 0.0], [wall, 2.0], [wall, 5.0], [wall, 10.0], [wall, 15.0], [wall, 45.0], [wall, 90.0], [wall, 100.0], [wall, 165.0], [Kinds.of(&"bumper"), 0.0]]:
+			item.kind = shape[0]
+			item.rot = shape[1]
+			for s: Array in slides:
+				item.pos = s[0]
+				if not Layout.new().fits(item, board, stats):
+					continue
+				var lo := 0.0
+				var hi := 200.0
+				for k in 40:
+					var mid := (lo + hi) * 0.5
+					item.pos = s[0] + s[1] * mid
+					if Layout.new().fits(item, board, stats):
+						lo = mid
+					else:
+						hi = mid
+				item.pos = s[0] + s[1] * lo
+				tried += 1
+				var first := _first_bounce(board, stats, item)
+				if first != Hit.Surface.PADDLE:
+					wrong.append("%d rows: %s rot %s at %s, first bounce is surface %d" % [rows, item.kind.id, item.rot, item.pos, first])
+	t.check(wrong.is_empty() and tried > 150, "launch: with an item slid as close as it fits, the first ball still travels straight left into the paddle (%d tried): %s" % [tried, wrong.slice(0, 5)])
 
 
 # --- the hunt --------------------------------------------------------------------------------------------------

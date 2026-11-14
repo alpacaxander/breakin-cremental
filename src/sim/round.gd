@@ -28,7 +28,8 @@ extends RefCounted
 ##   4. The paddle is centred (paddle.y = board.size().y / 2). One ball is at rest: its centre is at
 ##      x = paddle.x + stats.launch_gap + stats.ball_size / 2, y = paddle.y, its dir is LEFT, its boost is 1.
 ##      time_left is stats.round_time.
-## Nothing moves until step() is called. The first step sends the ball straight left into the paddle.
+## Nothing moves until step() is called. The first step sends the ball straight left into the paddle. Nothing
+## placed is in its way: Layout.fits keeps every item out of launch_path().
 ## A round counts its bricks as it is built: after that, change the board only through hit_brick.
 ##
 ## ONE STEP, in this order:
@@ -200,9 +201,16 @@ static func paddle_face(p_board: Board, p_stats: Balance) -> float:
 	return -p_board.lane() + p_stats.paddle_inset + p_stats.paddle_thickness
 
 
-## The centre of the ball at rest, before the first step. Layout.fits keeps items clear of it.
+## The centre of the ball at rest, before the first step.
 static func ball_start(p_board: Board, p_stats: Balance) -> Vector2:
 	return Vector2(paddle_face(p_board, p_stats) + p_stats.launch_gap + p_stats.ball_size * 0.5, p_board.size().y * 0.5)
+
+
+## Everything the first ball covers before it touches the paddle: its square at rest and the strip that square
+## crosses on its way straight left to the paddle's face. Layout.fits keeps placed items out of it, so the launch
+## always reaches the paddle (docs/design/physics.md, "Start position"). Setup can show it as a keep-out zone.
+static func launch_path(p_board: Board, p_stats: Balance) -> Rect2:
+	return Rect2(paddle_face(p_board, p_stats), (p_board.size().y - p_stats.ball_size) * 0.5, p_stats.launch_gap + p_stats.ball_size, p_stats.ball_size)
 
 
 ## Advances the round by `delta` seconds. The level screen calls this from _physics_process; to freeze the game

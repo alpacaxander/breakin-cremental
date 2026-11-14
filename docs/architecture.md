@@ -45,6 +45,7 @@ Because the rules have no nodes, a round runs headless. Tests check the physics 
 - **Brick cells.** A brick always starts on an even grid row, so bricks are addressed by brick cell: `Vector2i(column, brick row)`, a 16 × 64 unit rectangle. Brick row `r` covers grid rows `2r` and `2r + 1`. Every `cell` in a signal, a hook or a saved layout is a brick cell.
 - **A row**, for a Zap, is every brick cell with the same brick row.
 - **Smallest level.** The lane is 58 screen pixels at every size, but the paddle and the ball keep their size in units. With the numbers in `balance.tres` a ball fits between the paddle's face and the grid from 14 rows up (see [levels.md](design/levels.md#arena-size)); `tests/cases/contracts.gd` checks it for every level.
+- **Launch path.** `Round.launch_path(board, stats)` is the rectangle the first ball covers before it touches the paddle: its square at rest and the strip from there straight left to the paddle's face. `Layout.fits` refuses a free-form item or a placeable brick that overlaps it or comes within `Layout.CLEAR` (0.02 units) of it from above or below, so the launch always reaches the paddle; an item may still touch the right side of the ball. A level must not paint a brick there, and `tests/cases/contracts.gd` checks that for every level.
 - **A blast** reaches `blast_size × 64` units out from the edges of the brick that exploded, and hits every brick whose cell overlaps that rectangle. At the base size that is 4 columns to each side and 1 brick row above and below.
 
 ### Signals

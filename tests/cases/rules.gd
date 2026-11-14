@@ -970,6 +970,9 @@ func _layouts() -> void:
 			and not empty.fits(_item(&"wall_segment", Vector2(462, 152), -45.0), board, stats), "a turned item is tested as it is turned")
 	t.check(not empty.fits(_item(&"bumper", Vector2(40, 256)), board, stats) and not empty.fits(_item(&"booster", Vector2(52, 256)), board, stats) and empty.fits(_item(&"booster", Vector2(55, 256)), board, stats),
 			"a free-form item does not fit over the ball at rest")
+	t.check(not empty.fits(_item(&"bumper", Vector2(22, 256)), board, stats) and not empty.fits(_item(&"wall_segment", Vector2(10, 256)), board, stats) and not empty.fits(_item(&"splitter", Vector2i(0, 4)), board, stats),
+			"nothing fits between the ball at rest and the paddle")
+	t.check(Round.launch_path(board, stats) == Rect2(-22, 250, 60, 12), "Round.launch_path runs from the paddle's face to the far side of the ball at rest")
 	t.check(not one.fits(_item(&"bumper", Vector2(600, 130)), board, stats) and one.fits(_item(&"bumper", Vector2(600, 150)), board, stats), "a free-form item does not fit over another")
 	var with_brick := _layout([_item(&"splitter", Vector2i(10, 2))])
 	t.check(not with_brick.fits(_item(&"bumper", Vector2(168, 160)), board, stats), "a free-form item does not fit over a placed brick")

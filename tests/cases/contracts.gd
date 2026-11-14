@@ -279,10 +279,10 @@ func _levels(t: Node) -> void:
 		# The lane is 58 screen pixels at every size, but the paddle and the ball keep their size in units, so a
 		# small level has no room for them: with the shipped numbers a level needs 14 rows.
 		t.check(level.board.lane() - fresh.paddle_inset - fresh.paddle_thickness >= fresh.ball_size, "level %d is big enough for a ball to pass between the paddle and the grid" % n)
-		var rest := Rect2(Round.ball_start(level.board, fresh) - Vector2.ONE * fresh.ball_size * 0.5, Vector2.ONE * fresh.ball_size)
+		var path := Round.launch_path(level.board, fresh)
 		for cell: Vector2i in level.board.bricks:
-			if level.board.cell_rect(cell).intersects(rest):
-				t.check(false, "level %d has no brick where the ball rests (%s)" % [n, cell])
+			if level.board.cell_rect(cell).intersects(path):
+				t.check(false, "level %d has no brick where the ball rests or between it and the paddle (%s)" % [n, cell])
 		await _play(t, "level %d on a fresh save" % n, Round.new(level.board, null, fresh, n), false)
 
 		_own_everything()
