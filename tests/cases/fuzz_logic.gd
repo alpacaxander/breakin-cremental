@@ -96,6 +96,8 @@ func run(p_t: Node) -> void:
 	_r2_painted()
 	_r2_fits_rest()
 	_r2_save_trip()
+	# Round 3.
+	_r3_combo_window()
 	var n := int(OS.get_environment("FUZZ_N")) if OS.get_environment("FUZZ_N") else 24
 	var base := int(OS.get_environment("FUZZ_SEED")) if OS.get_environment("FUZZ_SEED") else 1
 	for i in n:
@@ -1265,3 +1267,24 @@ func _r2_save_trip() -> void:
 			if before[i].has(key) and before[i][key] != after[i].get(key):
 				drift.append("%s.%s %s -> %s" % [before[i].kind, key, var_to_str(before[i][key]), var_to_str(after[i].get(key))])
 	t.check(after == before, "a layout that has been through the save file gives the same to_data() as before (Layout SAVED FORM): %s" % [drift if drift else after])
+
+
+# --- round 3 ---------------------------------------------------------------------------------------------------
+
+# The combo window, at a tick rate where it is a whole number of steps: 1.6 s at 60/s is 96 steps, so the combo
+# is gone after the 96th step, not the 97th. Combo.tick counts time_left down by 1/60 and tests `> 0.0` with no
+# slop, so float error leaves a hair over 0 and the combo lives one step longer. The round's timer had the same
+# off-by-one-step and is fixed with Round.TIME_SLOP (round.gd ONE STEP 4); the combo window is not.
+func _r3_combo_window() -> void:
+	var board := _board({FAR: SOLID, Vector2i(30, 3): 1})
+	for c: Array in [[1.0, 60, 96], [1.0, 120, 192], [2.0, 120, 252]]:
+		var stats := _sealed(board, {&"combo_rank": c[0]})
+		stats.ball_speed = 1.0  # the ball stays out of this
+		var round := Round.new(board, null, stats, 1)
+		round.hit_brick(Vector2i(30, 3), Round.Cause.BALL, Vector2.RIGHT)
+		var window := round.combo.window
+		var steps := 0
+		while round.combo.count > 0 and steps < 10000:
+			round.step(1.0 / c[1], round.paddle.y)
+			steps += 1
+		t.check(steps == c[2], "at Combo rank %d and %d steps a second, a %.1f s combo window resets after %d steps, not %d (combo.gd: time_left is the seconds left to break the next brick; round.gd ONE STEP 3)" % [c[0], c[1], window, c[2], steps])
