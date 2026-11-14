@@ -53,6 +53,9 @@ func run(t: Node) -> void:
 	t.check(back.shortcut == null and back.icon is UiGlyph, "the back button has an arrow and no shortcut")
 	var fill: Color = theme.get_stylebox(&"normal", &"Button").bg_color
 	t.check(maxf(fill.r, maxf(fill.g, fill.b)) > 1.0, "the primary button's fill is lit")
+	for v in [&"Button", &"SecondaryButton", &"IconButton", &"OptionButton"]:
+		t.check((theme.get_stylebox(&"pressed", v) as StyleBoxFlat).bg_color == Palette.PLAYER and theme.get_color(&"icon_pressed_color", v) == Palette.BASE
+				and theme.get_color(&"font_hover_pressed_color", v) == Palette.BASE, "a pressed %s is plain unlit cyan with base-colour ink" % v)
 
 	var price := UiPrice.new()
 	price.amount = 1234

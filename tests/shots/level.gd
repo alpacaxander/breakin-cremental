@@ -1,6 +1,6 @@
 extends RefCounted
 ## The level screen in each state that matters: Setup on a fresh save and with everything unlocked and placed,
-## a drag that fits and one that does not, Play early, mid-combo and on the zoomed level 3, and the Summary for
+## a drag that fits and one that does not, an item held over the tray, Play early, mid-combo and on the zoomed level 3, and the Summary for
 ## each of the three ends. Compare them with docs/art.md ("Level screen") and the level mockup.
 ##
 ## The mouse is pushed straight into Main's View, so a position here is a position in the 1280 x 720 frame
@@ -32,6 +32,8 @@ func shots() -> Array[Dictionary]:
 		{"name": "drag_refused", "save": "maxed", "crt": false, "setup": _drag.bind(Vector2(1010, 300), 2)},
 		{"name": "drag_brick", "save": "maxed", "crt": false, "setup": _drag.bind(Vector2(700, 420), 3)},
 		{"name": "drag_zap", "save": "maxed", "crt": false, "setup": _drag.bind(Vector2(1040, 420), 4)},
+		{"name": "hold_tray", "save": "maxed", "crt": false, "setup": _hold.bind(0, Vector2(30, -8))},
+		{"name": "hold_tray_splitter", "save": "maxed", "crt": false, "setup": _hold.bind(3, Vector2.ZERO)},
 		{"name": "play_fresh", "setup": _play.bind(1, [], 45, 0)},
 		{"name": "play_fresh_crt_off", "crt": false, "setup": _play.bind(1, [], 45, 0)},
 		{"name": "play_mid_2", "save": "mid", "setup": _play.bind(2, [], 150, 9)},
@@ -70,6 +72,16 @@ func _drag(main: Main, to: Vector2, slot: int) -> void:
 		wheel.global_position = to
 		for i in 2:
 			main.view.push_input(wheel, true)
+
+
+## Level 1 with tray slot `slot` just pressed and held, the cursor `by` from the slot's centre: over the tray.
+func _hold(main: Main, slot: int, by: Vector2) -> void:
+	var level := _open(main, 1, [])
+	await main.get_tree().process_frame
+	await main.get_tree().process_frame
+	var from: Vector2 = (level.get_node("SetupUi").get("_slots")[slot] as Control).get_global_rect().get_center()
+	_mouse(main, from, true)
+	_mouse(main, from + by)
 
 
 ## Starts level `number` and lets a paddle that follows the ball play it for `frames` physics ticks. Then, to

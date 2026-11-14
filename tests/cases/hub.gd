@@ -19,11 +19,32 @@ func run(t: Node) -> void:
 	var main: Main = (load("res://src/main.tscn") as PackedScene).instantiate()
 	t.add_child(main)
 	Sfx.played.connect(_listen)
-	Main.show_hub()
+	await t.tree().process_frame
+
+	# By keyboard from the menu: Enter on Play leaves the focus on the selected node, so Tab and the arrows work.
+	_key(t, KEY_ENTER)
 	await t.tree().process_frame
 	var hub: Control = main.screen.get_child(0).get_node("Hub")
 	var web: HubWeb = hub.get_node("Web")
 	var at := func(name: StringName) -> HubNode: return web.get_node(String(name))
+	var focus := func() -> Control: return main.view.gui_get_focus_owner()
+	t.check(focus.call() == hub.selected and hub.selected == web.seed_node() and Progress.rank(web.seed_node().upgrade) == 0,
+			"Enter on the menu's Play puts the focus on the hub's selected node, and buys nothing")
+	_key(t, KEY_TAB)
+	t.check(focus.call() != null and focus.call() != web.seed_node() and hub.is_ancestor_of(focus.call()), "Tab moves the focus on from there")
+	# The arrows go to the node in line on the web's grid, not to the larger seed beside it.
+	for pair: Array in [[&"Bumper", KEY_UP, &"GoldBrick"], [&"ExplosiveBrick", KEY_DOWN, &"RoundTime"], [&"Bumper", KEY_DOWN, &"WallSegment"],
+			[&"Combo", KEY_RIGHT, &"Bumper"], [&"BallSpeed", KEY_UP, &"Booster"]]:
+		(at.call(pair[0]) as Control).grab_focus()
+		_key(t, pair[1])
+		t.check(focus.call() == at.call(pair[2]), "%s from %s goes to %s (went to %s)" % [OS.get_keycode_string(pair[1]), pair[0], pair[2], focus.call().name])
+	Main.show_menu()
+	Main.show_hub()
+	await t.tree().process_frame
+	hub = main.screen.get_child(0).get_node("Hub")
+	web = hub.get_node("Web")
+	at = func(name: StringName) -> HubNode: return web.get_node(String(name))
+	t.check(focus.call() == hub.selected, "the hub takes the focus every time it opens")
 
 	# The web is the documented one, and every upgrade is on it once.
 	var pairs := web.links().map(func(l: Array) -> String: return _pair(l[0].name, l[1].name))
@@ -104,6 +125,7 @@ func run(t: Node) -> void:
 	await t.tree().process_frame
 	t.check(hub.visible and (hub.get_node("Bar/Coins") as UiPrice).amount == Progress.coins, "back on the hub, the coins are the new total")
 	t.check(levels.level == 2 and not play.disabled, "a newly unlocked level is the one on show, and playable")
+	t.check(focus.call() == hub.selected, "back from a level, the selected node has the focus again")
 
 	# Esc goes to the main menu and is handled there.
 	var viewport := hub.get_viewport()
@@ -123,6 +145,15 @@ func _listen(cue: StringName, _player: AudioStreamPlayer) -> void:
 
 func _pair(a: StringName, b: StringName) -> String:
 	return "%s-%s" % ([a, b] if String(a) < String(b) else [b, a])
+
+
+func _key(t: Node, key: Key) -> void:
+	for down in [true, false]:
+		var e := InputEventKey.new()
+		e.keycode = key
+		e.physical_keycode = key
+		e.pressed = down
+		t.get_viewport().push_input(e)
 
 
 ## A left click at the middle of `control`, pushed into the viewport (headless, the window is 64 x 64).

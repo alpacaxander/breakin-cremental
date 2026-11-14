@@ -55,7 +55,10 @@ func _seam() -> void:
 	t.check(arena.position == ORIGIN and arena.scale.is_equal_approx(Vector2.ONE * 16.0 / 18.0), "Arena is at (154, 110), scaled by the level's zoom")
 	t.check(arena.get_child(-1) == level.fx and level.fx.z_index == 0 and arena.z_index == 0, "Fx is the last child of Arena, and both are at z 0")
 	for child: Node2D in arena.get_children():
-		t.check(child == level.fx or child.z_index in [0, 10, 20], "%s is at z 0, 10 or 20" % child.name)
+		if child.name == &"Ghost":
+			t.check(child.z_index > (level.get_node("SetupUi") as Control).z_index, "the ghost draws over SetupUi, so a held item shows over the tray")
+		else:
+			t.check(child == level.fx or child.z_index in [0, 10, 20], "%s is at z 0, 10 or 20" % child.name)
 	t.check(arena.get_child_count() < 10 and round.board.bricks.size() == 512, "512 bricks are drawn by one node, not by 512")
 	for part: String in ["Hud", "SetupUi", "Summary"]:
 		t.check((level.get_node(part) as Control).z_index == 100, "%s is at z 100" % part)
@@ -65,12 +68,21 @@ func _seam() -> void:
 	arena._process(0.0)
 	t.check(arena.position == ORIGIN + Vector2(3, -2), "Arena follows the effects' shake")
 	level.fx.shake = Vector2.ZERO
+	# Level 3 starts with 1 and 4 HP bricks only, and a 4 HP brick shows 3 and 2 on its way down.
+	level.start(7)
+	var legend: Array = _texts(level.get_node("Hud")._legend).filter(func(s: String) -> bool: return s.ends_with("HP"))
+	t.check(legend == ["1 HP", "2 HP", "3 HP", "4+ HP"], "Play's legend lists every HP step up to the board's toughest brick (%s)" % [legend])
 
 
 ## Setup: drag to place, move and remove; refusals; rotation; snapping; each change saved.
 func _placing() -> void:
 	await _open(1)
 	var at := Vector2(300, 100)
+	var arena: LevelArena = level.get_node("Arena")
+	_mouse(_slot(BUMPER), MOUSE_BUTTON_LEFT, true)
+	t.check(arena._ghost != null and arena._ghost_fits, "a press on a tray slot shows the item at once, in the look of one that fits")
+	_mouse(_slot(BUMPER), MOUSE_BUTTON_LEFT, false)
+	t.check(arena._ghost == null and _items().is_empty(), "let go over the tray, it goes back")
 	heard.clear()
 	await _drag(_slot(BUMPER), _screen(at))
 	var items := _items()
@@ -184,6 +196,14 @@ func _paddle() -> void:
 	_mouse(_screen(Vector2(0, 300)))
 	await _steps(4)
 	t.check(round.paddle.y != y, "a mouse that moves takes the paddle back")
+
+	# The pointer leaves the window low down: Main clears hover with a motion far outside the frame.
+	_mouse(_screen(Vector2(0, 470)))
+	await _steps(240)
+	y = round.paddle.y
+	main._notification(Node.NOTIFICATION_WM_MOUSE_EXIT)
+	await _steps(120)
+	t.check(y > 400.0 and round.paddle.y == y, "the pointer leaving the window leaves the paddle where it was (%.0f, then %.0f)" % [y, round.paddle.y])
 
 	_key(KEY_ESCAPE)
 	await _steps(2)

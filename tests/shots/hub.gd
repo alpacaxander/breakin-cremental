@@ -1,6 +1,6 @@
 extends RefCounted
 ## The upgrade screen: fresh, mid and maxed saves, with and without the CRT, a node of each state selected, a
-## Buy the player cannot afford, and a locked level in the level panel.
+## Buy the player cannot afford, a locked level in the level panel, and the pointer over a node.
 
 
 func shots() -> Array[Dictionary]:
@@ -15,6 +15,7 @@ func shots() -> Array[Dictionary]:
 		{"name": "maxed", "save": "maxed", "setup": _hub},
 		{"name": "maxed_flat", "save": "maxed", "crt": false, "setup": _pick.bind(&"Combo")},
 		{"name": "small", "save": "mid", "size": Vector2i(960, 540), "setup": _hub},
+		{"name": "mid_hover", "save": "mid", "crt": false, "setup": _hover.bind(&"Combo")},
 	]
 
 
@@ -43,6 +44,15 @@ func _poor(main: Main) -> void:
 		if web.state(n) != HubNode.State.LOCKED and web.state(n) != HubNode.State.MAXED:
 			hub.select(n)
 			return
+
+
+## The pointer over the web node with this name, which is not the selected one.
+func _hover(main: Main, node: StringName) -> void:
+	Main.show_hub()
+	var event := InputEventMouseMotion.new()
+	event.position = (_screen(main).get_node("Web").get_node(String(node)) as Control).get_global_rect().get_center()
+	event.global_position = event.position
+	main.view.push_input(event, true)
 
 
 func _level(main: Main, n: int) -> void:

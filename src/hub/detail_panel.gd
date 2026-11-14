@@ -9,7 +9,6 @@ extends PanelContainer
 const STATES := ["LOCKED", "AVAILABLE", "OWNED", "MAXED"]
 
 var _node: HubNode
-var _buyable := false
 
 @onready var _buy: Button = %Buy
 
@@ -24,7 +23,6 @@ func show_node(node: HubNode, state: HubNode.State) -> void:
 	_node = node
 	var u := node.upgrade
 	var open := state in [HubNode.State.AVAILABLE, HubNode.State.OWNED]
-	_buyable = open
 	var category: Label = %Category
 	category.text = Upgrade.Category.keys()[u.category]
 	UiTheme.light(category, Palette.of(u.meaning()))
@@ -46,9 +44,8 @@ func show_node(node: HubNode, state: HubNode.State) -> void:
 	_buy.text = "MAXED" if state == HubNode.State.MAXED else "LOCKED" if not open else "BUY"  # poor: the red outline and grey price say it ("CAN'T AFFORD" overflows the panel)
 
 
+## Only an open node's Buy is enabled, and a disabled button never presses.
 func _on_buy() -> void:
-	if not _buyable:
-		return
 	if Progress.buy(_node.upgrade):
 		Sfx.play(Sfx.BUY)
 	else:
