@@ -113,9 +113,13 @@ func _finish_round(t: Node) -> void:
 	Progress.finish_round(1, 10, true)
 	t.check(Progress.coins == 27 and Progress.unlocked == 2 and unlocked == [2], "clearing it again pays again and unlocks nothing")
 	Progress.finish_round(2, 0, true)
-	Progress.finish_round(3, 5, true)
-	t.check(Progress.unlocked == 3 and unlocked == [2, 3] and Progress.coins == 32, "clearing the last level unlocks nothing past it")
 	t.check(Progress.is_unlocked(3) and not Progress.is_unlocked(4), "is_unlocked follows unlocked")
+	t.check(Progress.is_cleared(2) and not Progress.is_cleared(3), "the last level is open and not cleared yet")
+	Progress.finish_round(3, 5, true)
+	t.check(Progress.is_cleared(3) and unlocked == [2, 3] and Progress.coins == 32, "clearing the last level is recorded, and announces no level")
+	t.check(_saved().get("unlocked") == 4.0, "the win is saved: unlocked is one past the last level")
+	Progress.use(Progress.path)
+	t.check(Progress.is_cleared(3), "and it comes back from the file")
 	Progress.level_unlocked.disconnect(on_unlock)
 
 

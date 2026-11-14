@@ -10,7 +10,7 @@ extends RefCounted
 ## The joins: Esc twice from every screen and state, back buttons, double clicks, and how many times each UI cue
 ## plays.
 ##
-## Checks named "DEFECT:" failed when this lane was written; the report says what each breaks.
+## A double click here is what the OS reports: a second press marked `double_click` (_double_click_at).
 
 ## docs/design/upgrades.md's table, by web node: name, category, ranks, "Each rank", first cost.
 const TABLE := {
@@ -95,7 +95,7 @@ func _menu_into_hub() -> void:
 	var levels := _hub().get_node("Levels") as Control
 	t.check(detail.get_global_rect() == DETAIL, "the detail panel is art.md's 352 x 284 at (904, 88) (is %s)" % detail.get_global_rect())
 	t.check(levels.get_global_rect() == LEVELS,
-			"DEFECT: the level panel is art.md's 352 x 308 at (904, 388), bottom-aligned with the web view at y 696 (is %s)" % levels.get_global_rect())
+			"the level panel is art.md's 352 x 308 at (904, 388), bottom-aligned with the web view at y 696 (is %s)" % levels.get_global_rect())
 	Progress.coins = 250000  # what the balance bot ends level 3 with
 	await _frames(1)
 	var coins := _hub().get_node("Bar/Coins") as Control
@@ -361,21 +361,27 @@ func _double_clicks() -> void:
 	# Play Level, double-clicked: Setup's Start sits under it.
 	await _fresh_hub()
 	var at := (_hub().get_node("Levels/%Play") as Control).get_global_rect().get_center()
-	await _click_at(at)
-	await _click_at(at)
+	await _double_click_at(at)
 	var level := _play().get_child(-1) as Control
 	t.check(level != _hub() and level.get("phase") == 0,
-			"DEFECT: a double click on Play Level opens Setup and stays there; the second click must not press Start (phase %s)" % level.get("phase"))
-	if level.get("phase") == 1:
-		level.round.time_left = 0.0
-		await _summary_ready(level)
+			"a double click on Play Level opens Setup and stays there; the second click must not press Start (phase %s)" % level.get("phase"))
+	await _click_at(at)
+	t.check(level.get("phase") == 1, "a click after that, on Start, starts the round")
+	level.round.time_left = 0.0
+	await _summary_ready(level)
+	# Upgrades on the Summary, double-clicked: the web is under it.
+	var seed := _web().seed_node()
+	await _double_click_at((level.get_node("Summary").find_child("Upgrades", true, false) as Control).get_global_rect().get_center())
+	t.check(_hub().is_visible_in_tree() and _hub().selected == seed, "a double click on Upgrades opens the hub and selects nothing new")
 	Main.show_menu()
 	await _frames(2)
 	# Play on the menu, double-clicked: the hub must still have the seed selected.
-	await _click(_screen().get_node("%Play"))
-	await _click_at((_screen().get_node("%Play") as Control).get_global_rect().get_center() if not _screen() is Play else Vector2(640, 412))
-	t.check(_hub().selected == _web().seed_node(),
-			"DEFECT: a double click on Play leaves the seed selected (selected %s, a locked node)" % _hub().selected.name)
+	at = (_screen().get_node("%Play") as Control).get_global_rect().get_center()
+	await _double_click_at(at)
+	t.check(_screen() is Play and _hub().selected == _web().seed_node(),
+			"a double click on Play leaves the seed selected (selected %s)" % _hub().selected.name)
+	await _double_click_at(at)
+	t.check(_hub().selected != _web().seed_node(), "a double click that starts in the hub is not dropped: the node under it is selected")
 
 
 ## Settings by keyboard and by mouse: focus can't leave the screen, each control applies at once and clicks once.
@@ -395,7 +401,7 @@ func _settings() -> void:
 		var owner := settings.get_viewport().gui_get_focus_owner()
 		t.check(owner != null and settings.is_ancestor_of(owner), "after %s focus is still on a Settings control" % OS.get_keycode_string(key))
 		t.check(cursor.visible and cursor.get_global_rect().position.x >= 0.0,
-				"DEFECT: after %s the focus cursor shows on screen beside %s (at x %d)" %[OS.get_keycode_string(key), owner.name if owner else "nothing", cursor.get_global_rect().position.x])
+				"after %s the focus cursor shows on screen beside %s (at x %d)" %[OS.get_keycode_string(key), owner.name if owner else "nothing", cursor.get_global_rect().position.x])
 	var crt: CheckBox = settings.get_node("%Crt")
 	var calm: CheckBox = settings.get_node("%Calm")
 	var music: HSlider = settings.get_node("%Music")
@@ -541,14 +547,21 @@ func _click(control: Control) -> void:
 
 
 ## A left click at the game's point `at`, as the player sees it: a move there, a press and a release a frame apart.
-func _click_at(at: Vector2) -> void:
+## `second` makes it the second click of a double click.
+func _click_at(at: Vector2, second := false) -> void:
 	_mouse(at)
 	for pressed: bool in [true, false]:
-		_mouse(at, MOUSE_BUTTON_LEFT, pressed)
+		_mouse(at, MOUSE_BUTTON_LEFT, pressed, second and pressed)
 		await t.tree().process_frame
 
 
-func _mouse(at: Vector2, button := MOUSE_BUTTON_NONE, pressed := false) -> void:
+## Two clicks at `at` as the OS reports a double click: it marks the second press `double_click`.
+func _double_click_at(at: Vector2) -> void:
+	await _click_at(at)
+	await _click_at(at, true)
+
+
+func _mouse(at: Vector2, button := MOUSE_BUTTON_NONE, pressed := false, double := false) -> void:
 	var event: InputEventMouse
 	if button == MOUSE_BUTTON_NONE:
 		event = InputEventMouseMotion.new()
@@ -556,6 +569,7 @@ func _mouse(at: Vector2, button := MOUSE_BUTTON_NONE, pressed := false) -> void:
 		var click := InputEventMouseButton.new()
 		click.button_index = button
 		click.pressed = pressed
+		click.double_click = double
 		event = click
 	event.position = _at(at)
 	event.global_position = event.position

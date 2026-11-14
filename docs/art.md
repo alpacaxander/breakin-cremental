@@ -125,7 +125,7 @@ Effects take the colour of whatever made them. Sizes below are at their peak. Ea
 | Disabled button | Fill `2a2f4e`, text `92a1b9` |
 | Can't afford | No fill, a 2 px danger outline, primary text. It can still be pressed: it plays the "can't afford" sound and buys nothing |
 | Icon button | 44 × 44 with a base fill and a 2 px border: cyan when it can be used, `424c6e` when it can't |
-| Back button | An icon button with a left-pointing arrow. Esc does the same. It has no tooltip |
+| Back button | An icon button with a left-pointing arrow, for the mouse. Esc does the same, so it takes no keyboard focus. It has no tooltip |
 | Top bar | 84 px tall, x 24–1256: the back button, then the screen's title in 56 px Jersey 10. The upgrade screen and Settings share it |
 | Focus cursor | On the main menu and Settings, a lit cyan triangle 12 px to the left of the focused control, or of its row. It is the only sign of focus on a slider |
 | Toggle | A 44 × 44 square with a 2 px cyan border: base fill when off, lit cyan fill when on. Its label sits to the right in primary text |
@@ -169,7 +169,8 @@ The selected node keeps its state's look and adds a 2 px cyan outline 4 px outsi
 - ◄ ► icon buttons around the level number (48 px Jersey 10) and the level's name.
 - A 256 × 128 thumbnail of the layout, scaled so the whole grid fits. On a 16-row level that is 4 px per column and 8 px per row, with bricks drawn 3 × 15 in their HP colours. A locked level's thumbnail is at 35% opacity.
 - Then Play Level, or a disabled "CLEAR LEVEL N FIRST".
-- The status on the right of the panel's tag reads CLEARED, NOT CLEARED YET or LOCKED.
+- The status on the right of the panel's tag reads CLEARED, NOT CLEARED YET or LOCKED. The last level reads CLEARED once it is cleared; that is the only mark of having won.
+- The rows of the panel are 6 px apart, which is what fits its 308 px.
 - The panel opens on the highest level unlocked and jumps to a level when it unlocks. Thumbnail bricks are unlit.
 
 ## Main menu

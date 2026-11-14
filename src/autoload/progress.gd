@@ -12,8 +12,10 @@ extends Node
 ##   version   VERSION of the build that wrote it. A later build reads an older file by upgrading it step by step.
 ##   ranks     upgrade id -> ranks owned. A missing id is rank 0. An id with no file is ignored, and a rank above
 ##             the upgrade's max_rank is lowered to it.
-##   unlocked  the highest level unlocked, counted from 1.
-##   layouts   level number, as a string -> that level's Layout.to_data().
+##   unlocked  the highest level unlocked, counted from 1: one more than the highest level cleared. So once the
+##             last level is cleared it is one past the last level. That is how the win is saved, and a level
+##             added later is then already open.
+##   layouts  level number, as a string -> that level's Layout.to_data().
 ## Nothing about a round in progress is saved. A missing file is a fresh save: 0 coins, no ranks, level 1
 ## unlocked, no layouts. A file that cannot be read, or whose version is newer than VERSION, is renamed to
 ## <path>.bad and the game starts fresh.
@@ -31,7 +33,7 @@ extends Node
 signal coins_changed(coins: int)
 ## An upgrade was bought. rank(upgrade) is its new rank.
 signal rank_changed(upgrade: Upgrade)
-## A level was unlocked. `level` is the new highest level.
+## A level was unlocked. `level` is the new highest level, and it exists: clearing the last level emits nothing.
 signal level_unlocked(level: int)
 
 const VERSION := 1
@@ -48,7 +50,8 @@ var coins := 0:
 		coins_changed.emit(coins)
 ## Upgrade id -> ranks owned. Read it with rank().
 var ranks: Dictionary[StringName, int] = {}
-## The highest level unlocked, counted from 1.
+## The highest level unlocked, counted from 1. It is level_count + 1 once the last level is cleared, so it is
+## not always a level: ask is_unlocked and is_cleared, and clamp it before showing it as one.
 var unlocked := 1
 ## Level number -> Layout.to_data(). Read and write it with layout() and set_layout().
 var layouts: Dictionary[int, Array] = {}
@@ -167,13 +170,19 @@ func is_unlocked(level: int) -> bool:
 	return level <= unlocked
 
 
-## Called once when a round ends, however it ends: adds `earned` coins, unlocks level + 1 if `cleared` and that
-## level exists (level < level_count) and is still locked (emitting level_unlocked), and saves.
+## True if the level has been cleared at least once. For the last level, that is the game won.
+func is_cleared(level: int) -> bool:
+	return level < unlocked
+
+
+## Called once when a round ends, however it ends: adds `earned` coins, and on a level's first clear raises
+## `unlocked` to level + 1, emitting level_unlocked if that level exists (level < level_count). Then it saves.
 func finish_round(level: int, earned: int, cleared: bool) -> void:
 	coins += earned
-	if cleared and level < level_count and level >= unlocked:
+	if cleared and level >= unlocked:
 		unlocked = level + 1
-		level_unlocked.emit(unlocked)
+		if level < level_count:
+			level_unlocked.emit(unlocked)
 	save()
 
 

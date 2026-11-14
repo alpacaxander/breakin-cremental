@@ -130,7 +130,8 @@ func _on_ended(reason: Round.End) -> void:
 	var before := Progress.unlocked
 	Progress.finish_round(level, round.coins, reason == Round.End.CLEARED)
 	_hud.show_round(round, _data, false, false)
-	_summary.open(round, _data, Progress.unlocked > before)
+	# The last level's first clear raises `unlocked` too (it is how the win is saved), but opens no level.
+	_summary.open(round, _data, Progress.unlocked > before and level < Progress.level_count)
 
 
 ## Back to the hub, from Setup or the Summary. During Play there is no way out.

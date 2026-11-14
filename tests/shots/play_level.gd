@@ -74,7 +74,7 @@ func _white(main: Main) -> void:
 	var zoom := round.board.zoom()
 	var ball_at := LevelArena.ORIGIN + round.balls[0].pos * zoom
 	var ball := _brightest(image, Rect2(ball_at - Vector2(4, 4), Vector2(8, 8)))
-	var brick := Color.BLACK
+	var brick: Color
 	for cell: Vector2i in round.board.bricks:
 		if round.board.brick(cell).hp == 4 and round.board.brick(cell).kind == &"":
 			var r := round.board.cell_rect(cell)
@@ -84,7 +84,7 @@ func _white(main: Main) -> void:
 
 
 func _brightest(image: Image, area: Rect2) -> Color:
-	var best := Color.BLACK
+	var best: Color
 	for x in range(int(area.position.x), int(area.end.x)):
 		for y in range(int(area.position.y), int(area.end.y)):
 			var c := image.get_pixel(x, y)

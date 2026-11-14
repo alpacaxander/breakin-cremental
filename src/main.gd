@@ -50,6 +50,8 @@ const GLOW_MAX_CALM := 0.09  ## the same with reduce flashing on
 static var _it: Main
 
 var _bloom := 0.0
+## True from a change of screen until a click starts on the new screen (see _input).
+var _fresh := false
 
 @onready var view: SubViewport = $View
 @onready var screen: Control = $View/Screen
@@ -118,6 +120,7 @@ func _ready() -> void:
 
 ## Makes `path` the screen and returns it. If it already is, it is kept as it is.
 func _show(path: String) -> Node:
+	_fresh = true  # also for the hub and a level, which swap inside Play
 	var now := screen.get_child(0) if screen.get_child_count() else null
 	if now and now.scene_file_path == path:
 		return now
@@ -164,6 +167,15 @@ func _warp(p: Vector2) -> Vector2:
 
 ## View is not in a SubViewportContainer, so nothing reaches it unless it is pushed here.
 func _input(event: InputEvent) -> void:
+	var click := event as InputEventMouseButton
+	if click and click.pressed:
+		# The second press of a double click belongs to the button the first one pressed. If that one changed the
+		# screen, it is dropped: it would press whatever the new screen has under the pointer (Start under Play
+		# Level, a node of the web under the menu's Play). Godot marks that press `double_click`, from the OS.
+		# ponytail: only what the OS calls a double click. A second click slower than that is the player's own.
+		if click.double_click and _fresh:
+			return
+		_fresh = false
 	if event is InputEventMouse:
 		event = event.duplicate()
 		event.position = _warp(event.position)

@@ -23,7 +23,7 @@ func _ready() -> void:
 	%Next.pressed.connect(func() -> void: pick(level + 1))
 	_play.pressed.connect(_on_play)
 	_thumb.draw.connect(_draw_thumb)
-	level = Progress.unlocked
+	level = mini(Progress.unlocked, Progress.level_count)  # `unlocked` is one past the last level once that is cleared
 
 
 ## Shows level `n`, kept between 1 and the last level.
@@ -38,7 +38,7 @@ func refresh() -> void:
 	var data := _read(level)
 	(%Number as Label).text = str(level)
 	(%Title as Label).text = data.title if data else ""
-	(%Status as Label).text = "CLEARED" if level < Progress.unlocked else "NOT CLEARED YET" if open else "LOCKED"
+	(%Status as Label).text = "CLEARED" if Progress.is_cleared(level) else "NOT CLEARED YET" if open else "LOCKED"
 	%Prev.disabled = level <= 1
 	%Next.disabled = level >= Progress.level_count
 	_thumb.modulate.a = 1.0 if open else LOCKED_ALPHA

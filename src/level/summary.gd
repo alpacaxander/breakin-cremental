@@ -27,7 +27,6 @@ func open(round: Round, data: LevelData, unlocked: bool) -> void:
 	show()
 	var back := UiBackButton.new()
 	back.name = "Back"
-	back.focus_mode = FOCUS_NONE  # the arrow keys are paddle keys: one still held must not walk the focus off Retry
 	back.position = LevelHud.FOOTER.position + Vector2(0, (LevelHud.FOOTER.size.y - UiTheme.HIT) * 0.5)
 	back.pressed.connect(back_pressed.emit)
 	add_child(back)

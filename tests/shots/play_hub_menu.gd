@@ -1,6 +1,7 @@
 extends RefCounted
 ## The play-test lane's pictures of the hub, the menu, Settings and the joins, each reached with real input events
-## pushed into the window (clicks through the CRT's curve). The ones named defect_* show what the report lists.
+## pushed into the window (clicks through the CRT's curve). The first five are the four defects the play test found,
+## as they look now that they are fixed. A double click is what the OS reports: a second press marked `double_click`.
 
 var _main: Main
 
@@ -8,10 +9,10 @@ var _main: Main
 func shots() -> Array[Dictionary]:
 	return [
 		{"name": "hub_fresh_first_look", "setup": _menu_play},
-		{"name": "defect_level_panel_bottom", "crt": false, "setup": _menu_play},
-		{"name": "defect_play_level_double_click", "setup": _double_play_level, "settle": 20},
-		{"name": "defect_menu_play_double_click", "setup": _double_menu_play},
-		{"name": "defect_settings_cursor_on_back", "setup": _settings_up},
+		{"name": "level_panel_bottom", "crt": false, "setup": _menu_play},
+		{"name": "play_level_double_click", "setup": _double_play_level, "settle": 20},
+		{"name": "menu_play_double_click", "setup": _double_menu_play},
+		{"name": "settings_up_from_crt", "setup": _settings_up},
 		{"name": "settings_crt_clicked_off", "setup": _settings_crt_click},
 		{"name": "hub_after_clearing_level_1", "setup": _clear_level_1},
 		{"name": "hub_hover_node_and_buy", "save": "mid", "crt": false, "setup": _hover},
@@ -27,24 +28,24 @@ func _menu_play(main: Main) -> void:
 	await _click(_screen().get_node("%Play"))
 
 
-## Play clicked on the menu, then Play Level double-clicked: the second click lands on Start.
+## Play clicked on the menu, then Play Level double-clicked: Setup, with Start under the pointer and not pressed.
 func _double_play_level(main: Main) -> void:
 	await _menu_play(main)
 	var at := (_screen().get_node("Hub/Levels/%Play") as Control).get_global_rect().get_center()
 	await _click_at(at)
-	await _click_at(at)
+	await _click_at(at, true)
 
 
-## Play double-clicked on the menu: the second click lands on a node of the web.
+## Play double-clicked on the menu: the hub, with the seed still selected and a node of the web under the pointer.
 func _double_menu_play(main: Main) -> void:
 	_main = main
 	await _laid_out()
 	var at := (_screen().get_node("%Play") as Control).get_global_rect().get_center()
 	await _click_at(at)
-	await _click_at(at)
+	await _click_at(at, true)
 
 
-## Settings by keyboard from the menu, then Up from the CRT toggle: the focus goes to the back button.
+## Settings by keyboard from the menu, then Up from the CRT toggle: the focus and its cursor stay on the toggle.
 func _settings_up(main: Main) -> void:
 	_main = main
 	await _laid_out()
@@ -130,14 +131,15 @@ func _click(control: Control) -> void:
 	await _click_at(control.get_global_rect().get_center())
 
 
-func _click_at(at: Vector2) -> void:
+## `second` makes it the second click of a double click.
+func _click_at(at: Vector2, second := false) -> void:
 	_mouse(at)
 	for pressed: bool in [true, false]:
-		_mouse(at, MOUSE_BUTTON_LEFT, pressed)
+		_mouse(at, MOUSE_BUTTON_LEFT, pressed, second and pressed)
 		await _main.get_tree().process_frame
 
 
-func _mouse(at: Vector2, button := MOUSE_BUTTON_NONE, pressed := false) -> void:
+func _mouse(at: Vector2, button := MOUSE_BUTTON_NONE, pressed := false, double := false) -> void:
 	var event: InputEventMouse
 	if button == MOUSE_BUTTON_NONE:
 		event = InputEventMouseMotion.new()
@@ -145,6 +147,7 @@ func _mouse(at: Vector2, button := MOUSE_BUTTON_NONE, pressed := false) -> void:
 		var click := InputEventMouseButton.new()
 		click.button_index = button
 		click.pressed = pressed
+		click.double_click = double
 		event = click
 	event.position = _at(at)
 	event.global_position = event.position

@@ -35,7 +35,7 @@ There is one save slot. It holds:
 
 - the coin balance
 - the rank of each upgrade
-- the highest level unlocked
+- the highest level unlocked. Clearing the last level counts one past it, which is how the save knows the game is won
 - each level's placed layout (see [placeables.md](placeables.md#rules))
 
 Nothing else about a level in progress is saved. Settings are stored separately from the save slot.
