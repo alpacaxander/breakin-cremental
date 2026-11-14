@@ -143,8 +143,6 @@ func _tooltip(main: Main) -> void:
 	var move := InputEventMouseMotion.new()
 	move.position = back.get_global_rect().get_center()
 	move.global_position = move.position
-	# View shows no tooltip until it is told the mouse is in it; main.gd does not tell it yet.
-	main.view.notification(Node.NOTIFICATION_VP_MOUSE_ENTER)
 	main.view.push_input(move, true)
 
 

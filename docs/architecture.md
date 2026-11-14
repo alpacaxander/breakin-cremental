@@ -29,7 +29,8 @@ Because the rules have no nodes, a round runs headless. Tests check the physics 
 `Round` (`src/sim/round.gd`) is one attempt at a level. It owns the board grid, the balls, the paddle, the placed items, the combo, the timer and the tally. Its doc comment gives the order of everything that happens when a round is built, in one step and on one brick hit.
 
 - **Inputs.** `Round.new(board, layout, stats, seed)`. A round is built from four things: the level's bricks (a `Board`), the saved `Layout`, a snapshot of the stats (a `Balance`), and a random seed. It reads nothing else, so the same four inputs and the same paddle input always give the same round.
-- **Tick.** The level screen calls `round.step(delta, paddle_target)` from `_physics_process`, so the rules run on Godot's fixed tick, 120 a second. Collision is swept (see [physics.md](design/physics.md)), so the result doesn't depend on the tick rate.
+- **Tick.** The level screen calls `round.step(delta, paddle_target)` from `_physics_process`, so the rules run on Godot's fixed tick, 120 a second. Collision is swept (see [physics.md](design/physics.md)) and a ball's path is measured from where it last turned (`Ball.from`), so nothing tunnels at any speed or step size. With one ball and a paddle that stays put the result doesn't depend on the tick rate at all. With a moving paddle or several balls a round is still deterministic but tied to the step: the paddle is where `step` last put it, and each ball finishes its step before the next one starts.
+- **Built once.** The round counts its level bricks when it is built, so after `Round.new` the board changes only through `round.hit_brick`. Prepare the `Board` first, then build. To place or aim a ball, use `ball.put(pos, dir)`.
 - **Paddle input.** `paddle_target` is where the paddle's centre should go, in round units. The round moves the paddle toward it at paddle speed. A held key passes `-INF` or `INF`.
 - **Freeze on big hits.** The level screen owns the clock. To freeze, it skips `step`. The effects ask for a freeze through `Fx.frozen` (see [Scene tree](#scene-tree)). The rules don't know about it.
 - **Random.** The round has its own seeded `RandomNumberGenerator`. It picks the special bricks with it, before the layout is applied, so the same seed gives the same special bricks whatever the layout. Setup shows a round, and Start builds it again with the same seed and the final layout.
@@ -43,6 +44,7 @@ Because the rules have no nodes, a round runs headless. Tests check the physics 
 - **To the screen.** The level screen's `Arena` node sits at `(154, 110)` with scale `board.zoom()` (16 ÷ rows) and its children draw in units, so `screen = (154, 110) + units × zoom`. The lane is 58 screen pixels at every level size, which is `58 ÷ zoom` units.
 - **Brick cells.** A brick always starts on an even grid row, so bricks are addressed by brick cell: `Vector2i(column, brick row)`, a 16 × 64 unit rectangle. Brick row `r` covers grid rows `2r` and `2r + 1`. Every `cell` in a signal, a hook or a saved layout is a brick cell.
 - **A row**, for a Zap, is every brick cell with the same brick row.
+- **Smallest level.** The lane is 58 screen pixels at every size, but the paddle and the ball keep their size in units. With the numbers in `balance.tres` a ball fits between the paddle's face and the grid from 14 rows up (see [levels.md](design/levels.md#arena-size)); `tests/cases/contracts.gd` checks it for every level.
 - **A blast** reaches `blast_size × 64` units out from the edges of the brick that exploded, and hits every brick whose cell overlaps that rectangle. At the base size that is 4 columns to each side and 1 brick row above and below.
 
 ### Signals
@@ -182,7 +184,8 @@ A render spike settled this in Godot 4.7.2 before any screen was built.
 - **What a lit colour looks like.** On screen it is the full-brightness version of its hue. Cyan, gold, orange, red and white come out exact. The others come out brighter than their hex: 1 HP `ca52c9` shows as `ff6afe`, blue as `00b1ff`, green as `aaff6a`. So [art.md](art.md#checking-an-asset)'s colour check holds for unlit colours only.
 - **Bloom strength.** `glow_intensity` is 0.06 at rest. Effects raise it with the combo through `Main.set_bloom(0..1)`, up to 0.18; from about 0.2 the 2 px gaps between bricks fill in. Reduce flashing lowers the top to 0.09.
 - **Resolution.** `Main` resizes `View` to the window's real pixels and keeps 1280 × 720 coordinates inside, so text is sharp at any window size, and it shifts the glow levels so halos keep their size.
-- **Input.** `View` gets no input by itself. `Main` pushes every event into it, with mouse positions moved the way the shader curves the picture, so a click lands on what is drawn under it. Code inside `View` reads the mouse as usual.
+- **Input.** `View` gets no input by itself. `Main` pushes every event into it, with mouse positions moved the way the shader curves the picture, so a click lands on what is drawn under it. Code inside `View` reads the mouse as usual. `Main` also tells `View` when the pointer enters and leaves the window; without that no tooltip shows.
+- **A tooltip costs a key press.** While a tooltip shows, Godot spends the next key press on closing it, and no screen gets that key. Give `tooltip_text` only to controls nobody presses keys over, and to nothing that is on screen during Play.
 - **Stay on canvas layer 0.** Anything on a `CanvasLayer` above 0 inside `View` is drawn after bloom and does not glow. Pop-ups and tooltips are embedded in `View`, so they get the CRT too.
 - **Limits.** Thin lit shapes need more boost than thick ones. A lit hue drawn without `lit()` still glows faintly as a large shape if its largest channel is near `ff`. Halo size is close across window sizes, not equal.
 - **Screenshots can be trusted** for colour, bloom and the CRT: the same frame on a real GPU and under `xvfb-run` differed by at most 6 in 255. They say nothing about frame rate, the letterbox bars, or how the pixel fonts land at window sizes that are not a whole multiple of 720.
@@ -193,7 +196,7 @@ A render spike settled this in Godot 4.7.2 before any screen was built.
 |---|---|---|
 | `Progress` | The save slot: coins, upgrade ranks, highest level unlocked, each level's layout. Also `upgrades()`, `rank`, `cost`, `can_buy`, `buy`, `stat(name)`, `snapshot()`, `is_unlocked`, `finish_round`, `layout`, `set_layout` and `save()`. `level_count` is the number of levels, which a test may set | `coins_changed(coins)`, `rank_changed(upgrade)`, `level_unlocked(level)` |
 | `Settings` | CRT, reduce flashing, music volume, sound volume. It also sets the two bus volumes | `changed` |
-| `Sfx` | A constant for every cue, `play(cue, pitch)`, `start_music()`, and `connect_round(round)`, which wires a round's signals to their cues so no scene holds audio glue (see [audio.md](audio.md)). It also plays the click of every button itself, by listening for buttons entering the tree, except those in the group `Sfx.QUIET`; the header of `sfx.gd` says which screen plays each other UI cue | |
+| `Sfx` | A constant for every cue, `play(cue, pitch)`, `start_music()`, and `connect_round(round)`, which wires a round's signals to their cues so no scene holds audio glue (see [audio.md](audio.md)). It also plays the click of every button itself, by listening for buttons entering the tree, except those in the group `Sfx.QUIET`; the header of `sfx.gd` says which screen plays each other UI cue. `Sfx.combo_pitch(count)` is the brick break's pitch at a combo count | `played(cue, player)`, for tests |
 
 - The save is `user://save.json` with a `version` field, so a later build can read an older save. Its shape is written at the top of `src/autoload/progress.gd`. Settings are `user://settings.cfg`.
 - `user://` is `~/.local/share/breakin-cremental/` on Linux (a custom user dir), so the purged build's files under `godot/app_userdata/` are never read.
@@ -218,12 +221,13 @@ src/
               fx/fx.gd
   hub/        hub.tscn  web.tscn  upgrade_node.tscn  detail_panel.tscn  level_panel.tscn
   menu/       main_menu.tscn  settings.tscn
-  ui/         palette.gd  theme.gd  shared widgets
+  ui/         palette.gd  theme.gd  glyph.gd  coin.gd  price.gd  pips.gd  bar.gd  back_button.gd
 data/
   balance.tres
   upgrades/   one .tres per upgrade
   kinds/      one .tres per kind
 levels/       level_1.tscn  level_2.tscn  level_3.tscn
+              level.gd  bricks.tres  bricks.png    the root script and the tile set every level shares
 assets/
   audio/      gen.mjs  demo.html  wav/
   fonts/      each font with its licence
@@ -238,9 +242,11 @@ tests/
   out/                    what tests write; ignored by git and by Godot
 ```
 
-The theme is built in code (`UiTheme.build()` in `src/ui/theme.gd`), because a theme saved with colours in it would be a second place that defines them. `build()` always returns the same `Theme`, and `Main` puts it on `Screen`. A theme only passes down through `Control` nodes, so text under a `Node2D` (the effects' pop-ups) takes its font from `UiTheme.numbers()` and its size from `UiTheme.number_size(px)`. The top of `theme.gd` lists the type variations and shared widgets by name.
+The theme is built in code (`UiTheme.build()` in `src/ui/theme.gd`), because a theme saved with colours in it would be a second place that defines them. `build()` always returns the same `Theme`, and `Main` puts it on `Screen`. A theme only passes down through `Control` nodes, so text under a `Node2D` (the effects' pop-ups) takes its font from `UiTheme.numbers()` and its size from `UiTheme.number_size(px)`. The top of `theme.gd` lists the type variations and shared widgets by name. A screen picks a look with `theme_type_variation` and never restyles a control. The two pixel fonts only come in the sizes where every stem is the same width (see [art.md](art.md#type)), so lay out against the sizes `theme.gd` gives, not the ones a mockup shows.
 
-Godot's generated `.import` and `.uid` files are committed. `.godot/` is not. Folders that are still empty (`data/kinds/`, `data/upgrades/`, `levels/`, `assets/audio/`) appear with their first file.
+A level scene's root is a `TileMapLayer` with `levels/level.gd` (`title`, `rows`) and the tile set `levels/bricks.tres`. A tile is one brick cell and its custom data `hp` is the brick's HP. The tile picture is white with the HP as a digit, and `level.gd` tints it with `Palette.hp` in the editor, so no colour is stored in `levels/`.
+
+Godot's generated `.import` and `.uid` files are committed. `.godot/` is not.
 
 ## Tests
 
@@ -254,7 +260,9 @@ Everything runs through `tests/run.sh`, which moves `user://` inside the checkou
 | `tests/run.sh shots [list…]` | Boots the real `Main` under `xvfb-run` and saves PNGs to `tests/out/shots/<list>/`, bloom and CRT included. Each file in `tests/shots/` is a list of shots; a shot can start from a fresh, mid-game or maxed save and can capture a strip of frames |
 | `tests/run.sh bot [args…]` | `tests/balance.tscn`: a bot plays each level headless at a given set of upgrade ranks and reports bricks broken, coins and whether it cleared. It is the tool for the difficulty risk in [design.md](design.md#risks) |
 
-A lane adds its own `tests/cases/<lane>.gd` and `tests/shots/<lane>.gd` and never edits another's. All the cases run in one process, so the runner gives each a fresh save, the default settings and only the kinds that have files (`Kinds.reset()`), whatever the case before it did. The cases cover the physics rules (constant speed, minimum angles, no tunnelling), the brick and hit counts of each level against [levels.md](design/levels.md), upgrade costs, the coin formula, a save round trip, and the layer rules. The shots are for the check in [art.md](art.md#checking-an-asset).
+A lane adds its own `tests/cases/<lane>.gd` and `tests/shots/<lane>.gd` and never edits another's. All the cases run in one process, so the runner gives each a fresh save, the default settings and only the kinds that have files (`Kinds.reset()`), whatever the case before it did. The cases cover the physics rules (constant speed, minimum angles, no tunnelling), the brick and hit counts of each level against [levels.md](design/levels.md), upgrade costs, the coin formula, a save round trip, and the layer rules.
+
+`tests/cases/contracts.gd` also holds the checks that cross lanes, for the ids typed by hand in more than one place: every kind's cue is a cue `Sfx` has a file for, every kind's colour is a `Palette` meaning, every upgrade's stat is a `Balance` property or the count of a kind that exists, and every kind has an upgrade that counts it. It then plays every level to its end twice, on a fresh save and with every upgrade owned and one of each placeable placed through `Layout.fits`, saved through `Progress` and read back from the file, with `Sfx` wired to the round. A new kind, upgrade or level is covered without touching the case. The shots are for the check in [art.md](art.md#checking-an-asset).
 
 ## Left out on purpose
 

@@ -15,9 +15,9 @@ extends Node
 ## bus and the music on Settings.BUS_MUSIC. This script never sets a volume: Settings sets the two bus volumes,
 ## and the check that a volume setting reaches its bus is in the state lane's case, not the audio lane's.
 ##
-## Everything a round makes is wired by connect_round, so no scene holds audio glue for the rules. Until the
-## rules are written a Round emits nothing, so this lane's case drives a round by hand: it emits the round's
-## signals itself (round.brick_broken.emit(...)) and sets round.combo.count and round.time_left.
+## Everything a round makes is wired by connect_round, so no scene holds audio glue for the rules. The audio case
+## drives a round by hand (it emits the round's signals itself and sets round.combo.count and round.time_left);
+## tests/cases/contracts.gd wires a real round on every level.
 ##
 ## UI CUES, and who plays each:
 ##   CLICK        this script, for every button in the game. It listens to the scene tree's node_added and

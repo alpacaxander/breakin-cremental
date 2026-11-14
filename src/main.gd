@@ -30,7 +30,11 @@ extends Node
 ##   - Stay on canvas layer 0. A CanvasLayer above 0 is drawn after bloom and does not glow.
 ##   - Mouse positions are already corrected for the CRT's curve: Main pushes every input event into View with
 ##     the position moved the way the shader moves the picture. Use get_local_mouse_position() and the event's
-##     position as usual.
+##     position as usual. Main also tells View when the pointer enters and leaves the window, which is what
+##     makes a control's tooltip_text appear.
+##   - A tooltip costs a key press. While one shows, Godot spends the next key on closing it and no screen gets
+##     that key: Esc on a hovered back button first closes "Back", and the second Esc goes back. So give
+##     tooltip_text only to controls nobody presses keys over, and none to anything on screen during Play.
 
 const FRAME := Vector2(1280, 720)
 const MENU := "res://src/menu/main_menu.tscn"
@@ -103,6 +107,7 @@ func _ready() -> void:
 	($View/Backdrop as ColorRect).color = Palette.BASE
 	screen.theme = UiTheme.build()
 	crt.texture = view.get_texture()
+	view.notification(NOTIFICATION_VP_MOUSE_ENTER)  # the window may open under the pointer, with no enter event
 	get_window().size_changed.connect(_fit)
 	Settings.changed.connect(_apply)
 	_fit()
@@ -166,9 +171,15 @@ func _input(event: InputEvent) -> void:
 	view.push_input(event, true)
 
 
+## View never learns by itself whether the pointer is over it, and it shows no tooltip until it is told so.
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_WM_MOUSE_EXIT and view:
+	if view == null:
+		return
+	if what == NOTIFICATION_WM_MOUSE_ENTER:
+		view.notification(NOTIFICATION_VP_MOUSE_ENTER)
+	elif what == NOTIFICATION_WM_MOUSE_EXIT:
 		var away := InputEventMouseMotion.new()  # clears hover when the pointer leaves the window
 		away.position = Vector2(-1000, -1000)
 		away.global_position = away.position
 		view.push_input(away, true)
+		view.notification(NOTIFICATION_VP_MOUSE_EXIT)

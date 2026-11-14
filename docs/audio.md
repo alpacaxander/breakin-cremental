@@ -28,9 +28,13 @@ Every sound is synthesised by one script. Nothing is recorded or downloaded.
 
 - **Combo pitch climb.** There is one brick break sample. Each combo step plays it one note higher on a pentatonic scale, up to two octaves above the start, so any run of hits sounds musical.
 - **Punch.** Big cues (explosion, level cleared, ball lost) layer a low sine thump and a noise burst under the square wave. The master bus has a limiter.
-- **Voice cap.** Many bricks can break in one frame, for example 64 from a Zap on level 3. Stagger those sounds by a few milliseconds and cap the voices per cue so the mix doesn't clip.
+- **Voice cap.** Many bricks can break in one frame, for example 64 from a Zap on level 3. Stagger those sounds by a few milliseconds and cap the voices per cue so the mix doesn't clip. `Sfx` gives each cue 4 voices and starts them 15 ms apart; a play beyond that in one burst is dropped.
+- **Low timer.** `Sfx` ticks once for each whole second the timer crosses from the low-timer mark down to 1.
+- **Volumes.** `Sfx` never sets a volume. Settings owns the two bus volumes, and the balance between music and sounds is in the files.
 - **Effects follow the cause.** A sound is played because of a game event, such as a brick breaking. Game rules never depend on a sound.
 
 ## Music
 
-The demo has one simple placeholder loop, made by the same script: a square-wave lead, a triangle bass and a noise hi-hat, about 16 bars long. It loops on every screen and plays quieter than the sound effects. Settings has a volume slider for music and one for sound.
+The demo has one simple placeholder loop, made by the same script: a square-wave lead, a triangle bass and a noise hi-hat, about 16 bars long (25.6 s at 150 bpm, in A minor). It loops through the loop mode in `music.wav.import`, so keep that file when the wav is made again. It loops on every screen and plays quieter than the sound effects.
+
+**Nobody has listened to any of it yet.** The cues and the loop were checked by their numbers only (format, length, peak, loudness, silent ends, a silent loop seam). Judge them by ear on `assets/audio/demo.html`. Settings has a volume slider for music and one for sound.

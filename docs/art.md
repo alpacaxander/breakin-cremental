@@ -78,6 +78,7 @@ Effects take the colour of whatever made them. Sizes below are at their peak. Ea
 
 - All three come from Google Fonts under the SIL Open Font License. Commit each font file together with its licence.
 - Jersey 10 and Silkscreen are pixel fonts. Turn antialiasing off for them and round each size above to the nearest one where every stem renders at the same width.
+- **The sizes that exist.** Jersey 10 has even stems at 19, 37, 56, 75 and 93 px (multiples of 56 ÷ 3), so the sizes above come out as 93 combo, 75 HUD numbers, 56 screen title and 37 for panel titles, buttons and pop-ups. Any Jersey size in this file rounds the same way through `UiTheme.number_size`: 40 and 46 give 37, 48 gives 56. Silkscreen has even stems at 8, 16 and 24 px; 8 can't be read through the CRT, so every Silkscreen label is 16 and the two tag styles differ only in letter spacing.
 - Lit numbers (time, combo, coins, prices) bloom like lit shapes. Labels and body text use the text neutrals and don't bloom.
 
 ## UI pieces
@@ -86,12 +87,16 @@ Effects take the colour of whatever made them. Sizes below are at their peak. Ea
 |---|---|
 | Panel | Fill `1a1932`, a 2 px `424c6e` border, square corners, about 20 px of padding |
 | Primary button | Cyan fill, base-colour text in 36 px Jersey 10, 56 px tall |
+| Secondary button | The second choice beside a primary one (Retry, Settings, Quit): base fill, a 2 px cyan border, primary text, the same size and font. No mockup |
+| Button states | Hover is a brighter lit fill on a primary button and a dim cyan fill on a secondary or icon button. Pressed is plain, unlit cyan. Keyboard focus is a 2 px `92a1b9` outline 4 px outside the button. No mockup |
 | Disabled button | Fill `2a2f4e`, text `92a1b9` |
 | Can't afford | No fill, a 2 px danger outline, primary text. It can still be pressed: it plays the "can't afford" sound and buys nothing |
 | Icon button | 44 × 44 with a base fill and a 2 px border: cyan when it can be used, `424c6e` when it can't |
 | Back button | An icon button with a left-pointing arrow. Esc does the same |
 | Toggle | A 44 × 44 square with a 2 px cyan border: base fill when off, lit cyan fill when on. Its label sits to the right in primary text |
 | Slider | A 6 px track in `2a2f4e`, lit cyan from the left end to the grabber. The grabber is a 16 × 28 cyan rectangle. The row is 44 px tall, so it meets the hit target |
+| Dropdown | The secondary button's look at 44 px tall, in 18 px Chakra Petch semibold, with a chevron. Its list is a panel with 44 px rows and a cyan dot beside the chosen one. No mockup |
+| Tooltip | A small panel with 14 px Chakra Petch text |
 | Icons | Flat filled shapes or 2.5 px strokes in the text colour. No emoji or font glyphs for arrows |
 | Coin glyph | A gold square turned 45°, about a quarter of the number's height |
 | Hit target | At least 44 × 44 |
