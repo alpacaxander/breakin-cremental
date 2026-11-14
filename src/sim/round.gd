@@ -38,6 +38,7 @@ extends RefCounted
 ##      passed through. Every contact is resolved where it happens and its signals are emitted then. A ball made
 ##      during this step (a Splitter) starts moving on the next one.
 ##   3. The combo's window counts down. If it runs out the combo resets and combo_changed(0, 1) is emitted.
+##      Less than TIME_SLOP left has run out, as in 4.
 ##   4. time_left counts down. It stops at 0, and less than TIME_SLOP left is 0: a step such as 1/120 s is not an
 ##      exact number, so counting down by it ends a hair off 0, and a hair above 0 would be one more whole step
 ##      at some rates and not at others. A round whose time is a whole number of steps plays exactly that many;
@@ -63,6 +64,11 @@ extends RefCounted
 ## Then the minimum angles apply (see _legal): a direction closer than stats.min_angle_horizontal to level or
 ## than stats.min_angle_vertical to upright is turned to that angle, on the side the surface faces. So the dead
 ## centre of the paddle sends the ball back min_angle_horizontal below level, not along the line it came on.
+## Turned like that, a ball can leave straight back along the line it came on. Once is harmless. Twice, with
+## whatever it touched in between, can be a ball passed back and forth for ever: between two Wall Segments
+## turned 105 degrees one above the other, in the neck between two Boosters, between one Booster and a paddle
+## that stays put. So every second time a ball is turned straight back (Ball.back) it gets the same angle on
+## the other side of the axis instead. That still leaves the surface.
 ## A bounce never changes the speed.
 ## One exception to the angles: a ball wedged where two surfaces close to a gap narrower than itself (WEDGED
 ## contacts in a row without moving) leaves along the line between them. If no legal angle fits in that gap it
@@ -397,7 +403,15 @@ func _bounce(ball: Ball, hit: Hit) -> void:
 	elif was.dot(n) < 0.0:
 		# Along an axis the mirror is an exact change of sign; off a turned face it is rounded, so it is made a
 		# unit vector again or the speed would creep.
-		ball.put(ball.pos, _legal(was.bounce(n) if n.x == 0.0 or n.y == 0.0 else was.bounce(n).normalized(), n))
+		var mirror := was.bounce(n) if n.x == 0.0 or n.y == 0.0 else was.bounce(n).normalized()
+		var out := _legal(mirror, n)
+		# Turned straight back the way it came (see ONE BOUNCE): every second time, to the other side instead.
+		# The turn was across the axis the direction is nearer to, so that is the part that changes sign.
+		if out != mirror and out.is_equal_approx(-was):
+			if ball.back:
+				out *= Vector2(-1.0, 1.0) if absf(out.y) > absf(out.x) else Vector2(1.0, -1.0)
+			ball.back = not ball.back
+		ball.put(ball.pos, out)
 	else:
 		ball.put(ball.pos, was)
 	match hit.surface:
@@ -415,7 +429,8 @@ func _bounce(ball: Ball, hit: Hit) -> void:
 ## fine comes back untouched, so a bounce off a wall or a brick is an exact mirror.
 ## `n` is the normal of the surface the ball is leaving, or ZERO for a throw. The turn goes to the side that
 ## normal points to. That is always away from the surface, and it never turns a ball back into a narrowing gap
-## it was on its way out of, which turning to the nearest side can do for ever.
+## it was on its way out of, which turning to the nearest side can do for ever. What it can do is turn a ball
+## straight back the way it came; _bounce sees to that.
 func _legal(dir: Vector2, n := Vector2.ZERO) -> Vector2:
 	var angle := atan2(absf(dir.y), absf(dir.x))  # from level: 0 to a quarter turn
 	var low := deg_to_rad(stats.min_angle_horizontal)

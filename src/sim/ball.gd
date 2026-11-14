@@ -19,6 +19,9 @@ var boost := 1.0
 ## ball bounces next does not depend on how the time was cut into steps.
 var from: Vector2
 var gone := 0.0
+## Rules only: true when the minimum angles have turned this ball straight back along the line it came on, so
+## the next time they would, it goes to the other side (Round, ONE BOUNCE).
+var back := false
 
 
 ## Puts the ball at a point, heading along a unit vector, and starts its line there. The round aims a ball with

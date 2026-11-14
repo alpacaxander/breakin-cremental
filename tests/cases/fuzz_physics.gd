@@ -146,32 +146,39 @@ func _launch() -> void:
 ## physics.md, Minimum angles: "After any bounce or throw the direction is nudged so it is never within a small
 ## angle of vertical ... or of horizontal (it would go back and forth along one line)." Round._legal turns a
 ## direction that is too steep or too shallow to the minimum angle on the side the surface's normal points. Two
-## surfaces that face each other with normals tilted to opposite sides each turn the ball straight back along the
-## line it came in on, so it goes back and forth along one line until the round ends:
+## surfaces that face each other with normals tilted to opposite sides each turned the ball straight back along
+## the line it came in on, so it went back and forth along one line until the round ended:
 ##   - Two Wall Segments turned 105 degrees (a rotate_step), 60 apart: back and forth at exactly 70 degrees.
 ##   - Two Boosters 44.5 apart (fence seed 434 on 14 rows, found from a random start, here started on the line it
 ##     fell into): back and forth 0.64 apart in the neck between them at exactly 8 degrees, some 2600 bounces a
 ##     second, and the boost stays because the paddle is never touched.
-## Each bounce moves the ball more than Collide.SKIN, so the WEDGED way out never fires.
+##   - One Booster and a paddle that stays put, from the launch itself: the centre of the paddle sends the ball
+##     out 8 degrees below level, the Booster turns it straight back, and the paddle sends it out again.
+## Each bounce moves the ball more than Collide.SKIN, so the WEDGED way out never fires. Round fixes it by turning
+## every second such ball to the other side (round.gd, ONE BOUNCE).
 ## Each case is 4 s at 60 steps a second; the check fails if its last 40 bounces are only two points.
+## A case is [rows, kind, where its items are, their rotation, the ball's start and heading or null for the launch].
 func _shuttle() -> void:
 	for c: Array in [
-			[16, &"wall_segment", Vector2(400, 200), Vector2(400, 260), 105.0, Vector2(400, 230), Vector2.from_angle(deg_to_rad(-70.0))],
-			[14, &"booster", Vector2(549.5, 354.5), Vector2(594, 351.5), 0.0, Vector2(571.69, 352.12), Vector2(-0.99026805, 0.1391731)]]:
+			[16, &"wall_segment", [Vector2(400, 200), Vector2(400, 260)], 105.0, Vector2(400, 230), Vector2.from_angle(deg_to_rad(-70.0))],
+			[14, &"booster", [Vector2(549.5, 354.5), Vector2(594, 351.5)], 0.0, Vector2(571.69, 352.12), Vector2(-0.99026805, 0.1391731)],
+			[14, &"booster", [Vector2(211, 253.5)], 0.0, null, null]]:
 		var stats := _stats_base.copy()
 		stats.put(Balance.count_stat(c[1]), 2)
 		var board := Board.new(c[0])
+		stats.paddle_size = board.size().y  # so the ball is never lost
 		board.bricks[Vector2i(board.cols - 1, 0)] = Brick.new(1000000)
 		var layout := Layout.new()
-		for pos: Vector2 in [c[2], c[3]]:
+		for pos: Vector2 in c[2]:
 			var item := Layout.Item.new()
 			item.kind = Kinds.of(c[1])
 			item.pos = pos
-			item.rot = c[4]
+			item.rot = c[3]
 			t.check(layout.fits(item, board, stats), "shuttle: %s at %s fits" % [c[1], pos])
 			layout.add(item)
 		var round := Round.new(board, layout, stats, 1)
-		round.balls[0].put(c[5], c[6])
+		if c[4] != null:
+			round.balls[0].put(c[4], c[5])
 		var points := []
 		round.ball_bounced.connect(func(_b: Ball, hit: Hit) -> void: points.append(hit.point))
 		for i in 240:
@@ -180,7 +187,7 @@ func _shuttle() -> void:
 		var last := {}
 		for p: Vector2 in points.slice(-40):
 			last[p] = true
-		t.check(last.size() > 2, "shuttle: a ball between two %ss facing each other, from %s heading %s, goes back and forth along one line: %d bounces in 4 s, the last 40 only between %s" % [c[1], c[5], c[6], points.size(), last.keys()])
+		t.check(last.size() > 2, "shuttle: a ball among %s at %s, from %s heading %s, does not go back and forth along one line (%d bounces in 4 s, the last 40 only between %s)" % [c[1], c[2], c[4] if c[4] != null else "the launch", c[5], points.size(), last.keys()])
 
 
 # --- the hunt --------------------------------------------------------------------------------------------------

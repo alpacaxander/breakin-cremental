@@ -30,11 +30,13 @@ func add(stats: Balance) -> void:
 
 
 ## Counts the window down by `delta` seconds. True if a combo was running and has just run out: it is reset.
+## Less than Round.TIME_SLOP left is none, as for the round's timer (Round, ONE STEP, 4): a 1.6 s window at 60
+## steps a second is gone on step 96, not on step 97 at the rates where rounding leaves a hair over 0.
 func tick(delta: float) -> bool:
 	if count == 0:
 		return false
 	time_left -= delta
-	if time_left > 0.0:
+	if time_left > Round.TIME_SLOP:
 		return false
 	count = 0
 	multiplier = 1
