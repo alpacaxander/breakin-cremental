@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="Upgrade" format=3]
+
+[ext_resource type="Script" path="res://src/content/upgrade.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+title = "Round Time"
+category = 0
+text = "+3 s on the timer"
+first_cost = 30
+max_rank = 3
+stat = &"round_time"
+amount = 3.0

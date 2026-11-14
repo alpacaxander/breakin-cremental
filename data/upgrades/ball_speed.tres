@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="Upgrade" format=3]
+
+[ext_resource type="Script" path="res://src/content/upgrade.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+title = "Ball Speed"
+category = 0
+text = "+15% ball speed"
+first_cost = 10
+max_rank = 5
+stat = &"ball_speed"
+amount = 0.15
+percent = true

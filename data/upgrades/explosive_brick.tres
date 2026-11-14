@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="Upgrade" format=3]
+
+[ext_resource type="Script" path="res://src/content/upgrade.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+title = "Explosive Brick"
+category = 2
+text = "One more explosive brick"
+first_cost = 20
+max_rank = 3
+stat = &"explosive_count"
+amount = 1.0
