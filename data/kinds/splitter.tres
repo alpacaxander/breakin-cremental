@@ -6,7 +6,6 @@
 script = ExtResource("1")
 title = "Splitter"
 colour = &"placeable"
-cue = &"splitter"
 order = 4
 placement = 1
 hp = 1

@@ -180,7 +180,7 @@ func _kinds() -> void:
 		&"bumper": [PlaceableKind.Placement.FREE, PlaceableKind.Shape.RECT, Vector2(30, 30), 45.0, false, Sfx.BUMPER],
 		&"booster": [PlaceableKind.Placement.FREE, PlaceableKind.Shape.CIRCLE, Vector2(32, 32), 0.0, false, Sfx.BOOSTER],
 		&"wall_segment": [PlaceableKind.Placement.FREE, PlaceableKind.Shape.RECT, Vector2(10, 112), 0.0, true, Sfx.WALL_BOUNCE],
-		&"splitter": [PlaceableKind.Placement.BRICK, PlaceableKind.Shape.RECT, Vector2.ZERO, 0.0, false, Sfx.SPLITTER],
+		&"splitter": [PlaceableKind.Placement.BRICK, PlaceableKind.Shape.RECT, Vector2.ZERO, 0.0, false, &""],  # no cue: Sfx plays SPLITTER from ball_added
 		&"zap": [PlaceableKind.Placement.MOD, PlaceableKind.Shape.RECT, Vector2(6, 6), 0.0, false, Sfx.ZAP],
 	}
 	for id: StringName in placeables:

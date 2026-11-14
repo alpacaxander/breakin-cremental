@@ -160,7 +160,9 @@ static func combo_pitch(count: int) -> float:
 ##   brick_hit      BRICK_HIT
 ##   brick_broken   BRICK_BREAK, one pentatonic step higher per combo step (round.combo.count), up to two octaves.
 ##                  Then the cue of the brick's kind and the cue of its mod, if they have one (GOLD_BRICK,
-##                  HOURGLASS_BRICK, SPLITTER, ZAP)
+##                  HOURGLASS_BRICK, ZAP), whatever broke it
+##   ball_added     SPLITTER: a ball split. A Splitter that a blast or a Zap breaks adds no ball, so its kind has
+##                  no cue and the sound follows the signal (the launch ball is not added, so it is silent)
 ##   exploded       EXPLOSION
 ##   ball_lost      BALL_LOST
 ##   ended          CLEARED: LEVEL_CLEARED
@@ -171,6 +173,7 @@ func connect_round(p_round: Round) -> void:
 	p_round.ball_bounced.connect(_on_ball_bounced)
 	p_round.brick_hit.connect(func(_cell: Vector2i, _hp_left: int, _cause: Round.Cause) -> void: play(BRICK_HIT))
 	p_round.brick_broken.connect(_on_brick_broken.bind(p_round.combo))
+	p_round.ball_added.connect(func(_ball: Ball) -> void: play(SPLITTER))
 	p_round.exploded.connect(func(_pos: Vector2, _reach: float, _cells: Array[Vector2i]) -> void: play(EXPLOSION))
 	p_round.ball_lost.connect(func(_ball: Ball) -> void: play(BALL_LOST))
 	p_round.ended.connect(_on_ended)

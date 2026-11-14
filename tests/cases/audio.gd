@@ -16,6 +16,7 @@ func run(t: Node) -> void:
 	Sfx.played.connect(_on_played)
 	_files(t)
 	await _round(t)
+	await _splitter(t)
 	_climb(t)
 	await _burst(t)
 	await _buttons(t)
@@ -154,6 +155,27 @@ func _round(t: Node) -> void:
 	for left: float in [7.5, 6.2, 4.9, 4.5, 3.9, 3.1, 0.5, 0.0]:
 		ticks.append((await _hear(t, func() -> void: r.time_left = left)).size())
 	t.check(ticks == [0, 0, 1, 0, 1, 0, 1, 0], "LOW_TIMER_TICK sounds once per whole second crossed at or under low_time (%s)" % [ticks])
+	r.over = true
+	await t.tree().process_frame
+
+
+## The Splitter's cue is the sound of a ball splitting, so it follows ball_added and not the break: a real round
+## with the real kind, one Splitter broken by a blast and one by a ball.
+func _splitter(t: Node) -> void:
+	var stats: Balance = (load("res://data/balance.tres") as Balance).copy()
+	stats.put(&"splitter_count", 2)
+	var layout := Layout.new()
+	for cell: Vector2i in [Vector2i(20, 2), Vector2i(30, 2)]:
+		var item := Layout.Item.new()
+		item.kind = Kinds.of(&"splitter")
+		item.cell = cell
+		layout.add(item)
+	var r := Round.new(Board.new(), layout, stats, 1)
+	await _hear(t, func() -> void: Sfx.connect_round(r))
+	var got := await _hear(t, func() -> void: r.hit_brick(Vector2i(20, 2), Round.Cause.BLAST, Vector2.RIGHT))
+	t.check(got == [Sfx.BRICK_BREAK] and r.balls.size() == 1, "a Splitter broken by a blast splits no ball and plays no SPLITTER (heard %s)" % [got])
+	got = await _hear(t, func() -> void: r.hit_brick(Vector2i(30, 2), Round.Cause.BALL, Vector2.RIGHT, r.balls[0]))
+	t.check(got == [Sfx.BRICK_BREAK, Sfx.SPLITTER] and r.balls.size() == 2, "a Splitter broken by a ball splits it and plays SPLITTER once (heard %s)" % [got])
 	r.over = true
 	await t.tree().process_frame
 

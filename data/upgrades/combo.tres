@@ -6,7 +6,7 @@
 script = ExtResource("1")
 title = "Combo"
 category = 0
-text = "Rank 1 turns combos on. Ranks 2 and 3 widen the window"
+text = "Rank 1 turns combos on. Ranks 2 and 3 widen the window. Quick breaks pay more."
 first_cost = 30
 max_rank = 3
 stat = &"combo_rank"

@@ -6,7 +6,7 @@
 script = ExtResource("1")
 title = "Bumper"
 category = 1
-text = "One more Bumper"
+text = "One more Bumper. A diamond you place anywhere: the ball bounces off its faces."
 first_cost = 15
 max_rank = 3
 stat = &"bumper_count"
