@@ -4,9 +4,9 @@ extends Control
 ## Main.show_hub() and Main.show_level(n).
 ##
 ## What the two entry scenes can rely on:
-##   HUB    is made once and lives as long as Play, so the web keeps its pan and zoom. While a level is open it is
-##          hidden and its processing is off. It learns what changed from Progress's signals and from its own
-##          visibility_changed.
+##   HUB    is made once and lives as long as Play, so it keeps the selected node and the level on show (and a
+##          pan and zoom, once the web has them). While a level is open it is hidden and its processing is off.
+##          It learns what changed from Progress's signals and from its own visibility_changed.
 ##   LEVEL  is made new for every visit and freed on the way back to the hub. Retry stays inside the level
 ##          scene. Its root script has these four members, and tests, shots and the effects rely on them:
 ##            var level: int     Set here before the scene enters the tree, so _ready can read it.

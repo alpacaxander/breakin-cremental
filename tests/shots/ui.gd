@@ -140,6 +140,7 @@ func _tooltip(main: Main) -> void:
 	var page := _sheet(main)
 	await main.get_tree().process_frame
 	var back: Button = page.find_children("*", "Button", true, false).filter(func(n: Node) -> bool: return n is UiBackButton)[0]
+	back.tooltip_text = "Back"  # the kit's back button has none; this shot is of the tooltip's look
 	var move := InputEventMouseMotion.new()
 	move.position = back.get_global_rect().get_center()
 	move.global_position = move.position

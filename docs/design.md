@@ -94,7 +94,7 @@ These need deciding before or during the demo build:
 1. **The coin formula.** How the tally of bricks and combos turns into coins. The upgrade costs move with it.
 2. **Combo numbers.** Left to the implementation and tuned later.
 3. **A ceiling on arena size.** Very big levels shrink the ball and bricks to a few pixels (see `docs/art.md`).
-4. **Screens with no mockup.** The summary, the main menu and Settings are not in `docs/art.md` yet.
+4. **Screens with no mockup.** The summary, the main menu and Settings were built without one and are described in `docs/art.md` as built. Nobody has judged their look yet.
 
 ## Risks
 

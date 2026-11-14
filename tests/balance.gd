@@ -44,22 +44,15 @@ const SEARCH_SEEDS := [1001, 1002, 1003]
 const KEEP := 4
 const FINAL_SEEDS := [2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012]
 const ROTATIONS := [0.0, 45.0, 90.0, 135.0]
-## The upgrade web's connections, from the drawing in docs/design/upgrades.md.
-# ponytail: copied by hand because the web scene (src/hub/web.tscn) is the hub lane's and does not exist here
-# yet. Read the connections from that scene once it does, so the two cannot drift.
-const WEB := [
-	["paddle_speed", "ball_speed"], ["paddle_speed", "paddle_size"], ["paddle_speed", "bumper"],
-	["paddle_speed", "explosive_brick"], ["ball_speed", "booster"], ["ball_speed", "gold_brick"],
-	["gold_brick", "zap"], ["bumper", "combo"], ["combo", "splitter"], ["paddle_size", "wall_segment"],
-	["explosive_brick", "shockwave"], ["explosive_brick", "blast_size"], ["explosive_brick", "round_time"],
-	["round_time", "hourglass_brick"],
-]
-const SEED_NODE := "paddle_speed"
+## The upgrade web's scene: the bot reads which nodes connect from it, so it buys what the hub would offer.
+const WEB_SCENE := "res://src/hub/web.tscn"
 
 var _args := {"mode": "report", "level": "all", "ranks": "fresh", "skill": "average", "seeds": "20",
 		"layout": "auto", "rounds": "400"}
 var _boards := {}  # level -> Board, read once
 var _layouts := {}  # cache key -> Layout, for _auto
+var _web: Array[Array] = []  # the web's connections as pairs of upgrade ids
+var _seed_node := &""
 
 
 ## Stands in for a person at the mouse. See THE PLAYER at the top.
@@ -477,11 +470,18 @@ func _campaign(skill: String, limit: int) -> Dictionary:
 			"coins_left": Progress.coins, "rounds": rounds}
 
 
-## True if the hub offers this node: the seed node, or one next to an owned node.
+## True if the hub offers this node: the seed node, or one next to an owned node. The connections come from the
+## hub's own web scene, read once without putting it on screen.
 func _offered(id: StringName) -> bool:
-	if id == SEED_NODE:
+	if _web.is_empty():
+		var web: HubWeb = (load(WEB_SCENE) as PackedScene).instantiate()
+		_seed_node = web.seed_node().upgrade.id
+		for link in web.links():
+			_web.append([link[0].upgrade.id, link[1].upgrade.id])
+		web.free()
+	if id == _seed_node:
 		return true
-	for edge: Array in WEB:
+	for edge: Array in _web:
 		if id in edge and Progress.ranks.get(StringName(edge[0] if edge[1] == id else edge[1]), 0) > 0:
 			return true
 	return false

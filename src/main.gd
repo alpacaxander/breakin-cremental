@@ -33,8 +33,8 @@ extends Node
 ##     position as usual. Main also tells View when the pointer enters and leaves the window, which is what
 ##     makes a control's tooltip_text appear.
 ##   - A tooltip costs a key press. While one shows, Godot spends the next key on closing it and no screen gets
-##     that key: Esc on a hovered back button first closes "Back", and the second Esc goes back. So give
-##     tooltip_text only to controls nobody presses keys over, and none to anything on screen during Play.
+##     that key. So give tooltip_text only to controls nobody presses keys over, and none to anything on screen
+##     during Play. Nothing has one now: the back button's cost the first Esc, or Space, Q or E in Setup.
 
 const FRAME := Vector2(1280, 720)
 const MENU := "res://src/menu/main_menu.tscn"

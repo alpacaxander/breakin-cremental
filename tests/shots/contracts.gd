@@ -1,5 +1,5 @@
 extends RefCounted
-## The contracts' pictures: the placeholder menu through the whole render chain, and a chart that shows which
+## The contracts' pictures: the main menu through the whole render chain, and a chart that shows which
 ## colours glow. Look at the chart after changing Palette, the bloom settings in main.tscn or the CRT shader.
 
 

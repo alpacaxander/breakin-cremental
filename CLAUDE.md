@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 BreakIn cremental: a horizontal breakout incremental game in Godot 4.7 (GDScript). Before each timed round you place items on a hand-made level, then play it to earn coins; coins buy nodes in an upgrade web. The pitch, core loop, demo scope, open questions and risks are in `docs/design.md`.
 
-**Current state: the foundations.** The repo was purged on 2026-11-12 (commit `1aa951b`) and the demo described in `docs/design.md` is being rebuilt from the docs, in the steps of `docs/architecture.md` ("Build order"). Steps 1 and 2 are done. What exists: the project skeleton, the render chain with bloom and the CRT (`src/main.*`), navigation and the palette; the rules (`src/sim/`: a `Round` that runs headless, with swept collision) and the eight kinds (`src/kinds/`, `data/kinds/`); the save, the settings and the fifteen upgrades (`src/autoload/progress.gd`, `src/autoload/settings.gd`, `data/upgrades/`); the three levels and their reader (`levels/`, `src/content/levels.gd`); the synthesised cues, the placeholder music and `Sfx` (`assets/audio/`, `src/autoload/sfx.gd`); and the theme and shared widgets (`src/ui/`). Nothing can be played yet: each screen (`src/menu/`, `src/hub/`, `src/level/`) is still a placeholder at its final path, the effects (`src/level/fx/fx.gd`) are a stub whose header says STUB, and there is no balance bot. The numbers in `data/balance.tres` are untuned (a first round on level 1 pays 0 or 1 coins), and nobody has listened to the audio.
+**Current state: the first playable, without effects.** The repo was purged on 2026-11-12 (commit `1aa951b`) and the demo described in `docs/design.md` is being rebuilt from the docs, in the steps of `docs/architecture.md` ("Build order"). Steps 1 to 3 are done. What exists: the project skeleton, the render chain with bloom and the CRT (`src/main.*`), navigation and the palette; the rules (`src/sim/`: a `Round` that runs headless, with swept collision) and the eight kinds (`src/kinds/`, `data/kinds/`); the save, the settings and the fifteen upgrades (`src/autoload/progress.gd`, `src/autoload/settings.gd`, `data/upgrades/`); the three levels and their reader (`levels/`, `src/content/levels.gd`); the synthesised cues, the placeholder music and `Sfx` (`assets/audio/`, `src/autoload/sfx.gd`); the theme and shared widgets (`src/ui/`); and every screen: the main menu and Settings (`src/menu/`), the upgrade screen (`src/hub/`) and the level screen with Setup, Play and the Summary (`src/level/`). The game can be played from the menu through a level and back, and `tests/cases/loop.gd` walks that whole loop with input events. There is a balance bot (`tests/balance.gd`). Not built yet: the effects (`src/level/fx/fx.gd`) are a stub whose header says STUB, so there are no trails, particles, pop-ups, shake or freezes. Nothing is tuned: the numbers in `data/balance.tres` and `data/upgrades/` are first guesses, and the bot says a first round on level 1 pays 0 or 1 coins, level 1 is first cleared after about 400 rounds, and level 3 is never cleared. Nobody has played it by hand or listened to the audio.
 
 ## Commands
 
@@ -19,7 +19,10 @@ tests/run.sh test rules       # only tests/cases/rules.gd
 tests/run.sh boot             # the main scene, headless, for 5 seconds; fails on any error
 tests/run.sh shots            # screenshots of the real game, bloom and CRT included, to tests/out/shots/
 tests/run.sh shots hub fx     # only those shot lists
-tests/run.sh bot              # the balance bot (tests/balance.tscn), once it exists
+tests/run.sh bot              # the balance bot's report: every level fresh and maxed, then a campaign (minutes)
+tests/run.sh bot check        # the bot's own self-check, 2 seconds
+tests/run.sh bot batch level=1 ranks=fresh skill=all seeds=20 layout=empty   # one table; keys are in tests/balance.gd
+tests/run.sh bot campaign skill=average rounds=400
 nix develop -c godot          # open the editor
 ```
 

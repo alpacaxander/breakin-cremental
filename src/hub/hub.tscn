@@ -1,7 +1,7 @@
 [gd_scene format=3]
 
 [ext_resource type="Script" path="res://src/hub/hub.gd" id="1"]
-[ext_resource type="Script" path="res://src/ui/back_button.gd" id="2"]
+[ext_resource type="Script" path="res://src/ui/top_bar.gd" id="2"]
 [ext_resource type="Script" path="res://src/ui/price.gd" id="3"]
 [ext_resource type="PackedScene" path="res://src/hub/web.tscn" id="4"]
 [ext_resource type="PackedScene" path="res://src/hub/detail_panel.tscn" id="5"]
@@ -16,21 +16,8 @@ script = ExtResource("1")
 
 [node name="Bar" type="HBoxContainer" parent="."]
 layout_mode = 0
-offset_left = 24.0
-offset_right = 1256.0
-offset_bottom = 84.0
-theme_override_constants/separation = 18
-
-[node name="Back" type="Button" parent="Bar"]
-layout_mode = 2
-size_flags_vertical = 4
 script = ExtResource("2")
-
-[node name="Title" type="Label" parent="Bar"]
-layout_mode = 2
-size_flags_vertical = 4
-theme_type_variation = &"Title"
-text = "UPGRADES"
+title = "UPGRADES"
 
 [node name="Hint" type="Label" parent="Bar"]
 layout_mode = 2

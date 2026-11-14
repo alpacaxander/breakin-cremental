@@ -14,7 +14,7 @@ var selected: HubNode
 
 
 func _ready() -> void:
-	$Bar/Back.pressed.connect(Main.show_menu)
+	($Bar as UiTopBar).back.pressed.connect(Main.show_menu)
 	for n in _web.nodes():
 		n.pressed.connect(select.bind(n))
 		n.focus_entered.connect(select.bind(n))

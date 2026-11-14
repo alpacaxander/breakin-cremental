@@ -41,7 +41,8 @@ class_name UiTheme
 ##   UiPrice       coin glyph + amount, lit gold or dim: coin counters and prices
 ##   UiPips        rank pips
 ##   UiBar         the 6 px timer or combo meter
-##   UiBackButton  the back button. Connect `pressed`; it has no shortcut and plays no sound
+##   UiBackButton  the back button. Connect `pressed`; it has no shortcut, no tooltip and plays no sound
+##   UiTopBar      the 84 px top bar of the hub and Settings: the back button and the screen's title
 ## And here: build(), icon(), light(), numbers(), number_size().
 ##
 ## A widget here plays no sound: Sfx plays the click of every button by itself.

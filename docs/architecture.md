@@ -140,15 +140,21 @@ Main                         never unloaded (src/main.tscn)
 │   ├─ Backdrop              the base colour
 │   ├─ Screen                holds MainMenu, Settings or Play; carries the theme
 │   │   └─ Play              src/play.tscn
-│   │       ├─ Hub           upgrade web, detail panel, level panel; kept while a level is open
-│   │       └─ Level         setup → play → summary; freed when you leave
-│   │           ├─ Arena     at (154, 110), scaled by the level's zoom
-│   │           │   ├─ BoardView     draws every brick in one _draw
-│   │           │   ├─ PaddleView, BallViews, ItemViews
+│   │       ├─ Hub           src/hub/hub.tscn; kept while a level is open
+│   │       │   ├─ Bar       UiTopBar: back, title, a hint, the coin counter
+│   │       │   ├─ Web       web.tscn: one upgrade_node.tscn per upgrade, with its cell and its links
+│   │       │   ├─ Detail    detail_panel.tscn: the selected node, and Buy
+│   │       │   └─ Levels    level_panel.tscn: the level picker, its thumbnail, Play Level
+│   │       └─ Level         src/level/level.tscn; setup → play → summary; freed when you leave
+│   │           ├─ Arena     arena.gd, at (154, 110) plus the effects' shake, scaled by the level's zoom
+│   │           │   ├─ Backdrop      the backdrop grid and the walls
+│   │           │   ├─ BoardView     every brick, in one draw
+│   │           │   ├─ ItemViews, PaddleView, BallViews
+│   │           │   ├─ Ghost         the item being dragged in Setup
 │   │           │   └─ Fx            particles, shockwaves, trails, pop-ups (src/level/fx/fx.gd)
-│   │           ├─ Hud
-│   │           ├─ SetupUi           tray, placement, Start
-│   │           └─ Summary
+│   │           ├─ Hud               hud.gd: time, combo, coins, and Play's footer
+│   │           ├─ SetupUi           setup_ui.gd: tray, placement, Start
+│   │           └─ Summary           summary.gd: the result, Retry, Upgrades
 │   └─ WorldEnvironment      bloom
 └─ Crt                       shows View through the CRT shader
 ```
@@ -157,9 +163,13 @@ Main                         never unloaded (src/main.tscn)
 - **Back.** Every screen but the main menu has a back icon button and handles `ui_cancel` (Esc) itself: Settings and the hub go to the main menu, and a level in Setup or in the Summary goes to the hub. During Play there is no way out. A handler marks the event handled (`get_viewport().set_input_as_handled()`) before it navigates, or the screen it wakes gets the same Esc.
 - **Entry scenes.** Each screen lane owns one or two scenes at fixed paths: `src/menu/main_menu.tscn`, `src/menu/settings.tscn`, `src/hub/hub.tscn` and `src/level/level.tscn`. Each root is a full-rect `Control`.
 - **The level's root** has four members, written out in `src/play.gd`: `level: int`, which `Play` sets before the scene enters the tree; `round`, the round on screen; `fx`, its `Fx` node; and `start(seed := -1)`, which does what the Start button does, with a fixed seed if one is given. Tests, shots and the effects drive the real level screen through them.
-- `Level` holds the phase as an enum (setup, play, summary) and a `match`. There is no state machine library.
-- Bricks are not nodes. `BoardView` draws them from the board grid.
-- **The seam between the level screen and the effects** is written at the top of `src/level/fx/fx.gd`: where the `Fx` node sits, `watch(round)` and `clear()`, the `frozen` flag, the `shake` offset, and the z order. `z_index` sorts across the whole canvas layer, so the numbers are shared: what the level screen draws in `Arena` is at 0, 10 and 20, `Fx` uses 1 to 99, and `Hud`, `SetupUi` and `Summary` are at 100.
+- `Level` (`level.gd`) holds the phase as an enum (setup, play, summary). There is no state machine library. It owns the clock: it builds the round, steps it on the physics tick, and hands it to `Arena`, `Hud`, `SetupUi` and `Summary`, which only read it. It calls `Progress.finish_round` once, as the round ends.
+- Bricks are not nodes. `Arena`'s layers are plain `Node2D` nodes with no script: `arena.gd` draws each through its `draw` signal, and only when what it shows has changed. Every brick is one draw on `BoardView`, redrawn when a brick is hit or broken.
+- The round steps 120 times a second and the screen draws at its own rate, so the paddle and the balls are drawn between where they were one step ago and where they are now. They are one step (8 ms) behind `ball.pos`, which the effects read directly.
+- `Hud`, `SetupUi` and `Summary` build their controls in code, like the theme and the UI kit. The Summary appears half a second after the round ends, over an Arena that stays as it was, so effects keep running under it.
+- **The hub** is drawn from `Progress`: it redraws on `coins_changed`, `rank_changed`, `level_unlocked` and its own `visibility_changed`, never from `_process`, because `Play` turns its processing off while a level is open. Whether a node can be reached is `HubWeb.state(node)`, worked out from the links in `web.tscn`: the seed, or a node next to one with a rank. The web has no pan or zoom yet; the demo's 5 × 5 web fills the view.
+- **The menu screens** share `src/menu/cursor.gd`, a lit triangle beside the focused control. It is how keyboard focus shows on a slider, which draws no focus outline.
+- **The seam between the level screen and the effects** is written at the top of `src/level/fx/fx.gd`: where the `Fx` node sits, `watch(round)` and `clear()`, the `frozen` flag, the `shake` offset, and the z order. `z_index` sorts across the whole canvas layer, so the numbers are shared: what the level screen draws in `Arena` is at 0 (backdrop), 10 (bricks, items, paddle) and 20 (balls, ghost), `Fx` uses 1 to 99, and `Hud`, `SetupUi` and `Summary` are at 100.
 
 ### Input
 
@@ -172,7 +182,11 @@ The input map has four actions. Everything else is the mouse and Godot's built-i
 | `rotate_ccw` | Q, wheel up |
 | `rotate_cw` | E, wheel down |
 
-A wheel notch is pressed and released within one frame, so read the rotate actions from the event (`event.is_action_pressed`), not by polling. One press turns the item by `rotate_step` degrees. The paddle chases the mouse's y inside `Arena`, which is already in round units.
+A wheel notch is pressed and released within one frame, so read the rotate actions from the event (`event.is_action_pressed`), not by polling. One press turns the item by `rotate_step` degrees: the one being dragged, or else the placed one under the cursor.
+
+**The paddle** goes where the last thing the player used says. A held key (polled each tick) always has it. The mouse takes it back only by moving 4 px up or down from where it rested (`MOUSE_WAKES` in `level.gd`), so a resting mouse never pulls a key player's paddle away, and after a click on Start the paddle does not run down toward the button. The mouse's height is read in the level screen's own pixels and turned into units by `LevelArena.to_units`, not read inside `Arena`, so a screen shake does not move the target. In Setup, Space or Enter does what Start does.
+
+**Placing** is all in `setup_ui.gd`, and `Layout.fits` is the only judge. Drag from a tray slot or from a placed item; release where it fits to place it. Released on the board where it does not fit, a new item goes back to the tray and a moved one back where it was. Released outside the arena, a moved item is removed. A right click removes the item under the cursor, or drops the drag. Every change is saved, and the round on screen is built again with the same seed.
 
 ## Rendering
 
@@ -186,7 +200,7 @@ A render spike settled this in Godot 4.7.2 before any screen was built.
 - **Bloom strength.** `glow_intensity` is 0.06 at rest. Effects raise it with the combo through `Main.set_bloom(0..1)`, up to 0.18; from about 0.2 the 2 px gaps between bricks fill in. Reduce flashing lowers the top to 0.09.
 - **Resolution.** `Main` resizes `View` to the window's real pixels and keeps 1280 × 720 coordinates inside, so text is sharp at any window size, and it shifts the glow levels so halos keep their size.
 - **Input.** `View` gets no input by itself. `Main` pushes every event into it, with mouse positions moved the way the shader curves the picture, so a click lands on what is drawn under it. Code inside `View` reads the mouse as usual. `Main` also tells `View` when the pointer enters and leaves the window; without that no tooltip shows.
-- **A tooltip costs a key press.** While a tooltip shows, Godot spends the next key press on closing it, and no screen gets that key. Give `tooltip_text` only to controls nobody presses keys over, and to nothing that is on screen during Play.
+- **A tooltip costs a key press.** While a tooltip shows, Godot spends the next key press on closing it, and no screen gets that key. Give `tooltip_text` only to controls nobody presses keys over, and to nothing that is on screen during Play. Nothing in the game has one now: the back button lost its tooltip because in Setup the key it ate was Space, Q or E.
 - **Stay on canvas layer 0.** Anything on a `CanvasLayer` above 0 inside `View` is drawn after bloom and does not glow. Pop-ups and tooltips are embedded in `View`, so they get the CRT too.
 - **Limits.** Thin lit shapes need more boost than thick ones. A lit hue drawn without `lit()` still glows faintly as a large shape if its largest channel is near `ff`. Halo size is close across window sizes, not equal.
 - **Screenshots can be trusted** for colour, bloom and the CRT: the same frame on a real GPU and under `xvfb-run` differed by at most 6 in 255. They say nothing about frame rate, the letterbox bars, or how the pixel fonts land at window sizes that are not a whole multiple of 720.
@@ -218,11 +232,11 @@ src/
               combo.gd  tally.gd  coins.gd  layout.gd  balance.gd
   kinds/      kind.gd  brick_kind.gd  placeable_kind.gd  kinds.gd  and one script per kind
   content/    levels.gd  level_data.gd  upgrade.gd
-  level/      level.tscn  board_view.gd  hud.tscn  setup_ui.tscn  summary.tscn
+  level/      level.tscn  level.gd  arena.gd  hud.gd  setup_ui.gd  summary.gd
               fx/fx.gd
-  hub/        hub.tscn  web.tscn  upgrade_node.tscn  detail_panel.tscn  level_panel.tscn
-  menu/       main_menu.tscn  settings.tscn
-  ui/         palette.gd  theme.gd  glyph.gd  coin.gd  price.gd  pips.gd  bar.gd  back_button.gd
+  hub/        hub.tscn  web.tscn  upgrade_node.tscn  detail_panel.tscn  level_panel.tscn, each with its script
+  menu/       main_menu.tscn  settings.tscn, each with its script, and cursor.gd
+  ui/         palette.gd  theme.gd  glyph.gd  coin.gd  price.gd  pips.gd  bar.gd  back_button.gd  top_bar.gd
 data/
   balance.tres
   upgrades/   one .tres per upgrade
@@ -239,7 +253,7 @@ tests/
   cases/                  one case file per lane
   shots.gd  shots.tscn    the screenshot harness
   shots/                  one shot list per lane
-  balance.gd              the bot
+  balance.gd  balance.tscn   the bot
   out/                    what tests write; ignored by git and by Godot
 ```
 
@@ -259,9 +273,13 @@ Everything runs through `tests/run.sh`, which moves `user://` inside the checkou
 | `tests/run.sh test [case…]` | The headless self-check: plain checks with no test framework. It runs every file in `tests/cases/`, prints `ok` or `FAIL` lines and exits 1 on a failure. A Godot error while a case runs fails the case |
 | `tests/run.sh boot` | Runs the main scene headless for 5 seconds and fails on any error |
 | `tests/run.sh shots [list…]` | Boots the real `Main` under `xvfb-run` and saves PNGs to `tests/out/shots/<list>/`, bloom and CRT included. Each file in `tests/shots/` is a list of shots; a shot can start from a fresh, mid-game or maxed save and can capture a strip of frames |
-| `tests/run.sh bot [args…]` | `tests/balance.tscn`: a bot plays each level headless at a given set of upgrade ranks and reports bricks broken, coins and whether it cleared. It is the tool for the difficulty risk in [design.md](design.md#risks) |
+| `tests/run.sh bot [mode] [key=value…]` | `tests/balance.tscn`: a bot plays the rules headless with a paddle that stands in for a person (it sees the ball late and aims with an error), as a clumsy, average or good player. With no arguments it reports every level on a fresh save and with every upgrade owned, then one campaign from a fresh save that buys the cheapest node the web offers. `batch`, `campaign`, `check` (the bot's own self-check) and `trace` run one part; the keys are listed at the top of `tests/balance.gd`. Results also go to `tests/out/bot/` as JSON. It is the tool for the difficulty risk in [design.md](design.md#risks) |
 
-A lane adds its own `tests/cases/<lane>.gd` and `tests/shots/<lane>.gd` and never edits another's. All the cases run in one process, so the runner gives each a fresh save, the default settings and only the kinds that have files (`Kinds.reset()`), whatever the case before it did. The cases cover the physics rules (constant speed, minimum angles, no tunnelling), the brick and hit counts of each level against [levels.md](design/levels.md), upgrade costs, the coin formula, a save round trip, and the layer rules.
+A lane adds its own `tests/cases/<lane>.gd` and `tests/shots/<lane>.gd` and never edits another's. All the cases run in one process, so the runner gives each a fresh save, the default settings and only the kinds that have files (`Kinds.reset()`), whatever the case before it did. The cases cover the physics rules (constant speed, minimum angles, no tunnelling), the brick and hit counts of each level against [levels.md](design/levels.md), upgrade costs, the coin formula, a save round trip, the layer rules, and each screen through the real `Main` with pushed input events.
+
+`tests/cases/loop.gd` walks the whole game in one go, with the CRT on and through input events alone (only the coins for its two purchases are handed to it): the menu, the hub on a fresh save, a round with nothing placed, the Summary, two purchases, a round with a Bumper placed, Retry, the way back out, and the CRT toggle in Settings. After each step it checks the screen and the save file, and after Retry that the round just played has been freed. It belongs to no lane; it is the check that the lanes still fit together.
+
+A case that connects a lambda to a round's own signal must not read that round inside the lambda, or must disconnect it when done: the round then holds itself and is never freed, and Godot reports thousands of leaked objects when the run exits.
 
 `tests/cases/contracts.gd` also holds the checks that cross lanes, for the ids typed by hand in more than one place: every kind's cue is a cue `Sfx` has a file for, every kind's colour is a `Palette` meaning, every upgrade's stat is a `Balance` property or the count of a kind that exists, and every kind has an upgrade that counts it. It then plays every level to its end twice, on a fresh save and with every upgrade owned and one of each placeable placed through `Layout.fits`, saved through `Progress` and read back from the file, with `Sfx` wired to the round. A new kind, upgrade or level is covered without touching the case. The shots are for the check in [art.md](art.md#checking-an-asset).
 

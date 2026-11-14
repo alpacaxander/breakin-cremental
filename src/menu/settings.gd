@@ -21,7 +21,7 @@ func _ready() -> void:
 		slider.value_changed.connect(func(v: float) -> void:
 			Settings.set(pair[1], v)
 			shown.text = _percent(v))
-	(%Back as Button).pressed.connect(Main.show_menu)
+	($Bar as UiTopBar).back.pressed.connect(Main.show_menu)
 	_crt.grab_focus()
 
 

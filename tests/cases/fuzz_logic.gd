@@ -37,10 +37,12 @@ class Spy:
 	var boosts := {}  # ball id -> its boost when last seen, kept by blasts and by the case's ball_bounced
 
 	func _init(b: Board, l: Layout, s: Balance, sd: int) -> void:
-		exploded.connect(func(pos: Vector2, reach: float, cells: Array[Vector2i]) -> void:
-			if not frames.is_empty() and frames.back().type == "blast" and not frames.back().has("told"):
-				frames.back().told = [pos, reach, cells.duplicate()])
+		exploded.connect(_told)  # a method, not a lambda: a lambda here holds the Spy, which then never frees itself
 		super(b, l, s, sd)
+
+	func _told(pos: Vector2, reach: float, cells: Array[Vector2i]) -> void:
+		if not frames.is_empty() and frames.back().type == "blast" and not frames.back().has("told"):
+			frames.back().told = [pos, reach, cells.duplicate()]
 
 	func _push(rec: Dictionary) -> void:
 		if frames.is_empty():
@@ -882,6 +884,11 @@ func _fuzz_round(sd: int) -> void:
 	for target: float in targets:
 		third.step(dt, target)
 	_fail(log3 == log and third.coins == spy.coins and third.reason == spy.reason, "the same bricks listed in another order give the same round (Round INPUTS)")
+	# The lambdas above read `spy` and hang on spy's own signals, so the round holds itself. Let go, or every
+	# random round is still there when the test run exits (Godot then reports thousands of leaked objects).
+	for sig: Dictionary in spy.get_signal_list():
+		for c: Dictionary in spy.get_signal_connection_list(sig.name):
+			spy.disconnect(sig.name, c.callable)
 
 
 ## Round TICK RATE: "a round with one ball and a paddle that stays put breaks the same bricks in the same order at

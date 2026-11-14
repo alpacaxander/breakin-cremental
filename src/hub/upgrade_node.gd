@@ -85,7 +85,9 @@ func _draw() -> void:
 	var edge := Rect2(Vector2.ONE, size - Vector2(2, 2))  # a 2 px stroke centred 1 px in, so it stays inside the box
 	match state:
 		State.MAXED:
-			draw_rect(r, Palette.lit(hue, Palette.LIT_FILL))
+			# The palette colour as it is, not lit: a lit cyan fill blooms over the 14 px name and washes it out. The
+			# border is lit, so a maxed node still glows.
+			draw_rect(r, hue)
 			draw_rect(edge, Palette.lit(hue), false, 2)
 		State.OWNED:
 			draw_rect(r, Palette.dim(upgrade.meaning()))
