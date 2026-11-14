@@ -6,7 +6,7 @@
 script = ExtResource("1")
 title = "Splitter"
 category = 1
-text = "One more Splitter"
+text = "One more Splitter. A brick you place: the ball that breaks it splits in two."
 first_cost = 70
 max_rank = 2
 stat = &"splitter_count"

@@ -6,7 +6,7 @@
 script = ExtResource("1")
 title = "Wall Segment"
 category = 1
-text = "One more Wall Segment"
+text = "One more Wall Segment. A straight wall you place and turn: the ball bounces off it."
 first_cost = 30
 max_rank = 2
 stat = &"wall_segment_count"

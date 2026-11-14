@@ -6,7 +6,7 @@
 script = ExtResource("1")
 title = "Zap"
 category = 1
-text = "One more Zap"
+text = "One more Zap. Tag a brick: when it breaks, the rest of its row takes a hit."
 first_cost = 80
 max_rank = 2
 stat = &"zap_count"

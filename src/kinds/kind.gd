@@ -22,7 +22,7 @@ var id: StringName:
 @export var colour: StringName
 ## The cue Sfx plays when this kind acts: for a free-form item when a ball bounces off it, for a brick or a mod
 ## when its brick breaks. A file name in assets/audio/wav without the extension, &"" for none. Leave it empty
-## when the effect has a round signal of its own (the explosive brick: `exploded`).
+## when the effect has a round signal of its own (the explosive brick: `exploded`; the Splitter: `ball_added`).
 @export var cue: StringName
 ## Where it comes in lists (the tray, the legend, the special-brick roll): lowest first, ties by id.
 @export var order: int

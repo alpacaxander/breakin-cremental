@@ -6,7 +6,7 @@
 script = ExtResource("1")
 title = "Gold Brick"
 category = 2
-text = "One more gold brick"
+text = "One more gold brick each round. It pays as much as several bricks."
 first_cost = 40
 max_rank = 3
 stat = &"gold_count"
