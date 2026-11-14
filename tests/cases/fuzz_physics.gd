@@ -21,6 +21,8 @@ func run(p_t: Node) -> void:
 		return
 	_timer_steps()
 	_timer_rates()
+	_launch_through_wall()
+	_launch_blocked()
 	_hunt(1, 18)
 
 
@@ -66,13 +68,75 @@ func _timer_rates() -> void:
 	t.check(at60[1] == at120[1] and at60[2] == at120[2], "tick rate: one ball, still paddle, 1 s round: %d broken (end %d) at 60/s but %d broken (end %d) at 120/s" % [at60[1], at60[2], at120[1], at120[2]])
 
 
+## physics.md: "The ball bounces off the flat faces of a Bumper or a Wall Segment", and Collide: "no speed and no
+## step size passes through anything". Layout.fits lets a FREE item touch the ball at rest, with an overlap under
+## Collide.SKIN not counting. The sweep lets a ball out of anything it is more than SKIN inside. The two measure
+## the same overlap with different rounding, so a wall that fits() placed 0.0099 into the ball at rest is
+## 0.0100002 into it for the sweep, and the launch goes straight through the wall into the paddle. Found as
+## seed 201 (14 rows); this is the base 16-row board, the wall turned 15 degrees and slid against the ball.
+func _launch_through_wall() -> void:
+	var stats := _stats_base.copy()
+	stats.put(&"wall_segment_count", 1)
+	stats.paddle_size = 512.0
+	var board := Board.new(16)
+	board.bricks[Vector2i(63, 0)] = Brick.new(1000000)
+	var item := Layout.Item.new()
+	item.kind = Kinds.of(&"wall_segment")
+	item.rot = 15.0
+	item.pos = Vector2(29.210062, 218.74)
+	var layout := Layout.new()
+	t.check(layout.fits(item, board, stats), "launch through a wall: the wall fits beside the ball at rest")
+	layout.add(item)
+	var round := Round.new(board, layout, stats, 1)
+	var first := [-1]
+	round.ball_bounced.connect(func(_b: Ball, hit: Hit) -> void:
+		if first[0] == -1:
+			first[0] = hit.surface)
+	for i in 30:
+		round.step(1.0 / 120.0, round.paddle.y)
+	_drop(round)
+	t.check(first[0] == Hit.Surface.ITEM, "launch through a wall: the first ball bounces off a Wall Segment touching it at rest, not through it (first bounce is surface %d, not ITEM %d)" % [first[0], Hit.Surface.ITEM])
+
+
+## physics.md, Ball: "On Start the ball travels straight left into the paddle, so the player's first touch sets
+## the first angle" and "The first launch always lands on the centre unless the paddle has moved." Layout.fits
+## keeps items off the ball at rest but not off its way to the paddle, and on a 16-row board that way crosses the
+## grid from x = 26 to x = 0. A Wall Segment fits there, and the launch bounces off it and never reaches the paddle.
+func _launch_blocked() -> void:
+	var stats := _stats_base.copy()
+	stats.put(&"wall_segment_count", 1)
+	stats.paddle_size = 512.0
+	var board := Board.new(16)
+	board.bricks[Vector2i(63, 0)] = Brick.new(1000000)
+	var item := Layout.Item.new()
+	item.kind = Kinds.of(&"wall_segment")
+	item.pos = Vector2(10, 256)  # 10 x 112, upright: x 5 to 15, across the ball's line at y = 256
+	var layout := Layout.new()
+	var fits := layout.fits(item, board, stats)
+	layout.add(item)
+	var round := Round.new(board, layout if fits else null, stats, 1)
+	var first := [-1]
+	round.ball_bounced.connect(func(_b: Ball, hit: Hit) -> void:
+		if first[0] == -1:
+			first[0] = hit.surface)
+	for i in 30:
+		round.step(1.0 / 120.0, round.paddle.y)
+	_drop(round)
+	t.check(first[0] == Hit.Surface.PADDLE, "launch blocked: the first ball travels straight left into the paddle, but a Wall Segment that fits between them takes the first bounce (surface %d, not PADDLE %d)" % [first[0], Hit.Surface.PADDLE])
+
+
 # --- the hunt --------------------------------------------------------------------------------------------------
 
 func _hunt(from: int, n: int) -> void:
 	var wrong := {}  # category -> [examples]
 	var seen := {&"steps": 0, &"contacts": 0, &"balls": 0, &"rounds": 0}
+	var only := OS.get_environment("FUZZ_ONLY")
 	for s in range(from, from + n):
+		if only == "rates":
+			_rates(s, wrong)
+			continue
 		_attack(s, wrong, seen)
+		_vtrap(s, wrong, seen)
 		if s % 3 == 0:
 			_rates(s, wrong)
 	for what: String in wrong:
@@ -191,6 +255,60 @@ func _snug_layout(rng: RandomNumberGenerator, board: Board, stats: Balance) -> A
 	return [layout, contacts]
 
 
+## A narrow V: Wall Segments slid in along two lines that meet at an apex, until each touches what is there (a
+## brick at the apex, the other wall, the top wall). The ball starts in the mouth, aimed into it, at any boost.
+func _vtrap(p_seed: int, wrong: Dictionary, seen: Dictionary) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = p_seed + 5000
+	var board := Board.new([14, 16, 20][rng.randi() % 3])
+	var stats := _random_stats(rng)
+	stats.put(&"wall_segment_count", 4)
+	stats.paddle_size = board.size().y
+	var apex := Vector2(rng.randf_range(250, board.size().x - 150), rng.randf_range(80, board.size().y - 80))
+	match rng.randi() % 3:
+		0:  # a brick at the apex
+			var c := board.cell_at(apex)
+			board.bricks[c] = Brick.new(1000000)
+			apex = board.cell_rect(c).get_center()
+		1:  # against the top wall
+			apex.y = 0.0
+	var half := deg_to_rad(rng.randf_range(2.0, 35.0))
+	var axis := Vector2.from_angle(rng.randf_range(0, TAU))
+	if apex.y == 0.0:
+		axis = Vector2.from_angle(rng.randf_range(0.2, PI - 0.2))
+	var layout := Layout.new()
+	for arm: Vector2 in [axis.rotated(half), axis.rotated(-half)]:
+		var item := Layout.Item.new()
+		item.kind = Kinds.of(&"wall_segment")
+		item.rot = rad_to_deg(arm.angle()) - 90.0 + (rng.randf_range(-3, 3) if rng.randf() < 0.3 else 0.0)
+		var lo := 400.0  # slide in from far along the arm, to the nearest place it fits
+		var hi := 0.0
+		item.pos = apex + arm * lo
+		if not layout.fits(item, board, stats):
+			continue
+		for k in 40:
+			var mid := (lo + hi) * 0.5
+			item.pos = apex + arm * mid
+			if layout.fits(item, board, stats):
+				lo = mid
+			else:
+				hi = mid
+		item.pos = apex + arm * lo
+		layout.add(item)
+	var boost := 1.0 + rng.randf() * 2.0
+	for attempt in 20:
+		var p := apex + axis.rotated(rng.randf_range(-half, half)) * rng.randf_range(60, 200)
+		var d := (apex - p).normalized().rotated(rng.randf_range(-0.05, 0.05))
+		if _angle(d) < stats.min_angle_horizontal or _angle(d) > 90.0 - stats.min_angle_vertical:
+			continue
+		var probe := Round.new(board, layout, stats, p_seed)
+		if _inside(p, stats.ball_size * 0.5 + 0.5, probe, true) or not board.field().grow(-20).has_point(p):
+			continue
+		_attack(p_seed, wrong, seen, {"board": board, "stats": stats, "layout": layout, "pos": p, "dir": d, "boost": boost, "style": 2, "name": "vtrap",
+				"dt": [1.0 / 240.0, 1.0 / 60.0, 0.1][rng.randi() % 3]})
+		return
+
+
 ## What a ball centred on `point` is inside of, by more than SLACK, or "" for nothing.
 func _inside(point: Vector2, half: float, round: Round, paddle: bool) -> String:
 	var board := round.board
@@ -219,6 +337,10 @@ func _inside(point: Vector2, half: float, round: Round, paddle: bool) -> String:
 
 func _angle(dir: Vector2) -> float:
 	return rad_to_deg(atan2(absf(dir.y), absf(dir.x)))
+
+
+func _legal_dir(dir: Vector2, stats: Balance) -> bool:
+	return _angle(dir) >= stats.min_angle_horizontal and _angle(dir) <= 90.0 - stats.min_angle_vertical
 
 
 func _bad_number(v: Variant) -> bool:
@@ -291,11 +413,14 @@ func _attack(p_seed: int, wrong: Dictionary, seen: Dictionary, cfg := {}) -> voi
 	var balls := round.balls
 	var h := stats.ball_size * 0.5
 	var cap := maxf(stats.boost_cap, 1.0)
-	# Per ball id: the last tested point, the path length this step, the boost last seen, and whether this step's
-	# length is not comparable (boost changed, ball made).
+	# Per ball id: the last tested point, the time its path took this step (each piece at the boost it was run at),
+	# the boost and dir last seen, and whether this step's time is not comparable (an explosion, a ball made).
+	# A boost only changes at a contact (a Booster, the paddle) and before that contact's signal, so the piece
+	# that ends at a contact was run at the boost seen at the contact before. Throws are the exception: skipped.
 	var at := {}
-	var length := {}
+	var used := {}
 	var boost := {}
+	var dirs := {}
 	var skip := {}
 	var still := {}  # contacts in a row with no movement, per ball: a wedge exit may leave at any angle
 	var contacts := [0]
@@ -306,8 +431,9 @@ func _attack(p_seed: int, wrong: Dictionary, seen: Dictionary, cfg := {}) -> voi
 		for ball: Ball in balls:
 			if not at.has(ball.id):
 				at[ball.id] = ball.pos
-				length[ball.id] = 0.0
+				used[ball.id] = 0.0
 				boost[ball.id] = ball.boost
+				dirs[ball.id] = ball.dir
 				skip[ball.id] = true
 				still[ball.id] = 0
 			var a: Vector2 = at[ball.id]
@@ -319,11 +445,12 @@ func _attack(p_seed: int, wrong: Dictionary, seen: Dictionary, cfg := {}) -> voi
 					me._say(wrong, "a ball's path goes into a " + what.get_slice(" ", 0), "%s: ball %d at %s (%s)" % [tag, ball.id, p, what])
 					break
 			still[ball.id] = still[ball.id] + 1 if a.distance_to(ball.pos) < 0.02 else 0
-			length[ball.id] += a.distance_to(ball.pos)
+			if still[ball.id] == 3:
+				seen.tight = seen.get(&"tight", 0) + 1
+			used[ball.id] += a.distance_to(ball.pos) / (stats.ball_speed * boost[ball.id])
 			at[ball.id] = ball.pos
-			if ball.boost != boost[ball.id]:
-				boost[ball.id] = ball.boost
-				skip[ball.id] = true
+			boost[ball.id] = ball.boost
+			dirs[ball.id] = ball.dir
 			if me._bad_number(ball.pos) or me._bad_number(ball.dir) or me._bad_number(ball.boost):
 				me._say(wrong, "a ball has a NaN or infinite value", "%s: ball %d %s %s %s" % [tag, ball.id, ball.pos, ball.dir, ball.boost])
 			if absf(ball.dir.length() - 1.0) > 1e-5:
@@ -336,6 +463,28 @@ func _attack(p_seed: int, wrong: Dictionary, seen: Dictionary, cfg := {}) -> voi
 	round.ball_bounced.connect(func(ball: Ball, hit: Hit) -> void:
 		var prev: float = boost.get(ball.id, ball.boost)
 		var thrown := skip.has(ball.id)
+		var was: Vector2 = dirs.get(ball.id, ball.dir)
+		var legal: bool = me._legal_dir(was, stats) and still.get(ball.id, 0) < Round.WEDGED - 2 and not thrown
+		# Round, ONE BOUNCE: off a wall, mirrored in the surface; off the paddle, RIGHT turned by paddle_max_angle
+		# times where it landed (-1 at the top end, 1 at the bottom), then the minimum angles.
+		if hit.surface == Hit.Surface.WALL and legal and ball.dir != was.bounce(hit.normal):
+			me._say(wrong, "a wall bounce is not a mirror", "%s: ball %d %s off %s gave %s" % [tag, ball.id, was, hit.normal, ball.dir])
+		if hit.surface == Hit.Surface.ITEM and not thrown:
+			var m := was.bounce(hit.normal).normalized()
+			if legal and me._legal_dir(m, stats) and was.dot(hit.normal) < 0.0 and not ball.dir.is_equal_approx(m):
+				me._say(wrong, "an item bounce is not a mirror", "%s: ball %d %s off %s (normal %s) gave %s, not %s" % [tag, ball.id, was, hit.item.kind.id, hit.normal, ball.dir, m])
+			if hit.item.kind.shape == PlaceableKind.Shape.CIRCLE:
+				var r: float = hit.item.kind.size.x * 0.5 + h
+				if absf(hit.point.distance_to(hit.item.pos) - r) > SLACK or not hit.normal.is_equal_approx((hit.point - hit.item.pos).normalized()):
+					me._say(wrong, "a Booster is not hit where it touches", "%s: ball %d at %s, %f from its centre, not %f; normal %s" % [tag, ball.id, hit.point, hit.point.distance_to(hit.item.pos), r, hit.normal])
+		if hit.surface != Hit.Surface.PADDLE and not thrown and still.get(ball.id, 0) < Round.WEDGED - 2 and ball.dir.dot(hit.normal) <= 0.0:
+			me._say(wrong, "a ball leaves a bounce heading into the surface", "%s: ball %d surface %d normal %s, was %s, now %s" % [tag, ball.id, hit.surface, hit.normal, was, ball.dir])
+		if hit.surface == Hit.Surface.PADDLE:
+			var where := clampf((ball.pos.y - round.paddle.y) / (round.paddle.length * 0.5), -1.0, 1.0)
+			var deg := clampf(absf(where * stats.paddle_max_angle), stats.min_angle_horizontal, 90.0 - stats.min_angle_vertical)
+			var want := Vector2.from_angle(deg_to_rad(deg * (-1.0 if where < 0.0 else 1.0)))
+			if not ball.dir.is_equal_approx(want):
+				me._say(wrong, "a paddle bounce leaves at the wrong angle", "%s: ball %d at %s (where %f) left along %s, not %s" % [tag, ball.id, ball.pos, where, ball.dir, want])
 		follow.call("bounce %d" % hit.surface)
 		if hit.surface == Hit.Surface.PADDLE and ball.boost != 1.0:
 			me._say(wrong, "the paddle does not reset the boost", "%s: %f" % [tag, ball.boost])
@@ -344,19 +493,45 @@ func _attack(p_seed: int, wrong: Dictionary, seen: Dictionary, cfg := {}) -> voi
 			if not thrown and not is_equal_approx(ball.boost, want):
 				me._say(wrong, "a Booster does not add its share", "%s: %f, not %f" % [tag, ball.boost, want])
 		pass)
-	round.brick_hit.connect(func(_c: Vector2i, _hp: int, _cause: Round.Cause) -> void: follow.call("brick hit"))
-	round.brick_broken.connect(func(_c: Vector2i, _b: Brick, _cause: Round.Cause, _d: Vector2, _n: int) -> void: follow.call("brick broken"))
+	# Collide: "a seam inside a wall of bricks is never an edge". The face a ball bounces off is never one that a
+	# brick next to it covers. The face is read from the axis the bounce flipped.
+	var seam := func(cell: Vector2i, cause: Round.Cause) -> void:
+		if cause != Round.Cause.BALL:
+			return
+		for ball: Ball in balls:
+			if not dirs.has(ball.id) or dirs[ball.id] == ball.dir or still.get(ball.id, 0) >= Round.WEDGED - 2 or skip.has(ball.id):
+				continue
+			var was: Vector2 = dirs[ball.id]
+			var flip_x := signf(was.x) != signf(ball.dir.x)
+			var flip_y := signf(was.y) != signf(ball.dir.y)
+			if flip_x == flip_y:
+				continue
+			var mirror := Vector2(-was.x, was.y) if flip_x else Vector2(was.x, -was.y)
+			if me._legal_dir(was, stats) and ball.dir != mirror:
+				me._say(wrong, "a brick bounce is not a mirror", "%s: ball %d %s off %s gave %s" % [tag, ball.id, was, cell, ball.dir])
+			var n := Vector2i(int(signf(ball.dir.x)), 0) if flip_x else Vector2i(0, int(signf(ball.dir.y)))
+			if round.board.bricks.has(cell + n):
+				me._say(wrong, "a ball bounces off a brick face another brick covers", "%s: ball %d at %s off %s, face %s" % [tag, ball.id, ball.pos, cell, n])
+	round.brick_hit.connect(func(c: Vector2i, _hp: int, cause: Round.Cause) -> void:
+		seam.call(c, cause)
+		follow.call("brick hit"))
+	round.brick_broken.connect(func(c: Vector2i, _b: Brick, cause: Round.Cause, _d: Vector2, _n: int) -> void:
+		seam.call(c, cause)
+		follow.call("brick broken"))
 	round.ball_added.connect(func(_b: Ball) -> void: follow.call("added"))
 	round.ball_lost.connect(func(ball: Ball) -> void:
 		if absf(ball.pos.x - (-board.lane() - h)) > 0.05:
 			me._say(wrong, "a ball is lost somewhere other than wholly past the open side", "%s: %s" % [tag, ball.pos])
-		at.erase(ball.id))
+		at.erase(ball.id)
+		used.erase(ball.id))
 	round.exploded.connect(func(_p: Vector2, _r: float, _c: Array[Vector2i]) -> void:
 		for ball: Ball in balls:
 			skip[ball.id] = true)
 	# Sometimes the ball starts somewhere else, aimed exactly at a corner of a brick or of the grid.
 	if cfg.has("pos"):
 		round.balls[0].put(cfg.pos, cfg.dir)
+		round.set_boost(round.balls[0], cfg.get("boost", 1.0))
+		boost[round.balls[0].id] = round.balls[0].boost
 	elif rng.randf() < 0.5:
 		for attempt in 50:
 			var p := Vector2(rng.randf_range(h, board.size().x - h), rng.randf_range(h, board.size().y - h)).snapped(Vector2.ONE)
@@ -387,8 +562,8 @@ func _attack(p_seed: int, wrong: Dictionary, seen: Dictionary, cfg := {}) -> voi
 			break
 		if rng.randf() < 0.01 and not cfg.has("style"):
 			style = rng.randi() % 4
-		for id: int in length:
-			length[id] = 0.0
+		for id: int in used:
+			used[id] = 0.0
 		skip.clear()
 		contacts[0] = 0
 		var target := _target(rng, round, step, style)
@@ -410,8 +585,8 @@ func _attack(p_seed: int, wrong: Dictionary, seen: Dictionary, cfg := {}) -> voi
 		if _bad_number(round.paddle.y) or _bad_number(round.time_left):
 			_say(wrong, "the paddle or the timer is NaN", tag)
 		for ball in balls:
-			if not skip.has(ball.id) and absf(length[ball.id] - round.speed_of(ball) * dt) > 0.02 and still.get(ball.id, 0) < Round.WEDGED - 1:
-				_say(wrong, "a ball does not cover speed x time in a step", "%s: ball %d went %f, not %f (%d contacts, boost %f)" % [tag, ball.id, length[ball.id], round.speed_of(ball) * dt, contacts[0], ball.boost])
+			if not skip.has(ball.id) and absf(used[ball.id] - dt) * round.speed_of(ball) > 0.02 and still.get(ball.id, 0) < Round.WEDGED - 1:
+				_say(wrong, "a ball does not cover speed x time in a step", "%s: ball %d ran %f s, not %f (%d contacts, boost %f)" % [tag, ball.id, used[ball.id], dt, contacts[0], ball.boost])
 			if not is_equal_approx(round.speed_of(ball), stats.ball_speed * ball.boost):
 				_say(wrong, "speed_of is not ball_speed x boost", tag)
 			if ball.pos.x < -board.lane() - h - SLACK:
