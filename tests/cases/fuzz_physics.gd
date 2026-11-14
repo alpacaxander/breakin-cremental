@@ -22,6 +22,7 @@ func run(p_t: Node) -> void:
 	_timer_steps()
 	_timer_rates()
 	_launch()
+	_shuttle()
 	_hunt(1, 18)
 
 
@@ -142,6 +143,46 @@ func _launch() -> void:
 	t.check(wrong.is_empty() and tried > 150, "launch: with an item slid as close as it fits, the first ball still travels straight left into the paddle (%d tried): %s" % [tried, wrong.slice(0, 5)])
 
 
+## physics.md, Minimum angles: "After any bounce or throw the direction is nudged so it is never within a small
+## angle of vertical ... or of horizontal (it would go back and forth along one line)." Round._legal turns a
+## direction that is too steep or too shallow to the minimum angle on the side the surface's normal points. Two
+## surfaces that face each other with normals tilted to opposite sides each turn the ball straight back along the
+## line it came in on, so it goes back and forth along one line until the round ends:
+##   - Two Wall Segments turned 105 degrees (a rotate_step), 60 apart: back and forth at exactly 70 degrees.
+##   - Two Boosters 44.5 apart (fence seed 434 on 14 rows, found from a random start, here started on the line it
+##     fell into): back and forth 0.64 apart in the neck between them at exactly 8 degrees, some 2600 bounces a
+##     second, and the boost stays because the paddle is never touched.
+## Each bounce moves the ball more than Collide.SKIN, so the WEDGED way out never fires.
+## Each case is 4 s at 60 steps a second; the check fails if its last 40 bounces are only two points.
+func _shuttle() -> void:
+	for c: Array in [
+			[16, &"wall_segment", Vector2(400, 200), Vector2(400, 260), 105.0, Vector2(400, 230), Vector2.from_angle(deg_to_rad(-70.0))],
+			[14, &"booster", Vector2(549.5, 354.5), Vector2(594, 351.5), 0.0, Vector2(571.69, 352.12), Vector2(-0.99026805, 0.1391731)]]:
+		var stats := _stats_base.copy()
+		stats.put(Balance.count_stat(c[1]), 2)
+		var board := Board.new(c[0])
+		board.bricks[Vector2i(board.cols - 1, 0)] = Brick.new(1000000)
+		var layout := Layout.new()
+		for pos: Vector2 in [c[2], c[3]]:
+			var item := Layout.Item.new()
+			item.kind = Kinds.of(c[1])
+			item.pos = pos
+			item.rot = c[4]
+			t.check(layout.fits(item, board, stats), "shuttle: %s at %s fits" % [c[1], pos])
+			layout.add(item)
+		var round := Round.new(board, layout, stats, 1)
+		round.balls[0].put(c[5], c[6])
+		var points := []
+		round.ball_bounced.connect(func(_b: Ball, hit: Hit) -> void: points.append(hit.point))
+		for i in 240:
+			round.step(1.0 / 60.0, round.paddle.y)
+		_drop(round)
+		var last := {}
+		for p: Vector2 in points.slice(-40):
+			last[p] = true
+		t.check(last.size() > 2, "shuttle: a ball between two %ss facing each other, from %s heading %s, goes back and forth along one line: %d bounces in 4 s, the last 40 only between %s" % [c[1], c[5], c[6], points.size(), last.keys()])
+
+
 # --- the hunt --------------------------------------------------------------------------------------------------
 
 func _hunt(from: int, n: int) -> void:
@@ -151,6 +192,9 @@ func _hunt(from: int, n: int) -> void:
 	for s in range(from, from + n):
 		if only == "rates":
 			_rates(s, wrong)
+			continue
+		if only == "fence":
+			_fence(s, wrong, seen)
 			continue
 		_attack(s, wrong, seen)
 		_vtrap(s, wrong, seen)
@@ -687,6 +731,88 @@ func _rates(p_seed: int, wrong: Dictionary) -> void:
 			while n < mini(logs[0].size(), logs[k].size()) and logs[0][n] == logs[k][n]:
 				n += 1
 			_say(wrong, "a round hits other bricks at another tick rate", "seed %d (rates), %d rows: 60/s and %d/s part after %d of %d/%d events: %s vs %s" % [p_seed, board.rows, [60, 120, 240][k], n, logs[0].size(), logs[k].size(),
+					logs[0][n] if n < logs[0].size() else "-", logs[k][n] if n < logs[k].size() else "-"])
+
+
+## Fenced in: a ring of bricks no ball can break (or the walls where the ring meets them), with free items and
+## soft bricks inside and the ball loose among them. Every step is checked as in _attack. The paddle never comes
+## into it, so by Round's TICK RATE ("its bounces fall in the same places whatever the step size") every bounce
+## and every brick hit must be the same, in the same places, at 60, 120 and 240 steps a second.
+func _fence(p_seed: int, wrong: Dictionary, seen: Dictionary) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = p_seed + 9000
+	var board := Board.new([14, 16, 18, 20][rng.randi() % 4])
+	var stats := _random_stats(rng)
+	stats.put(&"splitter_count", 0)
+	stats.put(&"explosive_count", 0)  # a blast would open the ring
+	if rng.randf() < 0.3:
+		stats.round_time = 4.0
+	var c0 := rng.randi_range(4, board.cols - 12)
+	var c1 := mini(c0 + rng.randi_range(6, 24), board.cols - 1 if rng.randf() < 0.3 else board.cols - 2)
+	var r0 := rng.randi_range(0, board.rows / 2 - 3)
+	var r1 := mini(r0 + rng.randi_range(2, 6), board.rows / 2 - 1)
+	var wall_top := r0 == 0 and rng.randf() < 0.5
+	var wall_bottom := r1 == board.rows / 2 - 1 and rng.randf() < 0.5
+	var wall_back := c1 == board.cols - 1 and rng.randf() < 0.5
+	var inner := Rect2(Vector2(c0 + 1, r0 + 1) * Board.BRICK, Vector2(c1 - c0 - 1, r1 - r0 - 1) * Board.BRICK)
+	if wall_top:
+		inner = inner.grow_side(SIDE_TOP, Board.BRICK.y)
+	if wall_bottom:
+		inner = inner.grow_side(SIDE_BOTTOM, Board.BRICK.y)
+	if wall_back:
+		inner = inner.grow_side(SIDE_RIGHT, Board.BRICK.x)
+	for c in range(c0, c1 + 1):
+		for r in range(r0, r1 + 1):
+			var cell := Vector2i(c, r)
+			var edge := (c == c0) or (c == c1 and not wall_back) or (r == r0 and not wall_top) or (r == r1 and not wall_bottom)
+			if edge:
+				board.bricks[cell] = Brick.new(1000000)
+			elif rng.randf() < 0.12:
+				board.bricks[cell] = Brick.new([1, 2, 3][rng.randi() % 3])
+	var layout := Layout.new()
+	for i in 300:
+		var kind: PlaceableKind = [Kinds.of(&"wall_segment"), Kinds.of(&"bumper"), Kinds.of(&"booster")][rng.randi() % 3]
+		var item := Layout.Item.new()
+		item.kind = kind
+		item.pos = inner.position + Vector2(rng.randf(), rng.randf()) * inner.size
+		if rng.randf() < 0.5:
+			item.pos = item.pos.snapped(Vector2(0.5, 0.5))
+		if kind.rotatable:
+			item.rot = rng.randf_range(0.0, 360.0) if rng.randf() < 0.5 else rng.randi() % 24 * 15.0
+		if layout.fits(item, board, stats):
+			layout.add(item)
+	var probe := Round.new(board, layout, stats, p_seed)
+	var start := Vector2.ZERO
+	for attempt in 200:
+		var p := inner.position + Vector2(rng.randf(), rng.randf()) * inner.size
+		if not _inside(p, stats.ball_size * 0.5 + 0.5, probe, true):
+			start = p
+			break
+	_drop(probe)
+	if start == Vector2.ZERO:
+		return
+	var dir := Vector2.from_angle(rng.randf_range(0, TAU))
+	if not _legal_dir(dir, stats):
+		dir = Vector2(0.8, 0.6) * Vector2(signf(dir.x) if dir.x else 1.0, signf(dir.y) if dir.y else 1.0)
+	_attack(p_seed, wrong, seen, {"board": board, "stats": stats, "layout": layout, "pos": start, "dir": dir, "style": 0, "name": "fence",
+			"dt": [1.0 / 240.0, 1.0 / 60.0, 1.0 / 30.0, 0.1][rng.randi() % 4]})
+	var logs := []
+	for rate: int in [60, 120, 240]:
+		var round := Round.new(board, layout, stats, p_seed)
+		round.balls[0].put(start, dir)
+		var log := _events(round)
+		var i := 0
+		while not round.over and i < rate * 60:
+			round.step(1.0 / rate, round.paddle.y)
+			i += 1
+		_drop(round)
+		logs.append(log.filter(func(line: String) -> bool: return not line.begins_with("ended")))
+	for k in [1, 2]:
+		if logs[0] != logs[k]:
+			var n := 0
+			while n < mini(logs[0].size(), logs[k].size()) and logs[0][n] == logs[k][n]:
+				n += 1
+			_say(wrong, "a fenced ball bounces somewhere else at another tick rate", "fence seed %d, %d rows: 60/s and %d/s part after %d of %d/%d events: %s vs %s" % [p_seed, board.rows, [60, 120, 240][k], n, logs[0].size(), logs[k].size(),
 					logs[0][n] if n < logs[0].size() else "-", logs[k][n] if n < logs[k].size() else "-"])
 
 
