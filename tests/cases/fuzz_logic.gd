@@ -87,6 +87,15 @@ func run(p_t: Node) -> void:
 	_fits()
 	_combo()
 	_ends()
+	# Round 2.
+	_r2_timer()
+	_r2_end_order()
+	_r2_chain_pay()
+	_r2_shockwave_chain()
+	_r2_zap_blast()
+	_r2_painted()
+	_r2_fits_rest()
+	_r2_save_trip()
 	var n := int(OS.get_environment("FUZZ_N")) if OS.get_environment("FUZZ_N") else 24
 	var base := int(OS.get_environment("FUZZ_SEED")) if OS.get_environment("FUZZ_SEED") else 1
 	for i in n:
@@ -645,8 +654,10 @@ func _fuzz_round(sd: int) -> void:
 			layout.add(item)
 	var dt: float = [1.0 / 60.0, 1.0 / 120.0, 1.0 / 240.0][rng.randi_range(0, 2)]
 	_repro = "random round %d" % sd
+	var inputs := _r2_inputs(board, layout, stats)
 	var spy := Spy.new(board, layout, stats, sd)
 	_fail(spy.layout.to_data() == layout.fitted(board, stats).to_data(), "a round is built from the fitted layout")
+	_r2_watch(spy)
 
 	# What the round should hold, kept from its signals.
 	var hp := {}
@@ -854,6 +865,19 @@ func _fuzz_round(sd: int) -> void:
 		again.step(dt, target)
 	_fail(log2 == log and again.coins == spy.coins and again.reason == spy.reason and again.over == spy.over and again.time_left == spy.time_left,
 			"the same board, layout, stats, seed and paddle targets give the same round (Round INPUTS)")
+	# Round 2: the inputs are not changed by playing, and the order the board lists its bricks in is not an input.
+	_fail(_r2_inputs(board, layout, stats) == inputs, "a round changes neither the board, the layout nor the stats it was built from (Round INPUTS: 'The round copies it; the caller's board is not changed')")
+	var listed := Board.new(board.rows)
+	var keys := board.bricks.keys()
+	keys.reverse()
+	for c: Vector2i in keys:
+		listed.bricks[c] = board.bricks[c].copy()
+	var third := Round.new(listed, layout, stats, sd)
+	var log3 := []
+	third.brick_broken.connect(func(c: Vector2i, _b: Brick, cause: Round.Cause, _d: Vector2, _n: int) -> void: log3.append([c, cause]))
+	for target: float in targets:
+		third.step(dt, target)
+	_fail(log3 == log and third.coins == spy.coins and third.reason == spy.reason, "the same bricks listed in another order give the same round (Round INPUTS)")
 
 
 ## Round TICK RATE: "a round with one ball and a paddle that stays put breaks the same bricks in the same order at
@@ -971,3 +995,266 @@ func _fuzz_fits(sd: int) -> void:
 				"%s at %s rot %s cell %s on %d rows; layout %s" % [item.kind.id, item.pos, item.rot, item.cell, board.rows, layout.to_data()])
 		if got and rng.randf() < 0.3:
 			layout.add(item)
+
+
+# --- round 2 ---------------------------------------------------------------------------------------------------
+# What round 1 left alone: the timer fix at many step rates, which end wins when two come in one step, what a long
+# chain pays at each step of the combo, Shockwaves in a chain, a Zap that sets off a blast, special bricks the
+# level painted itself, items against the ball at rest on every level size, a layout's trip through the save,
+# every ball_bounced payload, and that a round leaves its inputs alone.
+
+## Everything a round is built from, as plain data, to see that playing it changes none of it.
+func _r2_inputs(board: Board, layout: Layout, stats: Balance) -> Array:
+	var cells := []
+	for c: Vector2i in board.bricks:
+		var b := board.brick(c)
+		cells.append([c, b.hp, b.kind, b.mod, b.placed])
+	cells.sort()
+	var numbers := {}
+	for stat: StringName in NUMBERS:
+		numbers[stat] = stats.get(stat)
+	return [board.rows, cells, layout.to_data(), numbers, stats.extra.duplicate()]
+
+
+## Every ball_bounced against Hit's and Round.ball_bounced's words: where the ball is, which way the surface
+## faces, and that the ball leaves it.
+func _r2_watch(spy: Round) -> void:
+	var h := spy.stats.ball_size * 0.5
+	var size := spy.board.size()
+	spy.ball_bounced.connect(func(ball: Ball, hit: Hit) -> void:
+		_fail(ball.pos == hit.point and hit.travel >= 0.0 and absf(hit.normal.length() - 1.0) < 1e-5, "ball_bounced: the ball is at hit.point, hit.travel is not negative, hit.normal is a unit vector (Hit)",
+				"off %s at %s, ball at %s, travel %s" % [Hit.Surface.keys()[hit.surface], hit.point, ball.pos, hit.travel])
+		if hit.surface == Hit.Surface.WALL:
+			var on := (hit.normal == Vector2.DOWN and is_equal_approx(hit.point.y, h)) or (hit.normal == Vector2.UP and is_equal_approx(hit.point.y, size.y - h)) \
+					or (hit.normal == Vector2.LEFT and is_equal_approx(hit.point.x, size.x - h))
+			_fail(on, "a WALL hit's normal is DOWN, UP or LEFT, for the wall the ball is touching (Hit.Surface.WALL)", "normal %s, point %s" % [hit.normal, hit.point])
+			_fail(ball.dir.dot(hit.normal) > 0.0, "after a wall bounce the ball leaves the wall (Round.ball_bounced: ball.dir is the new direction)", "normal %s, dir %s" % [hit.normal, ball.dir])
+		elif hit.surface == Hit.Surface.PADDLE:
+			_fail(ball.dir.x > 0.0 and _angle(ball.dir) <= spy.stats.paddle_max_angle + 0.01 and ball.boost == 1.0,
+					"off the paddle a ball goes back toward the board, at most paddle_max_angle off level, unboosted (Round ONE BOUNCE)", "dir %s boost %s" % [ball.dir, ball.boost])
+		elif hit.surface == Hit.Surface.ITEM:
+			_fail(ball.dir.dot(hit.normal) > 0.0, "after an item bounce the ball leaves the item (Round.ball_bounced)", "%s normal %s, dir %s" % [hit.item.kind.id, hit.normal, ball.dir])
+			if hit.item.kind.shape == PlaceableKind.Shape.CIRCLE:
+				_fail(hit.normal.is_equal_approx((hit.point - hit.item.pos).normalized()), "a Booster hit's normal points from the Booster's centre to the ball (Hit.normal)",
+						"normal %s, from centre %s" % [hit.normal, (hit.point - hit.item.pos).normalized()])
+	)
+
+
+func _r2_count_steps(round: Round, dt: float, at := {}) -> int:
+	var n := 0
+	while not round.over and n < 200000:
+		if at.has(n):
+			round.hit_brick(at[n], Round.Cause.BALL, Vector2.RIGHT)
+		round.step(dt, round.paddle.y)
+		n += 1
+	return n
+
+
+## Round ONE STEP 4, after the fix in d943e98: "A round whose time is a whole number of steps plays exactly that
+## many; any other plays to the end of the step its time runs out in."
+func _r2_timer() -> void:
+	var board := _board({FAR: SOLID, Vector2i(40, 2): 1, Vector2i(44, 6): 1})
+	board.bricks[Vector2i(40, 2)].kind = &"hourglass"
+	board.bricks[Vector2i(44, 6)].kind = &"hourglass"
+	var wrong := []
+	var runs := [[20.0, [24, 30, 48, 50, 60, 75, 90, 100, 120, 144, 165, 200, 240, 300]], [23.0, [60, 120, 144, 240]], [26.0, [60, 144]], [29.0, [60, 120, 144, 240]],
+			[0.3, [10, 20, 30, 60, 120, 1000]], [0.7, [10, 30, 70, 90, 110, 130, 170]], [20.005, [60, 120]], [0.31, [60, 100]], [1.1, [3, 7, 9, 30]]]
+	for run: Array in runs:
+		var time: float = run[0]
+		for rate: int in run[1]:
+			var stats := _sealed(board, {&"ball_speed": 1.0})
+			stats.round_time = time
+			var round := Round.new(board, null, stats, 1)
+			var n := _r2_count_steps(round, 1.0 / rate)
+			var exact := time * rate
+			var want := roundi(exact) if absf(exact - roundf(exact)) < 1e-6 else ceili(exact)
+			if n != want or round.reason != Round.End.TIME or round.time_left != 0.0:
+				wrong.append("%s s at %d/s: %d steps, want %d" % [time, rate, n, want])
+	# Hourglass bricks add whole seconds, so the round is still a whole number of steps.
+	for rate: int in [60, 120, 144, 240]:
+		var stats := _sealed(board, {&"ball_speed": 1.0})
+		stats.round_time = 20.0
+		var round := Round.new(board, null, stats, 1)
+		var n := _r2_count_steps(round, 1.0 / rate, {rate * 3: Vector2i(40, 2), rate * 21 + 7: Vector2i(44, 6)})
+		if n != rate * 24 or round.reason != Round.End.TIME:
+			wrong.append("20 s + two hourglasses at %d/s: %d steps, want %d" % [rate, n, rate * 24])
+	t.check(wrong.is_empty(), "a round whose time is a whole number of steps plays exactly that many, any other to the end of the step its time runs out in (Round ONE STEP 4): %s" % [wrong])
+
+
+## Round ONE STEP 5: "The round ends if every level brick is broken (CLEARED), else if no ball is left
+## (BALL_LOST), else if time_left is 0 (TIME)", when two of them come in the same step.
+func _r2_end_order() -> void:
+	# A ball breaks the last brick on its top face and goes on out of the open side, in one step.
+	for time: float in [100.0, 0.5]:
+		var round := Round.new(_board({Vector2i(1, 2): 1}), null, _stats({&"round_time": time}), 1)
+		round.balls[0].put(Vector2(30, 110), Vector2(-0.6, 0.8))
+		var log := []
+		round.ended.connect(func(why: Round.End) -> void: log.append(why))
+		round.step(0.5, round.paddle.y)
+		t.check(round.board.bricks.is_empty() and round.balls.is_empty(), "the end-order round breaks the last brick and loses its ball in one step (%s s)" % time)
+		t.check(log == [Round.End.CLEARED] and round.reason == Round.End.CLEARED, "the last brick broken and the last ball lost%s in one step: the round is CLEARED (Round ONE STEP 5): %s" % [" as time runs out" if time == 0.5 else "", log])
+	# The last ball lost as time runs out.
+	var round := Round.new(_board({FAR: SOLID}), null, _stats({&"round_time": 0.5}), 1)
+	round.balls[0].put(Vector2(-62, 100), Vector2(-0.8, 0.6))
+	var log := []
+	round.ended.connect(func(why: Round.End) -> void: log.append(why))
+	round.step(0.5, round.paddle.y)
+	t.check(log == [Round.End.BALL_LOST], "the last ball lost as time runs out: the round ends BALL_LOST (Round ONE STEP 5): %s" % [log])
+	# An hourglass broken in the step the time runs out in saves the round.
+	var board := _board({FAR: SOLID, Vector2i(30, 3): 1})
+	board.bricks[Vector2i(30, 3)].kind = &"hourglass"
+	var stats := _sealed(board)
+	stats.round_time = 1.0 / 60.0
+	round = Round.new(board, null, stats, 1)
+	round.balls[0].put(Vector2(470, 224), Vector2(0.8, 0.6))
+	round.step(1.0 / 60.0, round.paddle.y)
+	t.check(not round.over and round.board.bricks.size() == 1 and absf(round.time_left - 2.0) < 1e-9, "an hourglass broken in the last step adds its 2 s before the timer is read (Round ONE STEP 4): time %s, over %s" % [round.time_left, round.over])
+
+
+## One hit that breaks ten bricks: each pays at the multiplier its own break reached (Round ONE BRICK HIT,
+## overview.md "Coins"), gold 5 times that, the placed Splitter nothing, though it still counts in the combo.
+func _r2_chain_pay() -> void:
+	var bricks := {FAR: SOLID, Vector2i(20, 4): 1, Vector2i(20, 3): 1}
+	for x in range(17, 25):
+		if x != 20:
+			bricks[Vector2i(x, 4)] = 1
+	var board := _board(bricks)
+	board.bricks[Vector2i(20, 4)].kind = &"explosive"
+	board.bricks[Vector2i(20, 3)].kind = &"gold"
+	for rank: int in [1, 0]:
+		var round := Round.new(board, _layout([_item(&"splitter", Vector2i(20, 5))]), _sealed(board, {&"combo_rank": float(rank), &"splitter_count": 1}), 1)
+		var paid := []
+		round.brick_broken.connect(func(c: Vector2i, _b: Brick, _cause: Round.Cause, _d: Vector2, n: int) -> void: paid.append([c, n]))
+		round.hit_brick(Vector2i(20, 4), Round.Cause.BALL, Vector2.RIGHT)
+		var order := [Vector2i(20, 4), Vector2i(17, 4), Vector2i(18, 4), Vector2i(19, 4), Vector2i(20, 3), Vector2i(20, 5), Vector2i(21, 4), Vector2i(22, 4), Vector2i(23, 4), Vector2i(24, 4)]
+		var coins := [1, 1, 1, 1, 10, 0, 2, 2, 3, 3] if rank else [1, 1, 1, 1, 5, 0, 1, 1, 1, 1]
+		var want := []
+		for i in order.size():
+			want.append([order[i], coins[i]])
+		t.check(paid == want, "combo rank %d: a blast's ten breaks pay %s, in blast order (overview.md 'Coins'): %s" % [rank, coins, paid])
+		var total := 24 if rank else 13
+		t.check(round.coins == total and Coins.total(round.tally, round.stats) == total and round.tally.placed_broken == 1 and round.tally.broken == {&"explosive": 1, &"": 7, &"gold": 1},
+				"combo rank %d: the chain pays %d and the tally holds 7 standard, 1 explosive, 1 gold and 1 placed brick: %d %s" % [rank, total, round.coins, round.tally.broken])
+		if rank:
+			t.check(round.combo.count == 10 and round.combo.multiplier == 3 and round.tally.best_combo == 10 and is_equal_approx(round.combo.window, 1.6 * 0.81),
+					"the chain leaves a combo of 10 at x3 with a window of 1.296 s: %d x%d %s" % [round.combo.count, round.combo.multiplier, round.combo.window])
+		t.check(round.balls.size() == 1, "a Splitter a blast breaks adds no ball (placeables.md)")
+
+
+## Shockwaves in a chain (Round.blast): each blast throws the balls inside it and multiplies their boost; the
+## first blast throws last, so its direction is the one a ball leaves with.
+func _r2_shockwave_chain() -> void:
+	var board := _board({FAR: SOLID, Vector2i(30, 3): 1, Vector2i(33, 3): 1})
+	board.bricks[Vector2i(30, 3)].kind = &"explosive"
+	board.bricks[Vector2i(33, 3)].kind = &"explosive"
+	var round := Round.new(board, null, _sealed(board, {&"shockwave": 1.0}), 1)
+	var only_a := round.balls[0]
+	only_a.put(Vector2(430, 200), Vector2(0.6, 0.8))
+	var both := round.add_ball(Vector2(520, 300), Vector2(0.6, -0.8))
+	var only_b := round.add_ball(Vector2(590, 140), Vector2(-0.6, -0.8))
+	var outside := round.add_ball(Vector2(700, 200), Vector2(0.6, 0.8))
+	round.hit_brick(Vector2i(30, 3), Round.Cause.BALL, Vector2.RIGHT)
+	t.check(only_a.boost == 2.0 and only_a.dir.is_equal_approx(Vector2(-58, -24).normalized()), "a ball in the first blast only is thrown from its centre once: %s x%s" % [only_a.dir, only_a.boost])
+	t.check(both.boost == 3.0 and both.dir.is_equal_approx(Vector2(32, 76).normalized()), "a ball in both blasts is boosted twice, to the cap, and leaves along the first blast's throw: %s x%s" % [both.dir, both.boost])
+	t.check(only_b.boost == 2.0 and only_b.dir.is_equal_approx(Vector2(54, -84).normalized()), "a ball in the second blast only is thrown from its centre: %s x%s" % [only_b.dir, only_b.boost])
+	t.check(outside.boost == 1.0 and outside.dir == Vector2(0.6, 0.8), "a ball outside both blasts is left alone")
+
+
+## A Zap on an explosive brick whose row holds another explosive: two blasts and one Zap, and each brick takes
+## one hit from each of them that reaches it (upgrades.md, placeables.md).
+func _r2_zap_blast() -> void:
+	var board := _board({FAR: SOLID, Vector2i(20, 4): 1, Vector2i(10, 4): 5, Vector2i(22, 4): 5, Vector2i(23, 3): 5, Vector2i(30, 4): 1, Vector2i(33, 4): 5, Vector2i(40, 4): 5, Vector2i(26, 5): 5})
+	board.bricks[Vector2i(20, 4)].kind = &"explosive"
+	board.bricks[Vector2i(30, 4)].kind = &"explosive"
+	var spy := Spy.new(board, _layout([_item(&"zap", Vector2i(20, 4))]), _stats({&"zap_count": 1.0}), 1)
+	var booms := []
+	spy.exploded.connect(func(p: Vector2, _r: float, cells: Array[Vector2i]) -> void: booms.append([p, Array(cells)]))
+	_repro = "a Zap on an explosive brick (_r2_zap_blast)"
+	spy.hit_brick(Vector2i(20, 4), Round.Cause.BALL, Vector2.RIGHT)
+	_check_tree(spy)
+	var hp := {}
+	for c: Vector2i in [Vector2i(10, 4), Vector2i(22, 4), Vector2i(23, 3), Vector2i(26, 5), Vector2i(33, 4), Vector2i(40, 4)]:
+		hp[c] = spy.board.brick(c).hp if spy.board.brick(c) else 0
+	t.check(hp == {Vector2i(10, 4): 4, Vector2i(22, 4): 3, Vector2i(23, 3): 4, Vector2i(26, 5): 4, Vector2i(33, 4): 3, Vector2i(40, 4): 4}, "a Zap on an explosive brick: one hit from each blast and from the Zap: %s" % [hp])
+	t.check(str(booms) == str([[Vector2(328, 288), [Vector2i(22, 4), Vector2i(23, 3)]], [Vector2(488, 288), [Vector2i(26, 5), Vector2i(33, 4)]]]), "the two blasts go off in order with the bricks they are about to hit: %s" % [booms])
+
+
+## Special bricks the level painted itself are kept, and rank N still replaces N of the standard ones
+## (levels.md: "Every brick is a standard brick unless the level says otherwise"; upgrades.md).
+func _r2_painted() -> void:
+	var bricks := {}
+	for y in 6:
+		bricks[Vector2i(40, y)] = 2
+		bricks[Vector2i(44, y)] = 2
+	var board := _board(bricks)
+	for y in 3:
+		board.bricks[Vector2i(44, y)].kind = &"gold"
+		board.bricks[Vector2i(44, y)].hp = 1
+	var wrong := []
+	for ranks: Array in [[1, 2, 0], [0, 0, 3], [20, 1, 0]]:
+		for sd in 10:
+			var round := Round.new(board, null, _stats({&"explosive_count": ranks[0], &"gold_count": ranks[1], &"hourglass_count": ranks[2]}), sd)
+			var got := {&"": 0, &"explosive": 0, &"gold": 0, &"hourglass": 0}
+			for c: Vector2i in round.board.bricks:
+				got[round.board.brick(c).kind] += 1
+			var left := 9
+			var want := {&"": 0, &"explosive": mini(ranks[0], left), &"gold": 3, &"hourglass": 0}
+			left -= want[&"explosive"]
+			want[&"gold"] += mini(ranks[1], left)
+			left -= mini(ranks[1], left)
+			want[&"hourglass"] = mini(ranks[2], left)
+			left -= want[&"hourglass"]
+			want[&""] = left
+			var kept := range(3).all(func(y: int) -> bool: return round.board.brick(Vector2i(44, y)).kind == &"gold")
+			if got != want or not kept:
+				wrong.append("ranks %s seed %d: %s" % [ranks, sd, got])
+	t.check(wrong.is_empty(), "bricks the level made special are kept, and rank N replaces N of the standard ones: %s" % [wrong.slice(0, 3)])
+
+
+## Layout.fits keeps items off the ball at rest on every level size: touching it is fine, overlapping is not
+## ("Overlap means sharing area: touching does not count").
+func _r2_fits_rest() -> void:
+	var wrong := []
+	for rows: int in [14, 16, 18, 20]:
+		var board := _board({}, rows)
+		var stats := _stats({&"wall_segment_count": 1, &"splitter_count": 1})
+		var rest := Round.ball_start(board, stats)
+		var empty := Layout.new()
+		var right := rest.x + 6.0 + 5.0  # an upright Wall Segment's centre with its left face on the ball's right edge
+		for c: Array in [[right, true], [right - 0.1, false]]:
+			if empty.fits(_item(&"wall_segment", Vector2(c[0], rest.y)), board, stats) != c[1]:
+				wrong.append("%d rows: Wall Segment at x %.2f" % [rows, c[0]])
+		var below := rest.y + 6.0 + 5.0  # a flat Wall Segment's centre with its top face on the ball's bottom edge
+		for c: Array in [[below, true], [below - 0.1, false]]:
+			if empty.fits(_item(&"wall_segment", Vector2(maxf(rest.x, 57.0), c[0]), 90.0), board, stats) != c[1]:
+				wrong.append("%d rows: flat Wall Segment at y %.2f" % [rows, c[0]])
+		var ball := Rect2(rest - Vector2.ONE * 6.0, Vector2.ONE * 12.0)
+		for x in 4:
+			for y in range(rows / 4 - 2, rows / 4 + 2):
+				var cell := Vector2i(x, y)
+				var r := board.cell_rect(cell).intersection(ball)
+				var want := not (r.size.x > 0.0 and r.size.y > 0.0)
+				if empty.fits(_item(&"splitter", cell), board, stats) != want:
+					wrong.append("%d rows: Splitter at %s" % [rows, cell])
+	t.check(wrong.is_empty(), "on 14, 16, 18 and 20 rows an item may touch the ball at rest but not overlap it (Layout.fits): wrong on %s" % [wrong])
+
+
+## Layout SAVED FORM: "a layout that has been through the save file gives the same to_data() as it did before".
+## Free items are put where the mouse puts them, in units, so their numbers are not round.
+func _r2_save_trip() -> void:
+	var zoom := 16.0 / 18.0
+	var layout := _layout([_item(&"bumper", Vector2(437.0, 211.0) / zoom), _item(&"wall_segment", Vector2(300.1, 99.7) / zoom, 15.0 * 7.0),
+			_item(&"booster", Vector2(0.1 + 0.2, 0.7) * 1000.0 / 3.0), _item(&"splitter", Vector2i(30, 3)), _item(&"zap", Vector2i(30, 3))])
+	var before := layout.to_data()
+	var old := Progress.path
+	Progress.use(old.get_base_dir().path_join("fuzz_logic_save.json"))
+	Progress.set_layout(1, layout)
+	Progress.use(Progress.path)
+	var after := Progress.layout(1).to_data()
+	Progress.use(old)
+	var drift := []
+	for i in mini(before.size(), after.size()):
+		for key: String in ["x", "y", "rot"]:
+			if before[i].has(key) and before[i][key] != after[i].get(key):
+				drift.append("%s.%s %s -> %s" % [before[i].kind, key, var_to_str(before[i][key]), var_to_str(after[i].get(key))])
+	t.check(after == before, "a layout that has been through the save file gives the same to_data() as before (Layout SAVED FORM): %s" % [drift if drift else after])
