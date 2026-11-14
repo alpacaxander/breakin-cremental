@@ -116,8 +116,8 @@ The demo's upgrades. The id is the file name in `data/upgrades/`:
 |---|---|---|
 | `paddle_speed` | `paddle_speed` | 100% |
 | `ball_speed` | `ball_speed` | 10% |
-| `paddle_size` | `paddle_size` | 20% |
-| `round_time` | `round_time` | 5 |
+| `paddle_size` | `paddle_size` | 40% |
+| `round_time` | `round_time` | 6 |
 | `combo` | `combo_rank` | 1 |
 | `blast_size` | `blast_size` | 1 |
 | `shockwave` | `shockwave` | 1 |
@@ -228,6 +228,7 @@ A render spike settled this in Godot 4.7.2 before any screen was built.
 
 ```
 project.godot  default_bus_layout.tres
+flake.nix  flake.lock     the Nix dev shell: Godot, xvfb-run and Node
 src/
   main.tscn  main.gd      the render chain and navigation
   play.tscn  play.gd      the Hub and Level switch
@@ -256,7 +257,7 @@ tests/
   test.gd  test.tscn      the headless runner
   cases/                  one case file per lane, plus the few that belong to none (see Tests)
   shots.gd  shots.tscn    the screenshot harness
-  shots/                  one shot list per lane, plus the two play-test lists
+  shots/                  one shot list per lane with something to show, plus contracts and the two play-test lists
   balance.gd  balance.tscn   the bot
   layouts/                layouts the bot can be told to play (layout=), as JSON
   out/                    what tests write; ignored by git and by Godot
@@ -326,7 +327,7 @@ The folders are also how the work divides. A lane writes only in its own folders
    | Balance bot | `tests/balance.gd`, `tests/balance.tscn` | |
 
 4. **Feel:** the effects, in `src/level/fx/` (`fx`). The HUD's and the hub's pulses and the top HP colour came with it.
-5. **An audit** against the docs, with fixes.
+5. **An audit** against the docs, with fixes. A second, shorter one followed the tuning.
 6. **Tuning** with the balance bot, in two passes. It changed the files under `data/`, the brick HP of levels 1 and 3, and the effects' `COMBO_TOP`. The second pass gave the bot a seed offset (`base=`) and layouts from a file (`layout=`, `tests/layouts/`).
 
 The screens wait for the rules so a screen lane can render a real board and check its own work.

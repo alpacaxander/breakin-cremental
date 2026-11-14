@@ -38,7 +38,7 @@ extends Node2D
 ##   marks     the same, but small and many: the flash of a brick a ball hit, and the combo's ring. Kept
 ##             apart, so a run of them never pushes a shockwave out
 ##   pools     the light under an explosion
-##   pops      "+12" and "+2s"
+##   pops      "+12" and "+15s"
 ##   the trail is drawn from where each ball was on the last physics ticks.
 ## Every layer is clipped to the inside of the walls. Which signal sets off what is in the _on_ functions below;
 ## the numbers are the constants that follow.
@@ -508,8 +508,12 @@ func _on_combo_changed(count: int, multiplier: int) -> void:
 func _on_time_changed(_seconds_left: float, added: float) -> void:
 	var amount := "%d" % added if added == floorf(added) else "%.1f" % added
 	_ring(_last, SPECIAL_RING, 2.0, Palette.TIME, SPECIAL_TIME)
-	# Under the brick, as its coins are over it, and rising into the hole it left.
-	_pop(_last + Vector2(0.0, Board.BRICK.y * 0.5 + (POP_ABOVE + POP_TALL) * _px), Palette.TIME).text = "+%ss" % amount
+	# Under the brick, as its coins are over it, and rising into the hole it left. A top-row brick's coins have no
+	# room above it and _pop pushes them down to here, so the time keeps a text height under this frame's coins.
+	var at := _last + Vector2(0.0, Board.BRICK.y * 0.5 + (POP_ABOVE + POP_TALL) * _px)
+	if _paid:
+		at.y = maxf(at.y, _paid.at.y + (POP_TALL + POP_RIM) * _px)
+	_pop(at, Palette.TIME).text = "+%ss" % amount
 
 
 func _on_ended(reason: Round.End) -> void:
@@ -741,7 +745,7 @@ func _draw_trail() -> void:
 func _draw_pops() -> void:
 	var font := UiTheme.numbers()
 	var size := UiTheme.number_size(POP_SIZE)
-	var newer := 0  # coin pop-ups after this one. Only they age each other: "+2s" is rare and stays whole
+	var newer := 0  # coin pop-ups after this one. Only they age each other: "+15s" is rare and stays whole
 	for pop in _pops:
 		newer += 1 if pop.coins > 0 else 0
 	for pop in _pops:  # oldest first, so the newest is on top

@@ -50,3 +50,7 @@ func _on_buy() -> void:
 		Sfx.play(Sfx.BUY)
 	else:
 		Sfx.play(Sfx.CANT_AFFORD)
+	# A click gives Buy a focus Godot does not draw, and the next Space or Enter (Start and Retry in a level) would
+	# buy again unseen. Hand that focus back to the node; one a keyboard player brought here shows, and stays.
+	if not _buy.has_focus(true):
+		_node.grab_focus()

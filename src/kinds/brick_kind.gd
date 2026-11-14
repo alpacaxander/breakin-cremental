@@ -5,5 +5,5 @@ extends Kind
 
 ## The HP a brick has once it becomes this kind, whatever it had before.
 @export var hp := 1
-## How many bricks it counts as when coins are calculated (gold: 5). See Coins.
+## How many bricks it counts as when coins are calculated (gold: 20). See Coins.
 @export var worth := 1

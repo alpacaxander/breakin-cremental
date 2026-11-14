@@ -58,7 +58,7 @@ The main menu, Settings and the Summary have no mockup. They are described below
 - **Combo.** The big number is the combo count, which changes on every break. The multiplier is a 36 px lit "×3" to its right, shown once it is above 1. With no combo running the count is 0 in `8a4836`. The whole column is hidden until combos are bought.
 - **Low timer.** At the low-timer mark the bar turns red. The number stays green: red is never a number.
 - **Coins** are the coins of the round on screen, so 0 in Setup. The balance is on the upgrade screen.
-- **In Setup** the centre column is SETUP in lit cyan over two hint lines in secondary text: how to place, turn and remove once a placeable is unlocked, otherwise how to start and how to move the paddle. The time label reads "TIME · STOPPED".
+- **In Setup** the centre column is SETUP in lit cyan over two hint lines in secondary text: how to place and remove once a placeable is unlocked, and how to turn once one that turns is (the Wall Segment); otherwise how to start and how to move the paddle. The time label reads "TIME · STOPPED".
 
 ### Setup
 
@@ -105,7 +105,7 @@ Effects take the colour of whatever made them. Sizes below are at their peak, in
 | Brick hit that holds | By a ball: the brick is filled once more for 0.15 s, swelling by 6 px, and 6 chips fly 14–60 px off the face that was hit. By a blast or a Zap: 3 chips, every way |
 | Explosion | Two square shockwaves: 96 px with a lit 3 px `ff5000` border, and 160 px with an unlit 2 px `c64524` border at 40%. Under them, an orange light pool 360 px wide, round: 24% at the centre, fading to nothing at 68% of the radius. 24 squares of 3–6 px spread 24–120 px out, fading with distance; two thirds are orange and a third take the colour of the bricks it hit. All of it grows with the blast's reach. Blasts that set each other off start 0.07 s apart, so a chain reads as a chain. An explosion also shakes the screen, freezes the game for 0.05 s and flashes |
 | Zap | A blue bar along the row, 10 px thick, thinning out over 0.3 s, with a shake and a 0.035 s freeze |
-| Gold brick, hourglass brick, Splitter | A 72 px ring with a 2 px line, in gold, green or blue. The hourglass adds a green "+2s" pop-up under its brick; the Splitter's ring is at the new ball |
+| Gold brick, hourglass brick, Splitter | A 72 px ring with a 2 px line, in gold, green or blue. The hourglass adds a green "+15s" pop-up under its brick, and at least a text height under its coins: a top-row brick's coin pop-up has no room above it and sits lower. The Splitter's ring is at the new ball |
 | Multiplier step | A gold 72 px ring at the brick and a small flash |
 | Bumper, Booster, Wall Segment | The item's own outline, growing by 18 px over 0.25 s, and 4 blue squares (more off a boosted ball) |
 | Paddle hit | A 34 px cyan ring and 5 cyan squares |
@@ -165,7 +165,7 @@ At most 600 squares are alive at once, and one frame's breaks share 240 new ones
 **Web view:**
 - **Frame:** a 2 px `2a2f4e` border over a dot grid of 3 px dots every 24 px, also in `2a2f4e`.
 - **Spacing:** nodes sit on a 170 × 116 px pitch. The demo's web is 5 columns × 5 rows with the seed in the centre. It fills the view, so the web does not pan or zoom yet.
-- **Node:** 148 × 60 px (the seed node is 168 × 72), with 8 × 10 px padding. The name is top left. Rank pips (8 px squares, 4 px apart) are bottom left, and the price or MAX is bottom right.
+- **Node:** 148 × 60 px (the seed node is 168 × 72), with 8 × 10 px padding. The name is top left. Rank pips (8 px squares, 4 px apart) are bottom left, and the price or MAX is bottom right. Five pips and a five-digit price are about 10 px wider than the padding leaves, so on those nodes (Splitter, Paddle Size and Round Time before their last rank) the row runs to 4 px from each border.
 - **Connections:** 3 px lines that run straight across or straight down through node centres. A line is lit in its outer node's category colour once either end is owned; otherwise it's `424c6e`.
 - **Categories:** a node's colour is the only thing that shows its category. The web mixes the categories, so there are no group labels.
 
@@ -180,7 +180,7 @@ A maxed node's fill is not lit: a lit fill blooms over the 14 px name and washes
 
 The selected node keeps its state's look and adds a 2 px cyan outline 4 px outside the node, plus a cyan glow. A node under the pointer that is not the selected one gets the same outline in unlit secondary text (`92a1b9`), with no glow. Prices are gold when you can afford them and secondary text when you can't, never red. A locked node shows its price too, in secondary text, so the player can see what to save for.
 
-**Keyboard:** whenever the upgrade screen is shown, the selected node takes the keyboard focus, and focusing a node selects it, so the focus and the selection are always on the same node. An arrow key moves to the nearest node in the same row or column of the web's grid; where there is none in that direction, it goes wherever Godot's own search finds a control, which is how Right from the last column reaches the panels.
+**Keyboard:** whenever the upgrade screen is shown, the selected node takes the keyboard focus, and focusing a node selects it, so a focused node is always the selected one. A click on Buy hands the focus straight back to the selected node, so a Space or Enter after it buys nothing; a Buy reached with the arrows or Tab keeps the focus, and Enter buys rank after rank. A clicked level arrow keeps it too, so Space steps the level again. An arrow key moves to the nearest node in the same row or column of the web's grid; where there is none in that direction, it goes wherever Godot's own search finds a control, which is how Right from the last column reaches the panels.
 
 **Detail panel:** from the top:
 - the category in its colour, with the state on the right

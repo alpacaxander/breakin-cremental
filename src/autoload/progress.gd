@@ -145,8 +145,8 @@ func buy(u: Upgrade) -> bool:
 
 
 ## The value of a stat: its base value from balance.tres plus, for every upgrade that changes it, its amount
-## times the ranks owned. A percent amount is a share of the base value, so Ball Speed at rank 5 is
-## base + base * 0.15 * 5. Stat names are Balance's "Stats" properties and the counts, `<kind id>_count`.
+## times the ranks owned. A percent amount is a share of the base value, so a 10% upgrade at rank 3 is
+## base + base * 0.1 * 3. Stat names are Balance's "Stats" properties and the counts, `<kind id>_count`.
 func stat(stat_name: StringName) -> float:
 	var base := balance.base(stat_name)
 	var value := base

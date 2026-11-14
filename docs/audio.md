@@ -6,8 +6,8 @@ How the game's sound is made and played. The look it has to match is in [design.
 
 Every sound is synthesised by one script. Nothing is recorded or downloaded.
 
-- **Generator:** a Node script with no dependencies. Start from the purged build's script: `git show 1aa951b^:assets/audio/gen.mjs`. It has a tone voice (square, triangle, saw or sine, with pitch glide, decay, vibrato and duty cycle), a filtered noise voice, and a function that layers them.
-- **Cues:** each sound is one recipe in the script. Replace the old build's cue list with the list below.
+- **Generator:** `assets/audio/gen.mjs`, a Node script with no dependencies, taken over from the purged build. It has a tone voice (square, triangle, saw or sine, with pitch glide, decay, vibrato and duty cycle), a filtered noise voice, and a function that layers them.
+- **Cues:** each sound is one recipe in the script, for the list below.
 - **Output:** 44.1 kHz mono 16-bit WAV files, committed to the repo. The noise is seeded, so running the script again only changes the cues whose recipe changed.
 - **Audition page:** the script also writes a `demo.html` with a play button for every cue. Sounds are judged by ear on that page.
 - **Dev shell:** `flake.nix` provides Node, so the script runs under `nix develop`.

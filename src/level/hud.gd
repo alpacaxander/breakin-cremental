@@ -101,9 +101,11 @@ func show_round(round: Round, data: LevelData, setup: bool, footer: bool) -> voi
 	for c: Control in [_combo_tag, _combo, _combo_bar, _multiplier]:
 		c.visible = not setup and combos
 	_footer.visible = footer
-	var places := Kinds.placeables().any(func(k: PlaceableKind) -> bool: return round.stats.count(k.id) > 0)
-	_hint.text = "Drag items onto the board, then press Start\nQ / E or the wheel turns one  ·  right-click removes one" if places \
-			else "Press Start, or Space, to launch the ball\nW / S, the arrow keys or the mouse move the paddle"
+	# The hint names only what this tray can do: turning waits for an item that turns (the Wall Segment).
+	var tray := Kinds.placeables().filter(func(k: PlaceableKind) -> bool: return round.stats.count(k.id) > 0)
+	var turns := tray.any(func(k: PlaceableKind) -> bool: return k.rotatable)
+	_hint.text = "Press Start, or Space, to launch the ball\nW / S, the arrow keys or the mouse move the paddle" if tray.is_empty() \
+			else "Drag items onto the board, then press Start\n" + ("Q / E or the wheel turns one  ·  right-click removes one" if turns else "Right-click removes one")
 	if setup or not footer:
 		return
 	_bricks = round.board.remaining()

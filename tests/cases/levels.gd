@@ -33,6 +33,11 @@ func run(t: Node) -> void:
 	t.check(Levels.count() == 3, "there are 3 levels")
 	t.check(Levels.read(0) == null and Levels.read(4) == null, "read() of a level that does not exist is null")
 	t.check(Levels.read(1).board != Levels.read(1).board, "each read() returns a new board")
+	# The tile set every level is painted with: tile n is an n + 1 HP brick. No level uses the 3 and 4 HP tiles now.
+	var tile_set: TileSet = load("res://levels/bricks.tres")  # kept in a variable: a tile reads its data through its set
+	var tiles := tile_set.get_source(0) as TileSetAtlasSource
+	for hp in range(1, 5):
+		t.check(tiles.get_tile_data(Vector2i(hp - 1, 0), 0).get_custom_data(&"hp") == hp, "tile %d of bricks.tres is a %d HP brick" % [hp - 1, hp])
 	for n: int in LEVELS:
 		var want: Dictionary = LEVELS[n]
 		var level := Levels.read(n)

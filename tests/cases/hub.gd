@@ -83,6 +83,12 @@ func run(t: Node) -> void:
 	opened.sort()
 	t.check(opened == ["BallSpeed", "Bumper", "ExplosiveBrick", "PaddleSize"], "buying the seed opens its four neighbours and nothing else (open: %s)" % [opened])
 	t.check(web.state(seed) == HubNode.State.OWNED and web.state(at.call(&"Combo")) == HubNode.State.LOCKED, "the seed is owned and the next ring stays locked")
+	# A click leaves no focus on Buy: Space is Start and Retry in a level, and here it would buy the next rank.
+	_key(t, KEY_SPACE)
+	t.check(focus.call() == seed and Progress.rank(seed.upgrade) == 1, "after a click on Buy the focus is back on the selected node, and Space buys nothing")
+	buy.grab_focus()
+	_key(t, KEY_ENTER)
+	t.check(focus.call() == buy and Progress.rank(seed.upgrade) == 2, "by keyboard the focus stays on Buy, and Enter buys the next rank")
 
 	# Too poor: Buy can still be pressed, buys nothing and plays can't afford.
 	var bumper: HubNode = at.call(&"Bumper")

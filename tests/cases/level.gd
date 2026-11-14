@@ -74,6 +74,22 @@ func _seam() -> void:
 	level.start(7)
 	var legend: Array = _texts(level.get_node("Hud")._legend).filter(func(s: String) -> bool: return s.ends_with("HP"))
 	t.check(legend == ["1 HP", "2 HP"], "Play's legend lists every HP step up to the board's toughest brick (%s)" % [legend])
+	# No level has a brick over 2 HP, so the top step is checked on a brick made tougher than the palette goes.
+	(round.board.bricks.values().filter(func(b: Brick) -> bool: return b.kind == &"")[0] as Brick).hp = 6
+	level.get_node("Hud").show_round(round, Levels.read(3), false, true)
+	legend = _texts(level.get_node("Hud")._legend).filter(func(s: String) -> bool: return s.ends_with("HP"))
+	t.check(legend == ["1 HP", "2 HP", "3 HP", "4+ HP"], "the legend stops at the palette's top step, 4+ HP (%s)" % [legend])
+
+	# The hint names turning only when something in the tray turns: of the placeables only the Wall Segment does.
+	var ranks := Progress.ranks.duplicate()
+	for only: Array in [[&"bumper", false], [&"wall_segment", true]]:
+		Progress.ranks.clear()
+		Progress.ranks[only[0]] = 1
+		await _open(1)
+		var hint: String = level.get_node("Hud")._hint.text.replace("\n", " / ")
+		t.check(hint.containsn("right-click removes one") and hint.contains("turns") == only[1],
+				"with only a %s, Setup's hint %s turning (%s)" % [only[0], "names" if only[1] else "leaves out", hint])
+	Progress.ranks = ranks
 
 
 ## Setup: drag to place, move and remove; refusals; rotation; snapping; each change saved.

@@ -89,12 +89,12 @@ The demo exists to test whether placement + combos is fun and whether hand-made 
 
 ## Open questions
 
-These need deciding before or during the demo build:
+The demo gives the first two a first value, set with the balance bot and not yet by a person. Playing the demo is what settles them:
 
-1. **The coin formula.** How the tally of bricks and combos turns into coins. The upgrade costs move with it. Tuning kept the placeholder: 1 coin per brick times the combo multiplier, and a gold brick counts as 20.
-2. **Combo numbers.** Tuned with the balance bot, not yet by hand (see `docs/design/upgrades.md`, "Open questions").
-3. **A ceiling on arena size.** Very big levels shrink the ball and bricks to a few pixels (see `docs/art.md`).
-4. **Screens with no mockup.** The summary, the main menu and Settings were built without one and are described in `docs/art.md` as built. Nobody has judged their look yet.
+1. **The coin formula.** How the tally of bricks and combos turns into coins. The upgrade costs move with it. First value: the placeholder, 1 coin per brick times the combo multiplier, with a gold brick counting as 20. The formula is `Coins.total` in `src/sim/coins.gd`; its numbers are `coins_per_brick` in `data/balance.tres` and each special brick's `worth` in `data/kinds/`.
+2. **Combo numbers.** The window, how it shrinks and how the multiplier steps. First values: the `combo_` numbers in `data/balance.tres`, and the ranks and prices of the Combo node in `data/upgrades/combo.tres`. What they come to is in `docs/design/upgrades.md`, "Open questions".
+3. **A ceiling on arena size.** Still open. Very big levels shrink the ball and bricks to a few pixels (see `docs/art.md`, "Arena zoom"). The demo's largest level is 18 rows; the floor is 14 (see `docs/design/levels.md`).
+4. **Screens with no mockup.** Answered by building them: the Summary, the main menu and Settings are described in `docs/art.md` as built. Nobody has judged their look yet.
 
 ## Risks
 

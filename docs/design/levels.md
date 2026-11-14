@@ -48,7 +48,7 @@ Legend: `█` = 1 HP brick, `▓` = 2 HP brick, `.` = empty, `|` = paddle.
 
 Every brick is 1 HP. That is 24 hits to clear.
 
-The columns were 3, 2 and 1 HP from the front. Tuning took them down: a round holds about one hit for every trip the ball makes to the back, 7 or 8 in a first round, so a 3 HP front column let a new player break nothing. The level is still cleared only with upgrades, because the last few bricks take longer to find than the first.
+Tougher bricks do not fit a first round: it holds about one hit for every trip the ball makes to the back, 7 or 8 in all, so behind a 3 HP front column a new player breaks nothing. The level is still cleared only with upgrades, because the last few bricks take longer to find than the first.
 
 ```
    +----------------------------------------------------------------+
@@ -110,7 +110,7 @@ The columns were 3, 2 and 1 HP from the front. Tuning took them down: a round ho
 - The brick rows on both sides of the tunnel (rows 6–7 and 10–11) are 2 HP.
 - Every other brick is 1 HP.
 - The tunnel mouth is left open.
-- 512 bricks, 134 of them 2 HP. That is 646 hits to clear. They were 4 HP, 914 hits, then 3 HP, until tuning. A round with every upgrade breaks most of the board in its first 10 s, with blasts and Zaps, and spends the rest on what they leave: the tough bricks along the tunnel, one ball at a time. At 3 HP the balance bot's average player cleared the level in 3 rounds of 10 with everything bought, and only a longer round raised that (4 of 10 at 82 s); at 2 HP it is 4 of 10 in 55 s.
+- 512 bricks, 134 of them 2 HP. That is 646 hits to clear. A round with every upgrade breaks most of the board in its first 10 s, with blasts and Zaps, and spends the rest on what they leave: the tough bricks along the tunnel, one ball at a time. So their HP sets how long the level takes: at 3 HP the balance bot's average player clears it in 3 rounds of 10 with everything bought, and only a longer round raises that (4 of 10 at 82 s); at 2 HP it is 4 of 10 in 55 s.
 - The wall's face is 81 units from the paddle's, so a ball that misses the tunnel mouth is back in a fifth of a second. What makes that playable is in the numbers, not the layout: the paddle's steepest angle is 45°, and Paddle Size grows the paddle to half the lane.
 
 ```

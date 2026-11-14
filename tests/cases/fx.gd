@@ -218,6 +218,16 @@ func _pop_ups() -> void:
 	t.check(not fx._pops.is_empty() and round.board.zoom() < 1.0 and fx._text.get_global_transform().get_scale().is_equal_approx(Vector2.ONE),
 			"on a zoomed level a pop-up is still drawn one font pixel to one screen pixel")
 
+	# A top-row brick's coins have no room above it and are pushed down, to where an hourglass's time goes.
+	for number: int in [1, 3]:
+		await _play(number)
+		var top: Vector2i = round.board.bricks.keys().filter(func(c: Vector2i) -> bool: return c.y == 0)[0]
+		round.board.brick(top).kind = &"hourglass"
+		round.board.brick(top).hp = 1
+		round.hit_brick(top, Round.Cause.BALL, Vector2.RIGHT)
+		t.check(fx._pops.size() == 2 and fx._pops[1].at.y - fx._pops[0].at.y >= (Fx.POP_TALL + Fx.POP_RIM) * fx._px,
+				"level %d: a top-row hourglass's time is a text height under its coins, not on them" % number)
+
 
 func _calm() -> void:
 	await _play(1)

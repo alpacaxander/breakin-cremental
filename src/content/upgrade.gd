@@ -14,7 +14,7 @@ var id: StringName:
 ## The name on the node: "Paddle Speed".
 @export var title: String
 @export var category: Category
-## What one rank does, for the detail panel: "+20% paddle speed", "One more Bumper".
+## What one rank does, for the detail panel: "+10% ball speed", "One more Bumper".
 @export_multiline var text: String
 ## The price of rank 1.
 @export var first_cost: int

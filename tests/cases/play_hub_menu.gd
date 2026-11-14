@@ -470,7 +470,8 @@ func _fresh_hub() -> void:
 	await _frames(2)
 
 
-## Waits, at ten times the speed, for the round to end and the Summary's buttons to show.
+## Waits, at ten times the speed, for the round to end, the Summary's buttons to show and its tally to stop
+## ticking: a check that counts cues after this must not hear a tally tick among them.
 func _summary_ready(level: Control) -> void:
 	Engine.time_scale = 10.0
 	var started := Time.get_ticks_msec()
@@ -478,7 +479,7 @@ func _summary_ready(level: Control) -> void:
 		await t.tree().physics_frame
 	while Time.get_ticks_msec() - started < 8000:
 		var b := level.get_node("Summary").find_child("Upgrades", true, false) as Control
-		if b and b.is_visible_in_tree():
+		if b and b.is_visible_in_tree() and not (level.get_node("Summary")._tween as Tween).is_running():
 			break
 		await t.tree().process_frame
 	Engine.time_scale = 1.0
