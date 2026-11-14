@@ -37,7 +37,10 @@ extends RefCounted
 ##      passed through. Every contact is resolved where it happens and its signals are emitted then. A ball made
 ##      during this step (a Splitter) starts moving on the next one.
 ##   3. The combo's window counts down. If it runs out the combo resets and combo_changed(0, 1) is emitted.
-##   4. time_left counts down. It stops at 0.
+##   4. time_left counts down. It stops at 0, and less than TIME_SLOP left is 0: a step such as 1/120 s is not an
+##      exact number, so counting down by it ends a hair off 0, and a hair above 0 would be one more whole step
+##      at some rates and not at others. A round whose time is a whole number of steps plays exactly that many;
+##      any other plays to the end of the step its time runs out in.
 ##   5. The round ends if every level brick is broken (CLEARED), else if no ball is left (BALL_LOST), else if
 ##      time_left is 0 (TIME). `ended` is emitted once; after it step() does nothing. A board with no level
 ##      bricks is cleared on its first step.
@@ -94,6 +97,9 @@ const MAX_CONTACTS := 256
 ## This many contacts in a row that do not move a ball mean it is wedged where two surfaces meet (see _move).
 ## A corner between two bricks takes 2.
 const WEDGED := 8
+## Seconds on the timer that count as none (see ONE STEP, 4). Far above what rounding leaves behind (3e-9 after
+## two minutes at 10000 steps a second, 1e-11 in a real round) and far below any step.
+const TIME_SLOP := 1e-6
 
 ## A brick took a hit and is still there. `hp_left` is its hp after the hit; board.brick(cell) is the brick.
 signal brick_hit(cell: Vector2i, hp_left: int, cause: Cause)
@@ -211,7 +217,9 @@ func step(delta: float, paddle_target: float) -> void:
 		_move(ball, delta)
 	if combo.tick(delta):
 		combo_changed.emit(0, 1)
-	time_left = maxf(time_left - delta, 0.0)
+	time_left -= delta
+	if time_left < TIME_SLOP:
+		time_left = 0.0
 	if _left == 0:
 		_end(End.CLEARED)
 	elif balls.is_empty():

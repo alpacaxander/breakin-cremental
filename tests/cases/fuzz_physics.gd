@@ -46,18 +46,19 @@ func _timed(seconds: float, rate: int, ball_x: float, hp: int) -> Array:
 	return got
 
 
-## Round step 4: "time_left counts down. It stops at 0." and overview.md "The timer runs: 20 s base". time_left is
-## lowered by `delta` each step and compared with 0.0, so float residue can leave a hair above 0 after the last
-## whole step and the round plays one step more than its time: 1 s is 121 steps at 120/s, 20 s is 2401.
+## Round step 4: "time_left counts down. It stops at 0." and overview.md "The timer runs: 20 s base". time_left
+## was lowered by `delta` each step and compared with 0.0, so float residue left a hair above 0 after the last
+## whole step and the round played one step more than its time: 1 s was 121 steps at 120/s, 20 s was 2401.
+## Round.TIME_SLOP fixed it. The lengths are the Round Time ranks (20, 23, 26, 29) and two short ones.
 func _timer_steps() -> void:
-	for c in [[1.0, 120], [20.0, 120], [20.0, 240], [2.0, 60]]:
+	for c in [[1.0, 120], [20.0, 120], [20.0, 240], [2.0, 60], [23.0, 60], [26.0, 60], [29.0, 60], [20.0, 144]]:
 		var got: Array = _timed(c[0], c[1], 0.0, 1000000)
 		t.check(got[0] == roundi(c[0] * c[1]), "timer: a %s s round at %d steps a second plays %d steps, not %d" % [c[0], c[1], got[0], roundi(c[0] * c[1])])
 
 
 ## Round TICK RATE: "a round with one ball and a paddle that stays put breaks the same bricks in the same order at
-## 60, 120 and 240 steps a second". The ball reaches the brick 1.004 s in; a 1 s round plays exactly 1 s at 60/s
-## but one extra step (1.0083 s) at 120/s, so the brick breaks, and the level clears, only at 120.
+## 60, 120 and 240 steps a second". The ball reaches the brick 1.004 s in; a 1 s round played exactly 1 s at 60/s
+## but one extra step (1.0083 s) at 120/s, so the brick broke, and the level cleared, only at 120.
 func _timer_rates() -> void:
 	var x := 40 * 16.0 - _stats_base.ball_size * 0.5 - _stats_base.ball_speed * 1.004
 	var at60 := _timed(1.0, 60, x, 1)
