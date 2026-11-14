@@ -5,8 +5,6 @@ extends RefCounted
 ##
 ## Keys are brick kind ids: &"" is a standard brick, &"gold" a gold brick, and so on. A brick the player placed
 ## is never added to `broken` or `points`: it pays nothing.
-##
-## STUB: the rules lane adds the function the round fills it with.
 
 ## Bricks broken, by kind id.
 var broken: Dictionary[StringName, int] = {}
@@ -19,3 +17,14 @@ var placed_broken := 0
 var best_combo := 0
 ## The highest multiplier the round reached. 1 if combos are off.
 var best_multiplier := 1
+
+
+## Counts a brick that has just broken. `combo` is the round's combo, already grown by this break.
+func add(brick: Brick, combo: Combo) -> void:
+	best_combo = maxi(best_combo, combo.count)
+	best_multiplier = maxi(best_multiplier, combo.multiplier)
+	if brick.placed:
+		placed_broken += 1
+		return
+	broken[brick.kind] = broken.get(brick.kind, 0) + 1
+	points[brick.kind] = points.get(brick.kind, 0) + combo.multiplier

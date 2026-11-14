@@ -2,8 +2,6 @@ class_name Layout
 extends RefCounted
 ## The items a player placed on one level. The save keeps one per level; a round is built from one.
 ##
-## STUB: the rules lane writes the bodies.
-##
 ## SAVED FORM. to_data() gives an Array of Dictionaries, one per item, holding only JSON types:
 ##     {"kind": "wall_segment", "x": 600.0, "y": 256.0, "rot": 90.0}    a FREE item
 ##     {"kind": "splitter", "col": 30, "row": 3}                        a BRICK or MOD item
@@ -16,6 +14,11 @@ extends RefCounted
 ## VALIDITY. fits() is the only place that decides whether an item may be where it is. Setup calls it for the
 ## ghost under the cursor; loading calls it through fitted(). Overlap means sharing area: touching does not count.
 
+## Sides of the polygon that stands in for a CIRCLE item in fits().
+# ponytail: the polygon is drawn around the circle, so a Booster is refused up to 0.3 units before it really
+# touches something on a diagonal. Test the true circle if that margin is ever felt.
+const ROUND := 16
+
 class Item:
 	extends RefCounted
 	var kind: PlaceableKind
@@ -26,27 +29,70 @@ class Item:
 	## FREE and kind.rotatable: degrees, clockwise on screen, added to kind.turn. 0 otherwise.
 	var rot := 0.0
 
+
+	## FREE only: the shape as a convex polygon, in round units. A RECT's four corners, turned by kind.turn + rot;
+	## a CIRCLE as ROUND sides drawn around it. fits() and the sweep both work from this.
+	func outline() -> PackedVector2Array:
+		var out := PackedVector2Array()
+		if kind.shape == PlaceableKind.Shape.CIRCLE:
+			var reach := kind.size.x * 0.5 / cos(PI / ROUND)
+			for i in ROUND:
+				out.append(pos + Vector2.from_angle((i + 0.5) * TAU / ROUND) * reach)
+		else:
+			for corner in Collide.box(Rect2(-kind.size * 0.5, kind.size)):
+				out.append(pos + corner.rotated(deg_to_rad(kind.turn + rot)))
+		return out
+
 var items: Array[Item] = []
 
 
 ## Reads the saved form. Never fails: anything it cannot read is skipped.
-static func from_data(_data: Array) -> Layout:
-	return Layout.new()
+static func from_data(data: Array) -> Layout:
+	var out := Layout.new()
+	for entry: Variant in data:
+		if not entry is Dictionary:
+			continue
+		var item := Item.new()
+		item.kind = Kinds.of(StringName(str(entry.get("kind", "")))) as PlaceableKind
+		if item.kind == null:
+			continue
+		if item.kind.placement == PlaceableKind.Placement.FREE:
+			if not (_number(entry, "x") and _number(entry, "y")):
+				continue
+			item.pos = Vector2(entry.x, entry.y)
+			if item.kind.rotatable and _number(entry, "rot"):
+				item.rot = entry.rot
+		else:
+			if not (_number(entry, "col") and _number(entry, "row")):
+				continue
+			item.cell = Vector2i(int(entry.col), int(entry.row))
+		out.items.append(item)
+	return out
 
 
 ## The saved form of this layout.
 func to_data() -> Array:
-	return []
+	var out := []
+	for item in items:
+		if item.kind.placement == PlaceableKind.Placement.FREE:
+			out.append({"kind": String(item.kind.id), "x": float(item.pos.x), "y": float(item.pos.y), "rot": float(item.rot)})
+		else:
+			out.append({"kind": String(item.kind.id), "col": item.cell.x, "row": item.cell.y})
+	return out
 
 
 ## How many items of a kind are in the layout.
-func count(_kind_id: StringName) -> int:
-	return 0
+func count(kind_id: StringName) -> int:
+	var n := 0
+	for item in items:
+		if item.kind.id == kind_id:
+			n += 1
+	return n
 
 
 ## Puts an item in. It does not test it: call fits() first.
-func add(_item: Item) -> void:
-	pass
+func add(item: Item) -> void:
+	items.append(item)
 
 
 ## True if `item` may be added to this layout on `board`. `item` must not already be in the layout: to move an
@@ -59,23 +105,93 @@ func add(_item: Item) -> void:
 ##     ball at rest overlap it.
 ##   - MOD: the cell holds a brick of the board or a BRICK item, and no other MOD item is on that cell.
 ## Pass the level's board as read (Levels.read), not a round's board, which already has the layout's bricks on it.
-func fits(_item: Item, _board: Board, _stats: Balance) -> bool:
-	return false
+func fits(item: Item, board: Board, stats: Balance) -> bool:
+	if count(item.kind.id) >= stats.count(item.kind.id):
+		return false
+	if item.kind.placement == PlaceableKind.Placement.MOD:
+		return (board.brick(item.cell) != null or _on(item.cell, PlaceableKind.Placement.BRICK) != null) \
+				and _on(item.cell, PlaceableKind.Placement.MOD) == null
+	var shape: PackedVector2Array
+	if item.kind.placement == PlaceableKind.Placement.BRICK:
+		if not board.has_cell(item.cell) or board.brick(item.cell) != null or _on(item.cell, PlaceableKind.Placement.BRICK) != null:
+			return false
+		shape = Collide.box(board.cell_rect(item.cell))
+	else:
+		shape = item.outline()
+		var bounds := Rect2(shape[0], Vector2.ZERO)
+		for point in shape:
+			if not board.grid().grow(Collide.SKIN).has_point(point):
+				return false
+			bounds = bounds.expand(point)
+		var first := board.cell_at(bounds.position)
+		var last := board.cell_at(bounds.end)
+		for x in range(first.x, last.x + 1):
+			for y in range(first.y, last.y + 1):
+				if board.bricks.has(Vector2i(x, y)) and Collide.overlap(shape, Collide.box(board.cell_rect(Vector2i(x, y)))):
+					return false
+	var half := Vector2.ONE * stats.ball_size * 0.5
+	if Collide.overlap(shape, Collide.box(Rect2(Round.ball_start(board, stats) - half, half * 2.0))):
+		return false
+	for other in items:
+		match other.kind.placement:
+			PlaceableKind.Placement.FREE:
+				if Collide.overlap(shape, other.outline()):
+					return false
+			PlaceableKind.Placement.BRICK:
+				if Collide.overlap(shape, Collide.box(board.cell_rect(other.cell))):
+					return false
+	return true
 
 
 ## A new layout holding every item of this one that fits, tested one at a time in order, BRICK and FREE items
 ## first and MOD items after them. So when a count went down the later items of that kind are the ones dropped,
-## and a Zap whose brick is gone is dropped with it.
-func fitted(_board: Board, _stats: Balance) -> Layout:
-	return Layout.new()
+## and a Zap whose brick is gone is dropped with it. The items themselves are shared with this layout, not copied.
+func fitted(board: Board, stats: Balance) -> Layout:
+	var out := Layout.new()
+	for mods: bool in [false, true]:
+		for item in items:
+			if (item.kind.placement == PlaceableKind.Placement.MOD) == mods and out.fits(item, board, stats):
+				out.add(item)
+	return out
 
 
 ## Takes an item out. Taking out a BRICK item also takes out a MOD item on its cell.
-func remove(_item: Item) -> void:
-	pass
+func remove(item: Item) -> void:
+	items.erase(item)
+	if item.kind.placement == PlaceableKind.Placement.BRICK:
+		items.erase(_on(item.cell, PlaceableKind.Placement.MOD))
 
 
 ## The item whose shape contains `point` (round units), or null. The topmost is the last one added. A BRICK item
-## is hit anywhere in its cell. A MOD item is checked before the brick under it.
-func item_at(_point: Vector2) -> Item:
+## is hit anywhere in its cell. A MOD item is hit anywhere in its brick's cell, and is checked before the brick
+## under it.
+func item_at(point: Vector2) -> Item:
+	var cell := Vector2i((point / Board.BRICK).floor())
+	var mod := _on(cell, PlaceableKind.Placement.MOD)
+	if mod:
+		return mod
+	for i in range(items.size() - 1, -1, -1):
+		var item := items[i]
+		match item.kind.placement:
+			PlaceableKind.Placement.BRICK:
+				if item.cell == cell:
+					return item
+			PlaceableKind.Placement.FREE:
+				if item.kind.shape == PlaceableKind.Shape.CIRCLE:
+					if point.distance_to(item.pos) <= item.kind.size.x * 0.5:
+						return item
+				elif Geometry2D.is_point_in_polygon(point, item.outline()):
+					return item
 	return null
+
+
+# The item of one placement on a brick cell, or null.
+func _on(cell: Vector2i, placement: PlaceableKind.Placement) -> Item:
+	for item in items:
+		if item.kind.placement == placement and item.cell == cell:
+			return item
+	return null
+
+
+static func _number(entry: Dictionary, key: String) -> bool:
+	return entry.get(key) is float or entry.get(key) is int

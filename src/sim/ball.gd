@@ -14,6 +14,20 @@ var size: float
 ## (see Round.speed_of). A Booster and a Shockwave raise it through Round.set_boost, which caps it at
 ## stats.boost_cap. It drops back to 1 when the ball next touches the paddle.
 var boost := 1.0
+## Rules only: the straight line the ball is on. It began at `from` and the ball is `gone` units along it, so
+## pos is always from + dir * gone. The sweep measures every contact from `from`, never from pos, so where a
+## ball bounces next does not depend on how the time was cut into steps.
+var from: Vector2
+var gone := 0.0
+
+
+## Puts the ball at a point, heading along a unit vector, and starts its line there. The round aims a ball with
+## this after every bounce. Setting pos or dir by hand also works: the round sees it on the ball's next move.
+func put(p_pos: Vector2, p_dir: Vector2) -> void:
+	pos = p_pos
+	dir = p_dir
+	from = p_pos
+	gone = 0.0
 
 
 ## The ball's square, in units.

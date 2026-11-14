@@ -7,9 +7,11 @@ class_name Coins
 ##     floor(stats.coins_per_brick * sum over kind ids k of tally.points[k] * worth(k))
 ##
 ## where worth(&"") is 1 and worth(k) is the BrickKind's `worth` (gold: 5).
-##
-## STUB: the rules lane writes it.
 
 
-static func total(_tally: Tally, _stats: Balance) -> int:
-	return 0
+static func total(tally: Tally, stats: Balance) -> int:
+	var sum := 0
+	for id: StringName in tally.points:
+		var kind := Kinds.of(id) as BrickKind
+		sum += tally.points[id] * (kind.worth if kind else 1)
+	return floori(stats.coins_per_brick * sum)
