@@ -12,8 +12,17 @@ extends Node
 ##   ranks   fresh, max, or a list such as max,combo:0 or paddle_speed:2,bumper:1 (applied left to right)
 ##   skill   clumsy, average, good, or all (a campaign then plays as average)
 ##   seeds   rounds per line in a batch
-##   layout  empty, or auto: the best spot for each item the ranks allow, found by playing (see _auto)
+##   layout  empty, or auto: the best spot for each item the ranks allow, found by playing (see _auto), or a
+##           file such as res://tests/layouts/found.json: a layout for some levels, kept the same whatever the
+##           ranks are, of which a round uses the items its ranks allow, in the file's order (see _given). A
+##           level the file leaves out gets the auto layout
 ##   rounds  the campaign's round limit
+##   base    added to every seed a batch or a campaign plays with (default 0), to measure on other seeds
+##
+## tests/layouts/found.json is what the search found, kept: on levels 1 and 2 the Splitters and Zaps only (wherever
+## the search puts a Bumper, a Booster or a Wall Segment there, this player does no better, and often worse: it does
+## not foresee a bounce off its own item), on level 3 every item, from the best of several searches with every
+## upgrade owned. Tuning compared numbers on it. A campaign with it takes a second; with the search, minutes.
 ##
 ## Every number is seeded: the same arguments give the same report. A table is printed and the full results
 ## are written as JSON to tests/out/bot/<mode>.json. The save is tests/out/bot/save.json (Progress.use), never
@@ -48,7 +57,7 @@ const ROTATIONS := [0.0, 45.0, 90.0, 135.0]
 const WEB_SCENE := "res://src/hub/web.tscn"
 
 var _args := {"mode": "report", "level": "all", "ranks": "fresh", "skill": "average", "seeds": "20",
-		"layout": "auto", "rounds": "400"}
+		"layout": "auto", "rounds": "400", "base": "0"}
 var _boards := {}  # level -> Board, read once
 var _layouts := {}  # cache key -> Layout, for _auto
 var _web: Array[Array] = []  # the web's connections as pairs of upgrade ids
@@ -159,7 +168,7 @@ func _ready() -> void:
 			_set_ranks(_args.ranks)
 			var stats := Progress.snapshot()
 			var level := int(_args.level)
-			result = _play(level, _auto(level, stats) if _args.layout == "auto" else Layout.new(), stats, _args.skill, int(_args.get("seed", "1")), true)
+			result = _play(level, _given(level, stats, _args.layout), stats, _args.skill, int(_args.get("seed", "1")), true)
 		"report":
 			var lines := _batches(_levels(), "fresh", _skills(), int(_args.seeds), "empty")
 			lines.append_array(_batches(_levels(), "max", _skills(), int(_args.seeds), _args.layout))
@@ -270,11 +279,11 @@ func _batches(levels: Array, ranks: String, skills: Array, seeds: int, layout_ki
 	print("%-5s %-8s %-4s %-12s %-12s %-11s %-6s %-6s %-6s %-8s %s" % ["level", "skill", "of", "bricks", "coins", "time s",
 			"clear", "lost", "combo", "hopeless", "items"])
 	for level: int in levels:
-		var layout := _auto(level, stats) if layout_kind == "auto" else Layout.new()
+		var layout := _given(level, stats, layout_kind)
 		for skill: String in skills:
 			var rounds := []
 			for i in seeds:
-				rounds.append(_play(level, layout, stats, skill, i + 1))
+				rounds.append(_play(level, layout, stats, skill, int(_args.base) + i + 1))
 			var line := {"level": level, "ranks": ranks, "skill": skill, "of": _board(level).bricks.size(), "layout": layout.to_data(), "rounds": rounds}
 			for key: String in ["bricks", "coins", "time", "best_combo"]:
 				line[key] = _spread(rounds.map(func(r: Dictionary) -> float: return r[key]))
@@ -314,6 +323,29 @@ func _spread(values: Array) -> Dictionary:
 
 func _show(s: Dictionary) -> String:
 	return "%.1f ±%.1f" % [s.mean, s.sd] if s.mean < 100 else "%d ±%d" % [s.mean, s.sd]
+
+
+## The layout a batch plays: none, the auto layout, or the one a file gives for the level. The file is JSON, a
+## dictionary from level number to a layout's saved form (Layout.to_data, which is also a batch line's "layout" in
+## the bot's own results). It may hold more items than the ranks allow: Layout.fitted keeps the first of each kind.
+## A file's layout is the same for every set of numbers, which the auto layout is not: its search starts again
+## when a number changes and can land somewhere else, and on level 3 that alone moves a batch by 100 bricks.
+func _given(level: int, stats: Balance, kind: String) -> Layout:
+	if kind == "empty":
+		return Layout.new()
+	var data: Variant = _filed(level, kind)
+	return Layout.from_data(data).fitted(_board(level), stats) if data is Array else _auto(level, stats)
+
+
+## The saved form the layout file `kind` holds for a level, or null: no file was named, or it leaves the level out.
+func _filed(level: int, kind: String) -> Variant:
+	if kind == "auto" or kind == "empty":
+		return null
+	var data: Variant = JSON.parse_string(FileAccess.get_file_as_string(kind))
+	if not data is Dictionary:
+		push_error("layout=%s: not a file holding {\"<level>\": [items]}" % kind)
+		return null
+	return data.get(str(level))
 
 
 ## The auto layout for a level and a snapshot, from nothing. Cached: a batch asks for it once per level.
@@ -407,7 +439,7 @@ func _value(level: int, layout: Layout, item: Layout.Item, stats: Balance, seeds
 
 
 ## From a fresh save, as a player would: play the highest level unlocked with its saved layout plus anything new
-## the ranks allow (_fill), take the coins, then buy. Stops when the last level is cleared or after `limit`
+## the ranks allow (_fill; with layout=<file> or empty, that layout instead), take the coins, then buy. Stops when the last level is cleared or after `limit`
 ## rounds. Buying: while anything is affordable, the cheapest next rank of a node the web offers (the seed node,
 ## or one next to a node owned); a tie goes to the first by id.
 # ponytail: cheapest first is one sensible player, not the best one. Add a smarter buyer (save up for a node
@@ -425,9 +457,9 @@ func _campaign(skill: String, limit: int) -> Dictionary:
 	for i in limit:
 		var level := Progress.unlocked
 		var stats := Progress.snapshot()
-		var layout := _fill(level, Progress.layout(level), stats)
+		var layout := _fill(level, Progress.layout(level), stats) if _filed(level, _args.layout) == null and _args.layout != "empty" else _given(level, stats, _args.layout)
 		Progress.set_layout(level, layout)
-		var r := _play(level, layout, stats, skill, i + 1)
+		var r := _play(level, layout, stats, skill, int(_args.base) + i + 1)
 		r.level = level
 		r.items = layout.items.size()
 		rounds.append(r)

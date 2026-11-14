@@ -96,7 +96,7 @@ The demo's kinds. The id is the file name in `data/kinds/`, and `<id>_count` is 
 | `zap` | PlaceableKind, MOD | A 6 × 6 mark | `placeable` | `zap` | |
 | `explosive` | BrickKind | 1 HP | `explosive` | none (`exploded` has its own) | Reach comes from the `blast_size` stat |
 | `gold` | BrickKind | 1 HP, worth 20 | `coins` | `gold_brick` | |
-| `hourglass` | BrickKind | 1 HP | `time` | `hourglass_brick` | Adds 10 s |
+| `hourglass` | BrickKind | 1 HP | `time` | `hourglass_brick` | Adds 15 s |
 
 `order` runs 1 to 5 down the placeables and 1 to 3 down the bricks; it is the tray order and the order special bricks are rolled in.
 
@@ -258,6 +258,7 @@ tests/
   shots.gd  shots.tscn    the screenshot harness
   shots/                  one shot list per lane, plus the two play-test lists
   balance.gd  balance.tscn   the bot
+  layouts/                layouts the bot can be told to play (layout=), as JSON
   out/                    what tests write; ignored by git and by Godot
 ```
 
@@ -277,7 +278,7 @@ Everything runs through `tests/run.sh`, which moves `user://` inside the checkou
 | `tests/run.sh test [case…]` | The headless self-check: plain checks with no test framework. It runs every file in `tests/cases/`, prints `ok` or `FAIL` lines and exits 1 on a failure. A Godot error while a case runs fails the case |
 | `tests/run.sh boot` | Runs the main scene headless for 5 seconds and fails on any error |
 | `tests/run.sh shots [list…]` | Boots the real `Main` under `xvfb-run` and saves PNGs to `tests/out/shots/<list>/`, bloom and CRT included. Each file in `tests/shots/` is a list of shots; a shot can start from a fresh, mid-game or maxed save and can capture a strip of frames. A shot's setup can also measure the picture and log an error, which fails the run: the `white_<n>` shots of the `contracts` list check that no brick on any level comes near the ball's white, at rest and at the top of the bloom |
-| `tests/run.sh bot [mode] [key=value…]` | `tests/balance.tscn`: a bot plays the rules headless with a paddle that stands in for a person (it sees the ball late and aims with an error), as a clumsy, average or good player. With no arguments it reports every level on a fresh save and with every upgrade owned, then one campaign from a fresh save that buys the cheapest node the web offers. `batch`, `campaign`, `check` (the bot's own self-check) and `trace` run one part; the keys are listed at the top of `tests/balance.gd`. Results also go to `tests/out/bot/` as JSON. It is the tool for the difficulty risk in [design.md](design.md#risks) |
+| `tests/run.sh bot [mode] [key=value…]` | `tests/balance.tscn`: a bot plays the rules headless with a paddle that stands in for a person (it sees the ball late and aims with an error), as a clumsy, average or good player. With no arguments it reports every level on a fresh save and with every upgrade owned, then one campaign from a fresh save that buys the cheapest node the web offers. `batch`, `campaign`, `check` (the bot's own self-check) and `trace` run one part; the keys are listed at the top of `tests/balance.gd`. The bot places items by search (`layout=auto`), which starts again whenever a number changes; `layout=res://tests/layouts/found.json` plays the same layouts every time, so two sets of numbers can be compared. Results also go to `tests/out/bot/` as JSON. It is the tool for the difficulty risk in [design.md](design.md#risks) |
 
 A lane adds its own `tests/cases/<lane>.gd` and `tests/shots/<lane>.gd` and never edits another's. All the cases run in one process, so the runner gives each a fresh save, the default settings and only the kinds that have files (`Kinds.reset()`), whatever the case before it did. The cases cover the physics rules (constant speed, minimum angles, no tunnelling), the brick and hit counts of each level against [levels.md](design/levels.md), upgrade costs, the coin formula, a save round trip, the layer rules, and each screen through the real `Main` with pushed input events.
 
@@ -326,7 +327,7 @@ The folders are also how the work divides. A lane writes only in its own folders
 
 4. **Feel:** the effects, in `src/level/fx/` (`fx`). The HUD's and the hub's pulses and the top HP colour came with it.
 5. **An audit** against the docs, with fixes.
-6. **Tuning** with the balance bot. It changed the files under `data/`, the brick HP of levels 1 and 3, and the effects' `COMBO_TOP`.
+6. **Tuning** with the balance bot, in two passes. It changed the files under `data/`, the brick HP of levels 1 and 3, and the effects' `COMBO_TOP`. The second pass gave the bot a seed offset (`base=`) and layouts from a file (`layout=`, `tests/layouts/`).
 
 The screens wait for the rules so a screen lane can render a real board and check its own work.
 

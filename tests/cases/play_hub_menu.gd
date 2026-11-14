@@ -14,21 +14,21 @@ extends RefCounted
 
 ## docs/design/upgrades.md's table, by web node: name, category, ranks, "Each rank", first cost, growth.
 const TABLE := {
-	&"PaddleSpeed": ["Paddle Speed", Upgrade.Category.ARENA, 2, "+100% paddle speed", 5, 10.0],
-	&"BallSpeed": ["Ball Speed", Upgrade.Category.ARENA, 3, "+10% ball speed", 6, 2.5],
-	&"PaddleSize": ["Paddle Size", Upgrade.Category.ARENA, 3, "+20% paddle length", 10, 4.0],
-	&"Bumper": ["Bumper", Upgrade.Category.PLACEABLES, 3, "One more Bumper", 10, 10.0],
-	&"ExplosiveBrick": ["Explosive Brick", Upgrade.Category.BRICKS, 4, "One more explosive brick", 8, 2.5],
-	&"Combo": ["Combo", Upgrade.Category.ARENA, 3, "Rank 1 turns combos on. Ranks 2 and 3 widen the window", 20, 10.0],
-	&"WallSegment": ["Wall Segment", Upgrade.Category.PLACEABLES, 2, "One more Wall Segment", 400, 4.0],
-	&"RoundTime": ["Round Time", Upgrade.Category.ARENA, 6, "+5 s", 10, 2.5],
-	&"GoldBrick": ["Gold Brick", Upgrade.Category.BRICKS, 3, "One more gold brick", 25, 4.0],
-	&"Booster": ["Booster", Upgrade.Category.PLACEABLES, 2, "One more Booster", 400, 4.0],
-	&"BlastSize": ["Blast Size", Upgrade.Category.BRICKS, 2, "Explosions reach one square further", 35, 100.0],
-	&"Shockwave": ["Shockwave", Upgrade.Category.BRICKS, 1, "Explosions throw balls", 300, 1.8],
-	&"HourglassBrick": ["Hourglass Brick", Upgrade.Category.BRICKS, 2, "One more hourglass brick", 200, 4.0],
-	&"Splitter": ["Splitter", Upgrade.Category.PLACEABLES, 5, "One more Splitter", 60, 4.0],
-	&"Zap": ["Zap", Upgrade.Category.PLACEABLES, 3, "One more Zap", 200, 4.0],
+	&"PaddleSpeed": ["Paddle Speed", Upgrade.Category.ARENA, 2, "+100% paddle speed", 2, 20.0],
+	&"BallSpeed": ["Ball Speed", Upgrade.Category.ARENA, 3, "+10% ball speed", 5, 3.0],
+	&"PaddleSize": ["Paddle Size", Upgrade.Category.ARENA, 5, "+40% paddle length", 10, 8.0],
+	&"Bumper": ["Bumper", Upgrade.Category.PLACEABLES, 3, "One more Bumper", 10, 8.0],
+	&"ExplosiveBrick": ["Explosive Brick", Upgrade.Category.BRICKS, 4, "One more explosive brick", 8, 3.5],
+	&"Combo": ["Combo", Upgrade.Category.ARENA, 2, "Rank 1 turns combos on. Rank 2 widens the window", 20, 25.0],
+	&"WallSegment": ["Wall Segment", Upgrade.Category.PLACEABLES, 2, "One more Wall Segment", 30, 8.0],
+	&"RoundTime": ["Round Time", Upgrade.Category.ARENA, 5, "+6 s", 10, 7.0],
+	&"GoldBrick": ["Gold Brick", Upgrade.Category.BRICKS, 3, "One more gold brick", 25, 7.0],
+	&"Booster": ["Booster", Upgrade.Category.PLACEABLES, 2, "One more Booster", 100, 8.0],
+	&"BlastSize": ["Blast Size", Upgrade.Category.BRICKS, 2, "Explosions reach one square further", 35, 450.0],
+	&"Shockwave": ["Shockwave", Upgrade.Category.BRICKS, 1, "Explosions throw balls", 600, 1.8],
+	&"HourglassBrick": ["Hourglass Brick", Upgrade.Category.BRICKS, 2, "One more hourglass brick", 300, 60.0],
+	&"Splitter": ["Splitter", Upgrade.Category.PLACEABLES, 5, "One more Splitter", 40, 5.7],
+	&"Zap": ["Zap", Upgrade.Category.PLACEABLES, 3, "One more Zap", 300, 9.0],
 }
 ## The drawn web of upgrades.md: each node and the one it hangs off, towards the seed.
 const PARENT := {
@@ -174,11 +174,11 @@ func _max_and_poor() -> void:
 	var seed := _web().seed_node()
 	var buy: Button = _hub().get_node("Detail/%Buy")
 	await _click(seed)
-	Progress.coins = 4
+	Progress.coins = 1
 	await _quiet()
 	await _click(buy)
 	await _heard_settle()
-	t.check(Progress.coins == 4 and Progress.rank(seed.upgrade) == 0, "Buy with 4 coins on a 5-coin node buys nothing")
+	t.check(Progress.coins == 1 and Progress.rank(seed.upgrade) == 0, "Buy with 1 coin on a 2-coin node buys nothing")
 	t.check(heard == [Sfx.CANT_AFFORD], "it plays can't afford once and nothing else (heard %s)" % [heard])
 	t.check(buy.theme_type_variation == &"CantAfford" and not buy.disabled and buy.text == "BUY", "it reads BUY in the can't-afford look")
 	var paid: Array[int] = []
@@ -190,7 +190,7 @@ func _max_and_poor() -> void:
 		await _heard_settle()
 		paid.append(before - Progress.coins)
 		t.check(heard == [Sfx.BUY], "buying rank %d plays the buy cue once and nothing else (heard %s)" % [i + 1, heard])
-	t.check(paid == [5, 50], "Paddle Speed's two ranks cost 5 and 50 (paid %s)" % [paid])
+	t.check(paid == [2, 40], "Paddle Speed's two ranks cost 2 and 40 (paid %s)" % [paid])
 	t.check(_web().state(seed) == HubNode.State.MAXED and buy.disabled and buy.text == "MAXED", "after the second rank it is maxed and Buy reads MAXED")
 	t.check(not (_hub().get_node("Detail/%Cost") as Control).visible and (seed.get_node("Bottom/Max") as Control).visible, "the price is gone and the node says MAX")
 	var coins := Progress.coins

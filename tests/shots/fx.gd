@@ -44,7 +44,7 @@ func shots() -> Array[Dictionary]:
 		{"name": "paddle_lost_calm", "crt": false, "calm": true, "setup": _paddle_lost},
 		{"name": "cleared", "save": "maxed", "setup": _cleared, "settle": 0, "frames": 8, "every": 6},
 		{"name": "time_up", "setup": _time_up},
-		# Level 3: smaller, and bursts. A Zap along a 4 HP row and along a 1 HP row, an explosive, and the worst
+		# Level 3: smaller, and bursts. A Zap along a 2 HP row and along a 1 HP row, an explosive, and the worst
 		# burst there is: every brick at 1 HP, a Zap on a row and the three explosives next to it.
 		{"name": "l3_break_x12", "save": "maxed", "crt": false, "setup": _breaks.bind(3, 12)},
 		{"name": "l3_zap_hits", "save": "maxed", "crt": false, "setup": _zap.bind(3)},
@@ -188,7 +188,7 @@ func _cleared(main: Main) -> void:
 			round.hit_brick(cells[i], Round.Cause.BALL, Vector2.RIGHT)
 
 
-## A Zap set off on brick row `row` of level 3: row 3 is 4 HP (63 hits that hold), row 1 is 1 HP (63 breaks).
+## A Zap set off on brick row `row` of level 3: row 3 is 2 HP (63 hits that hold), row 1 is 1 HP (63 breaks).
 func _zap(main: Main, row: int) -> void:
 	var round := await _start(main, 3, 12)
 	var cell := Vector2i(30, row)

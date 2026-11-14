@@ -6,9 +6,9 @@
 script = ExtResource("1")
 title = "Round Time"
 category = 0
-text = "+5 s on the timer"
+text = "+6 s on the timer"
 first_cost = 10
-growth = 2.5
-max_rank = 6
+growth = 7.0
+max_rank = 5
 stat = &"round_time"
-amount = 5.0
+amount = 6.0

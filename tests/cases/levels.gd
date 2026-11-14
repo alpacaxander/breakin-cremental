@@ -5,7 +5,7 @@ extends RefCounted
 const LEVELS := {
 	1: {"title": "Three Columns", "rows": 16, "bricks": 24, "top": 1, "at_top": 24, "hits": 24},
 	2: {"title": "Checkerboard", "rows": 16, "bricks": 128, "top": 1, "at_top": 128, "hits": 128},
-	3: {"title": "The Tunnel", "rows": 18, "bricks": 512, "top": 3, "at_top": 134, "hits": 780},
+	3: {"title": "The Tunnel", "rows": 18, "bricks": 512, "top": 2, "at_top": 134, "hits": 646},
 }
 ## HP at a cell, 0 for empty: grid corners, the first and last brick columns, and the pattern's edges.
 const CELLS := {
@@ -22,8 +22,8 @@ const CELLS := {
 	},
 	3: {
 		Vector2i(0, 0): 0, Vector2i(71, 0): 0, Vector2i(0, 8): 0, Vector2i(71, 8): 0, Vector2i(3, 0): 0, Vector2i(68, 8): 0,
-		Vector2i(4, 0): 3, Vector2i(4, 8): 3, Vector2i(5, 0): 1, Vector2i(67, 0): 1, Vector2i(67, 8): 1, Vector2i(30, 2): 1,
-		Vector2i(4, 3): 3, Vector2i(30, 3): 3, Vector2i(67, 3): 3, Vector2i(5, 5): 3, Vector2i(67, 5): 3, Vector2i(30, 6): 1,
+		Vector2i(4, 0): 2, Vector2i(4, 8): 2, Vector2i(5, 0): 1, Vector2i(67, 0): 1, Vector2i(67, 8): 1, Vector2i(30, 2): 1,
+		Vector2i(4, 3): 2, Vector2i(30, 3): 2, Vector2i(67, 3): 2, Vector2i(5, 5): 2, Vector2i(67, 5): 2, Vector2i(30, 6): 1,
 		Vector2i(4, 4): 0, Vector2i(30, 4): 0, Vector2i(67, 4): 0,
 	},
 }

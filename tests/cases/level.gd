@@ -27,6 +27,8 @@ func run(p_t: Node) -> void:
 	Settings.crt = false
 	for u in Progress.upgrades():
 		Progress.ranks[u.id] = u.max_rank
+	# A maxed paddle fills more than half the lane and has no room for the moves _paddle makes.
+	Progress.ranks[&"paddle_size"] = 2
 	main = (load("res://src/main.tscn") as PackedScene).instantiate()
 	t.add_child(main)
 	var on_played := func(cue: StringName, _player: AudioStreamPlayer) -> void: heard.append(cue)
@@ -68,10 +70,10 @@ func _seam() -> void:
 	arena._process(0.0)
 	t.check(arena.position == ORIGIN + Vector2(3, -2), "Arena follows the effects' shake")
 	level.fx.shake = Vector2.ZERO
-	# Level 3 starts with 1 and 4 HP bricks only, and a 4 HP brick shows 3 and 2 on its way down.
+	# Level 3 has 1 and 2 HP bricks.
 	level.start(7)
 	var legend: Array = _texts(level.get_node("Hud")._legend).filter(func(s: String) -> bool: return s.ends_with("HP"))
-	t.check(legend == ["1 HP", "2 HP", "3 HP"], "Play's legend lists every HP step up to the board's toughest brick (%s)" % [legend])
+	t.check(legend == ["1 HP", "2 HP"], "Play's legend lists every HP step up to the board's toughest brick (%s)" % [legend])
 
 
 ## Setup: drag to place, move and remove; refusals; rotation; snapping; each change saved.

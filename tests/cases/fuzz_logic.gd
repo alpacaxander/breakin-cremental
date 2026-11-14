@@ -777,7 +777,7 @@ func _fuzz_round(sd: int) -> void:
 	spy.time_changed.connect(func(left_now: float, added: float) -> void:
 		if m.ended:
 			m.after += 1
-		_fail(m.last == "broken" and m.expect == "time" and added == 10.0 and left_now == spy.time_left, "an hourglass brick adds 10 s when it breaks, and only then (upgrades.md)")
+		_fail(m.last == "broken" and m.expect == "time" and added == 15.0 and left_now == spy.time_left, "an hourglass brick adds 15 s when it breaks, and only then (upgrades.md)")
 		m.added += added
 		_seen.hourglass = _seen.get("hourglass", 0) + 1
 		m.last = "time")
@@ -1089,8 +1089,8 @@ func _r2_timer() -> void:
 		stats.round_time = 20.0
 		var round := Round.new(board, null, stats, 1)
 		var n := _r2_count_steps(round, 1.0 / rate, {rate * 3: Vector2i(40, 2), rate * 21 + 7: Vector2i(44, 6)})
-		if n != rate * 40 or round.reason != Round.End.TIME:
-			wrong.append("20 s + two hourglasses at %d/s: %d steps, want %d" % [rate, n, rate * 40])
+		if n != rate * 50 or round.reason != Round.End.TIME:
+			wrong.append("20 s + two hourglasses at %d/s: %d steps, want %d" % [rate, n, rate * 50])
 	t.check(wrong.is_empty(), "a round whose time is a whole number of steps plays exactly that many, any other to the end of the step its time runs out in (Round ONE STEP 4): %s" % [wrong])
 
 
@@ -1121,7 +1121,7 @@ func _r2_end_order() -> void:
 	round = Round.new(board, null, stats, 1)
 	round.balls[0].put(Vector2(470, 224), Vector2(0.8, 0.6))
 	round.step(1.0 / 60.0, round.paddle.y)
-	t.check(not round.over and round.board.bricks.size() == 1 and absf(round.time_left - 10.0) < 1e-9, "an hourglass broken in the last step adds its 10 s before the timer is read (Round ONE STEP 4): time %s, over %s" % [round.time_left, round.over])
+	t.check(not round.over and round.board.bricks.size() == 1 and absf(round.time_left - 15.0) < 1e-9, "an hourglass broken in the last step adds its 15 s before the timer is read (Round ONE STEP 4): time %s, over %s" % [round.time_left, round.over])
 
 
 ## One hit that breaks ten bricks: each pays at the multiplier its own break reached (Round ONE BRICK HIT,

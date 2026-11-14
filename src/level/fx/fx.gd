@@ -55,7 +55,7 @@ extends Node2D
 ## (the ball it throws leaves with a longer trail, as any boosted ball does).
 
 # The combo.
-const COMBO_TOP := 120  ## The combo count at which the effects are at their biggest
+const COMBO_TOP := 160  ## The combo count at which the effects are at their biggest
 const COMBO_CURVE := 0.5  ## heat = (share of the way to COMBO_TOP) to this power. Under 1 rises fast, then eases
 ## The share of set_bloom's range the heat alone reaches. The rest is left to the flashes, so that a blast at the
 ## top of a combo still lights the screen.

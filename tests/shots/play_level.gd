@@ -63,7 +63,8 @@ func _lose(main: Main, number: int) -> void:
 	_mouse(main, Vector2(640, 112))
 
 
-## Level 3 in Setup, maxed: measures the brightest pixel of the ball and of a 4 HP brick, as the player sees them.
+## Level 3 in Setup, maxed: measures the brightest pixel of the ball and of one of the board's toughest plain
+## bricks, as the player sees them.
 func _white(main: Main) -> void:
 	var level := _open(3)
 	for i in 3:
@@ -75,12 +76,16 @@ func _white(main: Main) -> void:
 	var ball_at := LevelArena.ORIGIN + round.balls[0].pos * zoom
 	var ball := _brightest(image, Rect2(ball_at - Vector2(4, 4), Vector2(8, 8)))
 	var brick: Color
+	var top := 0
 	for cell: Vector2i in round.board.bricks:
-		if round.board.brick(cell).hp == 4 and round.board.brick(cell).kind == &"":
+		if round.board.brick(cell).kind == &"":
+			top = maxi(top, round.board.brick(cell).hp)
+	for cell: Vector2i in round.board.bricks:
+		if round.board.brick(cell).hp == top and round.board.brick(cell).kind == &"":
 			var r := round.board.cell_rect(cell)
 			brick = _brightest(image, Rect2(LevelArena.ORIGIN + r.position * zoom, r.size * zoom).grow(-2))
 			break
-	print("play_level: level 3 Setup, ball brightest %s (%.3f), 4 HP brick brightest %s (%.3f)" % [ball.to_html(false), ball.get_luminance(), brick.to_html(false), brick.get_luminance()])
+	print("play_level: level 3 Setup, ball brightest %s (%.3f), %d HP brick brightest %s (%.3f)" % [ball.to_html(false), ball.get_luminance(), top, brick.to_html(false), brick.get_luminance()])
 
 
 func _brightest(image: Image, area: Rect2) -> Color:

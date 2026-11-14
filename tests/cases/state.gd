@@ -6,21 +6,21 @@ const P := Upgrade.Category.PLACEABLES
 const B := Upgrade.Category.BRICKS
 ## docs/design/upgrades.md and docs/architecture.md ("Stats"): id -> [category, ranks, first cost, stat, amount, percent, growth].
 const TABLE := {
-	&"paddle_speed": [A, 2, 5, &"paddle_speed", 1.0, true, 10.0],
-	&"ball_speed": [A, 3, 6, &"ball_speed", 0.1, true, 2.5],
-	&"paddle_size": [A, 3, 10, &"paddle_size", 0.2, true, 4.0],
-	&"bumper": [P, 3, 10, &"bumper_count", 1.0, false, 10.0],
-	&"explosive_brick": [B, 4, 8, &"explosive_count", 1.0, false, 2.5],
-	&"combo": [A, 3, 20, &"combo_rank", 1.0, false, 10.0],
-	&"wall_segment": [P, 2, 400, &"wall_segment_count", 1.0, false, 4.0],
-	&"round_time": [A, 6, 10, &"round_time", 5.0, false, 2.5],
-	&"gold_brick": [B, 3, 25, &"gold_count", 1.0, false, 4.0],
-	&"booster": [P, 2, 400, &"booster_count", 1.0, false, 4.0],
-	&"blast_size": [B, 2, 35, &"blast_size", 1.0, false, 100.0],
-	&"shockwave": [B, 1, 300, &"shockwave", 1.0, false, 1.8],
-	&"hourglass_brick": [B, 2, 200, &"hourglass_count", 1.0, false, 4.0],
-	&"splitter": [P, 5, 60, &"splitter_count", 1.0, false, 4.0],
-	&"zap": [P, 3, 200, &"zap_count", 1.0, false, 4.0],
+	&"paddle_speed": [A, 2, 2, &"paddle_speed", 1.0, true, 20.0],
+	&"ball_speed": [A, 3, 5, &"ball_speed", 0.1, true, 3.0],
+	&"paddle_size": [A, 5, 10, &"paddle_size", 0.4, true, 8.0],
+	&"bumper": [P, 3, 10, &"bumper_count", 1.0, false, 8.0],
+	&"explosive_brick": [B, 4, 8, &"explosive_count", 1.0, false, 3.5],
+	&"combo": [A, 2, 20, &"combo_rank", 1.0, false, 25.0],
+	&"wall_segment": [P, 2, 30, &"wall_segment_count", 1.0, false, 8.0],
+	&"round_time": [A, 5, 10, &"round_time", 6.0, false, 7.0],
+	&"gold_brick": [B, 3, 25, &"gold_count", 1.0, false, 7.0],
+	&"booster": [P, 2, 100, &"booster_count", 1.0, false, 8.0],
+	&"blast_size": [B, 2, 35, &"blast_size", 1.0, false, 450.0],
+	&"shockwave": [B, 1, 600, &"shockwave", 1.0, false, 1.8],
+	&"hourglass_brick": [B, 2, 300, &"hourglass_count", 1.0, false, 60.0],
+	&"splitter": [P, 5, 40, &"splitter_count", 1.0, false, 5.7],
+	&"zap": [P, 3, 300, &"zap_count", 1.0, false, 9.0],
 }
 
 
@@ -65,9 +65,9 @@ func _stats(t: Node) -> void:
 	Progress.ranks[&"bumper"] = 3
 	Progress.ranks[&"explosive_brick"] = 2
 	t.check(is_equal_approx(Progress.stat(&"ball_speed"), base.ball_speed * 1.3), "Ball Speed rank 3 is 130% of the base")
-	t.check(is_equal_approx(Progress.stat(&"round_time"), base.round_time + 10.0), "Round Time rank 2 adds 10 s")
+	t.check(is_equal_approx(Progress.stat(&"round_time"), base.round_time + 12.0), "Round Time rank 2 adds 12 s")
 	var s := Progress.snapshot()
-	t.check(is_equal_approx(s.ball_speed, base.ball_speed * 1.3) and is_equal_approx(s.round_time, base.round_time + 10.0), "the snapshot carries the upgraded stats")
+	t.check(is_equal_approx(s.ball_speed, base.ball_speed * 1.3) and is_equal_approx(s.round_time, base.round_time + 12.0), "the snapshot carries the upgraded stats")
 	t.check(s.count(&"bumper") == 3 and s.count(&"explosive") == 2 and s.count(&"gold") == 0, "the counts land in the snapshot as <kind id>_count")
 	t.check(s.extra.get(&"explosive_count") == 2.0 and not s.extra.has(&"explosive_brick_count"), "a special brick's count is named after the kind, not the upgrade")
 	t.check(is_equal_approx(s.paddle_speed, base.paddle_speed) and s.ball_size == base.ball_size, "what no rank changes stays at its base")
@@ -82,17 +82,17 @@ func _buy(t: Node) -> void:
 	var on_rank := func(x: Upgrade) -> void: heard.append(x)
 	Progress.coins_changed.connect(on_coins)
 	Progress.rank_changed.connect(on_rank)
-	Progress.coins = 4
+	Progress.coins = 1
 	heard.clear()
-	t.check(not Progress.buy(u) and Progress.rank(u) == 0 and Progress.coins == 4 and heard.is_empty(), "buy refuses when the coins do not cover it")
+	t.check(not Progress.buy(u) and Progress.rank(u) == 0 and Progress.coins == 1 and heard.is_empty(), "buy refuses when the coins do not cover it")
 	Progress.coins = 200
 	heard.clear()
-	t.check(Progress.buy(u) and Progress.rank(u) == 1 and Progress.coins == 195, "buy takes 5 coins for Paddle Speed rank 1")
-	t.check(heard == [195, u], "buy emits coins_changed and rank_changed")
-	t.check(FileAccess.file_exists(Progress.path) and _saved().get("coins") == 195.0, "buy saves")
+	t.check(Progress.buy(u) and Progress.rank(u) == 1 and Progress.coins == 198, "buy takes 2 coins for Paddle Speed rank 1")
+	t.check(heard == [198, u], "buy emits coins_changed and rank_changed")
+	t.check(FileAccess.file_exists(Progress.path) and _saved().get("coins") == 198.0, "buy saves")
 	while Progress.buy(u):
 		pass
-	t.check(Progress.maxed(u) and Progress.rank(u) == 2 and Progress.coins == 200 - (5 + 50), "Paddle Speed tops out at rank 2 for 55 coins")
+	t.check(Progress.maxed(u) and Progress.rank(u) == 2 and Progress.coins == 200 - (2 + 40), "Paddle Speed tops out at rank 2 for 42 coins")
 	heard.clear()
 	t.check(not Progress.buy(u) and Progress.rank(u) == 2 and heard.is_empty(), "buy refuses at the top rank")
 	Progress.coins_changed.disconnect(on_coins)

@@ -196,7 +196,7 @@ func _kinds() -> void:
 	for k in Kinds.all():
 		t.check(Palette.MEANINGS.has(k.colour), "%s's colour is a Palette meaning" % k.id)
 	# The three amounts are pinned here and nowhere else: the other checks read them from the kinds.
-	t.check(Kinds.of(&"booster").get("boost") == 0.1 and Kinds.of(&"hourglass").get("seconds") == 10.0, "the Booster adds 0.1 and the hourglass 10 s, from their files")
+	t.check(Kinds.of(&"booster").get("boost") == 0.1 and Kinds.of(&"hourglass").get("seconds") == 15.0, "the Booster adds 0.1 and the hourglass 15 s, from their files")
 
 
 # --- building and the first step -------------------------------------------------------------------------------
@@ -1096,7 +1096,7 @@ func _coins() -> void:
 	board.bricks[Vector2i(50, 6)].kind = &"explosive"
 	var stats := _stats({&"splitter_count": 1})
 	var worth: int = (Kinds.of(&"gold") as BrickKind).worth  # 20
-	var seconds: float = Kinds.of(&"hourglass").get("seconds")  # 10
+	var seconds: float = Kinds.of(&"hourglass").get("seconds")  # 15
 	var round := Round.new(board, _layout([_item(&"splitter", Vector2i(40, 3))]), stats, 1)
 	var paid: Array[int] = []
 	round.brick_broken.connect(func(_c: Vector2i, _b: Brick, _cause: Round.Cause, _d: Vector2, n: int) -> void: paid.append(n))

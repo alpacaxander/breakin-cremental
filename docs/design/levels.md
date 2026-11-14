@@ -6,7 +6,7 @@
 - The layout is a grid of cells. Each cell is twice as tall as it is wide.
 - Each brick is **1 column wide × 2 rows tall**.
 - A **square** is a block of 4 columns × 2 rows, which is 4 bricks side by side. Because cells are twice as tall as wide, a square really is square on screen.
-- Bricks have **HP**, the number of hits needed to destroy them. The default is 1. A brick's colour shows the hits it has left and changes each time it is hit (see [palette.md](../palette.md#brick-hp)). The three levels here use 1 and 3 HP. 4 is the top colour step, a deep violet, and no level uses it yet.
+- Bricks have **HP**, the number of hits needed to destroy them. The default is 1. A brick's colour shows the hits it has left and changes each time it is hit (see [palette.md](../palette.md#brick-hp)). The three levels here use 1 and 2 HP. 3 and 4 are further colour steps, 4 the top one, a deep violet, and no level uses them yet.
 - Every brick is a standard brick unless the level says otherwise.
 - **Editable in Godot:** each level is its own scene, `levels/level_<n>.tscn`, and you paint its bricks in the editor. The scene's root is a TileMapLayer with a `title` and a `rows` field. One tile is one brick, and the tile set has a tile for each HP, with the number on it. The grid's edge is outlined, because the columns follow from the rows. To add a level, duplicate a scene under the next number.
 - Clearing every brick unlocks the next level. Phases and end conditions are described in [overview.md](overview.md#level-phases).
@@ -40,7 +40,7 @@ Levels come in different sizes. The arena keeps the same shape and the same plac
 
 ## Layouts
 
-Legend: `█` = 1 HP brick, `▓` = 3 HP brick, `.` = empty, `|` = paddle.
+Legend: `█` = 1 HP brick, `▓` = 2 HP brick, `.` = empty, `|` = paddle.
 
 ## Level 1: three columns near the back
 
@@ -106,11 +106,12 @@ The columns were 3, 2 and 1 HP from the front. Tuning took them down: a round ho
 - Columns 0–3 (paddle side) and 68–71 (back wall) are empty.
 - Columns 4–67 are solid bricks.
 - A tunnel 1 brick tall (rows 8–9, the fifth of nine brick rows) runs straight through the wall.
-- Column 4, the face of the wall toward the paddle, is 3 HP.
-- The brick rows on both sides of the tunnel (rows 6–7 and 10–11) are 3 HP.
+- Column 4, the face of the wall toward the paddle, is 2 HP.
+- The brick rows on both sides of the tunnel (rows 6–7 and 10–11) are 2 HP.
 - Every other brick is 1 HP.
 - The tunnel mouth is left open.
-- 512 bricks, 134 of them 3 HP. That is 780 hits to clear. They were 4 HP, 914 hits, until tuning: with every upgrade a round holds about 650 to 900 hits, and at 4 HP the balance bot's good player cleared the level once in 114 tries and its average player never in 169.
+- 512 bricks, 134 of them 2 HP. That is 646 hits to clear. They were 4 HP, 914 hits, then 3 HP, until tuning. A round with every upgrade breaks most of the board in its first 10 s, with blasts and Zaps, and spends the rest on what they leave: the tough bricks along the tunnel, one ball at a time. At 3 HP the balance bot's average player cleared the level in 3 rounds of 10 with everything bought, and only a longer round raised that (4 of 10 at 82 s); at 2 HP it is 4 of 10 in 55 s.
+- The wall's face is 81 units from the paddle's, so a ball that misses the tunnel mouth is back in a fifth of a second. What makes that playable is in the numbers, not the layout: the paddle's steepest angle is 45°, and Paddle Size grows the paddle to half the lane.
 
 ```
    +------------------------------------------------------------------------+
