@@ -21,11 +21,13 @@ func shots() -> Array[Dictionary]:
 	]
 
 
-## The menu's Play clicked once.
+## The menu's Play clicked once, which opens level 1's Setup, then Esc to the hub.
 func _menu_play(main: Main) -> void:
 	_main = main
 	await _laid_out()
 	await _click(_screen().get_node("%Play"))
+	_key(KEY_ESCAPE)
+	await main.get_tree().process_frame
 
 
 ## Play clicked on the menu, then Play Level double-clicked: Setup, with Start under the pointer and not pressed.
@@ -36,7 +38,7 @@ func _double_play_level(main: Main) -> void:
 	await _click_at(at, true)
 
 
-## Play double-clicked on the menu: the hub, with the seed still selected and a node of the web under the pointer.
+## Play double-clicked on the menu: level 1's Setup, with nothing pressed by the second click.
 func _double_menu_play(main: Main) -> void:
 	_main = main
 	await _laid_out()

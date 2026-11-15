@@ -95,7 +95,8 @@ func run(t: Node) -> void:
 	t.check(_screen(main).scene_file_path == Main.MENU, "the back button returns to the main menu")
 
 	_key(t, KEY_ENTER)
-	t.check(_screen(main).scene_file_path == Main.PLAY, "Play goes to the hub")
+	var scene := _screen(main)
+	t.check(scene.scene_file_path == Main.PLAY and scene.get_child(-1).get("level") == 1, "Play opens the highest level unlocked, level 1 on a fresh save")
 
 	for file in ["main_menu.gd", "settings.gd", "cursor.gd"]:
 		var code := FileAccess.get_file_as_string("res://src/menu/" + file)

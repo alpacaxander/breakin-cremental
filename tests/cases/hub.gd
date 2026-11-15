@@ -21,15 +21,18 @@ func run(t: Node) -> void:
 	Sfx.played.connect(_listen)
 	await t.tree().process_frame
 
-	# By keyboard from the menu: Enter on Play leaves the focus on the selected node, so Tab and the arrows work.
+	# By keyboard from the menu: Enter on Play opens Setup, and Esc there leaves the focus on the hub's selected
+	# node, so Tab and the arrows work.
 	_key(t, KEY_ENTER)
+	await t.tree().process_frame
+	_key(t, KEY_ESCAPE)
 	await t.tree().process_frame
 	var hub: Control = main.screen.get_child(0).get_node("Hub")
 	var web: HubWeb = hub.get_node("Web")
 	var at := func(name: StringName) -> HubNode: return web.get_node(String(name))
 	var focus := func() -> Control: return main.view.gui_get_focus_owner()
 	t.check(focus.call() == hub.selected and hub.selected == web.seed_node() and Progress.rank(web.seed_node().upgrade) == 0,
-			"Enter on the menu's Play puts the focus on the hub's selected node, and buys nothing")
+			"Enter on the menu's Play, then Esc, puts the focus on the hub's selected node, and buys nothing")
 	_key(t, KEY_TAB)
 	t.check(focus.call() != null and focus.call() != web.seed_node() and hub.is_ancestor_of(focus.call()), "Tab moves the focus on from there")
 	# The arrows go to the node in line on the web's grid, not to the larger seed beside it. Every node is owned

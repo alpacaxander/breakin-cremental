@@ -1,5 +1,6 @@
 extends Control
-## The main menu (docs/design/overview.md, "Flow"): the title, Play, Settings and Exit, in front of an empty arena
+## The main menu (docs/design/overview.md, "Flow"): the title, Play (Setup of the highest level unlocked; Esc there
+## leads to the upgrades), Settings and Exit, in front of an empty arena
 ## drawn like the game's: walls, a paddle on the left with the ball resting by it, bricks at the back. It is the one
 ## screen with no way back, so Esc does nothing here. Focus starts on Play; the arrow keys, the mouse and Enter
 ## work it, and the focused button is the filled one (UiTheme.selection).
@@ -30,7 +31,7 @@ const BALL_GAP := 48  ## from the paddle's stripe, as in Setup
 
 func _ready() -> void:
 	UiTheme.light(%Subtitle, Palette.COINS)
-	_play.pressed.connect(Main.show_hub)
+	_play.pressed.connect(func() -> void: Main.show_level(mini(Progress.unlocked, Progress.level_count)))
 	(%Settings as Button).pressed.connect(Main.show_settings)
 	(%Exit as Button).pressed.connect(Main.quit)
 	UiTheme.selection($Buttons.get_children())

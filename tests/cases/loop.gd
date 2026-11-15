@@ -1,6 +1,6 @@
 extends RefCounted
-## The whole game in one walk, through the real Main and with real input events only: the menu, Play, the hub
-## on a fresh save, a level with nothing placed, a round to its end, the Summary, Upgrades, buying, the level
+## The whole game in one walk, through the real Main and with real input events only: the menu, Play into level
+## 1's Setup, Esc to the hub on a fresh save, a level with nothing placed, a round to its end, the Summary, Upgrades, buying, the level
 ## again with an item placed, Retry, back to the hub, back to the menu, Settings, the CRT toggle, back. After
 ## each step it checks which screen is showing and what the save file holds.
 ##
@@ -33,15 +33,18 @@ func run(p_t: Node) -> void:
 
 
 func _walk() -> void:
-	# The menu, then Play: the hub on a fresh save.
+	# The menu, then Play: level 1's Setup on a fresh save, and Esc to the hub.
 	t.check(_screen().scene_file_path == Main.MENU, "the game opens on the main menu")
 	_key(KEY_ENTER)
 	await t.tree().process_frame
 	await t.tree().process_frame
 	var play := _screen() as Play
-	t.check(play != null, "Enter on Play opens the play scene")
+	t.check(play != null and play.get_child(-1).get("level") == 1 and play.get_child(-1).get("phase") == SETUP,
+			"Enter on Play opens level 1 in Setup")
 	if play == null:
 		return
+	_key(KEY_ESCAPE)
+	await t.tree().process_frame
 	var hub: Control = play.get_node("Hub")
 	var web: HubWeb = hub.get_node("Web")
 	var buy: Button = hub.get_node("Detail/%Buy")

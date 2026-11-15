@@ -34,8 +34,8 @@ func select(node: HubNode) -> void:
 		node.grab_focus()  # from focus_entered, it has it already and this does nothing
 
 
-## Redraws, and gives the selected node the keyboard focus: a keyboard player arrives here by Enter on the
-## menu's Play or the Summary's Upgrades, and Godot moves focus only from a control that has it.
+## Redraws, and gives the selected node the keyboard focus: a keyboard player arrives here by Esc in Setup
+## or Enter on the Summary's Upgrades, and Godot moves focus only from a control that has it.
 func _shown() -> void:
 	if _web.state(selected) == HubNode.State.LOCKED:  # hidden: the save was reset under it
 		selected = _web.seed_node()

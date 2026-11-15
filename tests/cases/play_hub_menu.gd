@@ -77,14 +77,18 @@ func _boot() -> void:
 	await t.tree().process_frame
 
 
-## A fresh save, the menu, Play clicked: the hub, the seed selected, one click heard.
+## A fresh save, the menu, Play clicked: level 1's Setup, one click heard. Then Esc: the hub, the seed selected.
 func _menu_into_hub() -> void:
 	var menu := _screen()
 	await _quiet()
 	await _click(menu.get_node("%Play"))
 	await _heard_settle()
-	t.check(_screen().scene_file_path == Main.PLAY and _hub().is_visible_in_tree(), "clicking Play opens the hub")
+	t.check(_screen().scene_file_path == Main.PLAY and _play().get_child(-1).get("level") == 1 and not _hub().visible,
+			"clicking Play opens level 1's Setup on a fresh save")
 	t.check(heard.count(Sfx.CLICK) == 1, "clicking Play clicks once (heard %s)" % [heard])
+	_key(KEY_ESCAPE)
+	await _frames(2)
+	t.check(_hub().is_visible_in_tree(), "Esc in that Setup opens the hub")
 	t.check(_hub().selected == _web().seed_node(), "the hub opens with the seed selected, the one thing a new player can buy")
 	var hint := _hub().get_node("Bar/Hint") as Label
 	t.check(hint.text == "BUY A NODE TO UNLOCK ITS NEIGHBOURS", "the top bar says what the web is for")
@@ -380,11 +384,15 @@ func _double_clicks() -> void:
 	t.check(_hub().is_visible_in_tree() and _hub().selected == seed, "a double click on Upgrades opens the hub and selects nothing new")
 	Main.show_menu()
 	await _frames(2)
-	# Play on the menu, double-clicked: the hub must still have the seed selected.
+	# Play on the menu, double-clicked: Setup, and the second click presses nothing there.
 	at = (_screen().get_node("%Play") as Control).get_global_rect().get_center()
 	await _double_click_at(at)
-	t.check(_screen() is Play and _hub().selected == _web().seed_node(),
-			"a double click on Play leaves the seed selected (selected %s)" % _hub().selected.name)
+	level = _play().get_child(-1) as Control if _screen() is Play else null
+	t.check(level != null and level != _hub() and level.get("phase") == 0,
+			"a double click on Play opens Setup and stays there (phase %s)" % (level.get("phase") if level else null))
+	Main.show_hub()
+	await _frames(2)
+	t.check(_hub().selected == _web().seed_node(), "the hub still has the seed selected (selected %s)" % _hub().selected.name)
 	for u in Progress.upgrades():  # every node owned, so whichever is under the pointer is shown
 		Progress.ranks[u.id] = 1
 	Progress.rank_changed.emit(_web().seed_node().upgrade)

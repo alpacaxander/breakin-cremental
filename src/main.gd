@@ -174,7 +174,7 @@ func _input(event: InputEvent) -> void:
 	if click and click.pressed:
 		# The second press of a double click belongs to the button the first one pressed. If that one changed the
 		# screen, it is dropped: it would press whatever the new screen has under the pointer (Start under Play
-		# Level, a node of the web under the menu's Play). Godot marks that press `double_click`, from the OS.
+		# Level, the arena of Setup under the menu's Play). Godot marks that press `double_click`, from the OS.
 		# ponytail: only what the OS calls a double click. A second click slower than that is the player's own.
 		if click.double_click and _fresh:
 			return

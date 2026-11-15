@@ -9,10 +9,11 @@ See also: [levels.md](levels.md), [physics.md](physics.md), [placeables.md](plac
 ```
 ┌──────────────┐        ┌──────────────────────────────────────────┐
 │  MAIN MENU   │        │               PLAY SCENE                 │
-│              │  Play  │                                          │
-│  > Play  ────┼───────►│   ┌──────────┐  pick unlocked level      │
-│    Settings  │◄───────┼───┤ UPGRADES ├──────────────┐            │
-│    Exit      │  back  │   │  (hub)   │◄─────────┐   ▼            │
+│              │  Play  │                      latest unlocked     │
+│  > Play  ────┼───────►├──────────────────────────────────┐       │
+│    Settings  │◄───────┼───┬──────────┐  pick unlocked    │       │
+│    Exit      │  back  │   │ UPGRADES ├──────────────┐    │       │
+│              │        │   │  (hub)   │◄─────────┐   ▼    ▼       │
 └──────────────┘        │   └──────────┘   ┌──────┴──────────────┐ │
                         │                  │ LEVEL               │ │
                         │                  │ setup → play → summ.│ │
@@ -22,7 +23,7 @@ See also: [levels.md](levels.md), [physics.md](physics.md), [placeables.md](plac
                         └──────────────────────────────────────────┘
 ```
 
-- **Main menu:** Play, Settings, Exit.
+- **Main menu:** Play, Settings, Exit. Play opens the Setup of the highest level unlocked (the last level once every level is cleared); going back from there reaches Upgrades.
 - **Settings:** the CRT filter toggle, the "reduce flashing" toggle, and volume sliders for music and sound.
 - **Play scene:** you switch between two modes:
   - **Upgrades:** spend coins in the upgrade web, then choose an unlocked level to play.
