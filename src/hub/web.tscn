@@ -40,8 +40,8 @@ upgrade = ExtResource("paddle_size")
 cell = Vector2i(2, 3)
 links = Array[NodePath]([NodePath("../PaddleSpeed")])
 
-[node name="Bumper" parent="." instance=ExtResource("node")]
-upgrade = ExtResource("bumper")
+[node name="Splitter" parent="." instance=ExtResource("node")]
+upgrade = ExtResource("splitter")
 cell = Vector2i(1, 2)
 links = Array[NodePath]([NodePath("../PaddleSpeed")])
 
@@ -53,7 +53,7 @@ links = Array[NodePath]([NodePath("../PaddleSpeed")])
 [node name="Combo" parent="." instance=ExtResource("node")]
 upgrade = ExtResource("combo")
 cell = Vector2i(0, 2)
-links = Array[NodePath]([NodePath("../Bumper")])
+links = Array[NodePath]([NodePath("../Splitter")])
 
 [node name="WallSegment" parent="." instance=ExtResource("node")]
 upgrade = ExtResource("wall_segment")
@@ -90,8 +90,8 @@ upgrade = ExtResource("hourglass_brick")
 cell = Vector2i(3, 4)
 links = Array[NodePath]([NodePath("../RoundTime")])
 
-[node name="Splitter" parent="." instance=ExtResource("node")]
-upgrade = ExtResource("splitter")
+[node name="Bumper" parent="." instance=ExtResource("node")]
+upgrade = ExtResource("bumper")
 cell = Vector2i(0, 3)
 links = Array[NodePath]([NodePath("../Combo")])
 

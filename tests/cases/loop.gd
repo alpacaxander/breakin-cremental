@@ -12,7 +12,7 @@ const SETUP := 0
 const PLAY := 1
 const SUMMARY := 2
 const FAST := 10.0  ## Engine.time_scale while a round is played
-const BUMPER_AT := Vector2(300, 100)  ## Round units on level 1, clear of the bricks, the lane and the launch path
+const SPLITTER_AT := Vector2(300, 100)  ## Round units on level 1, in a brick cell clear of the bricks and the lane
 
 var t: Node
 var main: Main
@@ -75,12 +75,12 @@ func _walk() -> void:
 	var how := "TIME UP" if level.round.reason == Round.End.TIME else "BALL LOST" if level.round.reason == Round.End.BALL_LOST else "LEVEL CLEARED"
 	t.check(summary.is_visible_in_tree() and _texts(summary).has(how), "the Summary says how it ended (%s)" % how)
 
-	# Upgrades: the hub again, with the coins. Buy the seed, then the Bumper, with coins given for the test.
+	# Upgrades: the hub again, with the coins. Buy the seed, then the Splitter, with coins given for the test.
 	await _click(summary.find_child("Upgrades", true, false))
 	await t.tree().process_frame
 	t.check(_screen() == play and hub.is_visible_in_tree() and not is_instance_valid(level), "Upgrades goes back to the hub and the level is gone")
 	t.check(counter.amount == Progress.coins, "the hub shows the coins the round paid")
-	for node_name: String in ["PaddleSpeed", "Bumper"]:
+	for node_name: String in ["PaddleSpeed", "Splitter"]:
 		var node: HubNode = web.get_node(node_name)
 		await _click(node)
 		t.check(hub.selected == node, "clicking %s selects it" % node_name)
@@ -93,17 +93,17 @@ func _walk() -> void:
 		await t.tree().create_timer(0.15).timeout
 		t.check(Progress.rank(node.upgrade) == 1 and Progress.coins == earned and heard.has(Sfx.BUY), "Buy buys a rank of %s for its price" % node_name)
 		t.check(int(_saved().ranks.get(String(node.upgrade.id), 0)) == 1 and _saved().coins == earned, "and the purchase is in the save")
-	t.check(web.state(web.get_node("Combo")) == HubNode.State.AVAILABLE and web.state(web.get_node("Splitter")) == HubNode.State.LOCKED, "buying opens the next ring and no more")
+	t.check(web.state(web.get_node("Combo")) == HubNode.State.AVAILABLE and web.state(web.get_node("Bumper")) == HubNode.State.LOCKED, "buying opens the next ring and no more")
 
-	# The level again: place the Bumper, start with Space, play it out.
+	# The level again: place the Splitter, start with Space, play it out.
 	await _click(levels.get_node("%Play"))
 	level = play.get_child(-1) as Control
 	setup = level.get_node("SetupUi")
-	t.check(level.phase == SETUP and setup._slots.size() == 1 and setup._slots[0].kind.id == &"bumper" and setup._slots[0].left == 1, "the tray now holds one Bumper")
+	t.check(level.phase == SETUP and setup._slots.size() == 1 and setup._slots[0].kind.id == &"splitter" and setup._slots[0].left == 1, "the tray now holds one Splitter")
 	t.check(level.round.stats.paddle_speed > Progress.balance.paddle_speed, "the round has the faster paddle that was bought")
 	heard.clear()
 	var slot := (setup._slots[0] as Control).get_global_rect().get_center()
-	var spot: Vector2 = LevelArena.ORIGIN + BUMPER_AT * level.round.board.zoom()
+	var spot: Vector2 = LevelArena.ORIGIN + SPLITTER_AT * level.round.board.zoom()
 	_mouse(slot, MOUSE_BUTTON_LEFT, true)
 	_mouse(slot.lerp(spot, 0.5))
 	_mouse(spot)
@@ -111,11 +111,11 @@ func _walk() -> void:
 	await t.tree().process_frame
 	await t.tree().create_timer(0.15).timeout
 	var items: Array[Layout.Item] = level.round.layout.items
-	t.check(items.size() == 1 and items[0].kind.id == &"bumper" and items[0].pos.distance_to(BUMPER_AT) < 1.0, "dragging the Bumper from the tray places it under the cursor, through the CRT's curve")
+	t.check(items.size() == 1 and items[0].kind.id == &"splitter" and items[0].cell == level.round.board.cell_at(SPLITTER_AT), "dragging the Splitter from the tray places it in the cell under the cursor, through the CRT's curve")
 	t.check(setup._slots[0].left == 0 and heard.has(Sfx.PLACE_ITEM), "the tray has none left, and the placing was heard")
 	t.check((_saved().layouts.get("1", []) as Array).size() == 1, "the layout is in the save")
 	_key(KEY_SPACE)
-	t.check(level.phase == PLAY and level.round.layout.items.size() == 1, "Space starts the round with the Bumper on the board")
+	t.check(level.phase == PLAY and level.round.layout.items.size() == 1, "Space starts the round with the Splitter on the board")
 	var before := Progress.coins
 	await _play_out(level)
 	t.check(level.phase == SUMMARY and Progress.coins == before + level.round.coins and _saved().coins == Progress.coins, "the second round is paid once and saved too")
@@ -129,7 +129,7 @@ func _walk() -> void:
 	await t.tree().process_frame
 	await t.tree().process_frame
 	t.check(level.phase == SETUP and not level.round.over and not summary.visible and setup.visible, "Enter retries: Setup again, and the same Enter does not start the round")
-	t.check(level.round.layout.items.size() == 1 and Progress.coins == paid, "the Bumper is still placed after Retry, and Retry pays nothing")
+	t.check(level.round.layout.items.size() == 1 and Progress.coins == paid, "the Splitter is still placed after Retry, and Retry pays nothing")
 	t.check(old.get_ref() == null, "the round that was played is freed on Retry: nothing holds an attempt after it")
 
 	# Esc: the hub, and one Esc goes no further. Esc again: the menu.
@@ -158,8 +158,8 @@ func _walk() -> void:
 	# What a new session would find.
 	var coins := Progress.coins
 	Progress.use(Progress.path)
-	t.check(Progress.coins == coins and Progress.rank(Progress.upgrade(&"paddle_speed")) == 1 and Progress.rank(Progress.upgrade(&"bumper")) == 1
-			and Progress.layout(1).count(&"bumper") == 1, "read back from the file, the save has the coins, both ranks and the placed Bumper")
+	t.check(Progress.coins == coins and Progress.rank(Progress.upgrade(&"paddle_speed")) == 1 and Progress.rank(Progress.upgrade(&"splitter")) == 1
+			and Progress.layout(1).count(&"splitter") == 1, "read back from the file, the save has the coins, both ranks and the placed Splitter")
 	_key(KEY_ENTER)
 	await t.tree().process_frame
 	play = _screen() as Play

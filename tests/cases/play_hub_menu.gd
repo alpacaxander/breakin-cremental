@@ -32,11 +32,11 @@ const TABLE := {
 }
 ## The drawn web of upgrades.md: each node and the one it hangs off, towards the seed.
 const PARENT := {
-	&"BallSpeed": &"PaddleSpeed", &"PaddleSize": &"PaddleSpeed", &"Bumper": &"PaddleSpeed",
-	&"ExplosiveBrick": &"PaddleSpeed", &"Combo": &"Bumper", &"WallSegment": &"PaddleSize",
+	&"BallSpeed": &"PaddleSpeed", &"PaddleSize": &"PaddleSpeed", &"Splitter": &"PaddleSpeed",
+	&"ExplosiveBrick": &"PaddleSpeed", &"Combo": &"Splitter", &"WallSegment": &"PaddleSize",
 	&"RoundTime": &"ExplosiveBrick", &"GoldBrick": &"BallSpeed", &"Booster": &"BallSpeed",
 	&"BlastSize": &"ExplosiveBrick", &"Shockwave": &"ExplosiveBrick", &"HourglassBrick": &"RoundTime",
-	&"Splitter": &"Combo", &"Zap": &"GoldBrick",
+	&"Bumper": &"Combo", &"Zap": &"GoldBrick",
 }
 const DETAIL := Rect2(904, 88, 352, 284)  ## art.md, "Upgrade screen"
 const LEVELS := Rect2(904, 388, 352, 308)
@@ -208,7 +208,7 @@ func _max_and_poor() -> void:
 	await _heard_settle()
 	t.check(Progress.coins == coins and heard.is_empty(), "a click on the maxed Buy does nothing and plays nothing (heard %s)" % [heard])
 	await _quiet()
-	await _click(_web().get_node("Bumper"))
+	await _click(_web().get_node("Splitter"))
 	await _heard_settle()
 	t.check(heard == [Sfx.CLICK], "clicking a node clicks once (heard %s)" % [heard])
 

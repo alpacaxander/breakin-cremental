@@ -4,11 +4,11 @@ extends RefCounted
 
 ## docs/design/upgrades.md's web: each node and the one it hangs off.
 const WEB := {
-	&"BallSpeed": &"PaddleSpeed", &"PaddleSize": &"PaddleSpeed", &"Bumper": &"PaddleSpeed",
-	&"ExplosiveBrick": &"PaddleSpeed", &"Combo": &"Bumper", &"WallSegment": &"PaddleSize",
+	&"BallSpeed": &"PaddleSpeed", &"PaddleSize": &"PaddleSpeed", &"Splitter": &"PaddleSpeed",
+	&"ExplosiveBrick": &"PaddleSpeed", &"Combo": &"Splitter", &"WallSegment": &"PaddleSize",
 	&"RoundTime": &"ExplosiveBrick", &"GoldBrick": &"BallSpeed", &"Booster": &"BallSpeed",
 	&"BlastSize": &"ExplosiveBrick", &"Shockwave": &"ExplosiveBrick", &"HourglassBrick": &"RoundTime",
-	&"Splitter": &"Combo", &"Zap": &"GoldBrick",
+	&"Bumper": &"Combo", &"Zap": &"GoldBrick",
 }
 
 var _heard: Array[StringName] = []
@@ -40,8 +40,8 @@ func run(t: Node) -> void:
 	for u in Progress.upgrades():
 		Progress.ranks[u.id] = 1
 	Progress.rank_changed.emit(web.seed_node().upgrade)
-	for pair: Array in [[&"Bumper", KEY_UP, &"GoldBrick"], [&"ExplosiveBrick", KEY_DOWN, &"RoundTime"], [&"Bumper", KEY_DOWN, &"WallSegment"],
-			[&"Combo", KEY_RIGHT, &"Bumper"], [&"BallSpeed", KEY_UP, &"Booster"]]:
+	for pair: Array in [[&"Splitter", KEY_UP, &"GoldBrick"], [&"ExplosiveBrick", KEY_DOWN, &"RoundTime"], [&"Splitter", KEY_DOWN, &"WallSegment"],
+			[&"Combo", KEY_RIGHT, &"Splitter"], [&"BallSpeed", KEY_UP, &"Booster"]]:
 		(at.call(pair[0]) as Control).grab_focus()
 		_key(t, pair[1])
 		t.check(focus.call() == at.call(pair[2]), "%s from %s goes to %s (went to %s)" % [OS.get_keycode_string(pair[1]), pair[0], pair[2], focus.call().name])
@@ -87,7 +87,7 @@ func run(t: Node) -> void:
 	t.check(Sfx.BUY in _heard and not Sfx.CLICK in _heard, "Buy plays the buy cue and no click (heard %s)" % [_heard])
 	var opened := web.nodes().filter(func(n: HubNode) -> bool: return web.state(n) == HubNode.State.AVAILABLE).map(func(n: HubNode) -> String: return n.name)
 	opened.sort()
-	t.check(opened == ["BallSpeed", "Bumper", "ExplosiveBrick", "PaddleSize"], "buying the seed opens its four neighbours and nothing else (open: %s)" % [opened])
+	t.check(opened == ["BallSpeed", "ExplosiveBrick", "PaddleSize", "Splitter"], "buying the seed opens its four neighbours and nothing else (open: %s)" % [opened])
 	t.check(web.state(seed) == HubNode.State.OWNED and web.state(at.call(&"Combo")) == HubNode.State.LOCKED, "the seed is owned and the next ring stays locked")
 	t.check(web.nodes().all(func(n: HubNode) -> bool: return n.visible == (web.state(n) != HubNode.State.LOCKED)), "every open node is shown and every locked one hidden")	# A click leaves no focus on Buy: Space is Start and Retry in a level, and here it would buy the next rank.
 	_key(t, KEY_SPACE)
@@ -97,16 +97,16 @@ func run(t: Node) -> void:
 	t.check(focus.call() == buy and Progress.rank(seed.upgrade) == 2, "by keyboard the focus stays on Buy, and Enter buys the next rank")
 
 	# Too poor: Buy can still be pressed, buys nothing and plays can't afford.
-	var bumper: HubNode = at.call(&"Bumper")
-	await _click(t, bumper)
-	t.check(hub.selected == bumper and (hub.get_node("Detail/%Name") as Label).text == "Bumper", "clicking a node selects it and shows it in the detail panel")
+	var splitter: HubNode = at.call(&"Splitter")
+	await _click(t, splitter)
+	t.check(hub.selected == splitter and (hub.get_node("Detail/%Name") as Label).text == "Splitter", "clicking a node selects it and shows it in the detail panel")
 	await t.tree().create_timer(0.15).timeout
-	Progress.coins = Progress.cost(bumper.upgrade) - 1
+	Progress.coins = Progress.cost(splitter.upgrade) - 1
 	t.check(not buy.disabled and buy.theme_type_variation == &"CantAfford", "Buy stays pressable when the coins don't cover it, and looks it")
 	_heard.clear()
 	await _click(t, buy)
 	await t.tree().create_timer(0.15).timeout
-	t.check(Progress.rank(bumper.upgrade) == 0 and Progress.coins == Progress.cost(bumper.upgrade) - 1, "a Buy you can't afford buys nothing")
+	t.check(Progress.rank(splitter.upgrade) == 0 and Progress.coins == Progress.cost(splitter.upgrade) - 1, "a Buy you can't afford buys nothing")
 	t.check(Sfx.CANT_AFFORD in _heard and not Sfx.BUY in _heard and not Sfx.CLICK in _heard, "it plays can't afford (heard %s)" % [_heard])
 
 	# A maxed node can't be bought.

@@ -43,9 +43,9 @@ Bracket shape shows the category: `( )` Arena, `[ ]` Placeables, `{ }` Bricks.
                        │                │
                  { Gold Brick }───( Ball Speed )   { Shockwave  }
                                         │                │
-(   Combo    )───[   Bumper   ]───(PADDLE SPEED)───{ Explosive  }───{ Blast Size }
+(   Combo    )───[  Splitter  ]───(PADDLE SPEED)───{ Explosive  }───{ Blast Size }
       │                                 │                │
-[  Splitter  ]   [Wall Segment]───(Paddle Size )   ( Round Time )
+[   Bumper   ]   [Wall Segment]───(Paddle Size )   ( Round Time )
                                                          │
                                                    { Hourglass  }
 ```
@@ -58,7 +58,7 @@ Bracket shape shows the category: `( )` Arena, `[ ]` Placeables, `{ }` Bricks.
 | 0 | Paddle Speed | Arena | 2 | +100% paddle speed | 2 | ×20 | 2, 40 |
 | 1 | Ball Speed | Arena | 3 | +10% ball speed | 5 | ×3 | 5, 15, 45 |
 | 1 | Paddle Size | Arena | 5 | +40% paddle length | 10 | ×8 | 10, 80, 640, 5120, 40960 |
-| 1 | Bumper | Placeables | 3 | One more Bumper | 10 | ×8 | 10, 80, 640 |
+| 1 | Splitter | Placeables | 5 | One more Splitter | 40 | ×5.7 | 40, 228, 1300, 7408, 42224 |
 | 1 | Explosive Brick | Bricks | 4 | One more explosive brick | 8 | ×3.5 | 8, 28, 98, 343 |
 | 2 | Combo | Arena | 2 | Rank 1 turns combos on. Rank 2 widens the window | 20 | ×25 | 20, 500 |
 | 2 | Wall Segment | Placeables | 2 | One more Wall Segment | 30 | ×8 | 30, 240 |
@@ -68,7 +68,7 @@ Bracket shape shows the category: `( )` Arena, `[ ]` Placeables, `{ }` Bricks.
 | 2 | Blast Size | Bricks | 2 | Explosions reach one square further | 35 | ×450 | 35, 15750 |
 | 2 | Shockwave | Bricks | 1 | Explosions throw balls | 600 | | 600 |
 | 3 | Hourglass Brick | Bricks | 2 | One more hourglass brick | 300 | ×60 | 300, 18000 |
-| 3 | Splitter | Placeables | 5 | One more Splitter | 40 | ×5.7 | 40, 228, 1300, 7408, 42224 |
+| 3 | Bumper | Placeables | 3 | One more Bumper | 10 | ×8 | 10, 80, 640 |
 | 3 | Zap | Placeables | 3 | One more Zap | 300 | ×9 | 300, 2700, 24300 |
 
 - **Cost growth** is set per node, and each node has its own value: a price is the first cost times the growth for every rank owned, rounded to a whole coin. The growth is what puts a node's later ranks in a later level's price band. Blast Size costs 450× and Hourglass Brick 60× because their first rank is an early purchase and their second belongs to level 3.
