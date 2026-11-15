@@ -3,7 +3,7 @@ extends RefCounted
 ## Cells are brick cells, Vector2i(column, brick row); levels.md's "rows 8-9" is brick row 4.
 
 const LEVELS := {
-	1: {"title": "Three Columns", "rows": 16, "bricks": 51, "top": 1, "at_top": 51, "hits": 51},
+	1: {"title": "Two Columns", "rows": 16, "bricks": 48, "top": 1, "at_top": 48, "hits": 48},
 	2: {"title": "Checkerboard", "rows": 16, "bricks": 128, "top": 1, "at_top": 128, "hits": 128},
 	3: {"title": "The Tunnel", "rows": 18, "bricks": 512, "top": 2, "at_top": 134, "hits": 646},
 }
@@ -11,9 +11,9 @@ const LEVELS := {
 const CELLS := {
 	1: {
 		Vector2i(0, 0): 0, Vector2i(63, 0): 0, Vector2i(0, 7): 0, Vector2i(63, 7): 0,
-		Vector2i(30, 3): 0, Vector2i(31, 0): 0, Vector2i(31, 3): 1, Vector2i(32, 0): 0, Vector2i(32, 1): 1, Vector2i(33, 7): 1, Vector2i(34, 4): 0,
-		Vector2i(47, 2): 0, Vector2i(48, 0): 1, Vector2i(49, 6): 1, Vector2i(49, 7): 0, Vector2i(50, 5): 0,
-		Vector2i(60, 2): 0, Vector2i(61, 0): 1, Vector2i(62, 7): 1,
+		Vector2i(31, 3): 0, Vector2i(32, 1): 0, Vector2i(33, 7): 0,
+		Vector2i(45, 2): 0, Vector2i(46, 0): 1, Vector2i(47, 4): 1, Vector2i(49, 7): 1, Vector2i(50, 5): 0,
+		Vector2i(59, 2): 0, Vector2i(60, 4): 0, Vector2i(61, 0): 1, Vector2i(62, 7): 1,
 	},
 	2: {
 		Vector2i(0, 0): 0, Vector2i(63, 0): 0, Vector2i(0, 7): 0, Vector2i(63, 7): 0, Vector2i(23, 0): 0, Vector2i(56, 7): 0,

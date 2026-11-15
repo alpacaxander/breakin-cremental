@@ -8,7 +8,7 @@ extends RefCounted
 ## so the ball and its trail are in the picture too.
 
 const STRIP := {"settle": 0, "frames": 8, "every": 4}
-## Something of every placeable on level 1, clear of its three columns (the same layout as tests/shots/level.gd).
+## Something of every placeable on level 1, clear of its bricks (the same layout as tests/shots/level.gd).
 const PLACED := [
 	{"kind": "bumper", "x": 300.0, "y": 120.0, "rot": 0.0},
 	{"kind": "booster", "x": 610.0, "y": 180.0, "rot": 0.0},

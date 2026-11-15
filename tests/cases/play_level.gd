@@ -109,7 +109,7 @@ func _fresh() -> void:
 		var broken := 0
 		for n: int in round.tally.broken.values():
 			broken += n
-		var want := "%.1f|%d|%d / %d" % [round.time_left, round.coins, round.board.remaining(), 51]
+		var want := "%.1f|%d|%d / %d" % [round.time_left, round.coins, round.board.remaining(), 48]
 		if hud._time.text + "|" + str(hud._coins.amount) + "|" + hud._left.text != want:
 			bad.append("%s != %s" % [hud._time.text + "|" + str(hud._coins.amount) + "|" + hud._left.text, want])
 		level.fx.frozen = false
@@ -141,7 +141,7 @@ func _placing() -> void:
 		BUMPER: [Vector2(300, 100), Vector2(300, 420), Vector2(450, 100)],
 		BOOSTER: [Vector2(400, 200), Vector2(400, 330)],
 		WALL: [Vector2(600, 200), Vector2(600, 330)],
-		SPLITTER: [Vector2(700, 100), Vector2(720, 400), Vector2(760, 200), Vector2(740, 300), Vector2(800, 480)],
+		SPLITTER: [Vector2(700, 100), Vector2(720, 400), Vector2(680, 200), Vector2(660, 300), Vector2(800, 480)],
 		ZAP: [Vector2(984, 100), Vector2(984, 480), Vector2(1000, 300)],
 	}
 	## Refused wherever the layout stands: off the grid, in the paddle lane, on the launch path, on a brick.

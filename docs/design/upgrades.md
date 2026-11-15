@@ -28,7 +28,7 @@ Placeables and special bricks share one rule: the node that unlocks the item has
 - **Placeables:** rank N lets you place N of that item.
 - **Special bricks:** rank N replaces N random standard bricks with that brick type when the level starts. The bricks are picked again on every attempt, including a retry.
 
-A count is the same on every level, so 2 explosive bricks matter far more among level 1's 51 bricks than among level 3's 512.
+A count is the same on every level, so 2 explosive bricks matter far more among level 1's 48 bricks than among level 3's 512.
 
 ## Speed
 
@@ -74,7 +74,7 @@ Bracket shape shows the category: `( )` Arena, `[ ]` Placeables, `{ }` Bricks.
 - **Cost growth** is set per node, and each node has its own value: a price is the first cost times the growth for every rank owned, rounded to a whole coin. The growth is what puts a node's later ranks in a later level's price band. Blast Size costs 450× and Hourglass Brick 60× because their first rank is an early purchase and their second belongs to level 3.
 - **Percentages** are of the base value and add up, so Ball Speed rank 3 is 130% of the base speed.
 - **The base values** are in `data/balance.tres`: the paddle moves 600 units a second and is 96 long, the ball moves 700 units a second, and a round lasts 20 s. A unit is a screen pixel on a 16-row level. Maxed, that is a paddle at 1800 and 288 long (half of level 3's lane), a ball at 910 and a 50 s round.
-- **The costs assume the coin formula** of 1 coin per brick (see [overview.md](overview.md#coins)). A first round on level 1 pays about 20 coins. The seed costs 2 and Ball Speed 5, so the first trip to the hub buys both and the second round is already faster.
+- **The costs assume the coin formula** of 1 coin per brick (see [overview.md](overview.md#coins)). A first round on level 1 pays about 10 coins. The seed costs 2 and Ball Speed 5, so the first trip to the hub buys both and the second round is already faster.
 - **The prices come in three bands**, one per level, because each level pays about ten times the one before: a round pays 20 to 70 coins on level 1, 200 to 700 on level 2 and 2,500 to 6,500 on level 3. Up to 45 coins: what level 1 pays for, 15 ranks. From 70 to about 1,300: level 2 and the first round of level 3, 19 ranks. From 2,700 to 42,000: level 3, 10 ranks. The balance bot (`tests/run.sh bot campaign`) buys the cheapest rank on offer, so the bands are the order it buys in.
 - **What the last ranks are for.** Level 3 is cleared by the ranks at the top of the list: Paddle Size 4 and 5 keep the ball in play against the wall's face, and Splitter 4 and 5, Hourglass Brick 2 and Round Time 5 find the last bricks.
 - Shockwave sits one step from the first ring because it has to connect to Explosive Brick. Its price is what keeps it late.

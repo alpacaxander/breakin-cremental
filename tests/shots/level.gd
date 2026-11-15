@@ -6,7 +6,7 @@ extends RefCounted
 ## The mouse is pushed straight into Main's View, so a position here is a position in the 1280 x 720 frame
 ## whether the CRT curves the picture or not.
 
-## Something of every placeable on level 1, in the saved form (Layout.to_data), clear of its three columns.
+## Something of every placeable on level 1, in the saved form (Layout.to_data), clear of its bricks.
 const PLACED := [
 	{"kind": "bumper", "x": 300.0, "y": 120.0, "rot": 0.0},
 	{"kind": "bumper", "x": 420.0, "y": 400.0, "rot": 0.0},
