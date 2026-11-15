@@ -47,8 +47,8 @@ links = Array[NodePath]([NodePath("../PaddleSpeed")])
 
 [node name="ExplosiveBrick" parent="." instance=ExtResource("node")]
 upgrade = ExtResource("explosive_brick")
-cell = Vector2i(3, 2)
-links = Array[NodePath]([NodePath("../PaddleSpeed")])
+cell = Vector2i(3, 4)
+links = Array[NodePath]([NodePath("../RoundTime")])
 
 [node name="Combo" parent="." instance=ExtResource("node")]
 upgrade = ExtResource("combo")
@@ -63,7 +63,7 @@ links = Array[NodePath]([NodePath("../PaddleSize")])
 [node name="RoundTime" parent="." instance=ExtResource("node")]
 upgrade = ExtResource("round_time")
 cell = Vector2i(3, 3)
-links = Array[NodePath]([NodePath("../ExplosiveBrick")])
+links = Array[NodePath]([NodePath("../HourglassBrick")])
 
 [node name="GoldBrick" parent="." instance=ExtResource("node")]
 upgrade = ExtResource("gold_brick")
@@ -77,18 +77,18 @@ links = Array[NodePath]([NodePath("../BallSpeed")])
 
 [node name="BlastSize" parent="." instance=ExtResource("node")]
 upgrade = ExtResource("blast_size")
-cell = Vector2i(4, 2)
+cell = Vector2i(4, 4)
 links = Array[NodePath]([NodePath("../ExplosiveBrick")])
 
 [node name="Shockwave" parent="." instance=ExtResource("node")]
 upgrade = ExtResource("shockwave")
-cell = Vector2i(3, 1)
+cell = Vector2i(2, 4)
 links = Array[NodePath]([NodePath("../ExplosiveBrick")])
 
 [node name="HourglassBrick" parent="." instance=ExtResource("node")]
 upgrade = ExtResource("hourglass_brick")
-cell = Vector2i(3, 4)
-links = Array[NodePath]([NodePath("../RoundTime")])
+cell = Vector2i(3, 2)
+links = Array[NodePath]([NodePath("../PaddleSpeed")])
 
 [node name="Bumper" parent="." instance=ExtResource("node")]
 upgrade = ExtResource("bumper")

@@ -18,6 +18,7 @@ func _ready() -> void:
 	for n in _web.nodes():
 		n.pressed.connect(select.bind(n))
 		n.focus_entered.connect(select.bind(n))
+		n.gui_input.connect(_double_click.bind(n))
 	selected = _web.seed_node()
 	Progress.coins_changed.connect(_refresh.unbind(1))
 	Progress.rank_changed.connect(_refresh.unbind(1))
@@ -40,6 +41,14 @@ func _shown() -> void:
 	if _web.state(selected) == HubNode.State.LOCKED:  # hidden: the save was reset under it
 		selected = _web.seed_node()
 	select(selected)
+
+
+## A double click on a node buys its next rank, as Buy would.
+func _double_click(event: InputEvent, node: HubNode) -> void:
+	var b := event as InputEventMouseButton
+	if b and b.pressed and b.double_click and b.button_index == MOUSE_BUTTON_LEFT:
+		select(node)
+		_detail.buy()
 
 
 func _refresh() -> void:

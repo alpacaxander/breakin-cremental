@@ -17,25 +17,25 @@ const TABLE := {
 	&"PaddleSpeed": ["Paddle Speed", Upgrade.Category.ARENA, 2, "+100% paddle speed", 2, 20.0],
 	&"BallSpeed": ["Ball Speed", Upgrade.Category.ARENA, 3, "+10% ball speed", 5, 3.0],
 	&"PaddleSize": ["Paddle Size", Upgrade.Category.ARENA, 5, "+40% paddle length", 10, 8.0],
-	&"Bumper": ["Bumper", Upgrade.Category.PLACEABLES, 3, "One more Bumper", 10, 8.0],
-	&"ExplosiveBrick": ["Explosive Brick", Upgrade.Category.BRICKS, 4, "One more explosive brick", 8, 3.5],
+	&"Bumper": ["Bumper", Upgrade.Category.PLACEABLES, 3, "One more Bumper", 20, 8.0],
+	&"ExplosiveBrick": ["Explosive Brick", Upgrade.Category.BRICKS, 4, "One more explosive brick", 20, 3.5],
 	&"Combo": ["Combo", Upgrade.Category.ARENA, 2, "Rank 1 turns combos on. Rank 2 widens the window", 20, 25.0],
 	&"WallSegment": ["Wall Segment", Upgrade.Category.PLACEABLES, 2, "One more Wall Segment", 30, 8.0],
 	&"RoundTime": ["Round Time", Upgrade.Category.ARENA, 5, "+6 s", 10, 7.0],
 	&"GoldBrick": ["Gold Brick", Upgrade.Category.BRICKS, 3, "One more gold brick", 25, 7.0],
 	&"Booster": ["Booster", Upgrade.Category.PLACEABLES, 2, "One more Booster", 100, 8.0],
-	&"BlastSize": ["Blast Size", Upgrade.Category.BRICKS, 2, "Explosions reach one square further", 35, 450.0],
+	&"BlastSize": ["Blast Size", Upgrade.Category.BRICKS, 2, "Explosions reach one square further", 50, 315.0],
 	&"Shockwave": ["Shockwave", Upgrade.Category.BRICKS, 1, "Explosions throw balls", 600, 1.8],
-	&"HourglassBrick": ["Hourglass Brick", Upgrade.Category.BRICKS, 2, "One more hourglass brick", 300, 60.0],
-	&"Splitter": ["Splitter", Upgrade.Category.PLACEABLES, 5, "One more Splitter", 40, 5.7],
+	&"HourglassBrick": ["Hourglass Brick", Upgrade.Category.BRICKS, 2, "One more hourglass brick", 30, 600.0],
+	&"Splitter": ["Splitter", Upgrade.Category.PLACEABLES, 5, "One more Splitter", 25, 5.7],
 	&"Zap": ["Zap", Upgrade.Category.PLACEABLES, 3, "One more Zap", 300, 9.0],
 }
 ## The drawn web of upgrades.md: each node and the one it hangs off, towards the seed.
 const PARENT := {
 	&"BallSpeed": &"PaddleSpeed", &"PaddleSize": &"PaddleSpeed", &"Splitter": &"PaddleSpeed",
-	&"ExplosiveBrick": &"PaddleSpeed", &"Combo": &"Splitter", &"WallSegment": &"PaddleSize",
-	&"RoundTime": &"ExplosiveBrick", &"GoldBrick": &"BallSpeed", &"Booster": &"BallSpeed",
-	&"BlastSize": &"ExplosiveBrick", &"Shockwave": &"ExplosiveBrick", &"HourglassBrick": &"RoundTime",
+	&"HourglassBrick": &"PaddleSpeed", &"Combo": &"Splitter", &"WallSegment": &"PaddleSize",
+	&"RoundTime": &"HourglassBrick", &"GoldBrick": &"BallSpeed", &"Booster": &"BallSpeed",
+	&"ExplosiveBrick": &"RoundTime", &"BlastSize": &"ExplosiveBrick", &"Shockwave": &"ExplosiveBrick",
 	&"Bumper": &"Combo", &"Zap": &"GoldBrick",
 }
 const DETAIL := Rect2(904, 88, 352, 284)  ## art.md, "Upgrade screen"

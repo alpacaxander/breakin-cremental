@@ -44,6 +44,12 @@ func show_node(node: HubNode, state: HubNode.State) -> void:
 	_buy.text = "BUY" if open else "MAXED"  # poor: the red outline and grey price say it ("CAN'T AFFORD" overflows the panel)
 
 
+## Buy, for a double click on a node: does what pressing it does, and nothing on a maxed node.
+func buy() -> void:
+	if not _buy.disabled:
+		_on_buy()
+
+
 ## Only an open node's Buy is enabled, and a disabled button never presses.
 func _on_buy() -> void:
 	if Progress.buy(_node.upgrade):

@@ -183,6 +183,8 @@ A maxed node's fill is not lit: a lit fill blooms over the 14 px name and washes
 
 The selected node keeps its state's look and adds a 2 px cyan outline 4 px outside the node, plus a cyan glow. A node under the pointer that is not the selected one gets the same outline in unlit secondary text (`92a1b9`), with no glow. Prices are gold when you can afford them and secondary text when you can't, never red.
 
+**Mouse:** a click on a node selects it; a double click selects it and buys its next rank, as Buy does (on a maxed node it buys nothing).
+
 **Keyboard:** whenever the upgrade screen is shown, the selected node takes the keyboard focus, and focusing a node selects it, so a focused node is always the selected one. A click on Buy hands the focus straight back to the selected node, so a Space or Enter after it buys nothing; a Buy reached with the arrows or Tab keeps the focus, and Enter buys rank after rank. A clicked level arrow keeps it too, so Space steps the level again. An arrow key moves to the nearest node in the same row or column of the web's grid; where there is none in that direction, it goes wherever Godot's own search finds a control, which is how Right from the last column reaches the panels.
 
 **Detail panel:** from the top:

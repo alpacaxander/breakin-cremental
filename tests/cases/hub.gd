@@ -5,9 +5,9 @@ extends RefCounted
 ## docs/design/upgrades.md's web: each node and the one it hangs off.
 const WEB := {
 	&"BallSpeed": &"PaddleSpeed", &"PaddleSize": &"PaddleSpeed", &"Splitter": &"PaddleSpeed",
-	&"ExplosiveBrick": &"PaddleSpeed", &"Combo": &"Splitter", &"WallSegment": &"PaddleSize",
-	&"RoundTime": &"ExplosiveBrick", &"GoldBrick": &"BallSpeed", &"Booster": &"BallSpeed",
-	&"BlastSize": &"ExplosiveBrick", &"Shockwave": &"ExplosiveBrick", &"HourglassBrick": &"RoundTime",
+	&"HourglassBrick": &"PaddleSpeed", &"Combo": &"Splitter", &"WallSegment": &"PaddleSize",
+	&"RoundTime": &"HourglassBrick", &"GoldBrick": &"BallSpeed", &"Booster": &"BallSpeed",
+	&"ExplosiveBrick": &"RoundTime", &"BlastSize": &"ExplosiveBrick", &"Shockwave": &"ExplosiveBrick",
 	&"Bumper": &"Combo", &"Zap": &"GoldBrick",
 }
 
@@ -40,7 +40,7 @@ func run(t: Node) -> void:
 	for u in Progress.upgrades():
 		Progress.ranks[u.id] = 1
 	Progress.rank_changed.emit(web.seed_node().upgrade)
-	for pair: Array in [[&"Splitter", KEY_UP, &"GoldBrick"], [&"ExplosiveBrick", KEY_DOWN, &"RoundTime"], [&"Splitter", KEY_DOWN, &"WallSegment"],
+	for pair: Array in [[&"Splitter", KEY_UP, &"GoldBrick"], [&"HourglassBrick", KEY_DOWN, &"RoundTime"], [&"Splitter", KEY_DOWN, &"WallSegment"],
 			[&"Combo", KEY_RIGHT, &"Splitter"], [&"BallSpeed", KEY_UP, &"Booster"]]:
 		(at.call(pair[0]) as Control).grab_focus()
 		_key(t, pair[1])
@@ -87,7 +87,7 @@ func run(t: Node) -> void:
 	t.check(Sfx.BUY in _heard and not Sfx.CLICK in _heard, "Buy plays the buy cue and no click (heard %s)" % [_heard])
 	var opened := web.nodes().filter(func(n: HubNode) -> bool: return web.state(n) == HubNode.State.AVAILABLE).map(func(n: HubNode) -> String: return n.name)
 	opened.sort()
-	t.check(opened == ["BallSpeed", "ExplosiveBrick", "PaddleSize", "Splitter"], "buying the seed opens its four neighbours and nothing else (open: %s)" % [opened])
+	t.check(opened == ["BallSpeed", "HourglassBrick", "PaddleSize", "Splitter"], "buying the seed opens its four neighbours and nothing else (open: %s)" % [opened])
 	t.check(web.state(seed) == HubNode.State.OWNED and web.state(at.call(&"Combo")) == HubNode.State.LOCKED, "the seed is owned and the next ring stays locked")
 	t.check(web.nodes().all(func(n: HubNode) -> bool: return n.visible == (web.state(n) != HubNode.State.LOCKED)), "every open node is shown and every locked one hidden")	# A click leaves no focus on Buy: Space is Start and Retry in a level, and here it would buy the next rank.
 	_key(t, KEY_SPACE)
@@ -109,12 +109,23 @@ func run(t: Node) -> void:
 	t.check(Progress.rank(splitter.upgrade) == 0 and Progress.coins == Progress.cost(splitter.upgrade) - 1, "a Buy you can't afford buys nothing")
 	t.check(Sfx.CANT_AFFORD in _heard and not Sfx.BUY in _heard and not Sfx.CLICK in _heard, "it plays can't afford (heard %s)" % [_heard])
 
-	# A maxed node can't be bought.
+	# A double click on a node buys it, as Buy does; a single click only selected it above.
 	Progress.coins = 99999
+	await _click(t, at.call(&"BallSpeed"))
+	await t.tree().create_timer(0.15).timeout
+	_heard.clear()
+	await _click(t, splitter, true)
+	await t.tree().create_timer(0.15).timeout
+	t.check(hub.selected == splitter and Progress.rank(splitter.upgrade) == 1 and Sfx.BUY in _heard, "a double click on a node selects it and buys a rank (heard %s)" % [_heard])
+
+	# A maxed node can't be bought.
 	Progress.ranks[seed.upgrade.id] = seed.upgrade.max_rank
 	Progress.rank_changed.emit(seed.upgrade)
 	await _click(t, seed)
 	t.check(buy.disabled and web.state(seed) == HubNode.State.MAXED, "Buy is disabled on a maxed node")
+	var coins := Progress.coins
+	await _click(t, seed, true)
+	t.check(Progress.rank(seed.upgrade) == seed.upgrade.max_rank and Progress.coins == coins, "a double click on a maxed node buys nothing")
 
 	# The level panel: a locked level can be looked at but not played; Play opens the level on show.
 	var levels: Control = hub.get_node("Levels")
@@ -166,13 +177,15 @@ func _key(t: Node, key: Key) -> void:
 		t.get_viewport().push_input(e)
 
 
-## A left click at the middle of `control`, pushed into the viewport (headless, the window is 64 x 64).
-func _click(t: Node, control: Control) -> void:
+## A left click at the middle of `control`, pushed into the viewport (headless, the window is 64 x 64). `double`
+## adds a second click whose press is a double click, as Godot sends it.
+func _click(t: Node, control: Control, double := false) -> void:
 	var at := control.get_global_rect().get_center()
-	for pressed: bool in [true, false]:
+	for i in 4 if double else 2:
 		var click := InputEventMouseButton.new()
 		click.button_index = MOUSE_BUTTON_LEFT
-		click.pressed = pressed
+		click.pressed = i % 2 == 0
+		click.double_click = i == 2
 		click.position = at
 		click.global_position = at
 		t.get_viewport().push_input(click, true)

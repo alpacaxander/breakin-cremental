@@ -41,13 +41,13 @@ Bracket shape shows the category: `( )` Arena, `[ ]` Placeables, `{ }` Bricks.
 ```
                  [    Zap     ]   [  Booster   ]
                        │                │
-                 { Gold Brick }───( Ball Speed )   { Shockwave  }
-                                        │                │
-(   Combo    )───[  Splitter  ]───(PADDLE SPEED)───{ Explosive  }───{ Blast Size }
+                 { Gold Brick }───( Ball Speed )
+                                        │
+(   Combo    )───[  Splitter  ]───(PADDLE SPEED)───{ Hourglass  }
       │                                 │                │
 [   Bumper   ]   [Wall Segment]───(Paddle Size )   ( Round Time )
                                                          │
-                                                   { Hourglass  }
+                                   { Shockwave  }───{ Explosive  }───{ Blast Size }
 ```
 
 - Only the drawn lines are connections. Two nodes that sit side by side with no line between them are not linked.
@@ -58,27 +58,27 @@ Bracket shape shows the category: `( )` Arena, `[ ]` Placeables, `{ }` Bricks.
 | 0 | Paddle Speed | Arena | 2 | +100% paddle speed | 2 | ×20 | 2, 40 |
 | 1 | Ball Speed | Arena | 3 | +10% ball speed | 5 | ×3 | 5, 15, 45 |
 | 1 | Paddle Size | Arena | 5 | +40% paddle length | 10 | ×8 | 10, 80, 640, 5120, 40960 |
-| 1 | Splitter | Placeables | 5 | One more Splitter | 40 | ×5.7 | 40, 228, 1300, 7408, 42224 |
-| 1 | Explosive Brick | Bricks | 4 | One more explosive brick | 8 | ×3.5 | 8, 28, 98, 343 |
+| 1 | Splitter | Placeables | 5 | One more Splitter | 25 | ×5.7 | 25, 143, 812, 4630, 26390 |
+| 1 | Hourglass Brick | Bricks | 2 | One more hourglass brick | 30 | ×600 | 30, 18000 |
 | 2 | Combo | Arena | 2 | Rank 1 turns combos on. Rank 2 widens the window | 20 | ×25 | 20, 500 |
 | 2 | Wall Segment | Placeables | 2 | One more Wall Segment | 30 | ×8 | 30, 240 |
 | 2 | Round Time | Arena | 5 | +6 s | 10 | ×7 | 10, 70, 490, 3430, 24010 |
 | 2 | Gold Brick | Bricks | 3 | One more gold brick | 25 | ×7 | 25, 175, 1225 |
 | 2 | Booster | Placeables | 2 | One more Booster | 100 | ×8 | 100, 800 |
-| 2 | Blast Size | Bricks | 2 | Explosions reach one square further | 35 | ×450 | 35, 15750 |
-| 2 | Shockwave | Bricks | 1 | Explosions throw balls | 600 | | 600 |
-| 3 | Hourglass Brick | Bricks | 2 | One more hourglass brick | 300 | ×60 | 300, 18000 |
-| 3 | Bumper | Placeables | 3 | One more Bumper | 10 | ×8 | 10, 80, 640 |
+| 3 | Bumper | Placeables | 3 | One more Bumper | 20 | ×8 | 20, 160, 1280 |
 | 3 | Zap | Placeables | 3 | One more Zap | 300 | ×9 | 300, 2700, 24300 |
+| 3 | Explosive Brick | Bricks | 4 | One more explosive brick | 20 | ×3.5 | 20, 70, 245, 858 |
+| 4 | Blast Size | Bricks | 2 | Explosions reach one square further | 50 | ×315 | 50, 15750 |
+| 4 | Shockwave | Bricks | 1 | Explosions throw balls | 600 | | 600 |
 
-- **Cost growth** is set per node, and each node has its own value: a price is the first cost times the growth for every rank owned, rounded to a whole coin. The growth is what puts a node's later ranks in a later level's price band. Blast Size costs 450× and Hourglass Brick 60× because their first rank is an early purchase and their second belongs to level 3.
+- **Cost growth** is set per node, and each node has its own value: a price is the first cost times the growth for every rank owned, rounded to a whole coin. The growth is what puts a node's later ranks in a later level's price band. Blast Size costs 315× and Hourglass Brick 600× because their first rank is an early purchase and their second belongs to level 3.
 - **Percentages** are of the base value and add up, so Ball Speed rank 3 is 130% of the base speed.
 - **The base values** are in `data/balance.tres`: the paddle moves 600 units a second and is 96 long, the ball moves 700 units a second, and a round lasts 20 s. A unit is a screen pixel on a 16-row level. Maxed, that is a paddle at 1800 and 288 long (half of level 3's lane), a ball at 910 and a 50 s round.
 - **The costs assume the coin formula** of 1 coin per brick (see [overview.md](overview.md#coins)). A first round on level 1 pays about 10 coins. The seed costs 2 and Ball Speed 5, so the first trip to the hub buys both and the second round is already faster.
-- **The prices come in three bands**, one per level, because each level pays about ten times the one before: a round pays 20 to 70 coins on level 1, 200 to 700 on level 2 and 2,500 to 6,500 on level 3. Up to 45 coins: what level 1 pays for, 15 ranks. From 70 to about 1,300: level 2 and the first round of level 3, 19 ranks. From 2,700 to 42,000: level 3, 10 ranks. The balance bot (`tests/run.sh bot campaign`) buys the cheapest rank on offer, so the bands are the order it buys in.
+- **The prices come in three bands**, one per level, because each level pays about ten times the one before: a round pays 20 to 70 coins on level 1, 200 to 700 on level 2 and 2,500 to 6,500 on level 3. Up to 50 coins: what level 1 pays for, 15 ranks. From 70 to about 1,300: level 2 and the first round of level 3, 19 ranks. From 2,700 to 41,000: level 3, 10 ranks. The balance bot (`tests/run.sh bot campaign`) buys the cheapest rank on offer, so the bands are the order it buys in.
 - **What the last ranks are for.** Level 3 is cleared by the ranks at the top of the list: Paddle Size 4 and 5 keep the ball in play against the wall's face, and Splitter 4 and 5, Hourglass Brick 2 and Round Time 5 find the last bricks.
-- Shockwave sits one step from the first ring because it has to connect to Explosive Brick. Its price is what keeps it late.
-- That is 15 nodes and 44 purchases, 192,434 coins in all.
+- **Moved nodes are priced for where they sit now.** Nearer the seed means cheaper, because the nodes on the way are bought first: Splitter (moved in to one step) went from 40 to 25 and Hourglass Brick (one step) from 300 to 30; Bumper (moved out to three steps) from 10 to 20, Explosive Brick (three steps) from 8 to 20 and Blast Size (four steps) from 35 to 50. Shockwave stays at 600: its price, not its place, keeps it late. With these prices the bot's average player (`bot campaign` on `tests/layouts/found.json`, three seed sets) buys its first explosive brick on round 12 and clears level 1 on rounds 17 to 20, level 2 on 23 to 29 and level 3 on 37 to 42.
+- That is 15 nodes and 44 purchases, 174,425 coins in all.
 - **What the balance bot cannot show.** On levels 1 and 2 a Bumper, a Booster or a Wall Segment measures as nothing or as a loss for the bot, wherever it is put, at any size or boost tried: the bot's paddle does not foresee a bounce off an item. On level 3 they count as a set: with every upgrade, the bot's average player clears the level in 44 rounds of 100 with them and 8 without, and each kind alone is worth 7 to 9 of those. Shockwave measures as nothing anywhere. So the numbers of these four are untested guesses until a person places them. Paddle Speed's first rank changes nothing on level 1, where the ball takes more than two seconds to come back; without it level 2 is lost in more than eight rounds of ten.
 - **The text in the detail panel** is the "Each rank" wording, then, on a node that unlocks an item or changes one, a sentence on what it does. That sentence names no number that tuning may change, and the whole text has to fit the panel's two lines, about 80 characters.
 
