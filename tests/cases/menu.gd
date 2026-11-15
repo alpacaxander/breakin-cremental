@@ -13,9 +13,13 @@ func run(t: Node) -> void:
 	t.check(menu.scene_file_path == Main.MENU, "Main opens on the main menu")
 	var play: Button = menu.get_node(^"%Play")
 	t.check(play.has_focus(true), "focus starts on Play, and it shows")
-	t.check(not play.get_theme_stylebox(&"focus") is StyleBoxEmpty, "a focused button draws its focus outline")
-	await t.tree().process_frame
-	t.check(menu.get_node(^"Cursor").visible, "the cursor points at the focused button")
+	t.check(play.theme_type_variation == &"" and (menu.get_node(^"%Exit") as Button).theme_type_variation == &"SecondaryButton",
+			"the focused button is the filled one")
+	t.check(play.get_theme_stylebox(&"focus") is StyleBoxEmpty, "no outline: the fill shows the focus")
+	(menu.get_node(^"%Settings") as Button).mouse_entered.emit()
+	t.check((menu.get_node(^"%Settings") as Button).has_focus() and play.theme_type_variation == &"SecondaryButton",
+			"the mouse moves the same selection as the arrows")
+	play.grab_focus()
 	t.check((menu.get_node(^"%Exit") as Button).pressed.is_connected(Main.quit), "Exit quits")
 	t.check(not menu.find_children("*", "UiBackButton", true, false), "the main menu has no back button")
 

@@ -1,5 +1,5 @@
 extends TextureRect
-## The arcade cursor of the menu screens: a lit triangle to the left of whichever control on this screen has the
+## The arcade cursor of Settings: a lit triangle to the left of whichever control on this screen has the
 ## keyboard focus, beside the theme's focus outline. On a row (a control inside an HBoxContainer, such as a
 ## volume slider after its name) it points at the row, so it also shows focus on a slider, which has no outline.
 

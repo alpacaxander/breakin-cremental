@@ -1,7 +1,8 @@
 extends Control
 ## The main menu (docs/design/overview.md, "Flow"): the title, Play, Settings and Exit, in front of an empty arena
 ## drawn like the game's: walls, a paddle on the left with the ball resting by it, bricks at the back. It is the one
-## screen with no way back, so Esc does nothing here. Focus starts on Play; the arrow keys and Enter work it.
+## screen with no way back, so Esc does nothing here. Focus starts on Play; the arrow keys, the mouse and Enter
+## work it, and the focused button is the filled one (see _select).
 
 ## "BREAKIN" in bricks, one string per letter, rows split by "/", "#" a brick.
 const LETTERS: Array[String] = ["###./#..#/###./#..#/###.", "###./#..#/###./#.#./#..#", "###/#../##./#../###",
@@ -32,7 +33,20 @@ func _ready() -> void:
 	_play.pressed.connect(Main.show_hub)
 	(%Settings as Button).pressed.connect(Main.show_settings)
 	(%Exit as Button).pressed.connect(Main.quit)
+	for b: Button in $Buttons.get_children():
+		b.mouse_entered.connect(b.grab_focus)
+		b.focus_entered.connect(_select)
+		b.add_theme_stylebox_override(&"focus", StyleBoxEmpty.new())
 	_play.grab_focus()
+
+
+## One selection, moved by the mouse or the arrows: the focused button is drawn primary (filled), the rest
+## secondary. Hover draws as the button's normal look, so a button the mouse left behind on a key press shows
+## nothing.
+func _select() -> void:
+	for b: Button in $Buttons.get_children():
+		b.theme_type_variation = &"" if b.has_focus() else &"SecondaryButton"
+		b.add_theme_stylebox_override(&"hover", b.get_theme_stylebox(&"normal"))
 
 
 func _draw() -> void:

@@ -149,7 +149,7 @@ At most 600 squares are alive at once, and one frame's breaks share 240 new ones
 | Icon button | 44 × 44 with a base fill and a 2 px border: cyan when it can be used, `424c6e` when it can't |
 | Back button | An icon button with a left-pointing arrow, for the mouse. Esc does the same, so it takes no keyboard focus. It has no tooltip |
 | Top bar | 84 px tall, x 24–1256: the back button, then the screen's title in 56 px Jersey 10. The upgrade screen and Settings share it |
-| Focus cursor | On the main menu and Settings, a lit cyan triangle 12 px to the left of the focused control, or of its row. It is the only sign of focus on a slider |
+| Focus cursor | On Settings, a lit cyan triangle 12 px to the left of the focused control, or of its row. It is the only sign of focus on a slider |
 | Toggle | A 44 × 44 square with a 2 px cyan border: base fill when off, lit cyan fill when on. Its label sits to the right in primary text |
 | Slider | A 6 px track in `2a2f4e`, lit cyan from the left end to the grabber. The grabber is a 16 × 28 cyan rectangle. The row is 44 px tall, so it meets the hit target |
 | Dropdown | The secondary button's look at 44 px tall, in 18 px Chakra Petch semibold, with a chevron. Its list is a panel with 44 px rows and a cyan dot beside the chosen one. No mockup |
@@ -205,7 +205,7 @@ No mockup. The menu is an empty arena, drawn flat like the game's and not moving
 - **Paddle and ball:** a 12 × 96 paddle at x 40, level with Play, with the ball resting 48 px from its stripe.
 - **Bricks:** three columns of lit bricks in front of the back wall: 1, 2 and 3 HP from the front, with three of the front bricks already broken.
 - **Title:** "BREAKIN" spelled in lit 18 px square bricks on a 20 px pitch, five rows from y 124, each row in a brick HP colour from 4 HP at the top to 1 HP at the bottom. Under it "CREMENTAL" in 68 px Jersey 10, lit gold.
-- **Buttons:** Play (primary), Settings and Exit (secondary) in a column 360 px wide from y 384, 16 px apart. Focus starts on Play. Esc does nothing here.
+- **Buttons:** Play, Settings and Exit in a column 360 px wide from y 384, 16 px apart. One selection, moved by the arrows or by the mouse (hover takes the focus), is drawn as a primary button; the others are secondary. No focus outline, no cursor and no separate hover look. Focus starts on Play. Esc does nothing here.
 
 ## Settings
 
