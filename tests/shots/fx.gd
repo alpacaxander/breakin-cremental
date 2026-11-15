@@ -120,7 +120,7 @@ func _breaks(main: Main, number: int, combo: int) -> void:
 
 func _blast(main: Main, number: int, combo: int) -> void:
 	var round := await _start(main, number, combo)
-	round.blast(Vector2i(55, 3), Board.BRICK.y)
+	round.blast(Vector2i(48, 3), Board.BRICK.y)
 
 
 func _explosive(main: Main, number: int, combo: int) -> void:

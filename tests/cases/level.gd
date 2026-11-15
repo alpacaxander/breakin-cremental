@@ -108,12 +108,12 @@ func _placing() -> void:
 	t.check(Progress.layout(1).count(&"bumper") == 1 and _saved().layouts["1"].size() == 1, "placing saves the level's layout")
 	await t.tree().create_timer(0.15).timeout
 	t.check(heard.has(Sfx.PLACE_ITEM), "putting an item down plays PLACE_ITEM")
-	for spot: Vector2 in [Vector2(-30, 100), Vector2(856, 100), Vector2(30, 256), Vector2(300, 100)]:
+	for spot: Vector2 in [Vector2(-30, 100), Vector2(984, 100), Vector2(30, 256), Vector2(300, 100)]:
 		await _drag(_slot(BUMPER), _screen(spot))
 		t.check(_items().size() == 1, "a bumper at %s is refused: the lane, a brick, the launch path, another item" % spot)
 	await _drag(_screen(at), _screen(Vector2(400, 200)))
 	t.check(_items().size() == 1 and _items()[0].pos.is_equal_approx(Vector2(400, 200)), "a placed item can be dragged somewhere else")
-	await _drag(_screen(Vector2(400, 200)), _screen(Vector2(856, 100)))
+	await _drag(_screen(Vector2(400, 200)), _screen(Vector2(984, 100)))
 	t.check(_items().size() == 1 and _items()[0].pos.is_equal_approx(Vector2(400, 200)), "moved onto a brick, it goes back where it was")
 	await _drag(_screen(Vector2(400, 200)), Vector2(640, 50))
 	t.check(_items().is_empty() and Progress.layout(1).items.is_empty(), "dragged out of the arena, it is removed")
@@ -123,7 +123,7 @@ func _placing() -> void:
 	await _drag(_slot(BUMPER), _screen(at))
 
 	# Rotation: the wheel while dragging, then Q and E over the placed item.
-	var wall := Vector2(500, 380)
+	var wall := Vector2(400, 380)
 	_mouse(_slot(WALL), MOUSE_BUTTON_LEFT, true)
 	_mouse(_screen(wall))
 	_mouse(_screen(wall), MOUSE_BUTTON_WHEEL_DOWN, true)
@@ -146,8 +146,8 @@ func _placing() -> void:
 	t.check(brick != null and brick.placed and brick.kind == &"splitter", "a Splitter snaps to the brick cell under the cursor")
 	await _drag(_slot(ZAP), _screen(Vector2(600, 300)))
 	t.check(_items().size() == 3, "a Zap on an empty cell is refused")
-	await _drag(_slot(ZAP), _screen(Vector2(856, 224)))
-	t.check(level.round.board.brick(Vector2i(53, 3)).mod == &"zap" and _items().size() == 4, "a Zap goes on an existing brick")
+	await _drag(_slot(ZAP), _screen(Vector2(984, 224)))
+	t.check(level.round.board.brick(Vector2i(61, 3)).mod == &"zap" and _items().size() == 4, "a Zap goes on an existing brick")
 	t.check(level.get_node("SetupUi")._slots[BUMPER].left == 2 and level.get_node("SetupUi")._slots[ZAP].left == 2, "the tray counts what is left to place")
 
 
@@ -246,9 +246,9 @@ func _ends() -> void:
 	var round: Round = level.round
 	var coins := Progress.coins
 	paid[0] = 0
-	for row in 8:  # column 57 is 1 HP; one that is still a standard brick
-		if round.board.brick(Vector2i(57, row)).kind == &"":
-			round.hit_brick(Vector2i(57, row), Round.Cause.BALL, Vector2.RIGHT)
+	for row in 8:  # column 61 is 1 HP; one that is still a standard brick
+		if round.board.brick(Vector2i(61, row)).kind == &"":
+			round.hit_brick(Vector2i(61, row), Round.Cause.BALL, Vector2.RIGHT)
 			break
 	round.balls[0].put(Vector2(-20.0, 20.0 if round.paddle.y > 256.0 else 492.0), Vector2.LEFT)
 	await _until_summary()

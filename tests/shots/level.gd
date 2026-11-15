@@ -15,7 +15,7 @@ const PLACED := [
 	{"kind": "wall_segment", "x": 200.0, "y": 380.0, "rot": 60.0},
 	{"kind": "splitter", "col": 30, "row": 2},
 	{"kind": "splitter", "col": 40, "row": 5},
-	{"kind": "zap", "col": 53, "row": 1},
+	{"kind": "zap", "col": 61, "row": 1},
 	{"kind": "zap", "col": 40, "row": 5},
 ]
 
@@ -29,9 +29,9 @@ func shots() -> Array[Dictionary]:
 		{"name": "setup_mid_2", "save": "mid", "crt": false, "setup": _open.bind(2, [])},
 		{"name": "setup_maxed_3", "save": "maxed", "setup": _open.bind(3, [])},
 		{"name": "drag_fits", "save": "maxed", "crt": false, "setup": _drag.bind(Vector2(520, 300), 2)},
-		{"name": "drag_refused", "save": "maxed", "crt": false, "setup": _drag.bind(Vector2(1010, 300), 2)},
+		{"name": "drag_refused", "save": "maxed", "crt": false, "setup": _drag.bind(Vector2(1138, 300), 2)},
 		{"name": "drag_brick", "save": "maxed", "crt": false, "setup": _drag.bind(Vector2(700, 420), 3)},
-		{"name": "drag_zap", "save": "maxed", "crt": false, "setup": _drag.bind(Vector2(1040, 420), 4)},
+		{"name": "drag_zap", "save": "maxed", "crt": false, "setup": _drag.bind(Vector2(1138, 420), 4)},
 		{"name": "hold_tray", "save": "maxed", "crt": false, "setup": _hold.bind(0, Vector2(30, -8))},
 		{"name": "hold_tray_splitter", "save": "maxed", "crt": false, "setup": _hold.bind(3, Vector2.ZERO)},
 		{"name": "play_fresh", "setup": _play.bind(1, [], 45, 0)},

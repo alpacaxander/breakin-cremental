@@ -108,8 +108,8 @@ func _setup() -> void:
 	fx.clear()
 	_summary.close()
 	phase = Phase.SETUP
-	# ponytail: a new seed, not a check that the special bricks moved. With one special brick among level 1's 24
-	# bricks, 1 retry in 24 shows it where it was; compare and roll again if anyone notices.
+	# ponytail: a new seed, not a check that the special bricks moved. With one special brick among level 1's 44
+	# bricks, 1 retry in 44 shows it where it was; compare and roll again if anyone notices.
 	_seed = randi()
 	_setup_ui.show()
 	_build()

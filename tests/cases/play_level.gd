@@ -109,7 +109,7 @@ func _fresh() -> void:
 		var broken := 0
 		for n: int in round.tally.broken.values():
 			broken += n
-		var want := "%.1f|%d|%d / %d" % [round.time_left, round.coins, round.board.remaining(), 24]
+		var want := "%.1f|%d|%d / %d" % [round.time_left, round.coins, round.board.remaining(), 44]
 		if hud._time.text + "|" + str(hud._coins.amount) + "|" + hud._left.text != want:
 			bad.append("%s != %s" % [hud._time.text + "|" + str(hud._coins.amount) + "|" + hud._left.text, want])
 		level.fx.frozen = false
@@ -138,22 +138,22 @@ func _placing() -> void:
 	var setup: LevelSetupUi = level.get_node("SetupUi")
 	t.check(setup._slots.size() == 5, "a maxed save has five slots in the tray")
 	var ok_spots := {
-		BUMPER: [Vector2(300, 100), Vector2(300, 420), Vector2(500, 100)],
+		BUMPER: [Vector2(300, 100), Vector2(300, 420), Vector2(450, 100)],
 		BOOSTER: [Vector2(400, 200), Vector2(400, 330)],
 		WALL: [Vector2(600, 200), Vector2(600, 330)],
-		SPLITTER: [Vector2(700, 100), Vector2(720, 400), Vector2(760, 200), Vector2(780, 300), Vector2(800, 480)],
-		ZAP: [Vector2(856, 100), Vector2(856, 480), Vector2(888, 300)],
+		SPLITTER: [Vector2(700, 100), Vector2(720, 400), Vector2(760, 200), Vector2(740, 300), Vector2(800, 480)],
+		ZAP: [Vector2(984, 100), Vector2(984, 480), Vector2(1000, 300)],
 	}
 	## Refused wherever the layout stands: off the grid, in the paddle lane, on the launch path, on a brick.
 	var refused := {
-		BUMPER: [Vector2(-30, 100), Vector2(30, 256), Vector2(856, 300), Vector2(1020, 10)],
-		BOOSTER: [Vector2(888, 32), Vector2(40, 250)],
-		WALL: [Vector2(600, 10), Vector2(856, 300)],
-		SPLITTER: [Vector2(856, 100), Vector2(24, 280), Vector2(1100, 100)],
+		BUMPER: [Vector2(-30, 100), Vector2(30, 256), Vector2(984, 300), Vector2(1020, 10)],
+		BOOSTER: [Vector2(1000, 32), Vector2(40, 250)],
+		WALL: [Vector2(600, 10), Vector2(984, 300)],
+		SPLITTER: [Vector2(984, 100), Vector2(24, 280), Vector2(1100, 100)],
 		ZAP: [Vector2(600, 300), Vector2(-20, 300)],
 	}
 	## Refused once the first ok spot is taken: on top of it.
-	var on_first := {BUMPER: Vector2(310, 110), BOOSTER: Vector2(410, 210), WALL: Vector2(604, 210), SPLITTER: Vector2(700, 100), ZAP: Vector2(856, 100)}
+	var on_first := {BUMPER: Vector2(310, 110), BOOSTER: Vector2(410, 210), WALL: Vector2(604, 210), SPLITTER: Vector2(700, 100), ZAP: Vector2(984, 100)}
 	for slot: int in ok_spots:
 		var title := setup._slots[slot].kind.title
 		for spot: Vector2 in refused[slot]:
@@ -173,15 +173,15 @@ func _placing() -> void:
 		t.check(_items().size() == before and level.get_node("Arena")._ghost == null, "%s: one more than the count cannot be taken from the tray" % title)
 
 	# A Zap on a Splitter, then off a brick: a refused drop puts it back, a drop outside the arena removes it.
-	var zap := _item_on(Vector2i(53, 1), &"zap")
-	await _drag(_screen(Vector2(856, 100)), _screen(Vector2(728, 400)))
-	t.check(_item_on(Vector2i(45, 6), &"zap") != null and _item_on(Vector2i(53, 1), &"zap") == null, "a Zap moves onto a Splitter")
+	var zap := _item_on(Vector2i(61, 1), &"zap")
+	await _drag(_screen(Vector2(984, 100)), _screen(Vector2(728, 400)))
+	t.check(_item_on(Vector2i(45, 6), &"zap") != null and _item_on(Vector2i(61, 1), &"zap") == null, "a Zap moves onto a Splitter")
 	await _drag(_screen(Vector2(728, 400)), _screen(Vector2(500, 250)))
 	t.check(_item_on(Vector2i(45, 6), &"zap") != null and level.round.board.brick(Vector2i(45, 6)).mod == &"zap", "a Zap dropped on nothing goes back to its brick")
 	await _drag(_screen(Vector2(728, 400)), Vector2(640, 40))
 	t.check(_item_on(Vector2i(45, 6), &"zap") == null and setup._slots[ZAP].left == 1, "a Zap dragged out of the arena comes off and back to the tray")
-	await _drag(_slot(ZAP), _screen(Vector2(856, 100)))
-	t.check(zap != null and _item_on(Vector2i(53, 1), &"zap") != null, "and it goes on a brick again")
+	await _drag(_slot(ZAP), _screen(Vector2(984, 100)))
+	t.check(zap != null and _item_on(Vector2i(61, 1), &"zap") != null, "and it goes on a brick again")
 
 	# Turning: the wheel and Q / E, and a turn that would hit something is not made.
 	var wall := _item_at_pos(Vector2(600, 200))
@@ -202,11 +202,11 @@ func _placing() -> void:
 	level._on_edited(true)
 
 	# Move one, remove one.
-	await _drag(_screen(Vector2(500, 100)), _screen(Vector2(500, 470)))
-	t.check(_item_at_pos(Vector2(500, 470)) != null and _item_at_pos(Vector2(500, 100)) == null, "a placed Bumper can be dragged elsewhere")
-	_mouse(_screen(Vector2(500, 470)), MOUSE_BUTTON_RIGHT, true)
-	_mouse(_screen(Vector2(500, 470)), MOUSE_BUTTON_RIGHT, false)
-	t.check(_item_at_pos(Vector2(500, 470)) == null and setup._slots[BUMPER].left == 1, "a right click takes it off, back to the tray")
+	await _drag(_screen(Vector2(450, 100)), _screen(Vector2(450, 470)))
+	t.check(_item_at_pos(Vector2(450, 470)) != null and _item_at_pos(Vector2(450, 100)) == null, "a placed Bumper can be dragged elsewhere")
+	_mouse(_screen(Vector2(450, 470)), MOUSE_BUTTON_RIGHT, true)
+	_mouse(_screen(Vector2(450, 470)), MOUSE_BUTTON_RIGHT, false)
+	t.check(_item_at_pos(Vector2(450, 470)) == null and setup._slots[BUMPER].left == 1, "a right click takes it off, back to the tray")
 
 	# Leave and come back.
 	var kept := JSON.stringify(level.round.layout.to_data())
