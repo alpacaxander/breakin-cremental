@@ -44,9 +44,9 @@ Legend: `█` = 1 HP brick, `▓` = 2 HP brick, `.` = empty, `|` = paddle.
 
 ## Level 1: three columns
 
-64 × 16. Three columns of bricks, each 2 bricks wide: columns 32–33 (the middle of the arena), 48–49 (three quarters of the way) and 61–62, which leaves a single empty column behind it at the back wall. The middle column has a gap of one brick at the top (rows 0–1), the second a gap of one brick at the bottom (rows 14–15). That is 14 + 14 + 16 = 44 bricks.
+64 × 16. Three columns of bricks: columns 31–33 (the middle of the arena, 3 bricks wide), 48–49 (three quarters of the way) and 61–62 (2 wide each), which leaves a single empty column behind it at the back wall. The middle column has a gap of one brick at the top (rows 0–1), the second a gap of one brick at the bottom (rows 14–15). That is 21 + 14 + 16 = 51 bricks.
 
-Every brick is 1 HP. That is 44 hits to clear.
+Every brick is 1 HP. That is 51 hits to clear.
 
 The middle column is close, so a first round breaks about 20 bricks; the gaps let the ball through to the back, where the last few bricks take the longest to find.
 

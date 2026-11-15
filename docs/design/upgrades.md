@@ -28,7 +28,7 @@ Placeables and special bricks share one rule: the node that unlocks the item has
 - **Placeables:** rank N lets you place N of that item.
 - **Special bricks:** rank N replaces N random standard bricks with that brick type when the level starts. The bricks are picked again on every attempt, including a retry.
 
-A count is the same on every level, so 2 explosive bricks matter far more among level 1's 44 bricks than among level 3's 512.
+A count is the same on every level, so 2 explosive bricks matter far more among level 1's 51 bricks than among level 3's 512.
 
 ## Speed
 

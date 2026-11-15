@@ -406,12 +406,12 @@ func _zap() -> void:
 
 func _specials() -> void:
 	var level := Levels.read(1)
-	t.check(level != null and level.board.bricks.size() == 44, "level 1 reads as 44 bricks")
+	t.check(level != null and level.board.bricks.size() == 51, "level 1 reads as 51 bricks")
 	if level == null:
 		return
 	var board := level.board
 	var counts := {}
-	for ranks: Array in [[1, 0, 0], [3, 3, 2], [0, 2, 1], [10, 10, 10], [44, 0, 1], [0, 45, 0]]:
+	for ranks: Array in [[1, 0, 0], [3, 3, 2], [0, 2, 1], [10, 10, 10], [51, 0, 1], [0, 52, 0]]:
 		var stats := _stats({&"explosive_count": ranks[0], &"gold_count": ranks[1], &"hourglass_count": ranks[2], &"splitter_count": 2, &"zap_count": 2})
 		var layout := _layout([_item(&"splitter", Vector2i(34, 2)), _item(&"splitter", Vector2i(50, 5)), _item(&"zap", Vector2i(34, 2)), _item(&"zap", Vector2i(32, 1))])
 		var seen := {}
@@ -426,7 +426,7 @@ func _specials() -> void:
 				elif b.kind != &"":
 					counts[b.kind] += 1
 					bad = bad or b.hp != 1 or board.brick(c) == null or board.brick(c).kind != &""
-			var left := 44
+			var left := 51
 			var want := {}
 			for k in 3:
 				want[SPECIALS[k]] = mini(ranks[k], left)

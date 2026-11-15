@@ -109,7 +109,7 @@ func _fresh() -> void:
 		var broken := 0
 		for n: int in round.tally.broken.values():
 			broken += n
-		var want := "%.1f|%d|%d / %d" % [round.time_left, round.coins, round.board.remaining(), 44]
+		var want := "%.1f|%d|%d / %d" % [round.time_left, round.coins, round.board.remaining(), 51]
 		if hud._time.text + "|" + str(hud._coins.amount) + "|" + hud._left.text != want:
 			bad.append("%s != %s" % [hud._time.text + "|" + str(hud._coins.amount) + "|" + hud._left.text, want])
 		level.fx.frozen = false
@@ -176,7 +176,7 @@ func _placing() -> void:
 	var zap := _item_on(Vector2i(61, 1), &"zap")
 	await _drag(_screen(Vector2(984, 100)), _screen(Vector2(728, 400)))
 	t.check(_item_on(Vector2i(45, 6), &"zap") != null and _item_on(Vector2i(61, 1), &"zap") == null, "a Zap moves onto a Splitter")
-	await _drag(_screen(Vector2(728, 400)), _screen(Vector2(500, 250)))
+	await _drag(_screen(Vector2(728, 400)), _screen(Vector2(470, 250)))
 	t.check(_item_on(Vector2i(45, 6), &"zap") != null and level.round.board.brick(Vector2i(45, 6)).mod == &"zap", "a Zap dropped on nothing goes back to its brick")
 	await _drag(_screen(Vector2(728, 400)), Vector2(640, 40))
 	t.check(_item_on(Vector2i(45, 6), &"zap") == null and setup._slots[ZAP].left == 1, "a Zap dragged out of the arena comes off and back to the tray")
