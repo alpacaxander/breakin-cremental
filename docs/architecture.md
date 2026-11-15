@@ -242,6 +242,7 @@ src/
   hub/        hub.tscn  web.tscn  upgrade_node.tscn  detail_panel.tscn  level_panel.tscn, each with its script
   menu/       main_menu.tscn  settings.tscn, each with its script, and cursor.gd
   ui/         palette.gd  theme.gd  glyph.gd  coin.gd  price.gd  pips.gd  bar.gd  back_button.gd  top_bar.gd
+  debug/      admin.gd    the testing panel (` in a debug build): coins, upgrade ranks, levels unlocked
 data/
   balance.tres
   upgrades/   one .tres per upgrade

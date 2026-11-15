@@ -21,7 +21,8 @@ extends Node
 ##     │   ├─ Backdrop      the base colour
 ##     │   ├─ Screen        holds the current screen; carries the theme
 ##     │   └─ WorldEnvironment   the bloom
-##     └─ Crt               shows View's picture through assets/shaders/crt.gdshader
+##     ├─ Crt               shows View's picture through assets/shaders/crt.gdshader
+##     └─ Admin             debug builds only: the testing panel, outside the chain (src/debug/admin.gd)
 ## The Crt pass always runs, CRT setting on or off: View's picture is linear and holds values over 1, and the
 ## shader is what brings them back into range and converts to sRGB. Never hide Crt or drop its material.
 ##
@@ -118,6 +119,8 @@ func _ready() -> void:
 	_fit()
 	_apply()
 	Sfx.start_music()
+	if OS.is_debug_build():
+		add_child(Admin.new())  # ` opens it; see src/debug/admin.gd
 	show_menu()
 
 
