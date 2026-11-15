@@ -12,6 +12,7 @@ extends Control
 ##
 ## SETUP shows a round that never steps, built from the saved layout and this attempt's seed, so the special
 ## bricks are already where Play will have them. Every edit saves the layout and builds that round again.
+## The keys (not the mouse, which places items) move its paddle; the ball stays at rest until Start.
 ## PLAY builds it once more and steps it. There is no way out. The paddle goes where the last thing the player
 ## used says: a held key (W/S, the arrows) moves it, the mouse's height draws it, both at paddle speed. A key
 ## takes over at once, and the mouse takes it back only by moving, so a key player's paddle stays where it was
@@ -83,6 +84,11 @@ func _physics_process(delta: float) -> void:
 	_arena.remember()
 	if phase == Phase.PLAY and not fx.frozen:
 		round.step(delta, _paddle_target())
+	elif phase == Phase.SETUP:
+		# Keys only: in Setup the mouse places items, and it would drag the paddle to Start's height on a click.
+		var keys := Input.get_axis(&"paddle_up", &"paddle_down")
+		if keys != 0.0:
+			round.move_paddle(delta, signf(keys) * INF)
 
 
 func _input(event: InputEvent) -> void:
@@ -112,12 +118,16 @@ func _setup() -> void:
 	# bricks, 1 retry in 44 shows it where it was; compare and roll again if anyone notices.
 	_seed = randi()
 	_setup_ui.show()
+	round = null  # a new attempt starts with the paddle centred
 	_build()
 
 
-## Builds the round from the layout and the seed and puts it on screen.
+## Builds the round from the layout and the seed and puts it on screen. The paddle stays where Setup moved it.
 func _build() -> void:
+	var paddle_y := round.paddle.y if round else NAN
 	round = Round.new(_data.board, _layout, _stats, _seed)
+	if not is_nan(paddle_y):
+		round.paddle.y = paddle_y
 	_arena.show_round(round, phase == Phase.SETUP)
 	_hud.show_round(round, _data, phase == Phase.SETUP, phase == Phase.PLAY)
 	_setup_ui.refresh(round)

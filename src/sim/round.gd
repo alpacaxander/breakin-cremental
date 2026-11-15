@@ -225,8 +225,7 @@ static func launch_path(p_board: Board, p_stats: Balance) -> Rect2:
 func step(delta: float, paddle_target: float) -> void:
 	if over:
 		return
-	var half := minf(paddle.length, board.size().y) * 0.5
-	paddle.y = clampf(move_toward(paddle.y, paddle_target, stats.paddle_speed * delta), half, board.size().y - half)
+	move_paddle(delta, paddle_target)
 	for ball in balls.duplicate():  # a copy: a Splitter adds to `balls` and a lost ball leaves it
 		_move(ball, delta)
 	if combo.tick(delta):
@@ -240,6 +239,13 @@ func step(delta: float, paddle_target: float) -> void:
 		_end(End.BALL_LOST)
 	elif time_left == 0.0:
 		_end(End.TIME)
+
+
+## Step 1 of step() alone: the paddle moves toward `paddle_target` at stats.paddle_speed and nothing else does.
+## Setup calls it, so the paddle can be placed before the launch while the ball stays at rest.
+func move_paddle(delta: float, paddle_target: float) -> void:
+	var half := minf(paddle.length, board.size().y) * 0.5
+	paddle.y = clampf(move_toward(paddle.y, paddle_target, stats.paddle_speed * delta), half, board.size().y - half)
 
 
 ## A ball's speed in units per second: stats.ball_speed * ball.boost.

@@ -234,7 +234,7 @@ func _random_board(rng: RandomNumberGenerator) -> Board:
 		return Levels.read(rng.randi_range(1, Levels.count())).board
 	var board := Board.new([14, 16, 18, 20, 24][rng.randi() % 5])
 	var density := rng.randf_range(0.02, 0.6)
-	var start := rng.randi_range(4, 8)  # a brick under the ball at rest is a broken level, not a rule
+	var start := rng.randi_range(8, 12)  # a brick under the ball at rest is a broken level, not a rule
 	for column in range(start, board.cols):
 		for row in board.rows / 2:
 			if rng.randf() < density:
@@ -754,7 +754,7 @@ func _fence(p_seed: int, wrong: Dictionary, seen: Dictionary) -> void:
 	stats.put(&"explosive_count", 0)  # a blast would open the ring
 	if rng.randf() < 0.3:
 		stats.round_time = 4.0
-	var c0 := rng.randi_range(4, board.cols - 12)
+	var c0 := rng.randi_range(8, board.cols - 12)  # clear of the ball at rest, 8 bricks out
 	var c1 := mini(c0 + rng.randi_range(6, 24), board.cols - 1 if rng.randf() < 0.3 else board.cols - 2)
 	var r0 := rng.randi_range(0, board.rows / 2 - 3)
 	var r1 := mini(r0 + rng.randi_range(2, 6), board.rows / 2 - 1)

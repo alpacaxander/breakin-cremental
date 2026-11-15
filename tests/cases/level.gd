@@ -174,8 +174,18 @@ func _paddle() -> void:
 	var setup_round: Round = level.round
 	var start: Button = level.get_node("SetupUi").find_child("Start", true, false)
 	t.check(start.is_in_group(Sfx.QUIET), "Start plays no click: the round start is its sound")
+	var rest := setup_round.balls[0].pos
+	Input.action_press(&"paddle_down")
+	await _steps(12)
+	Input.action_release(&"paddle_down")
+	var setup_y := setup_round.paddle.y
+	t.check(setup_y > setup_round.board.size().y * 0.5 and setup_round.balls[0].pos == rest and level.round == setup_round,
+			"in Setup a key moves the paddle and the ball stays at rest")
+	t.check(is_equal_approx(rest.x - setup_round.paddle.x - setup_round.stats.ball_size * 0.5, Board.BRICK.x * 8.0),
+			"the ball rests 8 bricks from the paddle's face")
 	level.start()
 	var round: Round = level.round
+	t.check(round.paddle.y == setup_y and round.balls[0].pos == rest, "Start keeps the paddle where Setup left it, and the ball where it rested")
 	t.check(level.phase == PLAY and round != setup_round and _specials(round) == shown, "start() goes to Play on a new round with the special bricks Setup showed")
 	t.check(round.layout.items.size() == 4 and round.ball_bounced.is_connected(Sfx._on_ball_bounced) and round.ended.get_connections().size() >= 2,
 			"start() is complete when it returns: the round has the layout, and the sound and the screen are listening")

@@ -9,7 +9,7 @@ The main menu, Settings and the Summary have no mockup. They are described below
 **The mockups are behind the docs in these places.** Until they are redrawn, the docs are right:
 
 - Neither screen has a back button. The upgrade screen's top bar and the Setup footer each get one (see [UI pieces](#ui-pieces)).
-- The ball in Setup rests against the paddle. It should sit a little to the right of it.
+- The ball in Setup rests against the paddle. It should sit 8 bricks (128 px on level 1) to the right of it.
 - Level 3 is drawn at 64 × 16 with the tunnel below centre. It should be 72 × 18, zoomed to fit.
 - The bumper ghost snaps to a grid cell. The bumper is free-form and doesn't snap.
 - Special bricks are a share of the level's bricks, and the web has "Explosive Chance" and "Bumper Count" nodes. Counts now come from the unlock node's ranks (see [upgrades.md](design/upgrades.md#counts-come-from-ranks)).
@@ -46,7 +46,7 @@ The main menu, Settings and the Summary have no mockup. They are described below
 | Backdrop grid | The whole grid | Play: 2 px lines every 64 px (one square) in `1a1932`. Setup: those lines turn `2a2f4e`, with 1 px `1a1932` lines on every cell |
 | Brick | A 16 × 64 cell, drawn at 14 × 62 | 1 px gap on every side, so 2 px between bricks. The colour comes from HP or kind |
 | Paddle | 12 × 96, 24 px in from the arena's left edge | Body `657392`, with a 4 px cyan stripe on the side facing the board |
-| Ball | 12 × 12 | White. In Setup it sits about 48 px to the right of the paddle's stripe, vertically centred like the paddle |
+| Ball | 12 × 12 | White. In Setup it sits 8 bricks to the right of the paddle's stripe (128 units, so 128 px on level 1 and less on the zoomed levels), at the arena's vertical centre |
 | Bumper | 30 × 30, turned 45° | Blue. Free-form |
 | Booster | A circle 32 across | Blue. Free-form |
 | Wall segment | 10 × 112 | Blue. Free-form, and it can be rotated |
