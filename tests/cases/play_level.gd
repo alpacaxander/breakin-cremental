@@ -317,7 +317,8 @@ func _check_summary(title: String) -> void:
 		t.check(rows.get("Placed bricks", [0])[0] == round.tally.placed_broken, "a Placed bricks row counts them")
 	var total := summary.find_children("*", "UiPrice", true, false).filter(func(p: UiPrice) -> bool: return p.style == &"HudNumber")
 	t.check(total.size() == 1 and total[0].amount == round.coins and sum == round.coins, "the rows add up to the total, which is the round's coins (%d, %d, %d)" % [sum, total[0].amount if total else -1, round.coins])
-	t.check((summary.find_child("Retry", true, false) as Button).has_focus(), "Retry has the focus")
+	var first := "Next" if round.reason == Round.End.CLEARED and level.level < Progress.level_count else "Retry"
+	t.check((summary.find_child(first, true, false) as Button).has_focus(), "%s has the focus" % first)
 
 
 func _ui_rects() -> Array:

@@ -17,7 +17,7 @@ Feel like a high-score engineer: clever setup turns a stubborn wall of bricks in
 1. **Upgrades:** spend coins in the upgrade web, then pick an unlocked level.
 2. **Setup:** place unlocked items on the board while the timer is stopped. The level remembers its layout.
 3. **Play:** a timed round. Bricks broken and combos are tallied, whether or not the level is cleared.
-4. **Summary:** shows the tally, the coins it pays, and whether the level was cleared. Retry the level (step 2) or go back to Upgrades (step 1).
+4. **Summary:** shows the tally, the coins it pays, and whether the level was cleared. Retry the level (step 2), or after a clear go on to the next one, or go back to Upgrades (step 1).
 
 ## Key mechanics
 

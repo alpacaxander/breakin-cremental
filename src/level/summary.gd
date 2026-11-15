@@ -1,13 +1,15 @@
 class_name LevelSummary
 extends Control
 ## The Summary (docs/design/overview.md, "Level phases"): how the round ended, the tally by brick type, the best
-## combo, the coins it paid, and Retry and Upgrades. There is no mockup; it is a panel over the arena in the
-## language of the other screens, with the back button where Setup has it.
+## combo, the coins it paid, and Retry (Next after a clear that has a level after it) and Upgrades. There is no
+## mockup; it is a panel over the arena in the language of the other screens, with the back button where Setup
+## has it.
 ##
 ## It appears a beat after the round ends, so the last hit is seen, then lists its rows one by one and counts
 ## the coins up, with a tally tick for each. The buttons work from the moment the panel shows.
 
 signal retry_pressed
+signal next_pressed
 signal back_pressed
 
 const DELAY := 0.5  ## Seconds from the end of the round to the panel
@@ -96,7 +98,10 @@ func open(round: Round, data: LevelData, unlocked: bool) -> void:
 	var buttons := HBoxContainer.new()
 	buttons.add_theme_constant_override(&"separation", 12)
 	box.add_child(buttons)
-	for b: Array in [["Retry", &"SecondaryButton", retry_pressed], ["Upgrades", &"", back_pressed]]:
+	# A clear with a level after it offers Next in Retry's place; the last level's clear keeps Retry.
+	var first: Array = ["Next", &"SecondaryButton", next_pressed] if cleared and data.number < Progress.level_count \
+			else ["Retry", &"SecondaryButton", retry_pressed]
+	for b: Array in [first, ["Upgrades", &"", back_pressed]]:
 		var button := Button.new()
 		button.name = b[0]
 		button.text = (b[0] as String).to_upper()
@@ -111,7 +116,7 @@ func open(round: Round, data: LevelData, unlocked: bool) -> void:
 	_tween.tween_interval(DELAY)
 	_tween.tween_callback(back.show)
 	_tween.tween_callback(panel.show)
-	_tween.tween_callback((buttons.get_child(0) as Button).grab_focus)  # so Space or Enter retries
+	_tween.tween_callback((buttons.get_child(0) as Button).grab_focus)  # so Space or Enter retries, or goes on
 	for i in rows.size():
 		for cell: Control in rows[i]:
 			cell.modulate.a = 0.0

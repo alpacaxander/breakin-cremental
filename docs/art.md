@@ -76,7 +76,7 @@ A panel 440 px wide, centred over the arena, which stays as the round left it. I
 - a hint line: the bricks left, "Every brick broken", or the level that was just unlocked
 - the tally, one row for each kind of brick broken: a 6 × 18 swatch, the name, the count, and what the row paid as a small gold price. Placed bricks get a row that says "pay nothing". With combos bought, a last row gives the best combo and its multiplier. Rows appear one by one, each with a tally tick
 - COINS and the round's total in 68 px gold, counting up
-- Retry (secondary) and Upgrades (primary). Retry has the keyboard focus, so Space or Enter retries
+- Retry (secondary) and Upgrades (primary). After a clear with a level after it, Next stands in Retry's place. The secondary button has the keyboard focus, so Space or Enter retries or goes on
 
 The back button sits where Setup has it and does what Upgrades does.
 

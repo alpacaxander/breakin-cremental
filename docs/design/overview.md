@@ -54,7 +54,7 @@ Nothing else about a level in progress is saved. Settings are stored separately 
 |---|---|
 | **Setup** | The timer is stopped. The level's saved layout is already on the board, and you place, move or remove any unlocked placeables. Brick upgrades have already swapped some bricks for special bricks. The ball waits a little to the right of the paddle. Press Start to begin. |
 | **Play** | The timer runs: 20 s base, extended by Arena upgrades and hourglass bricks. The round keeps a tally of the bricks broken, by type, and of the combos reached. The run ends when the timer reaches 0, when the last ball is lost, or when every brick is cleared. |
-| **Summary** | Shows the tally (bricks broken by type, combos), the coins it pays, and whether the level was cleared. Two buttons: Retry goes back to Setup on the same level, and Upgrades returns to the hub. |
+| **Summary** | Shows the tally (bricks broken by type, combos), the coins it pays, and whether the level was cleared. Two buttons: Retry goes back to Setup on the same level, and Upgrades returns to the hub. After a clear, Next takes Retry's place and opens the next level's Setup; the last level's clear keeps Retry. |
 
 - **Ball loss** ends the run immediately and goes to Summary. With several balls, only losing the last one ends the run.
 - **Clearing every brick** before time runs out unlocks the next level. Bricks the player placed don't count.

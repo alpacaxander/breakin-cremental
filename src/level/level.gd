@@ -8,7 +8,7 @@ extends Control
 ##   Arena     arena.gd      the board, the paddle, the balls, the placed items, the ghost; and Fx, last
 ##   Hud       hud.gd        time, combo, coins; Play's footer
 ##   SetupUi   setup_ui.gd   the tray, the placing, Start
-##   Summary   summary.gd    the result, Retry, Upgrades
+##   Summary   summary.gd    the result, Retry or Next, Upgrades
 ##
 ## SETUP shows a round that never steps, built from the saved layout and this attempt's seed, so the special
 ## bricks are already where Play will have them. Every edit saves the layout and builds that round again.
@@ -56,6 +56,7 @@ func _ready() -> void:
 	_setup_ui.start_pressed.connect(start)
 	_setup_ui.back_pressed.connect(_leave)
 	_summary.retry_pressed.connect(_setup)
+	_summary.next_pressed.connect(_next)
 	_summary.back_pressed.connect(_leave)
 	_setup()
 
@@ -144,6 +145,12 @@ func _leave() -> void:
 	get_viewport().set_input_as_handled()  # or the hub gets the same Esc and goes on to the main menu
 	fx.clear()
 	Main.show_hub()
+
+
+## The Summary's Next, after a clear: the next level's Setup, in a new level screen.
+func _next() -> void:
+	fx.clear()
+	Main.show_level(level + 1)
 
 
 ## Where the paddle's centre should go, in units (Round.step).

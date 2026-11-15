@@ -154,7 +154,7 @@ Main                         never unloaded (src/main.tscn)
 │   │           │   └─ Fx            particles, shockwaves, trails, pop-ups (src/level/fx/fx.gd)
 │   │           ├─ Hud               hud.gd: time, combo, coins, and Play's footer
 │   │           ├─ SetupUi           setup_ui.gd: tray, placement, Start
-│   │           └─ Summary           summary.gd: the result, Retry, Upgrades
+│   │           └─ Summary           summary.gd: the result, Retry or Next, Upgrades
 │   └─ WorldEnvironment      bloom
 └─ Crt                       shows View through the CRT shader
 ```

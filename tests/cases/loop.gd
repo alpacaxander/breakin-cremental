@@ -174,7 +174,7 @@ func _play_out(level: Control) -> void:
 			_mouse(LevelArena.ORIGIN + Vector2(-40.0, round.balls[0].pos.y) * round.board.zoom())
 		await t.tree().physics_frame
 	var summary: Control = level.get_node("Summary")
-	while level.phase == SUMMARY and summary.find_child("Retry", true, false) and not (summary.find_child("Retry", true, false) as Control).is_visible_in_tree() \
+	while level.phase == SUMMARY and summary.find_child("Upgrades", true, false) and not (summary.find_child("Upgrades", true, false) as Control).is_visible_in_tree() \
 			and Time.get_ticks_msec() - started < 70000:
 		await t.tree().process_frame
 	Engine.time_scale = 1.0

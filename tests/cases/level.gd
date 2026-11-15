@@ -300,12 +300,30 @@ func _ends() -> void:
 	t.check(Progress.unlocked == 2 and _saved().unlocked == 2, "clearing level 1 unlocks level 2")
 	await t.tree().create_timer(0.7).timeout
 	t.check(_texts(level.get_node("Summary")).has("LEVEL CLEARED") and _texts(level.get_node("Summary")).has("Level 2 unlocked"), "the Summary says the level was cleared and what it unlocked")
+	var next := level.get_node("Summary").find_child("Next", true, false) as Button
+	t.check(next != null and next.has_focus() and level.get_node("Summary").find_child("Retry", true, false) == null, "a clear offers Next, focused, in Retry's place")
 	var was: Control = level
 	_key(KEY_ESCAPE)
 	await t.tree().process_frame
 	var play := main.screen.get_child(0) as Play
 	t.check(play != null and play._hub.visible and not is_instance_valid(was), "Esc in the Summary goes to the hub, and no further")
 	t.check(is_equal_approx(main.env.glow_intensity, Main.GLOW), "leaving puts the bloom back to rest")
+
+	# Next: clear level 1 again, and Next opens level 2 in Setup.
+	await _open(1)
+	_key(KEY_SPACE)
+	round = level.round
+	for cell: Vector2i in round.board.bricks.keys():
+		while round.board.brick(cell):
+			round.hit_brick(cell, Round.Cause.BLAST, Vector2.RIGHT)
+	await _until_summary()
+	await t.tree().create_timer(0.7).timeout
+	was = level
+	(level.get_node("Summary").find_child("Next", true, false) as Button).pressed.emit()
+	await t.tree().process_frame
+	level = play._level
+	t.check(level != null and level.level == 2 and level.phase == SETUP and not is_instance_valid(was), "Next opens level 2 in Setup and frees level 1")
+	t.check(is_equal_approx(main.env.glow_intensity, Main.GLOW), "Next puts the bloom back to rest")
 
 
 func _open(number: int) -> void:
