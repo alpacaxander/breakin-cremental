@@ -102,7 +102,7 @@ A special brick has 1 HP, whatever the brick it replaced had. What the placeable
 │        (web view, pan/zoom)                     │
 │                                                 │
 ├─────────────────────────────────────────────────┤
-│ Explosive Brick    Rank 2/4                     │
+│ Explosive Brick    Rank 2                       │
 │ One more explosive brick each round             │
 │ Next rank: 98 ●                 [ BUY ]         │
 ├─────────────────────────────────────────────────┤

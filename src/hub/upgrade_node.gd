@@ -58,11 +58,11 @@ func _ready() -> void:
 func show_state(s: State, affordable: bool) -> void:
 	state = s
 	var u := upgrade
-	accessibility_name = "%s, %s, rank %d of %d" % [u.title, State.keys()[s].to_lower(), Progress.rank(u), u.max_rank]
+	accessibility_name = "%s, %s, rank %d" % [u.title, State.keys()[s].to_lower(), Progress.rank(u)]
 	($Name as Label).add_theme_color_override(&"font_color",
 			Palette.BASE if s == State.MAXED else Palette.TEXT)
 	var pips: UiPips = $Bottom/Pips
-	pips.total = u.max_rank
+	pips.total = shown_pips(u)
 	pips.owned = Progress.rank(u)
 	pips.meaning = u.meaning()
 	pips.on_lit = s == State.MAXED
@@ -74,6 +74,11 @@ func show_state(s: State, affordable: bool) -> void:
 	max_label.visible = s == State.MAXED
 	max_label.add_theme_color_override(&"font_color", Palette.BASE)
 	queue_redraw()
+
+
+## The ranks owned and the next one, never the max rank: the web doesn't say how many ranks are left.
+static func shown_pips(u: Upgrade) -> int:
+	return mini(Progress.rank(u) + 1, u.max_rank)
 
 
 func _place() -> void:

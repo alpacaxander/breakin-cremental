@@ -29,10 +29,10 @@ func show_node(node: HubNode, state: HubNode.State) -> void:
 	(%State as Label).text = STATES[state]
 	(%Name as Label).text = u.title
 	var pips: UiPips = %Pips
-	pips.total = u.max_rank
+	pips.total = HubNode.shown_pips(u)
 	pips.owned = Progress.rank(u)
 	pips.meaning = u.meaning()
-	(%Rank as Label).text = "RANK %d/%d" % [Progress.rank(u), u.max_rank]
+	(%Rank as Label).text = "RANK %d" % Progress.rank(u)
 	(%Text as Label).text = u.text
 	%Cost.visible = state != HubNode.State.MAXED
 	var price: UiPrice = %Price

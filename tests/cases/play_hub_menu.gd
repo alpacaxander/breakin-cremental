@@ -121,7 +121,10 @@ func _details(save: String) -> void:
 		var r := Progress.rank(u)
 		t.check(_text("Detail/%Name") == row[0] and u.title == row[0], "%s: the name is upgrades.md's %s" % [what, row[0]])
 		t.check(u.category == row[1] and _text("Detail/%Category") == Upgrade.Category.keys()[row[1]], "%s: the category is the table's" % what)
-		t.check(u.max_rank == row[2] and _text("Detail/%Rank") == "RANK %d/%d" % [r, row[2]], "%s: the rank reads RANK %d/%d" % [what, r, row[2]])
+		t.check(u.max_rank == row[2] and _text("Detail/%Rank") == "RANK %d" % r, "%s: the rank reads RANK %d, with no max" % [what, r])
+		var pips_shown := mini(r + 1, row[2])
+		t.check((_hub().get_node("Detail/%Pips") as UiPips).total == pips_shown and (n.get_node("Bottom/Pips") as UiPips).total == pips_shown,
+				"%s: %d pips, the ranks owned and the next, on the panel and on the node" % [what, pips_shown])
 		t.check(_text("Detail/%Text").begins_with(row[3]), "%s: the effect is the table's \"%s\" (reads \"%s\")" % [what, row[3], _text("Detail/%Text")])
 		t.check(_text("Detail/%State") == ["LOCKED", "AVAILABLE", "OWNED", "MAXED"][web.state(n)], "%s: the state on the panel is the node's" % what)
 		var price: int = roundi(row[4] * pow(row[5], r))
