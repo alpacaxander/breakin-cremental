@@ -15,7 +15,7 @@ const PLACED := [
 	{"kind": "wall_segment", "x": 200.0, "y": 380.0, "rot": 60.0},
 	{"kind": "splitter", "col": 30, "row": 2},
 	{"kind": "splitter", "col": 40, "row": 5},
-	{"kind": "zap", "col": 61, "row": 1},
+	{"kind": "zap", "col": 62, "row": 1},
 	{"kind": "zap", "col": 40, "row": 5},
 ]
 

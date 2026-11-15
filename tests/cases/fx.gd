@@ -129,7 +129,7 @@ func _freeze() -> void:
 	round.blast(Vector2i(48, 1), 64.0)
 	t.check(not fx.frozen, "a second and a third big hit inside FREEZE_GAP do not freeze again")
 	fx._process(Fx.FREEZE_GAP)
-	round.blast(Vector2i(61, 6), 64.0)
+	round.blast(Vector2i(62, 6), 64.0)
 	t.check(fx.frozen, "after FREEZE_GAP the next one does")
 	fx.frozen = false
 	fx._hold = 0.0
