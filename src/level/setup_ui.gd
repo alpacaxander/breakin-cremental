@@ -162,11 +162,6 @@ func open(layout: Layout, board: Board, stats: Balance, arena: LevelArena) -> vo
 			var slot := Slot.new(kind, stats.count(kind.id))
 			_tray.add_child(slot)
 			_slots.append(slot)
-	if _slots.is_empty():
-		var none := Label.new()
-		none.theme_type_variation = &"Hint"
-		none.text = "Nothing to place yet. Placeables are unlocked in Upgrades."
-		_tray.add_child(none)
 
 
 ## Brings the footer up to date with the layout and with `round`'s special bricks.

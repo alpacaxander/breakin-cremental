@@ -60,11 +60,11 @@ The main menu, Settings and the Summary have no mockup. They are described below
 - **Combo.** The big number is the combo count, which changes on every break. The multiplier is a 36 px lit "×3" to its right, shown once it is above 1. With no combo running the count is 0 in `8a4836`. The whole column is hidden until combos are bought.
 - **Low timer.** At the low-timer mark the bar turns red. The number stays green: red is never a number.
 - **Coins** are the coins of the round on screen, so 0 in Setup. The balance is on the upgrade screen.
-- **In Setup** the centre column is SETUP in lit cyan over two hint lines in secondary text: how to place and remove once a placeable is unlocked, and how to turn once one that turns is (the Wall Segment); otherwise how to start and how to move the paddle. The time label reads "TIME · STOPPED".
+- **In Setup** the centre column is SETUP in lit cyan over two hint lines in secondary text: how to place and remove once a placeable is unlocked, and how to turn once one that turns is (the Wall Segment); otherwise how to start and how to move the paddle. The time label reads "TIME", as in Play.
 
 ### Setup
 
-- **Tray slot:** 56 px tall, panel fill, a 2 px blue border. It shows the item's shape (24 px, lit), its name in 14 px Chakra Petch semibold, and one 8 px pip for each one allowed, lit while it is still to place. With all of them placed the border goes grey and the shape dim. Under the cursor the fill turns `00396d`. Only unlocked placeables have a slot; with none, a hint line says where they are unlocked.
+- **Tray slot:** 56 px tall, panel fill, a 2 px blue border. It shows the item's shape (24 px, lit), its name in 14 px Chakra Petch semibold, and one 8 px pip for each one allowed, lit while it is still to place. With all of them placed the border goes grey and the shape dim. Under the cursor the fill turns `00396d`. Only unlocked placeables have a slot; with none, the tray is empty.
 - **This run:** a "THIS RUN" tag over the count of each special brick rolled for this attempt, each with a 6 × 18 swatch.
 - **Start:** the primary button with a triangle, at the right end. Space and Enter do the same.
 - **Backdrop:** the cell lines of the table above, so a snapping item's cell can be seen.

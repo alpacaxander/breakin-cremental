@@ -26,7 +26,7 @@ var _time_was := 0.0  ## What the round's clock, combo and multiplier were a fra
 var _count_was := 0
 var _times_was := 1
 
-var _time_tag := _label(&"Tag", Rect2(LEFT, 3, COLUMN, 21), HORIZONTAL_ALIGNMENT_LEFT)
+var _time_tag := _label(&"Tag", Rect2(LEFT, 3, COLUMN, 21), HORIZONTAL_ALIGNMENT_LEFT, "TIME")
 var _time := _label(&"HudNumber", Rect2(LEFT, 11, COLUMN, 82), HORIZONTAL_ALIGNMENT_LEFT)
 var _time_bar := UiBar.new()
 var _coins := UiPrice.new()
@@ -95,7 +95,6 @@ func show_round(round: Round, data: LevelData, setup: bool, footer: bool) -> voi
 	_times_was = 1
 	_coins.amount = round.coins
 	var combos := round.stats.combo_rank >= 1.0
-	_time_tag.text = "TIME · STOPPED" if setup else "TIME"
 	for c: Control in [_setup_title, _hint]:
 		c.visible = setup
 	for c: Control in [_combo_tag, _combo, _combo_bar, _multiplier]:

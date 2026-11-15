@@ -54,8 +54,8 @@ func _fresh() -> void:
 	var hud: LevelHud = level.get_node("Hud")
 	var round: Round = level.round
 	hud._process(0.0)
-	t.check(hud._time.text == "20.0" and hud._time_tag.text == "TIME · STOPPED" and hud._coins.amount == 0 and hud._setup_title.visible,
-			"fresh Setup: TIME · STOPPED 20.0, SETUP, 0 coins")
+	t.check(hud._time.text == "20.0" and hud._time_tag.text == "TIME" and hud._coins.amount == 0 and hud._setup_title.visible,
+			"fresh Setup: TIME 20.0, SETUP, 0 coins")
 	t.check(round.balls[0].pos.x - (round.paddle.x) > 40.0, "the ball rests to the right of the paddle")
 
 	_key(KEY_SPACE)
