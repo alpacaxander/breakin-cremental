@@ -111,8 +111,11 @@ func _details(save: String) -> void:
 	var buy: Button = _hub().get_node("Detail/%Buy")
 	for n in web.nodes():
 		var row: Array = TABLE[StringName(n.name)]
-		await _click(n)
 		var what := "%s on a %s save" % [n.name, save]
+		if web.state(n) == HubNode.State.LOCKED:
+			t.check(not n.visible, "%s is locked, so it is hidden" % what)
+			continue
+		await _click(n)
 		t.check(_hub().selected == n, "clicking %s selects it" % what)
 		var u := n.upgrade
 		var r := Progress.rank(u)
@@ -128,9 +131,8 @@ func _details(save: String) -> void:
 					"%s: the next rank costs %d, on the panel and on the node" % [what, price])
 		t.check((_hub().get_node("Detail/%Cost") as Control).visible != maxed and (n.get_node("Bottom/Max") as Control).visible == maxed,
 				"%s: the price is gone and MAX shows only when maxed" % what)
-		var open := web.state(n) in [HubNode.State.AVAILABLE, HubNode.State.OWNED]
-		t.check(buy.text == ("MAXED" if maxed else "BUY" if open else "LOCKED") and buy.disabled == not open, "%s: Buy reads %s" % [what, buy.text])
-		t.check((n.get_node("Bottom/Price") as UiPrice).dim == not (open and Progress.coins >= price), "%s: the node's price is gold only when it can be bought now" % what)
+		t.check(buy.text == ("MAXED" if maxed else "BUY") and buy.disabled == maxed, "%s: Buy reads %s" % [what, buy.text])
+		t.check((n.get_node("Bottom/Price") as UiPrice).dim == not (not maxed and Progress.coins >= price), "%s: the node's price is gold only when it can be bought now" % what)
 		t.check((_hub().get_node("Detail") as Control).get_global_rect() == DETAIL, "%s: the detail panel keeps its size (is %s)" % [what, (_hub().get_node("Detail") as Control).get_global_rect()])
 		var label := n.get_node("Name") as Label
 		t.check(label.get_minimum_size().x <= label.size.x + 0.5 or not label.clip_text, "%s: the name fits on the node" % what)
@@ -199,7 +201,7 @@ func _max_and_poor() -> void:
 	await _heard_settle()
 	t.check(Progress.coins == coins and heard.is_empty(), "a click on the maxed Buy does nothing and plays nothing (heard %s)" % [heard])
 	await _quiet()
-	await _click(_web().get_node("Zap"))
+	await _click(_web().get_node("Bumper"))
 	await _heard_settle()
 	t.check(heard == [Sfx.CLICK], "clicking a node clicks once (heard %s)" % [heard])
 
@@ -380,8 +382,13 @@ func _double_clicks() -> void:
 	await _double_click_at(at)
 	t.check(_screen() is Play and _hub().selected == _web().seed_node(),
 			"a double click on Play leaves the seed selected (selected %s)" % _hub().selected.name)
+	for u in Progress.upgrades():  # every node owned, so whichever is under the pointer is shown
+		Progress.ranks[u.id] = 1
+	Progress.rank_changed.emit(_web().seed_node().upgrade)
 	await _double_click_at(at)
 	t.check(_hub().selected != _web().seed_node(), "a double click that starts in the hub is not dropped: the node under it is selected")
+	Progress.ranks.clear()
+	Progress.rank_changed.emit(_web().seed_node().upgrade)
 
 
 ## Settings by keyboard and by mouse: focus can't leave the screen, each control applies at once and clicks once.

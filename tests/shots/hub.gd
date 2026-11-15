@@ -1,5 +1,5 @@
 extends RefCounted
-## The upgrade screen: fresh, mid and maxed saves, with and without the CRT, a node of each state selected, a
+## The upgrade screen: fresh, mid and maxed saves, with and without the CRT, a node of each shown state selected, a
 ## Buy the player cannot afford, a locked level in the level panel, and the pointer over a node.
 
 
@@ -9,7 +9,6 @@ func shots() -> Array[Dictionary]:
 		{"name": "fresh_flat", "crt": false, "setup": _hub},
 		{"name": "mid", "save": "mid", "setup": _hub},
 		{"name": "mid_flat", "save": "mid", "crt": false, "setup": _hub},
-		{"name": "fresh_locked_node", "crt": false, "setup": _pick.bind(&"Zap")},
 		{"name": "mid_poor", "save": "mid", "crt": false, "setup": _poor},
 		{"name": "mid_locked_level", "save": "mid", "crt": false, "setup": _level.bind(3)},
 		{"name": "maxed", "save": "maxed", "setup": _hub},
@@ -41,7 +40,7 @@ func _poor(main: Main) -> void:
 	var hub := _screen(main)
 	var web: HubWeb = hub.get_node("Web")
 	for n in web.nodes():
-		if web.state(n) != HubNode.State.LOCKED and web.state(n) != HubNode.State.MAXED:
+		if web.state(n) in [HubNode.State.AVAILABLE, HubNode.State.OWNED]:
 			hub.select(n)
 			return
 

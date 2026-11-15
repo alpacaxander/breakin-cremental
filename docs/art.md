@@ -15,6 +15,7 @@ The main menu, Settings and the Summary have no mockup. They are described below
 - Special bricks are a share of the level's bricks, and the web has "Explosive Chance" and "Bumper Count" nodes. Counts now come from the unlock node's ranks (see [upgrades.md](design/upgrades.md#counts-come-from-ranks)).
 - The web is grouped by category, with a label over each group and a junction square under the seed. The demo's web mixes the categories around a seed in the centre (see [upgrades.md](design/upgrades.md#the-demos-web)).
 - The Booster, the Splitter and the Zap mark are not drawn.
+- The web shows locked nodes in grey. Locked nodes, and their lines, are now hidden until a neighbour is owned (see [Upgrade screen](#upgrade-screen)).
 - A tray slot reads "1 OF 2 LEFT", and locked placeables are in the tray. A slot now shows pips, and only unlocked placeables are listed (see [Setup](#setup)).
 - The combo is one number, "×12". It is now the combo count with the multiplier beside it (see [HUD numbers](#level-screen)).
 - The legend lists every brick type. It now lists only what is on the board.
@@ -166,7 +167,8 @@ At most 600 squares are alive at once, and one frame's breaks share 240 new ones
 - **Frame:** a 2 px `2a2f4e` border over a dot grid of 3 px dots every 24 px, also in `2a2f4e`.
 - **Spacing:** nodes sit on a 170 × 116 px pitch. The demo's web is 5 columns × 5 rows with the seed in the centre. It fills the view, so the web does not pan or zoom yet.
 - **Node:** 148 × 60 px (the seed node is 168 × 72), with 8 × 10 px padding. The name is top left. Rank pips (8 px squares, 4 px apart) are bottom left, and the price or MAX is bottom right. Five pips and a five-digit price are about 10 px wider than the padding leaves, so on those nodes (Splitter, Paddle Size and Round Time before their last rank) the row runs to 4 px from each border.
-- **Connections:** 3 px lines that run straight across or straight down through node centres. A line is lit in its outer node's category colour once either end is owned; otherwise it's `424c6e`.
+- **Connections:** 3 px lines that run straight across or straight down through node centres. A line is lit in its outer node's category colour once either end is owned; otherwise it's `424c6e`. A line to a locked node is not drawn.
+- **Locked nodes are hidden.** A node shows once it can be bought with coins alone, that is once a node it connects to is owned; until then it, its ranks and its lines are not drawn. A fresh save shows only the seed.
 - **Categories:** a node's colour is the only thing that shows its category. The web mixes the categories, so there are no group labels.
 
 | Node state | Fill | Border | Text | Pips |
@@ -174,11 +176,10 @@ At most 600 squares are alive at once, and one frame's breaks share 240 new ones
 | Maxed | The category colour, unlit | Lit | Base `0e071b` | Base |
 | Owned | Dim | Lit, solid | Primary | Lit for each rank owned, `424c6e` for the rest |
 | Available | Base | Lit, dashed | Primary | `424c6e` |
-| Locked | Base | `424c6e` | Secondary | `424c6e` |
 
 A maxed node's fill is not lit: a lit fill blooms over the 14 px name and washes it out. Its lit border carries the glow.
 
-The selected node keeps its state's look and adds a 2 px cyan outline 4 px outside the node, plus a cyan glow. A node under the pointer that is not the selected one gets the same outline in unlit secondary text (`92a1b9`), with no glow. Prices are gold when you can afford them and secondary text when you can't, never red. A locked node shows its price too, in secondary text, so the player can see what to save for.
+The selected node keeps its state's look and adds a 2 px cyan outline 4 px outside the node, plus a cyan glow. A node under the pointer that is not the selected one gets the same outline in unlit secondary text (`92a1b9`), with no glow. Prices are gold when you can afford them and secondary text when you can't, never red.
 
 **Keyboard:** whenever the upgrade screen is shown, the selected node takes the keyboard focus, and focusing a node selects it, so a focused node is always the selected one. A click on Buy hands the focus straight back to the selected node, so a Space or Enter after it buys nothing; a Buy reached with the arrows or Tab keeps the focus, and Enter buys rank after rank. A clicked level arrow keeps it too, so Space steps the level again. An arrow key moves to the nearest node in the same row or column of the web's grid; where there is none in that direction, it goes wherever Godot's own search finds a control, which is how Right from the last column reaches the panels.
 
@@ -187,7 +188,7 @@ The selected node keeps its state's look and adds a 2 px cyan outline 4 px outsi
 - the name in 46 px Jersey 10
 - 16 px rank pips
 - the effect text
-- the next rank's price in 40 px Jersey 10, beside the Buy button. Buy reads BUY when the node is open: the primary button if the coins cover it, the can't-afford look and a grey price if not. On a locked node it is disabled and reads LOCKED; on a maxed one it reads MAXED and the price is gone
+- the next rank's price in 40 px Jersey 10, beside the Buy button. Buy reads BUY until the node is maxed: the primary button if the coins cover it, the can't-afford look and a grey price if not. On a maxed node it is disabled and reads MAXED, and the price is gone
 
 **Level panel:**
 - ◄ ► icon buttons around the level number (46 px Jersey 10, the panel title size, drawn at 37) and the level's name.

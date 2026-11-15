@@ -3,8 +3,8 @@ extends PanelContainer
 ## rank does, the next rank's price and Buy.
 ##
 ## Buy stays pressable when the coins don't cover it (Sfx.CANT_AFFORD, the CantAfford look). It is disabled only
-## for a locked or maxed node. It is in Sfx.QUIET because its press has a cue of its own. Buying goes through
-## Progress.buy; the hub redraws from Progress's signals.
+## for a maxed node: a locked one is hidden on the web, so it is never shown here. It is in Sfx.QUIET because its
+## press has a cue of its own. Buying goes through Progress.buy; the hub redraws from Progress's signals.
 
 const STATES := ["LOCKED", "AVAILABLE", "OWNED", "MAXED"]
 
@@ -22,7 +22,7 @@ func _ready() -> void:
 func show_node(node: HubNode, state: HubNode.State) -> void:
 	_node = node
 	var u := node.upgrade
-	var open := state in [HubNode.State.AVAILABLE, HubNode.State.OWNED]
+	var open := state != HubNode.State.MAXED
 	var category: Label = %Category
 	category.text = Upgrade.Category.keys()[u.category]
 	UiTheme.light(category, Palette.of(u.meaning()))
@@ -41,7 +41,7 @@ func show_node(node: HubNode, state: HubNode.State) -> void:
 	_buy.disabled = not open
 	var poor := open and not Progress.can_buy(u)
 	_buy.theme_type_variation = &"CantAfford" if poor else &""
-	_buy.text = "MAXED" if state == HubNode.State.MAXED else "LOCKED" if not open else "BUY"  # poor: the red outline and grey price say it ("CAN'T AFFORD" overflows the panel)
+	_buy.text = "BUY" if open else "MAXED"  # poor: the red outline and grey price say it ("CAN'T AFFORD" overflows the panel)
 
 
 ## Only an open node's Buy is enabled, and a disabled button never presses.

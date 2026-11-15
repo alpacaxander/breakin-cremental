@@ -8,7 +8,8 @@ extends Control
 ## the view, one step is 170 x 116 px) and its Links (the node or nodes it hangs off). No code changes.
 ##
 ## A node is reachable once a node it links to has been bought; the seed is reachable from the start. That is
-## decided here, from the links, never by Progress (which only checks price and max rank).
+## decided here, from the links, never by Progress (which only checks price and max rank). A node that is not
+## reachable (LOCKED) is hidden, and so are its links: the web shows only what is bought or what coins alone buy.
 ##
 ## ponytail: no pan or zoom. The demo's 5 x 5 web fills the 864 x 608 view; a bigger web needs a drag-to-pan
 ## offset on the nodes' parent and clip_contents, which is already on.
@@ -71,11 +72,13 @@ func buyable(n: HubNode) -> bool:
 	return state(n) in [HubNode.State.AVAILABLE, HubNode.State.OWNED] and Progress.can_buy(n.upgrade)
 
 
-## Shows every node's state from Progress, with `selected` outlined.
+## Shows every node's state from Progress, with `selected` outlined, and hides the locked ones.
 func refresh(selected: HubNode) -> void:
 	for n in nodes():
 		n.show_state(state(n), buyable(n))
+		n.visible = n.state != HubNode.State.LOCKED
 		n.selected = n == selected
+	_focus_neighbours()
 	queue_redraw()
 
 
@@ -83,21 +86,23 @@ func _ready() -> void:
 	clip_contents = true
 	if Engine.is_editor_hint():
 		child_order_changed.connect(queue_redraw)
-		return
-	# The arrows go to the nearest node in line on the grid. Godot's own search goes by the boxes, and the seed's
-	# larger box sticks out past its neighbours, so Up or Down from beside it would land on it. With no node in
-	# line, Godot's search stays: Right from the last column still reaches the panels.
-	for n in nodes():
+
+
+## The arrows go to the nearest shown node in line on the grid. Godot's own search goes by the boxes, and the
+## seed's larger box sticks out past its neighbours, so Up or Down from beside it would land on it. With no node
+## in line, Godot's search stays: Right from the last column still reaches the panels.
+func _focus_neighbours() -> void:
+	var shown := nodes().filter(func(n: HubNode) -> bool: return n.visible)
+	for n: HubNode in shown:
 		for side: Side in [SIDE_LEFT, SIDE_TOP, SIDE_RIGHT, SIDE_BOTTOM]:
 			var step: Vector2i = [Vector2i.LEFT, Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN][side]
 			var best: HubNode
-			for m in nodes():
+			for m: HubNode in shown:
 				var d := m.cell - n.cell
 				var along := d.x * step.x + d.y * step.y
 				if along > 0 and d == step * along and (best == null or along < (best.cell - n.cell).length()):
 					best = m
-			if best:
-				n.set_focus_neighbor(side, n.get_path_to(best))
+			n.set_focus_neighbor(side, n.get_path_to(best) if best else NodePath())
 
 
 func _draw() -> void:
@@ -109,6 +114,8 @@ func _draw() -> void:
 	for l in links():
 		var a: HubNode = l[0]
 		var b: HubNode = l[1]
+		if not (a.visible and b.visible):
+			continue
 		var outer := b if depth.get(b, 0) >= depth.get(a, 0) else a
 		var lit := not Engine.is_editor_hint() and (Progress.rank(a.upgrade) > 0 or Progress.rank(b.upgrade) > 0)
 		var colour := Palette.lit(Palette.of(outer.upgrade.meaning()), Palette.LIT_TEXT) if lit else Palette.BORDER

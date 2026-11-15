@@ -4,7 +4,7 @@ See also: [placeables.md](placeables.md), [physics.md](physics.md), [overview.md
 
 ## Rules
 
-- Upgrades form a **web** that grows out from one seed node, **Paddle Speed** (the paddle starts slow). Each node unlocks once a connected node has been bought.
+- Upgrades form a **web** that grows out from one seed node, **Paddle Speed** (the paddle starts slow). Each node unlocks once a connected node has been bought. Until then the upgrade screen hides it: the web shows only nodes whose ranks need nothing but coins.
 - An upgrade can have **one or more ranks**, each more expensive than the last.
 - **Categories are mixed across the web.** A category says what kind of thing a node is, not where it sits. Every path out from the seed should pass through different categories, so the player picks up a mix as they go.
 - **A node that needs another node branches off it.** Blast Size and Shockwave only do something once there are explosive bricks, so both connect directly to Explosive Brick.

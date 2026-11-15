@@ -32,12 +32,17 @@ func run(t: Node) -> void:
 			"Enter on the menu's Play puts the focus on the hub's selected node, and buys nothing")
 	_key(t, KEY_TAB)
 	t.check(focus.call() != null and focus.call() != web.seed_node() and hub.is_ancestor_of(focus.call()), "Tab moves the focus on from there")
-	# The arrows go to the node in line on the web's grid, not to the larger seed beside it.
+	# The arrows go to the node in line on the web's grid, not to the larger seed beside it. Every node is owned
+	# for this, so every node is shown; the hub opens again on a fresh save below.
+	for u in Progress.upgrades():
+		Progress.ranks[u.id] = 1
+	Progress.rank_changed.emit(web.seed_node().upgrade)
 	for pair: Array in [[&"Bumper", KEY_UP, &"GoldBrick"], [&"ExplosiveBrick", KEY_DOWN, &"RoundTime"], [&"Bumper", KEY_DOWN, &"WallSegment"],
 			[&"Combo", KEY_RIGHT, &"Bumper"], [&"BallSpeed", KEY_UP, &"Booster"]]:
 		(at.call(pair[0]) as Control).grab_focus()
 		_key(t, pair[1])
 		t.check(focus.call() == at.call(pair[2]), "%s from %s goes to %s (went to %s)" % [OS.get_keycode_string(pair[1]), pair[0], pair[2], focus.call().name])
+	Progress.ranks.clear()
 	Main.show_menu()
 	Main.show_hub()
 	await t.tree().process_frame
@@ -59,17 +64,15 @@ func run(t: Node) -> void:
 	for n in web.nodes():
 		t.check(web.get_rect().encloses(Rect2(web.position + n.position, n.size)), "%s sits inside the web view" % n.name)
 
-	# A fresh save: only the seed is open.
+	# A fresh save: only the seed is open, and the rest is hidden.
 	for n in web.nodes():
 		var open: bool = web.state(n) == HubNode.State.AVAILABLE
-		t.check(open == n.is_seed, "on a fresh save only the seed is open (%s)" % n.name)
+		t.check(open == n.is_seed and n.visible == n.is_seed, "on a fresh save only the seed is open and shown (%s)" % n.name)
 
 	# Buy the seed's first rank with a click: coins go, the rank comes, BUY plays and no CLICK.
 	var buy: Button = hub.get_node("Detail/%Buy")
 	var seed: HubNode = at.call(&"PaddleSpeed")
 	t.check(hub.selected == seed, "the seed is selected at first")
-	await _click(t, at.call(&"Zap"))
-	t.check(hub.selected == at.call(&"Zap") and (hub.get_node("Detail/%Name") as Label).text == "Zap", "clicking a node selects it and shows it in the detail panel")
 	await _click(t, seed)
 	await t.tree().create_timer(0.15).timeout  # Sfx spaces voices in real time: let this click's cue go first
 	Progress.coins = 100
@@ -83,7 +86,7 @@ func run(t: Node) -> void:
 	opened.sort()
 	t.check(opened == ["BallSpeed", "Bumper", "ExplosiveBrick", "PaddleSize"], "buying the seed opens its four neighbours and nothing else (open: %s)" % [opened])
 	t.check(web.state(seed) == HubNode.State.OWNED and web.state(at.call(&"Combo")) == HubNode.State.LOCKED, "the seed is owned and the next ring stays locked")
-	# A click leaves no focus on Buy: Space is Start and Retry in a level, and here it would buy the next rank.
+	t.check(web.nodes().all(func(n: HubNode) -> bool: return n.visible == (web.state(n) != HubNode.State.LOCKED)), "every open node is shown and every locked one hidden")	# A click leaves no focus on Buy: Space is Start and Retry in a level, and here it would buy the next rank.
 	_key(t, KEY_SPACE)
 	t.check(focus.call() == seed and Progress.rank(seed.upgrade) == 1, "after a click on Buy the focus is back on the selected node, and Space buys nothing")
 	buy.grab_focus()
@@ -93,6 +96,7 @@ func run(t: Node) -> void:
 	# Too poor: Buy can still be pressed, buys nothing and plays can't afford.
 	var bumper: HubNode = at.call(&"Bumper")
 	await _click(t, bumper)
+	t.check(hub.selected == bumper and (hub.get_node("Detail/%Name") as Label).text == "Bumper", "clicking a node selects it and shows it in the detail panel")
 	await t.tree().create_timer(0.15).timeout
 	Progress.coins = Progress.cost(bumper.upgrade) - 1
 	t.check(not buy.disabled and buy.theme_type_variation == &"CantAfford", "Buy stays pressable when the coins don't cover it, and looks it")
@@ -102,11 +106,8 @@ func run(t: Node) -> void:
 	t.check(Progress.rank(bumper.upgrade) == 0 and Progress.coins == Progress.cost(bumper.upgrade) - 1, "a Buy you can't afford buys nothing")
 	t.check(Sfx.CANT_AFFORD in _heard and not Sfx.BUY in _heard and not Sfx.CLICK in _heard, "it plays can't afford (heard %s)" % [_heard])
 
-	# A locked node, and a maxed one, can't be bought.
-	var zap: HubNode = at.call(&"Zap")
-	await _click(t, zap)
+	# A maxed node can't be bought.
 	Progress.coins = 99999
-	t.check(buy.disabled, "Buy is disabled on a locked node")
 	Progress.ranks[seed.upgrade.id] = seed.upgrade.max_rank
 	Progress.rank_changed.emit(seed.upgrade)
 	await _click(t, seed)
