@@ -874,7 +874,7 @@ func _placeables() -> void:
 	ball.put(Vector2(394, 220) - coming * 20.0, coming)
 	_run(round, 0.05)
 	t.check(round.balls.size() == 2 and round.balls[1].id == 1 and log.count("added 1 %s" % var_to_str(Vector2(394, 220))) == 1, "a ball that breaks a Splitter splits in two, there")
-	t.check(ball.dir == Vector2(-coming.x, coming.y) and round.balls[1].dir == Vector2(-coming.x, -coming.y), "the two leave the Splitter's face as a V")
+	t.check(ball.dir == Vector2(-coming.x, coming.y) and round.balls[1].dir == coming, "off the Splitter's face one bounces back and the other carries on through")
 	t.check(round.coins == 0 and round.tally.placed_broken == 1 and round.tally.broken.is_empty(), "a Splitter pays nothing and is counted as a placed brick")
 	for cause: Round.Cause in [Round.Cause.BLAST, Round.Cause.ZAP]:
 		round = Round.new(board, _layout([_item(&"splitter", Vector2i(25, 3))]), stats, 1)

@@ -80,8 +80,8 @@ A kind is a `Resource`. `Kind` is the base, with the id, the title, the colour m
 | Hook | Called when | Example |
 |---|---|---|
 | `on_ball_hit(round, ball, hit)` | A ball has bounced off a placed item | The Booster adds a boost |
-| `on_broken(round, cell, brick, cause, ball)` | The brick broke | The explosive brick calls `round.blast`; the Splitter adds a ball |
-| `on_host_broken(round, cell, brick, cause, ball)` | A brick with this mod on it broke | Zap hits the rest of the row |
+| `on_broken(round, cell, brick, cause, dir, ball)` | The brick broke | The explosive brick calls `round.blast`; the Splitter adds a ball |
+| `on_host_broken(round, cell, brick, cause, dir, ball)` | A brick with this mod on it broke | Zap hits the rest of the row |
 
 A hook changes the round through the round's own functions (`hit_brick`, `blast`, `add_ball`, `set_boost`, `add_time`), so chains work without special cases: an explosion that breaks an explosive brick calls that brick's hook too.
 

@@ -174,8 +174,10 @@ func _splitter(t: Node) -> void:
 	await _hear(t, func() -> void: Sfx.connect_round(r))
 	var got := await _hear(t, func() -> void: r.hit_brick(Vector2i(20, 2), Round.Cause.BLAST, Vector2.RIGHT))
 	t.check(got == [Sfx.BRICK_BREAK] and r.balls.size() == 1, "a Splitter broken by a blast splits no ball and plays no SPLITTER (heard %s)" % [got])
-	got = await _hear(t, func() -> void: r.hit_brick(Vector2i(30, 2), Round.Cause.BALL, Vector2.RIGHT, r.balls[0]))
+	var into := Vector2(1, 1).normalized()  # the way the ball was moving when it hit
+	got = await _hear(t, func() -> void: r.hit_brick(Vector2i(30, 2), Round.Cause.BALL, into, r.balls[0]))
 	t.check(got == [Sfx.BRICK_BREAK, Sfx.SPLITTER] and r.balls.size() == 2, "a Splitter broken by a ball splits it and plays SPLITTER once (heard %s)" % [got])
+	t.check(r.balls[1].dir.is_equal_approx(into) and r.balls[1].pos == r.balls[0].pos, "the new ball starts at the first and carries on the way it came in")
 	r.over = true
 	await t.tree().process_frame
 

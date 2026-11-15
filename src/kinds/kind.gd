@@ -35,13 +35,14 @@ func on_ball_hit(_round: Round, _ball: Ball, _hit: Hit) -> void:
 
 
 ## A brick of this kind broke: a special brick, or a placed brick such as the Splitter. `brick` is the brick,
-## already off the board. `ball` is the ball that broke it, or null when the cause is not Round.Cause.BALL.
+## already off the board. `dir` is the hit's direction from Round.hit_brick: for a ball, the way it was moving
+## before it bounced. `ball` is the ball that broke it, or null when the cause is not Round.Cause.BALL.
 ## Called after brick_broken is emitted. The explosive brick calls round.blast here; the Splitter adds a ball.
-func on_broken(_round: Round, _cell: Vector2i, _brick: Brick, _cause: Round.Cause, _ball: Ball) -> void:
+func on_broken(_round: Round, _cell: Vector2i, _brick: Brick, _cause: Round.Cause, _dir: Vector2, _ball: Ball) -> void:
 	pass
 
 
 ## A brick carrying this mod broke (MOD placeables only). Same arguments as on_broken, and called after it.
 ## Zap hits every other brick in the row here, with Round.Cause.ZAP.
-func on_host_broken(_round: Round, _cell: Vector2i, _brick: Brick, _cause: Round.Cause, _ball: Ball) -> void:
+func on_host_broken(_round: Round, _cell: Vector2i, _brick: Brick, _cause: Round.Cause, _dir: Vector2, _ball: Ball) -> void:
 	pass

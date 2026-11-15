@@ -270,10 +270,10 @@ func hit_brick(cell: Vector2i, cause: Cause, dir: Vector2, ball: Ball = null) ->
 	brick_broken.emit(cell, brick, cause, dir, paid)
 	var kind := Kinds.of(brick.kind)
 	if kind:
-		kind.on_broken(self, cell, brick, cause, ball)
+		kind.on_broken(self, cell, brick, cause, dir, ball)
 	var mod := Kinds.of(brick.mod)
 	if mod:
-		mod.on_host_broken(self, cell, brick, cause, ball)
+		mod.on_host_broken(self, cell, brick, cause, dir, ball)
 
 
 ## An explosion from the brick cell `cell`, reaching `reach` units out from the cell's edges on every side, so

@@ -5,5 +5,5 @@ extends BrickKind
 @export var seconds := 0.0
 
 
-func on_broken(round: Round, _cell: Vector2i, _brick: Brick, _cause: Round.Cause, _ball: Ball) -> void:
+func on_broken(round: Round, _cell: Vector2i, _brick: Brick, _cause: Round.Cause, _dir: Vector2, _ball: Ball) -> void:
 	round.add_time(seconds)
