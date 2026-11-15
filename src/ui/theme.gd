@@ -23,8 +23,8 @@ class_name UiTheme
 ##   Button (no variation) the primary button: cyan fill, base-colour Jersey 10 text, 56 tall. Disabled is the
 ##                         disabled look. For START with its triangle: icon = UiTheme.icon(UiGlyph.Shape.PLAY, 18),
 ##                         icon_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-##   SecondaryButton       the same size with a base fill and a cyan border: the second choice beside a primary
-##                         one (Retry beside Next, Settings and Quit under Play)
+##   SecondaryButton       the same size with a base fill and a cyan border: a menu button that isn't selected
+##                         (selection() swaps the two)
 ##   CantAfford            no fill, a lit red border, primary text: a buy button you can't afford. Keep it enabled
 ##                         (Sfx plays "can't afford" on its press); swap the variation back when you can afford it
 ##   IconButton            44 x 44, base fill, cyan border, the icon in primary text: give it an icon and no text,
@@ -43,7 +43,7 @@ class_name UiTheme
 ##   UiBar         the 6 px timer or combo meter
 ##   UiBackButton  the back button. Connect `pressed`; it has no shortcut, no tooltip and plays no sound
 ##   UiTopBar      the 84 px top bar of the hub and Settings: the back button and the screen's title
-## And here: build(), icon(), light(), pulse(), numbers(), number_size().
+## And here: build(), icon(), light(), pulse(), selection(), numbers(), number_size().
 ##
 ## A widget here plays no sound: Sfx plays the click of every button by itself.
 ##
@@ -115,6 +115,27 @@ static func pulse(control: Control, anchor := 0.5, by := PULSE) -> void:
 	control.pivot_offset = control.size * Vector2(anchor, 0.5)
 	control.scale = Vector2.ONE * by
 	control.create_tween().tween_property(control, ^"scale", Vector2.ONE, PULSE_TIME)
+
+
+## The menus' one selection (docs/art.md, "Selection") over a screen's list of `controls`: the mouse (hover takes
+## the focus) or the arrows move the focus, and the focus is the selection, so none of them draws a focus outline
+## or a hover look of its own. A plain Button among them is drawn primary while it has the focus and secondary
+## otherwise. A toggle or a slider has no filled look; its screen points at the focused one (Settings' cursor).
+static func selection(controls: Array) -> void:
+	for c: Control in controls:
+		c.mouse_entered.connect(c.grab_focus)
+		c.add_theme_stylebox_override(&"focus", StyleBoxEmpty.new())
+		if c.get_class() == "Button":
+			c.focus_entered.connect(_fill.bind(controls))
+	_fill(controls)
+
+
+## Hover draws as the button's normal look, so a button the mouse left behind on a key press shows nothing.
+static func _fill(controls: Array) -> void:
+	for c: Control in controls:
+		if c.get_class() == "Button":
+			c.theme_type_variation = &"" if c.has_focus() else &"SecondaryButton"
+			c.add_theme_stylebox_override(&"hover", c.get_theme_stylebox(&"normal"))
 
 
 static func _pixel_size(px: int, unit: float) -> int:
@@ -218,10 +239,9 @@ static func _build(t: Theme) -> void:
 		t.set_font(&"font", type, CHAKRA_SEMI)
 		t.set_font_size(&"font_size", type, 18)
 		t.set_constant(&"h_separation", type, 16)
-		for c in [&"font_color", &"font_pressed_color", &"font_focus_color"]:
+		# No hover colour: in a menu's selection the mouse moves the focus, and the screen shows that.
+		for c in [&"font_color", &"font_pressed_color", &"font_focus_color", &"font_hover_color", &"font_hover_pressed_color"]:
 			t.set_color(c, type, Palette.TEXT)
-		t.set_color(&"font_hover_color", type, Palette.PLAYER)
-		t.set_color(&"font_hover_pressed_color", type, Palette.PLAYER)
 		t.set_color(&"font_disabled_color", type, Palette.TEXT_DIM)
 		for suffix in ["", "_mirrored"]:
 			t.set_icon(&"checked" + suffix, type, on)
@@ -238,8 +258,7 @@ static func _build(t: Theme) -> void:
 	t.set_stylebox(&"grabber_area", &"HSlider", filled)
 	t.set_stylebox(&"grabber_area_highlight", &"HSlider", filled)
 	t.set_icon(&"grabber", &"HSlider", UiGlyph.new(UiGlyph.Shape.GRABBER, Vector2(16, HIT), Palette.lit(Palette.PLAYER)))
-	t.set_icon(&"grabber_highlight", &"HSlider",
-			UiGlyph.new(UiGlyph.Shape.GRABBER, Vector2(16, HIT), Palette.lit(Palette.PLAYER, Palette.LIT_TEXT)))
+	t.set_icon(&"grabber_highlight", &"HSlider", t.get_icon(&"grabber", &"HSlider"))  # no hover look, as on the toggle
 	t.set_icon(&"grabber_disabled", &"HSlider", UiGlyph.new(UiGlyph.Shape.GRABBER, Vector2(16, HIT), Palette.BORDER))
 	t.set_icon(&"tick", &"HSlider", none)
 

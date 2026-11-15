@@ -170,8 +170,8 @@ func _bad_saves(t: Node) -> void:
 
 func _settings(t: Node) -> void:
 	var path: String = Settings.path
-	t.check(Settings.crt and not Settings.reduce_flashing and Settings.music_volume == 0.5 and Settings.sound_volume == 0.8, "the settings start at their defaults")
-	t.check(_bus(Settings.BUS_MUSIC, 0.5) and _bus(Settings.BUS_SOUND, 0.8), "use() sets both bus volumes")
+	t.check(Settings.crt and not Settings.reduce_flashing and Settings.music_volume == 0.5 and Settings.sound_volume == 0.5, "the settings start at their defaults")
+	t.check(_bus(Settings.BUS_MUSIC, 0.5) and _bus(Settings.BUS_SOUND, 0.5), "use() sets both bus volumes")
 	var count := [0]
 	var on_changed := func() -> void: count[0] += 1
 	Settings.changed.connect(on_changed)
@@ -192,7 +192,7 @@ func _settings(t: Node) -> void:
 
 	_write(path, "[settings]\ncrt=\"yes\"\nmusic_volume=0.1\nfuture=3\n")
 	Settings.use(path)
-	t.check(Settings.crt and Settings.music_volume == 0.1 and Settings.sound_volume == 0.8, "a bad or missing key keeps its default")
+	t.check(Settings.crt and Settings.music_volume == 0.1 and Settings.sound_volume == 0.5, "a bad or missing key keeps its default")
 	t.check(_bus(Settings.BUS_MUSIC, 0.1), "use() sets the bus from the loaded volume")
 	_write(path, "not a [config")
 	Settings.use(path)

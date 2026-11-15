@@ -40,8 +40,13 @@ func run(t: Node) -> void:
 	var music: HSlider = settings.get_node(^"%Music")
 	var sound: HSlider = settings.get_node(^"%Sound")
 	t.check(crt.button_pressed and not calm.button_pressed, "the toggles show the settings")
-	t.check(is_equal_approx(music.value, 0.5) and is_equal_approx(sound.value, 0.8), "the sliders show the volumes")
+	t.check(is_equal_approx(music.value, 0.5) and is_equal_approx(sound.value, 0.5), "the sliders show the volumes")
 	t.check(crt.has_focus(true), "focus starts on the CRT toggle")
+	t.check([crt, calm, music, sound].all(func(c: Control) -> bool: return c.get_theme_stylebox(&"focus") is StyleBoxEmpty),
+			"no outline in Settings: the cursor shows the selection")
+	sound.mouse_entered.emit()
+	t.check(sound.has_focus(), "the mouse moves Settings' selection, as on the main menu")
+	crt.grab_focus()
 	var shader := main.crt.material as ShaderMaterial
 	t.check(shader.get_shader_parameter("enabled") == true, "the CRT is on by default")
 	_key(t, KEY_ENTER)
@@ -57,9 +62,9 @@ func run(t: Node) -> void:
 	_key(t, KEY_DOWN)
 	_key(t, KEY_LEFT)
 	_key(t, KEY_LEFT)
-	t.check(is_equal_approx(Settings.sound_volume, 0.7), "Left lowers the sound volume a step at a time")
+	t.check(is_equal_approx(Settings.sound_volume, 0.4), "Left lowers the sound volume a step at a time")
 	t.check(is_equal_approx(_bus(Settings.BUS_MUSIC), 0.55), "the music volume reaches its bus")
-	t.check(is_equal_approx(_bus(Settings.BUS_SOUND), 0.7), "the sound volume reaches its bus")
+	t.check(is_equal_approx(_bus(Settings.BUS_SOUND), 0.4), "the sound volume reaches its bus")
 
 	var writes := [0]
 	var count := func() -> void: writes[0] += 1
@@ -73,7 +78,7 @@ func run(t: Node) -> void:
 
 	Settings.use(Settings.path)
 	t.check(not Settings.crt and Settings.reduce_flashing, "the toggles survive a reload from the file")
-	t.check(is_equal_approx(Settings.music_volume, 0.55) and is_equal_approx(Settings.sound_volume, 0.7),
+	t.check(is_equal_approx(Settings.music_volume, 0.55) and is_equal_approx(Settings.sound_volume, 0.4),
 			"the volumes survive a reload from the file")
 
 	_key(t, KEY_ESCAPE)

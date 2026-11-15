@@ -431,7 +431,7 @@ func _settings() -> void:
 	var sound: HSlider = settings.get_node("%Sound")
 	sound.grab_focus()
 	_key(KEY_LEFT)
-	t.check(is_equal_approx(Settings.sound_volume, 0.75) and is_equal_approx(AudioServer.get_bus_volume_linear(AudioServer.get_bus_index(Settings.BUS_SOUND)), 0.75), "Left on Sound lowers the sound bus a step at once")
+	t.check(is_equal_approx(Settings.sound_volume, 0.45) and is_equal_approx(AudioServer.get_bus_volume_linear(AudioServer.get_bus_index(Settings.BUS_SOUND)), 0.45), "Left on Sound lowers the sound bus a step at once")
 
 
 ## A restart: a new Main on the same files keeps every setting, on the picture, the buses and the controls.
@@ -444,7 +444,7 @@ func _restart() -> void:
 	var shader := main.crt.material as ShaderMaterial
 	t.check(not Settings.crt and shader.get_shader_parameter("enabled") == false, "after a restart the CRT is still off on the picture")
 	t.check(is_equal_approx(AudioServer.get_bus_volume_linear(AudioServer.get_bus_index(Settings.BUS_MUSIC)), music)
-			and is_equal_approx(AudioServer.get_bus_volume_linear(AudioServer.get_bus_index(Settings.BUS_SOUND)), 0.75), "and the buses keep their volumes")
+			and is_equal_approx(AudioServer.get_bus_volume_linear(AudioServer.get_bus_index(Settings.BUS_SOUND)), 0.45), "and the buses keep their volumes")
 	Main.show_settings()
 	await _frames(2)
 	var s := _screen()

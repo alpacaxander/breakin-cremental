@@ -36,7 +36,7 @@ var music_volume := 0.5:
 		music_volume = clampf(v, 0.0, 1.0)
 		_changed()
 ## 0 to 1, linear.
-var sound_volume := 0.8:
+var sound_volume := 0.5:
 	set(v):
 		sound_volume = clampf(v, 0.0, 1.0)
 		_changed()
@@ -57,7 +57,7 @@ func use(new_path: String) -> void:
 	crt = true
 	reduce_flashing = false
 	music_volume = 0.5
-	sound_volume = 0.8
+	sound_volume = 0.5
 	var cfg := ConfigFile.new()
 	if FileAccess.file_exists(path) and cfg.load(path) == OK:
 		for key in KEYS:

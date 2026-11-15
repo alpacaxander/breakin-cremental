@@ -99,16 +99,15 @@ func open(round: Round, data: LevelData, unlocked: bool) -> void:
 	buttons.add_theme_constant_override(&"separation", 12)
 	box.add_child(buttons)
 	# A clear with a level after it offers Next in Retry's place; the last level's clear keeps Retry.
-	var first: Array = ["Next", &"SecondaryButton", next_pressed] if cleared and data.number < Progress.level_count \
-			else ["Retry", &"SecondaryButton", retry_pressed]
-	for b: Array in [first, ["Upgrades", &"", back_pressed]]:
+	var first: Array = ["Next", next_pressed] if cleared and data.number < Progress.level_count else ["Retry", retry_pressed]
+	for b: Array in [first, ["Upgrades", back_pressed]]:
 		var button := Button.new()
 		button.name = b[0]
 		button.text = (b[0] as String).to_upper()
-		button.theme_type_variation = b[1]
 		button.size_flags_horizontal = SIZE_EXPAND_FILL
-		button.pressed.connect((b[2] as Signal).emit)
+		button.pressed.connect((b[1] as Signal).emit)
 		buttons.add_child(button)
+	UiTheme.selection(buttons.get_children())  # the focused one is filled
 
 	back.hide()
 	panel.hide()

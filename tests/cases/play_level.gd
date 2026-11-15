@@ -318,7 +318,14 @@ func _check_summary(title: String) -> void:
 	var total := summary.find_children("*", "UiPrice", true, false).filter(func(p: UiPrice) -> bool: return p.style == &"HudNumber")
 	t.check(total.size() == 1 and total[0].amount == round.coins and sum == round.coins, "the rows add up to the total, which is the round's coins (%d, %d, %d)" % [sum, total[0].amount if total else -1, round.coins])
 	var first := "Next" if round.reason == Round.End.CLEARED and level.level < Progress.level_count else "Retry"
-	t.check((summary.find_child(first, true, false) as Button).has_focus(), "%s has the focus" % first)
+	var focused := summary.find_child(first, true, false) as Button
+	var upgrades := summary.find_child("Upgrades", true, false) as Button
+	t.check(focused.has_focus() and focused.theme_type_variation == &"" and upgrades.theme_type_variation == &"SecondaryButton",
+			"%s has the focus, and it is the filled one" % first)
+	upgrades.mouse_entered.emit()
+	t.check(upgrades.has_focus() and upgrades.theme_type_variation == &"" and focused.theme_type_variation == &"SecondaryButton",
+			"the mouse moves the Summary's selection, as on the main menu")
+	focused.grab_focus()
 
 
 func _ui_rects() -> Array:

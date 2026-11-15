@@ -22,6 +22,7 @@ func _ready() -> void:
 			Settings.set(pair[1], v)
 			shown.text = _percent(v))
 	($Bar as UiTopBar).back.pressed.connect(Main.show_menu)
+	UiTheme.selection([_crt, _calm, %Music, %Sound])  # the cursor shows which
 	_crt.grab_focus()
 
 

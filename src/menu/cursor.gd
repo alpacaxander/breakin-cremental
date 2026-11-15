@@ -1,7 +1,7 @@
 extends TextureRect
-## The arcade cursor of Settings: a lit triangle to the left of whichever control on this screen has the
-## keyboard focus, beside the theme's focus outline. On a row (a control inside an HBoxContainer, such as a
-## volume slider after its name) it points at the row, so it also shows focus on a slider, which has no outline.
+## The arcade cursor of Settings: a lit triangle to the left of whichever control on this screen has the focus,
+## the one sign of its selection (UiTheme.selection), since a toggle's fill already means "on". On a row (a
+## control inside an HBoxContainer, such as a volume slider after its name) it points at the row.
 
 const GAP := 12
 

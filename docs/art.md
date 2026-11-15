@@ -77,7 +77,7 @@ A panel 440 px wide, centred over the arena, which stays as the round left it. I
 - a hint line: the bricks left, "Every brick broken", or the level that was just unlocked
 - the tally, one row for each kind of brick broken: a 6 × 18 swatch, the name, the count, and what the row paid as a small gold price. Placed bricks get a row that says "pay nothing". With combos bought, a last row gives the best combo and its multiplier. Rows appear one by one, each with a tally tick
 - COINS and the round's total in 68 px gold, counting up
-- Retry (secondary) and Upgrades (primary). After a clear with a level after it, Next stands in Retry's place. The secondary button has the keyboard focus, so Space or Enter retries or goes on
+- Retry and Upgrades, as a selection (see "UI pieces"): the selected one is primary, the other secondary. After a clear with a level after it, Next stands in Retry's place. The selection starts on Retry or Next, so Space or Enter retries or goes on
 
 The back button sits where Setup has it and does what Upgrades does.
 
@@ -143,14 +143,15 @@ At most 600 squares are alive at once, and one frame's breaks share 240 new ones
 |---|---|
 | Panel | Fill `1a1932`, a 2 px `424c6e` border, square corners, about 20 px of padding |
 | Primary button | Cyan fill, base-colour text in 36 px Jersey 10, 56 px tall |
-| Secondary button | The second choice beside a primary one (Retry, Settings, Quit): base fill, a 2 px cyan border, primary text, the same size and font. No mockup |
-| Button states | Hover is a brighter lit fill on a primary button and a dim cyan fill on a secondary or icon button. Pressed is a plain, unlit cyan fill with base-colour text and icon on every button: primary, secondary, icon and option. Keyboard focus is a 2 px `92a1b9` outline 4 px outside the button. No mockup |
+| Secondary button | A menu button that isn't selected: base fill, a 2 px cyan border, primary text, the same size and font. No mockup |
+| Button states | Hover is a brighter lit fill on a primary button and a dim cyan fill on a secondary or icon button. Pressed is a plain, unlit cyan fill with base-colour text and icon on every button: primary, secondary, icon and option. Keyboard focus is a 2 px `92a1b9` outline 4 px outside the button, except in a selection. Toggles and sliders have no hover look. No mockup |
+| Selection | The menus' (main menu, Settings, Summary) one selection: the arrows or the mouse (hover takes the focus) move it, and it is the focus. No focus outline and no separate hover look. The selected button is drawn primary and the others secondary; on Settings the focus cursor shows it |
 | Disabled button | Fill `2a2f4e`, text `92a1b9` |
 | Can't afford | No fill, a 2 px danger outline, primary text. It can still be pressed: it plays the "can't afford" sound and buys nothing |
 | Icon button | 44 × 44 with a base fill and a 2 px border: cyan when it can be used, `424c6e` when it can't |
 | Back button | An icon button with a left-pointing arrow, for the mouse. Esc does the same, so it takes no keyboard focus. It has no tooltip |
 | Top bar | 84 px tall, x 24–1256: the back button, then the screen's title in 56 px Jersey 10. The upgrade screen and Settings share it |
-| Focus cursor | On Settings, a lit cyan triangle 12 px to the left of the focused control, or of its row. It is the only sign of focus on a slider |
+| Focus cursor | On Settings, a lit cyan triangle 12 px to the left of the focused control, or of its row. It is the only sign of the selection there, since a toggle's fill means "on" |
 | Toggle | A 44 × 44 square with a 2 px cyan border: base fill when off, lit cyan fill when on. Its label sits to the right in primary text |
 | Slider | A 6 px track in `2a2f4e`, lit cyan from the left end to the grabber. The grabber is a 16 × 28 cyan rectangle. The row is 44 px tall, so it meets the hit target |
 | Dropdown | The secondary button's look at 44 px tall, in 18 px Chakra Petch semibold, with a chevron. Its list is a panel with 44 px rows and a cyan dot beside the chosen one. No mockup |
@@ -206,7 +207,7 @@ No mockup. The menu is an empty arena, drawn flat like the game's and not moving
 - **Paddle and ball:** a 12 × 96 paddle at x 40, level with Play, with the ball resting 48 px from its stripe.
 - **Bricks:** three columns of lit bricks in front of the back wall: 1, 2 and 3 HP from the front, with three of the front bricks already broken.
 - **Title:** "BREAKIN" spelled in lit 18 px square bricks on a 20 px pitch, five rows from y 124, each row in a brick HP colour from 4 HP at the top to 1 HP at the bottom. Under it "CREMENTAL" in 68 px Jersey 10, lit gold.
-- **Buttons:** Play, Settings and Exit in a column 360 px wide from y 384, 16 px apart. One selection, moved by the arrows or by the mouse (hover takes the focus), is drawn as a primary button; the others are secondary. No focus outline, no cursor and no separate hover look. Focus starts on Play. Esc does nothing here.
+- **Buttons:** Play, Settings and Exit in a column 360 px wide from y 384, 16 px apart. They are a selection (see "UI pieces"): the selected one is primary, the others secondary, and there is no cursor. Focus starts on Play. Esc does nothing here.
 
 ## Settings
 
@@ -215,7 +216,7 @@ No mockup. The top bar with the title SETTINGS, and a panel 640 px wide centred 
 - a DISPLAY tag over two toggles, "CRT filter" and "Reduce flashing", each with a hint at the right end of its row
 - a VOLUME tag over two sliders, Music and Sound, each with its name on the left and its percentage in 36 px Jersey 10, unlit, on the right. A slider moves in steps of 5%
 
-Every control applies and saves as it changes; there is nothing to confirm. The back button and Esc go to the main menu.
+The four controls are a selection (see "UI pieces"), shown by the focus cursor. Every control applies and saves as it changes; there is nothing to confirm. The back button and Esc go to the main menu.
 
 ## CRT
 
