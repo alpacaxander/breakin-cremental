@@ -6,7 +6,7 @@
 script = ExtResource("1")
 paddle_speed = 600.0
 paddle_size = 96.0
-ball_speed = 700.0
+ball_speed = 500.0
 round_time = 20.0
 combo_rank = 0.0
 blast_size = 1.0

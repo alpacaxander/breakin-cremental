@@ -77,7 +77,9 @@ func _first_bounce(board: Board, stats: Balance, item: Layout.Item) -> int:
 	round.ball_bounced.connect(func(_b: Ball, hit: Hit) -> void:
 		if first[0] == -1:
 			first[0] = hit.surface)
-	for i in 30:
+	for i in 120:  # up to 1 s, so the ball reaches the paddle at any base speed
+		if first[0] != -1:
+			break
 		round.step(1.0 / 120.0, round.paddle.y)
 	_drop(round)
 	return first[0]
