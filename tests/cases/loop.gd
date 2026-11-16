@@ -72,7 +72,7 @@ func _walk() -> void:
 	var earned: int = level.round.coins
 	t.check(Progress.coins == earned and _saved().coins == earned and _saved().unlocked == Progress.unlocked, "the round is paid once and saved (%d coins)" % earned)
 	var summary: Control = level.get_node("Summary")
-	var how := "TIME UP" if level.round.reason == Round.End.TIME else "BALL LOST" if level.round.reason == Round.End.BALL_LOST else "LEVEL CLEARED"
+	var how := "LEVEL CLEARED" if level.round.tally.cleared else "TIME UP" if level.round.reason == Round.End.TIME else "BALL LOST" if level.round.reason == Round.End.BALL_LOST else "BOARD EMPTY"
 	t.check(summary.is_visible_in_tree() and _texts(summary).has(how), "the Summary says how it ended (%s)" % how)
 
 	# Upgrades: the hub again, with the coins. Buy the seed, then the Splitter, with coins given for the test.

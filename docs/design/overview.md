@@ -48,17 +48,18 @@ Nothing else about a level in progress is saved. Settings are stored separately 
      ▼                                                          │
 ┌─────────┐  start   ┌──────────────┐  timer ends / last ball   ┌┴────────┐
 │  SETUP  ├─────────►│  PLAY (20 s) ├──────────────────────────►│ SUMMARY │──► Upgrades
-└─────────┘          └──────────────┘  lost / all bricks cleared└─────────┘
+└─────────┘          └──────────────┘  lost / all bricks broken └─────────┘
 ```
 
 | Phase | What happens |
 |---|---|
 | **Setup** | The timer is stopped. The level's saved layout is already on the board, and you place, move or remove any unlocked placeables. Brick upgrades have already swapped some bricks for special bricks. The ball waits 8 bricks to the right of the paddle, at the arena's vertical centre, and stays there until Start; the keys move the paddle. Press Start to begin. |
-| **Play** | The timer runs: 20 s base, extended by Arena upgrades and hourglass bricks. The round keeps a tally of the bricks broken, by type, and of the combos reached. The run ends when the timer reaches 0, when the last ball is lost, or when every brick is cleared. |
+| **Play** | The timer runs: 20 s base, extended by Arena upgrades and hourglass bricks. The round keeps a tally of the bricks broken, by type, and of the combos reached. The run ends when the timer reaches 0, when the last ball is lost, or when every brick is broken. |
 | **Summary** | Shows the tally (bricks broken by type, combos), the coins it pays, and whether the level was cleared. Two buttons: Retry goes back to Setup on the same level, and Upgrades returns to the hub. After a clear, Next takes Retry's place and opens the next level's Setup; the last level's clear keeps Retry. |
 
 - **Ball loss** ends the run immediately and goes to Summary. With several balls, only losing the last one ends the run.
-- **Clearing every brick** before time runs out unlocks the next level. Bricks the player placed don't count.
+- **A clear** is a round whose score reaches the level's target (set per level, in [levels.md](levels.md)), however the round ends. It unlocks the next level. The score is the coins' points (see "Coins") before the end bonuses: the bricks, the combos, the biggest chain and the longest rally. Reaching the target does not end the round. The HUD shows the score against the target.
+- **Breaking every level brick** ends the round. It is not a clear by itself unless the score has reached the target. Bricks the player placed don't count.
 - **Special bricks are rolled again on every attempt**, including a retry.
 
 ## Coins
@@ -68,6 +69,14 @@ Nothing else about a level in progress is saved. Settings are stored separately 
 - The HUD shows the running coin total during Play.
 - Bricks the player placed pay nothing. The Summary leaves them out. Instead it counts, for each kind of placeable on the board, how many times the ball hit one: touching a free item, hitting a placed brick, or hitting a brick that carries a mod.
 - The formula is not decided yet. Until then, each brick pays 1 coin, and a combo multiplies the coins of every brick broken in it by the multiplier the combo reached, so a break that raises the multiplier raises it for the whole combo. A gold brick counts as 20 bricks.
+- Bonuses are added on top, as first values (the `_bonus` numbers in `data/balance.tres`, in brick points):
+  - **Biggest chain:** 2 per level brick in the round's biggest explosion chain, which is everything one blast set off (not counting the explosive brick that started it).
+  - **Longest rally:** 1 per level brick in the most broken between two paddle touches. The launch counts as a touch.
+  - **Clear bonus:** 10% of the level's target, for a clear.
+  - **Time left:** 2 per whole second left on the clock when every level brick is broken.
+  - **First clear:** 50% of the level's target, the first time a level is cleared.
+  - **Ball kept:** 3 when the round ends with a ball still in play (every brick broken, or a timeout).
+  - **Efficiency:** bricks per paddle touch (level bricks broken ÷ paddle touches, the launch included) multiplies the whole score, bonuses included, when the round ends: nothing up to 10 bricks per touch, rising evenly to +10% at 100 and staying there. The Summary shows the ratio on this row.
 
 ## Replaying levels
 

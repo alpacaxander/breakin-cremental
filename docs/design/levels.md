@@ -9,7 +9,8 @@
 - Bricks have **HP**, the number of hits needed to destroy them. The default is 1. A brick's colour shows the hits it has left and changes each time it is hit (see [palette.md](../palette.md#brick-hp)). The three levels here use 1 and 2 HP. 3 and 4 are further colour steps, 4 the top one, a deep violet, and no level uses them yet.
 - Every brick is a standard brick unless the level says otherwise.
 - **Editable in Godot:** each level is its own scene, `levels/level_<n>.tscn`, and you paint its bricks in the editor. The scene's root is a TileMapLayer with a `title` and a `rows` field. One tile is one brick, and the tile set has a tile for each HP, with the number on it. The grid's edge is outlined, because the columns follow from the rows. To add a level, duplicate a scene under the next number.
-- Clearing every brick unlocks the next level. Phases and end conditions are described in [overview.md](overview.md#level-phases).
+- A round whose score reaches the level's target clears it and unlocks the next level. Phases and end conditions are described in [overview.md](overview.md#level-phases).
+- Each level scene sets its `target`. First values, twice the brick count and not yet measured: level 1 is 40, level 2 is 256 and level 3 is 1024.
 
 ## Arena size
 

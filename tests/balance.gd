@@ -59,6 +59,7 @@ const WEB_SCENE := "res://src/hub/web.tscn"
 var _args := {"mode": "report", "level": "all", "ranks": "fresh", "skill": "average", "seeds": "20",
 		"layout": "auto", "rounds": "400", "base": "0"}
 var _boards := {}  # level -> Board, read once
+var _targets := {0: 1 << 30}  # level -> its LevelData.target, read with its board; the test board is never cleared
 var _layouts := {}  # cache key -> Layout, for _auto
 var _web: Array[Array] = []  # the web's connections as pairs of upgrade ids
 var _seed_node := &""
@@ -204,7 +205,9 @@ func _board(level: int) -> Board:
 			b.bricks[Vector2i(b.cols - 1, b.rows / 4)] = Brick.new(100000)
 			_boards[level] = b
 		else:
-			_boards[level] = Levels.read(level).board
+			var data := Levels.read(level)
+			_boards[level] = data.board
+			_targets[level] = data.target
 	return _boards[level]
 
 
@@ -229,6 +232,8 @@ func _play(level: int, layout: Layout, stats: Balance, skill: String, seed: int,
 	var round := Round.new(_board(level), layout, stats, seed)
 	round.hold()  # the game's launch: off the centred paddle at a random angle
 	round.launch()
+	round.first_clear = not Progress.is_cleared(level)
+	round.target = _targets[level]
 	var numbers: Dictionary = SKILLS[skill].duplicate()
 	for key: String in numbers:  # reaction=, aim= and steer= on the command line override the skill's own
 		numbers[key] = float(_args.get(key, numbers[key]))
@@ -268,7 +273,7 @@ func _play(level: int, layout: Layout, stats: Balance, skill: String, seed: int,
 		bricks += n
 	return {"seed": seed, "bricks": bricks, "hits": hits[0], "coins": round.coins, "time": steps[0] * STEP,
 			"end": String(Round.End.find_key(round.reason)).to_lower(), "best_combo": round.tally.best_combo,
-			"cleared": round.reason == Round.End.CLEARED, "drops": drops[0], "hopeless": drops[1]}
+			"cleared": round.tally.cleared, "drops": drops[0], "hopeless": drops[1]}
 
 
 ## One line per level and skill: `seeds` rounds each, summed up. Prints the table: "of" is the level's bricks,

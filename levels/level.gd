@@ -9,6 +9,8 @@ extends TileMapLayer
 
 ## The name in the hub and on the level screen.
 @export var title := ""
+## The score a round needs to clear the level (Round.target).
+@export var target := 0
 ## Grid rows: even. Columns are always rows x 4; the outline shows where the grid ends.
 @export_range(2, 64, 2) var rows := 16:
 	set(value):

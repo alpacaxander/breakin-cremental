@@ -7,6 +7,8 @@ extends RefCounted
 var number: int
 ## "Two Columns"
 var title: String
+## The score a round needs to clear it (Round.target).
+var target: int
 ## The level's bricks and its size (board.rows). Every brick has `placed` false and no mod. Treat it as
 ## read-only: Round copies it, and so should anything else that wants to change it.
 var board: Board

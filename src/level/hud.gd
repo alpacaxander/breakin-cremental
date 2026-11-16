@@ -2,7 +2,7 @@ class_name LevelHud
 extends Control
 ## The level screen's HUD (docs/art.md, "Level screen" and "HUD numbers"): time on the left, the combo (Play) or
 ## SETUP (Setup) in the centre, coins on the right, and under the arena Play's footer: the level's name, a legend
-## of the bricks on this board and the bricks left. It only reads the round. A number swells for a moment when
+## of the bricks on this board and the score against the level's target. It only reads the round. A number swells for a moment when
 ## it goes up (UiTheme.pulse): the coins, the combo, the multiplier, and the time when an hourglass adds to it.
 ##
 ## The pixel fonts are taller than their digits (Jersey 10 at 75 is an 82 px line around 40 px digits), so every
@@ -24,7 +24,6 @@ const LAUNCH_HINT := "Click, or press Space, to launch the ball\nThe mouse, W / 
 var _round: Round
 var _playing := false
 var _combos := false
-var _bricks := 0  ## Level bricks on the board when Play began
 var _time_was := 0.0  ## What the round's clock, combo and multiplier were a frame ago
 var _count_was := 0
 var _times_was := 1
@@ -80,7 +79,7 @@ func _ready() -> void:
 	var left := _column(BoxContainer.ALIGNMENT_END)
 	var left_tag := Label.new()
 	left_tag.theme_type_variation = &"Tag"
-	left_tag.text = "BRICKS LEFT"
+	left_tag.text = "SCORE"
 	left_tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_left.theme_type_variation = &"Number"
 	_left.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -108,7 +107,6 @@ func show_round(round: Round, data: LevelData, setup: bool, footer: bool) -> voi
 	_waiting()
 	if setup or not footer:
 		return
-	_bricks = round.board.remaining()
 	_level_tag.text = "LEVEL %d" % data.number
 	_level_name.text = data.title
 	for old in _legend.get_children():
@@ -169,10 +167,7 @@ func _process(_delta: float) -> void:
 		_multiplier.position.x = CENTRE + _combo.get_theme_font(&"font").get_string_size(_combo.text, HORIZONTAL_ALIGNMENT_LEFT, -1,
 				_combo.get_theme_font_size(&"font_size")).x * 0.5 + 10.0
 	if _footer.visible:
-		var broken := 0
-		for n: int in _round.tally.broken.values():
-			broken += n
-		_left.text = "%d / %d" % [_bricks - broken, _bricks]
+		_left.text = "%d / %d" % [Coins.points(_round.tally, _round.stats), _round.target]
 
 
 func _entry(colour: Color, text: String) -> void:

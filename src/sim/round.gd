@@ -44,8 +44,10 @@ extends RefCounted
 ##      at some rates and not at others. A round whose time is a whole number of steps plays exactly that many;
 ##      any other plays to the end of the step its time runs out in.
 ##   5. The round ends if every level brick is broken (CLEARED), else if no ball is left (BALL_LOST), else if
-##      time_left is 0 (TIME). `ended` is emitted once; after it step() does nothing. A board with no level
-##      bricks is cleared on its first step.
+##      time_left is 0 (TIME). However it ended, the level is cleared if the score has reached `target`. The
+##      tally notes how it ended (cleared, a ball kept, whole seconds left if every level brick broke, a first
+##      clear) and `coins` takes the end bonuses (Coins.bonuses), then `ended` is emitted, once; after it step()
+##      does nothing. A board with no level bricks ends on its first step.
 ##
 ## ONE BRICK HIT (hit_brick), in this order:
 ##   The brick loses 1 hp.
@@ -95,7 +97,7 @@ enum Cause {
 enum End {
 	TIME,  ## The timer ran out
 	BALL_LOST,  ## The last ball left through the open side
-	CLEARED,  ## Every brick that counts is broken
+	CLEARED,  ## Every brick that counts is broken. Whether the level is cleared is tally.cleared, from the score
 }
 
 ## The most contacts one ball resolves in one step, so that no step can run for ever.
@@ -171,6 +173,12 @@ var over := false
 var reason: End
 ## True while the first ball sits on the paddle waiting for launch() (see hold()).
 var held := false
+## True if clearing this level would be its first clear, so the clear pays first_clear_bonus. The level screen
+## and the bot set it from Progress; the round itself reads no save. Off by default.
+var first_clear := false
+## The score (Coins.points before the end bonuses) a clear needs: LevelData.target. The level screen and the
+## bot set it. At 0, the default, every round is a clear.
+var target := 0
 
 # The FREE items as the sweep sees them (Collide.Solid), in layout order.
 # ponytail: grown for a ball of stats.ball_size. Every ball is that size; if one ever is not, grow per size.
@@ -180,6 +188,8 @@ var _solids: Array[Collide.Solid] = []
 # ponytail: so a brick put on or taken off round.board by hand is not seen. Count again there if that is needed.
 var _left := 0
 var _next_id := 0
+# How many blast() calls are running, one inside the other: above 0 while an explosion chain goes off.
+var _blasts := 0
 
 
 func _init(p_board: Board, p_layout: Layout, p_stats: Balance, p_seed: int) -> void:
@@ -241,7 +251,8 @@ func launch() -> void:
 	if not held or balls.is_empty():
 		return
 	held = false
-	var dir := Vector2.RIGHT.rotated(deg_to_rad(rng.randf_range(-LAUNCH_ANGLE, LAUNCH_ANGLE)))
+	tally.touch()  # the launch counts as the first paddle touch
+	var dir :=Vector2.RIGHT.rotated(deg_to_rad(rng.randf_range(-LAUNCH_ANGLE, LAUNCH_ANGLE)))
 	balls[0].put(balls[0].pos, _legal(dir, Vector2.RIGHT))
 
 
@@ -317,7 +328,7 @@ func hit_brick(cell: Vector2i, cause: Cause, dir: Vector2, ball: Ball = null) ->
 	if stats.combo_rank >= 1.0:
 		combo.add(stats)
 		combo_changed.emit(combo.count, combo.multiplier)
-	tally.add(brick, combo)
+	tally.add(brick, combo, _blasts > 0)
 	var paid := Coins.total(tally, stats) - coins
 	coins += paid
 	brick_broken.emit(cell, brick, cause, dir, paid)
@@ -352,10 +363,14 @@ func blast(cell: Vector2i, reach: float) -> void:
 			if board.bricks.has(c) and board.cell_rect(c).intersects(area):
 				cells.append(c)
 	exploded.emit(centre, reach, cells)
+	if _blasts == 0:
+		tally.chain = 0  # a new chain
+	_blasts += 1
 	for c in cells:
 		var away := board.cell_rect(c).get_center() - centre
 		for i in int(stats.explosion_damage):
 			hit_brick(c, Cause.BLAST, away.normalized() if away else Vector2.RIGHT)
+	_blasts -= 1
 	if stats.shockwave >= 1.0:
 		for ball in balls:
 			if area.has_point(ball.pos):
@@ -454,6 +469,7 @@ func _bounce(ball: Ball, hit: Hit) -> void:
 		var where := clampf((ball.pos.y - paddle.y) / (paddle.length * 0.5), -1.0, 1.0)
 		ball.put(ball.pos, _legal(Vector2.RIGHT.rotated(deg_to_rad(where * stats.paddle_max_angle)), Vector2.RIGHT))
 		set_boost(ball, ball.kept)
+		tally.touch()
 	elif was.dot(n) < 0.0:
 		# Along an axis the mirror is an exact change of sign; off a turned face it is rounded, so it is made a
 		# unit vector again or the speed would creep.
@@ -511,4 +527,12 @@ func _legal(dir: Vector2, n := Vector2.ZERO) -> Vector2:
 func _end(why: End) -> void:
 	over = true
 	reason = why
+	tally.target = target
+	tally.score = Coins.points(tally, stats)  # before the end bonuses
+	tally.cleared = tally.score >= target
+	tally.kept = not balls.is_empty()
+	tally.seconds_left = floori(time_left) if why == End.CLEARED else 0
+	tally.first_clear = tally.cleared and first_clear
+	tally.ended = true
+	coins = Coins.total(tally, stats)
 	ended.emit(why)

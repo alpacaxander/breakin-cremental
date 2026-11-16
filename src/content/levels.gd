@@ -37,6 +37,7 @@ static func read(number: int) -> LevelData:
 	var level := LevelData.new()
 	level.number = number
 	level.title = layer.title
+	level.target = layer.target
 	level.board = Board.new(layer.rows)
 	for cell in layer.get_used_cells():
 		if level.board.has_cell(cell):

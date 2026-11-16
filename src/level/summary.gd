@@ -1,7 +1,8 @@
 class_name LevelSummary
 extends Control
-## The Summary (docs/design/overview.md, "Level phases"): how the round ended, the tally by brick type, each
-## combo's bonus, the best combo, the coins it paid, and Retry (Next after a clear that has a level after it) and
+## The Summary (docs/design/overview.md, "Level phases"): how the round ended, whether the score reached the
+## level's target, the tally by brick type, each combo's bonus, the best combo, the bonuses (Coins.bonuses), bricks
+## per paddle touch with the efficiency bonus, the coins it paid, and Retry (Next after a clear that has a level after it) and
 ## Upgrades. There is no mockup; it is a panel over the arena in the language of the other screens, with the back button where Setup
 ## has it.
 ##
@@ -16,8 +17,11 @@ const DELAY := 0.5  ## Seconds from the end of the round to the panel
 const ROW := 0.09  ## Seconds between rows
 const COUNT := 0.5  ## Seconds the coins take to count up
 const TICK := 0.05  ## The least time between two tally ticks while they count
-const WIDTH := 440.0
+const WIDTH := 880.0
 const COMBO_ROWS := 3  ## The most rows the combos take
+## Each bonus's row title, by its id in Coins.bonuses.
+const BONUSES := {&"chain": "Biggest chain", &"rally": "Longest rally", &"clear": "Clear bonus", &"time": "Time left",
+		&"first_clear": "First clear", &"kept": "Ball kept", &"efficiency": "Bricks per paddle touch"}
 
 var _tween: Tween
 var _coins: UiPrice
@@ -45,24 +49,34 @@ func open(round: Round, data: LevelData, unlocked: bool) -> void:
 	box.add_theme_constant_override(&"separation", 10)
 	panel.add_child(box)
 
-	var cleared := round.reason == Round.End.CLEARED
-	var left := round.board.remaining()
+	var cleared := round.tally.cleared
 	var head := VBoxContainer.new()
 	head.add_theme_constant_override(&"separation", -4)
 	box.add_child(head)
 	_text(head, &"Tag", "LEVEL %d - %s" % [data.number, data.title.to_upper()])
-	var title := _text(head, &"Title", "LEVEL CLEARED" if cleared else "TIME UP" if round.reason == Round.End.TIME else "BALL LOST")
+	var title := _text(head, &"Title", "LEVEL CLEARED" if cleared else "BOARD EMPTY" if round.reason == Round.End.CLEARED
+			else "TIME UP" if round.reason == Round.End.TIME else "BALL LOST")
 	if cleared:
 		UiTheme.light(title, Palette.PLAYER)
-	_text(head, &"Hint", "Level %d unlocked" % (data.number + 1) if unlocked else "Every brick broken" if cleared
-			else "%d brick%s left" % [left, "" if left == 1 else "s"])
+	_text(head, &"Hint", "Level %d unlocked" % (data.number + 1) if unlocked else "Every brick broken" if cleared and round.reason == Round.End.CLEARED
+			else "Score %d of %d" % [round.tally.score, round.tally.target])
 
+	# Two columns of rows: what broke and what was placed on the left, the combos and bonuses on the right.
+	var columns := HBoxContainer.new()
+	columns.add_theme_constant_override(&"separation", 32)
+	box.add_child(columns)
+	var grids: Array[GridContainer] = []
+	for i in 2:
+		var g := GridContainer.new()
+		g.columns = 4
+		g.size_flags_horizontal = SIZE_EXPAND_FILL
+		g.add_theme_constant_override(&"h_separation", 12)
+		g.add_theme_constant_override(&"v_separation", 2)
+		columns.add_child(g)
+		grids.append(g)
+	var grid := grids[0]
+	var right := grids[1]
 	# One row for each kind of brick broken, standard bricks first, in the order the kinds are listed in.
-	var grid := GridContainer.new()
-	grid.columns = 4
-	grid.add_theme_constant_override(&"h_separation", 12)
-	grid.add_theme_constant_override(&"v_separation", 2)
-	box.add_child(grid)
 	var rows: Array[Array] = []
 	var ids: Array[StringName] = [&""]
 	for kind in Kinds.bricks():
@@ -92,17 +106,30 @@ func open(round: Round, data: LevelData, unlocked: bool) -> void:
 	var rest := 0
 	for run: Tally.Run in runs:
 		if run in top:
-			rows.append(_row(grid, Palette.COINS, "Combo ×%d" % run.multiplier, str(run.count), _price(Coins.pay(Coins.bonus(run), round.stats))))
+			rows.append(_row(right, Palette.COINS, "Combo ×%d" % run.multiplier, str(run.count), _price(Coins.pay(Coins.bonus(run), round.stats))))
 		else:
 			rest += Coins.bonus(run)
 	if runs.size() > top.size():
-		rows.append(_row(grid, Palette.COINS, "%d more combos" % (runs.size() - top.size()), "", _price(Coins.pay(rest, round.stats))))
+		rows.append(_row(right, Palette.COINS, "%d more combos" % (runs.size() - top.size()), "", _price(Coins.pay(rest, round.stats))))
 	if round.stats.combo_rank >= 1.0:
 		var times := Label.new()
 		times.theme_type_variation = &"SmallTag"
 		times.text = "×%d" % round.tally.best_multiplier
 		UiTheme.light(times, Palette.COINS)
-		rows.append(_row(grid, Palette.COINS, "Best combo", str(round.tally.best_combo), times))
+		rows.append(_row(right, Palette.COINS, "Best combo", str(round.tally.best_combo), times))
+	# The bonuses: the best chain and rally, then how the round ended.
+	var efficiency := 0
+	for b in Coins.bonuses(round.tally, round.stats):
+		if b[0] == &"efficiency":
+			efficiency = b[2]
+			continue
+		var count := str(b[1]) if b[0] in [&"chain", &"rally"] else "%ds" % b[1] if b[0] == &"time" else ""
+		rows.append(_row(right, Palette.COINS, BONUSES[b[0]], count, _price(Coins.pay(b[2], round.stats))))
+	# How far each paddle touch went, the launch counted as one, and the efficiency bonus it earned on everything
+	# above, last because it is a share of them.
+	if round.tally.broken:
+		rows.append(_row(right, Palette.PLAYER, BONUSES[&"efficiency"], "%.1f" % Coins.per_touch(round.tally),
+				_price(Coins.pay(efficiency, round.stats)) if efficiency else Control.new()))
 
 	var total := HBoxContainer.new()
 	box.add_child(total)

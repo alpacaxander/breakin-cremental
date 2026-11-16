@@ -267,7 +267,7 @@ func _ends() -> void:
 	t.check(round.coins > 0 and Progress.coins == coins + round.coins and paid[0] == 1 and _saved().coins == Progress.coins, "the round is paid once, and saved")
 	t.check(Progress.unlocked == 1, "a round that is not cleared unlocks nothing")
 	heard.clear()
-	await t.tree().create_timer(1.6).timeout
+	await t.tree().create_timer(2.5).timeout
 	var summary: Control = level.get_node("Summary")
 	t.check(summary.visible and _texts(summary).has("BALL LOST"), "the Summary says how the round ended")
 	t.check(_texts(summary).has("Bricks") and _texts(summary).has(str(round.coins)), "it lists the bricks broken and the coins paid")

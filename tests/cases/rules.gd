@@ -1166,6 +1166,49 @@ func _coins() -> void:
 	t.check(round.tally.broken == {&"": 5, &"gold": 1} and paid == [1, 1, 1, 1, 4 + 2 * worth, 2] and round.coins == 2 * (5 + worth),
 			"the gold brick that raises the combo to x2 pays twice its worth and the rise on the four before it, and all six are paid x2")
 
+	# The bonuses: the biggest chain, the longest rally, and how the round ended.
+	var bonus := {&"chain_bonus": 2, &"rally_bonus": 1, &"clear_bonus": 0.5, &"time_bonus": 2, &"first_clear_bonus": 2, &"kept_bonus": 3}
+	board = _board({FAR: SOLID, Vector2i(20, 6): 1, Vector2i(21, 6): 1, Vector2i(22, 6): 1, Vector2i(40, 6): 1})
+	board.bricks[Vector2i(20, 6)].kind = &"explosive"
+	round = Round.new(board, null, _stats(bonus), 1)
+	round.hit_brick(Vector2i(20, 6), Round.Cause.BALL, Vector2.RIGHT)
+	t.check(round.tally.best_chain == 2 and round.tally.best_rally == 3, "the blast's two bricks are a chain of 2, without the explosive; all three are a rally of 3")
+	round.tally.touch()
+	round.hit_brick(Vector2i(40, 6), Round.Cause.BALL, Vector2.RIGHT)
+	t.check(round.tally.best_rally == 3 and round.tally.rally == 1 and round.coins == 4 + 2 * 2 + 3, "a paddle touch starts the rally again; the biggest chain and longest rally pay per brick (%d)" % round.coins)
+
+	round = Round.new(_board({Vector2i(20, 6): 1}), null, _stats(bonus), 1)
+	round.first_clear = true
+	round.target = 2
+	round.hit_brick(Vector2i(20, 6), Round.Cause.BALL, Vector2.RIGHT)
+	round.step(0.01, round.paddle.y)  # short of the paddle
+	t.check(round.reason == Round.End.CLEARED and round.tally.cleared and round.tally.score == 2 and round.tally.seconds_left == 19
+			and round.coins == 1 + 1 + 1 + 2 * 19 + 4 + 3,
+			"a first clear (a score of 2, a target of 2) with every brick broken and 19 s left pays half the target, 2 a second, twice the target and the kept ball (%d)" % round.coins)
+	t.check(round.tally.paddle_touches == 0 and Coins.bonuses(round.tally, round.stats).size() == 5, "every bonus earned is listed, and only those")
+	round = Round.new(_board({Vector2i(20, 6): 1}), null, _stats(bonus), 1)
+	round.first_clear = true
+	round.target = 3
+	round.hit_brick(Vector2i(20, 6), Round.Cause.BALL, Vector2.RIGHT)
+	round.step(0.01, round.paddle.y)
+	t.check(round.reason == Round.End.CLEARED and not round.tally.cleared and round.coins == 1 + 1 + 2 * 19 + 3,
+			"every brick broken short of the target is no clear: no clear bonus, no first clear, but the time and the kept ball (%d)" % round.coins)
+	var eff := _sealed(_board({}), {&"efficiency_from": 10, &"efficiency_to": 100, &"efficiency_bonus": 0.1})
+	var shares := []
+	for count in [9, 55, 300]:
+		var made := Tally.new()
+		made.broken[&""] = count
+		made.paddle_touches = 1
+		shares.append(Coins.points(made, eff))
+		made.ended = true
+		shares.append(Coins.points(made, eff))
+	t.check(shares == [9, 9, 55, 57, 300, 330], "bricks per paddle touch add nothing until the round ends, then 0 at 10, 5%% at 55 and 10%% from 100 on (%s)" % [shares])
+	var timed := _sealed(_board({FAR: SOLID}), bonus)
+	timed.round_time = 0.25
+	round = Round.new(_board({FAR: SOLID}), null, timed, 1)
+	round.step(0.25, round.paddle.y)
+	t.check(round.reason == Round.End.TIME and round.coins == 3, "running out of time with a ball in play pays the kept ball only")
+
 
 # --- how a round ends ------------------------------------------------------------------------------------------
 

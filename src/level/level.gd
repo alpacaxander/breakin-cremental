@@ -138,6 +138,8 @@ func _build() -> void:
 	if not is_nan(paddle_y):
 		round.paddle.y = paddle_y
 	round.hold()
+	round.first_clear = not Progress.is_cleared(level)
+	round.target = _data.target
 	_arena.show_round(round, phase == Phase.SETUP)
 	_hud.show_round(round, _data, phase == Phase.SETUP, phase == Phase.PLAY)
 	_setup_ui.refresh(round)
@@ -149,10 +151,10 @@ func _on_edited(save: bool) -> void:
 	_build()
 
 
-func _on_ended(reason: Round.End) -> void:
+func _on_ended(_reason: Round.End) -> void:
 	phase = Phase.SUMMARY
 	var before := Progress.unlocked
-	Progress.finish_round(level, round.coins, reason == Round.End.CLEARED)
+	Progress.finish_round(level, round.coins, round.tally.cleared)
 	_hud.show_round(round, _data, false, false)
 	# The last level's first clear raises `unlocked` too (it is how the win is saved), but opens no level.
 	_summary.open(round, _data, Progress.unlocked > before and level < Progress.level_count)

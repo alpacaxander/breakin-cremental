@@ -26,6 +26,23 @@ var hits: Dictionary[StringName, int] = {}
 var best_combo := 0
 ## The highest multiplier the round reached. 1 if combos are off.
 var best_multiplier := 1
+## Level bricks broken by the explosion chain going off now, and the most one chain broke. A chain is everything
+## one blast set off, the blasts and Zaps it led to included; the explosive brick that started it is not in it.
+var chain := 0
+var best_chain := 0
+## Level bricks broken since a ball last touched the paddle, and the most between two touches.
+var rally := 0
+var best_rally := 0
+## Times a ball touched the paddle, the launch included.
+var paddle_touches := 0
+## How the round ended, set once when it does (Round._end). Coins.bonuses pays for these.
+var ended := false
+var target := 0  ## The score the level needs (Round.target)
+var score := 0  ## The score (Coins.points) before the end bonuses
+var cleared := false  ## `score` reached `target`
+var kept := false  ## A ball was still in play
+var seconds_left := 0  ## Whole seconds on the timer, if every level brick was broken
+var first_clear := false  ## A clear, and the level's first
 
 
 ## Counts one hit on a placeable of kind `id`.
@@ -33,9 +50,21 @@ func hit(id: StringName) -> void:
 	hits[id] = hits.get(id, 0) + 1
 
 
+## Counts a ball touching the paddle: the rally starts again.
+func touch() -> void:
+	paddle_touches += 1
+	rally = 0
+
+
 ## Counts a brick that has just broken. `combo` is the round's combo, already grown by this break (count 0 while
-## combos are off).
-func add(brick: Brick, combo: Combo) -> void:
+## combos are off). `in_chain` is true while an explosion chain is going off.
+func add(brick: Brick, combo: Combo, in_chain := false) -> void:
+	if not brick.placed:
+		rally += 1
+		best_rally = maxi(best_rally, rally)
+		if in_chain:
+			chain += 1
+			best_chain = maxi(best_chain, chain)
 	best_combo = maxi(best_combo, combo.count)
 	best_multiplier = maxi(best_multiplier, combo.multiplier)
 	if combo.count > 0:

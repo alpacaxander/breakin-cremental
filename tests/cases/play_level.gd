@@ -110,16 +110,13 @@ func _fresh() -> void:
 		level.fx.frozen = true
 		await t.tree().process_frame
 		var shown := "%.1f|%d|%s" % [round.time_left, round.coins, hud._left.text]
-		var broken := 0
-		for n: int in round.tally.broken.values():
-			broken += n
-		var want := "%.1f|%d|%d / %d" % [round.time_left, round.coins, round.board.remaining(), 20]
+		var want := "%.1f|%d|%d / %d" % [round.time_left, round.coins, Coins.points(round.tally, round.stats), 40]
 		if hud._time.text + "|" + str(hud._coins.amount) + "|" + hud._left.text != want:
 			bad.append("%s != %s" % [hud._time.text + "|" + str(hud._coins.amount) + "|" + hud._left.text, want])
 		level.fx.frozen = false
 		if shown == "":
 			break
-	t.check(bad.is_empty(), "the HUD's time, coins and bricks left match the round every frame looked at %s" % [bad.slice(0, 3)])
+	t.check(bad.is_empty(), "the HUD's time, coins and score against level 1's target of 40 match the round every frame looked at %s" % [bad.slice(0, 3)])
 
 	# Let the ball go.
 	_mouse(Vector2(640, 110))
@@ -301,19 +298,21 @@ func _check_summary(title: String) -> void:
 	var summary: Control = level.get_node("Summary")
 	var texts := _texts(summary)
 	t.check(texts.has(title), "the Summary is titled %s (%s)" % [title, texts.slice(0, 3)])
-	var left := round.board.remaining()
-	if round.reason != Round.End.CLEARED:
-		t.check(texts.has("%d brick%s left" % [left, "" if left == 1 else "s"]), "it says how many bricks are left (%d)" % left)
-	var grid := summary.find_children("*", "GridContainer", true, false)[0] as GridContainer
+	if not round.tally.cleared:
+		t.check(texts.has("Score %d of %d" % [round.tally.score, round.tally.target]), "it says the score against the target (%d of %d)" % [round.tally.score, round.tally.target])
 	var rows := {}
-	for i in range(0, grid.get_child_count(), 4):
-		var name_text := (grid.get_child(i + 1) as Label).text
-		var last := grid.get_child(i + 3)
-		rows[name_text] = [int((grid.get_child(i + 2) as Label).text), (last as UiPrice).amount if last is UiPrice else (last as Label).text if last is Label else ""]
 	var sum := 0
-	for price in grid.get_children():
-		if price is UiPrice:
-			sum += (price as UiPrice).amount  # the kinds and the combos
+	for grid: GridContainer in summary.find_children("*", "GridContainer", true, false):  # the two columns
+		for i in range(0, grid.get_child_count(), 4):
+			var name_text := (grid.get_child(i + 1) as Label).text
+			var last := grid.get_child(i + 3)
+			rows[name_text] = [int((grid.get_child(i + 2) as Label).text), (last as UiPrice).amount if last is UiPrice else (last as Label).text if last is Label else ""]
+		for price in grid.get_children():
+			if price is UiPrice:
+				sum += (price as UiPrice).amount  # the kinds, the combos and the bonuses
+	for b in Coins.bonuses(round.tally, round.stats):
+		t.check(rows.get(LevelSummary.BONUSES[b[0]], []).size() == 2 and rows[LevelSummary.BONUSES[b[0]]][1] == Coins.pay(b[2], round.stats),
+				"a %s row pays %d" % [LevelSummary.BONUSES[b[0]], Coins.pay(b[2], round.stats)])
 	for id: StringName in round.tally.broken:
 		var kind := Kinds.of(id)
 		var row: Array = rows.get(kind.title if kind else "Bricks", [])
@@ -324,7 +323,7 @@ func _check_summary(title: String) -> void:
 				"under Placeables, a %s row counts its hits, with nothing in the coin column" % item.kind.title)
 	var total := summary.find_children("*", "UiPrice", true, false).filter(func(p: UiPrice) -> bool: return p.style == &"HudNumber")
 	t.check(total.size() == 1 and total[0].amount == round.coins and sum == round.coins, "the rows add up to the total, which is the round's coins (%d, %d, %d)" % [sum, total[0].amount if total else -1, round.coins])
-	var first := "Next" if round.reason == Round.End.CLEARED and level.level < Progress.level_count else "Retry"
+	var first := "Next" if round.tally.cleared and level.level < Progress.level_count else "Retry"
 	var focused := summary.find_child(first, true, false) as Button
 	var upgrades := summary.find_child("Upgrades", true, false) as Button
 	t.check(focused.has_focus() and focused.theme_type_variation == &"" and upgrades.theme_type_variation == &"SecondaryButton",

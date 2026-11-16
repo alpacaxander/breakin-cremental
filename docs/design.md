@@ -37,7 +37,7 @@ Feel like a high-score engineer: clever setup turns a stubborn wall of bricks in
 
 ## Progression
 
-- Clearing every brick before time runs out unlocks the next level.
+- Each level has a target score. A round that reaches it clears the level and unlocks the next one. The round still plays out to the timer, the last ball or the last brick.
 - A new level is usually too hard on the first try. Failed attempts still pay out, so upgrades make the retry easier.
 - Any unlocked level can be replayed. There is no deliberate payout curve, but later levels hold more bricks, so they happen to pay more.
 - There is one save slot. It holds the coin balance, the upgrade ranks, the highest level unlocked and each level's placed layout.
@@ -91,7 +91,7 @@ The demo exists to test whether placement + combos is fun and whether hand-made 
 
 The demo gives the first two a first value, set with the balance bot and not yet by a person. Playing the demo is what settles them:
 
-1. **The coin formula.** How the tally of bricks and combos turns into coins. The upgrade costs move with it. First value: the placeholder, 1 coin per brick, each combo's bricks times the multiplier that combo reached, with a gold brick counting as 20. The formula is `Coins.total` in `src/sim/coins.gd`; its numbers are `coins_per_brick` in `data/balance.tres` and each special brick's `worth` in `data/kinds/`.
+1. **The coin formula.** How the tally of bricks and combos turns into coins. The upgrade costs move with it. First value: the placeholder, 1 coin per brick, each combo's bricks times the multiplier that combo reached, with a gold brick counting as 20, plus bonuses for the biggest chain, the longest rally and how the round ended, two of them a share of the level's target score, and an efficiency multiplier (`docs/design/overview.md`, "Coins"). The targets are in `docs/design/levels.md`. The formula is `Coins.total` in `src/sim/coins.gd`; its numbers are `coins_per_brick` and the `_bonus` numbers in `data/balance.tres`, and each special brick's `worth` in `data/kinds/`. The bonuses are set by hand and the bot has not measured them.
 2. **Combo numbers.** The window, how it shrinks and how the multiplier steps. First values: the `combo_` numbers in `data/balance.tres`, and the ranks and prices of the Combo node in `data/upgrades/combo.tres`. What they come to is in `docs/design/upgrades.md`, "Open questions".
 3. **A ceiling on arena size.** Still open. Very big levels shrink the ball and bricks to a few pixels (see `docs/art.md`, "Arena zoom"). The demo's largest level is 18 rows; the floor is 14 (see `docs/design/levels.md`).
 4. **Screens with no mockup.** Answered by building them: the Summary, the main menu and Settings are described in `docs/art.md` as built. Nobody has judged their look yet.
