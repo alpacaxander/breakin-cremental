@@ -59,9 +59,9 @@ Every node has one rank for now. Prices not listed are 10.
 
 | Node | Category | Effect | Cost |
 |---|---|---|---|
-| Paddle Speed | Arena | +100% paddle speed | 2 |
+| Paddle Speed | Arena | +100% paddle speed | 5 |
 | Paddle Size | Arena | +40% paddle length | 80 |
-| Combo | Arena | Turns combos on | 40 |
+| Combo | Arena | Turns combos on | 30 |
 | Combo Window | Arena | The combo's window is 1 s longer | 10 |
 | Rear Paddle | Arena | The back wall's stretch opposite the paddle boosts a ball by 20% of base speed | 10 |
 | Booster | Placeables | One Booster | 10 |

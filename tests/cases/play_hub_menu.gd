@@ -15,9 +15,9 @@ extends RefCounted
 ## docs/design/upgrades.md's table, by web node: name, category, ranks, "Each rank", first cost, growth. Every
 ## node has one rank (most at 10 coins) for now.
 const TABLE := {
-	&"PaddleSpeed": ["Paddle Speed", Upgrade.Category.ARENA, 1, "+100% paddle speed", 2, 1.0],
+	&"PaddleSpeed": ["Paddle Speed", Upgrade.Category.ARENA, 1, "+100% paddle speed", 5, 1.0],
 	&"PaddleSize": ["Paddle Size", Upgrade.Category.ARENA, 1, "+40% paddle length", 80, 1.0],
-	&"Combo": ["Combo", Upgrade.Category.ARENA, 1, "Turns combos on", 40, 1.0],
+	&"Combo": ["Combo", Upgrade.Category.ARENA, 1, "Turns combos on", 30, 1.0],
 	&"ComboWindow": ["Combo Window", Upgrade.Category.ARENA, 1, "Combos last longer", 10, 1.0],
 	&"RearPaddle": ["Rear Paddle", Upgrade.Category.ARENA, 1, "A second paddle on the back wall", 10, 1.0],
 	&"Booster": ["Booster", Upgrade.Category.PLACEABLES, 1, "One more Booster", 10, 1.0],
@@ -209,7 +209,7 @@ func _max_and_poor() -> void:
 		await _heard_settle()
 		paid.append(before - Progress.coins)
 		t.check(heard == [Sfx.BUY], "buying rank %d plays the buy cue once and nothing else (heard %s)" % [i + 1, heard])
-	t.check(paid == [2], "Paddle Speed's one rank costs 2 (paid %s)" % [paid])
+	t.check(paid == [5], "Paddle Speed's one rank costs 5 (paid %s)" % [paid])
 	t.check(_web().state(seed) == HubNode.State.MAXED and buy.disabled and buy.text == "MAXED", "after its one rank it is maxed and Buy reads MAXED")
 	t.check(not (_hub().get_node("Detail/%Cost") as Control).visible and (seed.get_node("Bottom/Max") as Control).visible, "the price is gone and the node says MAX")
 	var coins := Progress.coins

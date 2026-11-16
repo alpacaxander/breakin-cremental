@@ -7,9 +7,9 @@ const B := Upgrade.Category.BRICKS
 ## The sketched web (docs/design/upgrades.md): id -> [category, ranks, first cost, stat, amount, percent]. Every
 ## node has one rank (most at 10 coins) for now.
 const TABLE := {
-	&"paddle_speed": [A, 1, 2, &"paddle_speed", 1.0, true],
+	&"paddle_speed": [A, 1, 5, &"paddle_speed", 1.0, true],
 	&"paddle_size": [A, 1, 80, &"paddle_size", 0.4, true],
-	&"combo": [A, 1, 40, &"combo_rank", 1.0, false],
+	&"combo": [A, 1, 30, &"combo_rank", 1.0, false],
 	&"combo_window": [A, 1, 10, &"combo_rank", 1.0, false],
 	&"rear_paddle": [A, 1, 10, &"rear_paddle", 0.2, false],
 	&"booster": [P, 1, 10, &"booster_count", 1.0, false],
@@ -94,12 +94,12 @@ func _buy(t: Node) -> void:
 	t.check(not Progress.buy(u) and Progress.rank(u) == 0 and Progress.coins == 1 and heard.is_empty(), "buy refuses when the coins do not cover it")
 	Progress.coins = 200
 	heard.clear()
-	t.check(Progress.buy(u) and Progress.rank(u) == 1 and Progress.coins == 198, "buy takes 2 coins for Paddle Speed rank 1")
-	t.check(heard == [198, u], "buy emits coins_changed and rank_changed")
-	t.check(FileAccess.file_exists(Progress.path) and _saved().get("coins") == 198.0, "buy saves")
+	t.check(Progress.buy(u) and Progress.rank(u) == 1 and Progress.coins == 195, "buy takes 5 coins for Paddle Speed rank 1")
+	t.check(heard == [195, u], "buy emits coins_changed and rank_changed")
+	t.check(FileAccess.file_exists(Progress.path) and _saved().get("coins") == 195.0, "buy saves")
 	while Progress.buy(u):
 		pass
-	t.check(Progress.maxed(u) and Progress.rank(u) == 1 and Progress.coins == 198, "Paddle Speed tops out at rank 1")
+	t.check(Progress.maxed(u) and Progress.rank(u) == 1 and Progress.coins == 195, "Paddle Speed tops out at rank 1")
 	heard.clear()
 	t.check(not Progress.buy(u) and Progress.rank(u) == 1 and heard.is_empty(), "buy refuses at the top rank")
 	Progress.coins_changed.disconnect(on_coins)
