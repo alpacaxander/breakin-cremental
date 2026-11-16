@@ -51,7 +51,8 @@ extends RefCounted
 ##   The brick loses 1 hp.
 ##   If it has hp left: brick_hit is emitted.
 ##   If not: it is erased from the board. If combos are on (stats.combo_rank >= 1) the combo grows and
-##   combo_changed is emitted, so the break is paid at the multiplier it just reached. The tally and `coins`
+##   combo_changed is emitted; every brick in the combo is paid at the multiplier it has now reached, so a
+##   break that raises it pays the rise on the earlier ones too (Coins.total). The tally and `coins`
 ##   are updated. brick_broken is emitted. Then its kind's on_broken hook runs, then its mod's on_host_broken.
 ##   Hits a hook asks for (a blast, a Zap) go through hit_brick too, so chains need no special case.
 ##   # ponytail: a chain is a call inside a call, about three deep per link, and GDScript stops at 1024. That is

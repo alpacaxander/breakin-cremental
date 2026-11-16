@@ -1081,7 +1081,7 @@ func _combo() -> void:
 	break_next.call(round, 9)
 	t.check(round.combo.count == 0 and round.combo.multiplier == 1 and round.combo.window == 0.0 and not log.any(func(line: String) -> bool: return line.begins_with("combo")),
 			"at combo rank 0 there is no combo")
-	t.check(round.coins == 9 and round.tally.points == round.tally.broken and round.tally.best_combo == 0 and round.tally.best_multiplier == 1, "with combos off every brick pays once")
+	t.check(round.coins == 9 and round.tally.combos.is_empty() and round.tally.best_combo == 0 and round.tally.best_multiplier == 1, "with combos off every brick pays once")
 
 	var stats := _sealed(board, {&"combo_rank": 1, &"splitter_count": 1})
 	stats.ball_speed = 1.0  # the ball stays out of this
@@ -1094,20 +1094,22 @@ func _combo() -> void:
 	t.check(round.combo.count == 4 and round.combo.multiplier == 1, "the multiplier holds for combo_breaks_per_step breaks")
 	log.clear()
 	break_next.call(round, 1)
-	t.check(round.combo.multiplier == 2 and is_equal_approx(round.combo.window, stats.combo_window * stats.combo_window_shrink) and log[0] == "combo 5 2" and log[1].ends_with(" 2"),
-			"the break that raises the multiplier is paid at the new multiplier, and the window shrinks")
+	t.check(round.combo.multiplier == 2 and is_equal_approx(round.combo.window, stats.combo_window * stats.combo_window_shrink) and log[0] == "combo 5 2" and log[1].ends_with(" 6"),
+			"the break that raises the multiplier pays the rise on the whole combo (5 + 5 - 4), and the window shrinks")
 	break_next.call(round, 4)
-	t.check(round.combo.multiplier == 3 and is_equal_approx(round.combo.window, stats.combo_window * stats.combo_window_shrink ** 2) and round.coins == 4 + 8 + 3, "multiplier and window follow balance.tres")
+	t.check(round.combo.multiplier == 3 and is_equal_approx(round.combo.window, stats.combo_window * stats.combo_window_shrink ** 2) and round.coins == 9 * 3, "multiplier and window follow balance.tres, and the combo pays its 9 bricks x3")
 	_run(round, 1.0)
 	t.check(is_equal_approx(round.combo.time_left, round.combo.window - 1.0) and round.combo.count == 9, "the window counts down while nothing breaks")
 	round.hit_brick(Vector2i(10, 1), Round.Cause.BALL, Vector2.RIGHT)
-	t.check(round.combo.count == 10 and round.combo.time_left == round.combo.window and round.coins == 15, "a placed brick extends the combo and restarts its window, and pays nothing")
+	t.check(round.combo.count == 10 and round.combo.time_left == round.combo.window and round.coins == 27, "a placed brick extends the combo and restarts its window, and pays nothing")
 	log.clear()
 	_run(round, 1.5)
 	t.check(round.combo.count == 0 and round.combo.multiplier == 1 and round.combo.window == 0.0 and round.combo.time_left == 0.0 and log == ["combo 0 1"], "when the window runs out the combo resets, once")
 	t.check(round.tally.best_combo == 10 and round.tally.best_multiplier == 3, "the tally keeps the best combo and multiplier")
 	break_next.call(round, 1)
-	t.check(round.combo.count == 1 and round.combo.multiplier == 1 and round.coins == 16, "after a reset the next combo starts from 1")
+	t.check(round.combo.count == 1 and round.combo.multiplier == 1 and round.coins == 28, "after a reset the next combo starts from 1")
+	var first: Tally.Run = round.tally.combos[0] if round.tally.combos else null
+	t.check(round.tally.combos.size() == 2 and first.count == 10 and first.multiplier == 3 and first.worth == 9, "the tally lists each combo: its count, multiplier and the worth of its level bricks")
 	var combo := Combo.new()
 	for i in 200:
 		combo.add(stats)
@@ -1134,18 +1136,23 @@ func _coins() -> void:
 	var log := _events(round)
 	for cell: Vector2i in [Vector2i(10, 0), Vector2i(11, 0), Vector2i(11, 0), Vector2i(12, 0), Vector2i(20, 0), Vector2i(40, 3), Vector2i(30, 0), Vector2i(50, 6)]:
 		round.hit_brick(cell, Round.Cause.BALL, Vector2.RIGHT)
-	t.check(round.tally.broken == {&"": 3, &"gold": 1, &"hourglass": 1, &"explosive": 1} and round.tally.points == round.tally.broken and round.tally.placed_broken == 1,
+	t.check(round.tally.broken == {&"": 3, &"gold": 1, &"hourglass": 1, &"explosive": 1} and round.tally.combos.is_empty() and round.tally.placed_broken == 1,
 			"the tally counts bricks broken by kind, and placed bricks apart")
 	t.check(paid == [1, 1, 1, worth, 0, 1, 1] and round.coins == 5 + worth and Coins.total(round.tally, stats) == 5 + worth, "a brick pays 1, a gold brick its worth and a placed brick nothing")
 	t.check(round.time_left == stats.round_time + seconds and log.has("time %s %s" % [stats.round_time + seconds, seconds]), "an hourglass brick adds its seconds and says so")
 
 	var tally := Tally.new()
-	tally.points = {&"": 3, &"gold": 2, &"gone_kind": 1}
+	tally.broken = {&"": 3, &"gold": 2, &"gone_kind": 1}
+	var run := Tally.Run.new()
+	run.multiplier = 3
+	run.worth = 4
+	tally.combos.append(run)
 	stats.coins_per_brick = 0.5
-	t.check(Coins.total(tally, stats) == floori(0.5 * (3 + 2 * worth + 1)), "Coins.total is coins_per_brick times the points, a gold brick's counted by its worth, rounded down")
+	t.check(Coins.total(tally, stats) == floori(0.5 * (3 + 2 * worth + 1 + 4 * 2)),
+			"Coins.total is coins_per_brick times the bricks' worth, a gold brick's counted by its worth, plus each combo's worth times its multiplier - 1, rounded down")
 	t.check(Coins.total(Tally.new(), stats) == 0, "an empty tally pays nothing")
 
-	# With a combo running, a brick's points are the multiplier it broke at.
+	# A combo pays all its bricks at the multiplier it has reached.
 	var bricks := {FAR: SOLID}
 	for column in range(20, 30):
 		bricks[Vector2i(column, 6)] = 1
@@ -1156,8 +1163,8 @@ func _coins() -> void:
 	round.brick_broken.connect(func(_c: Vector2i, _b: Brick, _cause: Round.Cause, _d: Vector2, n: int) -> void: paid.append(n))
 	for column in range(20, 26):
 		round.hit_brick(Vector2i(column, 6), Round.Cause.BALL, Vector2.RIGHT)
-	t.check(round.tally.points == {&"": 4 + 2, &"gold": 2} and round.tally.broken == {&"": 5, &"gold": 1} and paid == [1, 1, 1, 1, 2 * worth, 2] and round.coins == 6 + 2 * worth,
-			"points add up the multiplier each brick broke at, so a gold brick at x2 pays twice its worth")
+	t.check(round.tally.broken == {&"": 5, &"gold": 1} and paid == [1, 1, 1, 1, 4 + 2 * worth, 2] and round.coins == 2 * (5 + worth),
+			"the gold brick that raises the combo to x2 pays twice its worth and the rise on the four before it, and all six are paid x2")
 
 
 # --- how a round ends ------------------------------------------------------------------------------------------

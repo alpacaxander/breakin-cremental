@@ -547,8 +547,11 @@ func _combo() -> void:
 			var count := i + 1
 			@warning_ignore("integer_division")
 			var mult := 1 + (count - 1) / 4
+			@warning_ignore("integer_division")
+			var was := 1 + maxi(count - 2, 0) / 4
 			var window := maxf(0.5, base_window * pow(0.9, mult - 1))
-			ok = ok and round.combo.count == count and round.combo.multiplier == mult and is_equal_approx(round.combo.window, window) and paid[i] == mult and events.back() == [count, mult]
+			# every brick in the combo is paid at its multiplier, so this break pays itself and the rise on the rest
+			ok = ok and round.combo.count == count and round.combo.multiplier == mult and is_equal_approx(round.combo.window, window) and paid[i] == count * mult - (count - 1) * was and events.back() == [count, mult]
 		if rank == 0.0:
 			t.check(events.is_empty() and round.coins == 30 and round.combo.count == 0 and round.tally.best_multiplier == 1, "at Combo rank 0 combos are off: no combo, every brick pays 1")
 			continue
@@ -694,7 +697,7 @@ func _fuzz_round(sd: int) -> void:
 		var want := mini(stats.count(k), pool)
 		pool -= want
 		_fail(rolled.get(k, 0) == want, "rank N of a special brick replaces N standard bricks, or as many as are left (upgrades.md)")
-	var m := {"left": left, "points": {}, "broken": {}, "placed": 0, "coins": 0, "count": 0, "mult": 1, "best": 0, "last": "", "added": 0.0,
+	var m := {"left": left, "base": 0, "run": 0, "done": 0, "was": 1, "broken": {}, "placed": 0, "coins": 0, "count": 0, "mult": 1, "best": 0, "last": "", "added": 0.0,
 			"splits": 0, "balls": {0: true}, "next": 1, "ended": 0, "after": 0, "expect": "", "new": []}
 	var cap := stats.boost_cap
 	var lane := spy.board.lane()
@@ -713,12 +716,15 @@ func _fuzz_round(sd: int) -> void:
 		_fail(stats.combo_rank >= 1.0, "combo_changed is not emitted while combos are off")
 		if n == 0:
 			_fail(mult == 1 and m.count > 0, "a reset is combo_changed(0, 1), only when a combo was running")
+			m.done += m.run * (m.mult - 1)
+			m.run = 0
 		else:
 			@warning_ignore("integer_division")
 			var want := 1 + (n - 1) / stats.combo_breaks_per_step
 			_fail(n == m.count + 1 and mult == want, "a break adds 1 to the combo; the multiplier is 1 + (count - 1) / 4 (balance.tres)")
 			m.best = maxi(m.best, n)
 		m.count = n
+		m.was = m.mult
 		m.mult = mult
 		m.last = "combo" if n > 0 else "reset")
 	spy.brick_broken.connect(func(c: Vector2i, brick: Brick, cause: Round.Cause, dir: Vector2, coins: int) -> void:
@@ -740,13 +746,13 @@ func _fuzz_round(sd: int) -> void:
 		else:
 			m.left -= 1
 			m.broken[brick.kind] = m.broken.get(brick.kind, 0) + 1
-			m.points[brick.kind] = m.points.get(brick.kind, 0) + mult
-		var sum := 0
-		for k: StringName in m.points:
-			sum += m.points[k] * (20 if k == &"gold" else 1)
-		var total := floori(stats.coins_per_brick * sum)
-		_fail(coins == total - m.coins and spy.coins == total, "each brick pays 1 x its multiplier, a gold brick 20, a placed brick nothing; `coins` is the running total (overview.md)")
-		_fail(not placed[c] or coins == 0, "a placed brick pays nothing (placeables.md)")
+			var w := 20 if brick.kind == &"gold" else 1
+			m.base += w
+			if stats.combo_rank >= 1.0:
+				m.run += w
+		var total := floori(stats.coins_per_brick * (m.base + m.done + m.run * (mult - 1)))
+		_fail(coins == total - m.coins and spy.coins == total, "each brick pays 1, a gold brick 20, a placed brick nothing, and a combo pays its bricks again times its multiplier - 1; `coins` is the running total (overview.md)")
+		_fail(not placed[c] or coins == 0 or (stats.combo_rank >= 1.0 and m.was < mult), "a placed brick pays nothing (placeables.md), unless it raises the combo's multiplier")
 		m.coins = total
 		_fail(absf(dir.length() - 1.0) < 1e-4, "brick_broken's dir is a unit vector")
 		match cause:
@@ -870,7 +876,7 @@ func _fuzz_round(sd: int) -> void:
 		spy.step(dt, spy.paddle.y + 100)
 	_fail(m.after == 0 and m.ended <= 1 and spy.balls.map(func(b: Ball) -> Vector2: return b.pos) == at, "after the end nothing moves and nothing is emitted")
 	# The tally against our count.
-	_fail(spy.tally.broken == m.broken and spy.tally.points == m.points and spy.tally.placed_broken == m.placed, "the tally counts the bricks broken by kind, and placed bricks apart")
+	_fail(spy.tally.broken == m.broken and spy.tally.placed_broken == m.placed, "the tally counts the bricks broken by kind, and placed bricks apart")
 	_fail(spy.tally.best_combo == m.best, "the tally keeps the best combo")
 	_fail(spy.coins == Coins.total(spy.tally, stats) and spy.coins == m.coins, "`coins` is what the tally pays")
 	# Round INPUTS: "the same four inputs and the same paddle targets always give the same round".
@@ -1134,8 +1140,9 @@ func _r2_end_order() -> void:
 	t.check(not round.over and round.board.bricks.size() == 1 and absf(round.time_left - 15.0) < 1e-9, "an hourglass broken in the last step adds its 15 s before the timer is read (Round ONE STEP 4): time %s, over %s" % [round.time_left, round.over])
 
 
-## One hit that breaks ten bricks: each pays at the multiplier its own break reached (Round ONE BRICK HIT,
-## overview.md "Coins"), gold 20 times that, the placed Splitter nothing, though it still counts in the combo.
+## One hit that breaks ten bricks: every brick in the combo is paid at the multiplier it has reached (Round ONE BRICK HIT,
+## overview.md "Coins"), so a break that raises it pays the rise on the earlier ones too; gold is worth 20, the placed
+## Splitter nothing, though it still counts in the combo.
 func _r2_chain_pay() -> void:
 	var bricks := {FAR: SOLID, Vector2i(20, 4): 1, Vector2i(20, 3): 1}
 	for x in range(17, 25):
@@ -1150,12 +1157,12 @@ func _r2_chain_pay() -> void:
 		round.brick_broken.connect(func(c: Vector2i, _b: Brick, _cause: Round.Cause, _d: Vector2, n: int) -> void: paid.append([c, n]))
 		round.hit_brick(Vector2i(20, 4), Round.Cause.BALL, Vector2.RIGHT)
 		var order := [Vector2i(20, 4), Vector2i(17, 4), Vector2i(18, 4), Vector2i(19, 4), Vector2i(20, 3), Vector2i(20, 5), Vector2i(21, 4), Vector2i(22, 4), Vector2i(23, 4), Vector2i(24, 4)]
-		var coins := [1, 1, 1, 1, 40, 0, 2, 2, 3, 3] if rank else [1, 1, 1, 1, 20, 0, 1, 1, 1, 1]
+		var coins := [1, 1, 1, 1, 44, 0, 2, 2, 29, 3] if rank else [1, 1, 1, 1, 20, 0, 1, 1, 1, 1]
 		var want := []
 		for i in order.size():
 			want.append([order[i], coins[i]])
 		t.check(paid == want, "combo rank %d: a blast's ten breaks pay %s, in blast order (overview.md 'Coins'): %s" % [rank, coins, paid])
-		var total := 54 if rank else 28
+		var total := 84 if rank else 28
 		t.check(round.coins == total and Coins.total(round.tally, round.stats) == total and round.tally.placed_broken == 1 and round.tally.broken == {&"explosive": 1, &"": 7, &"gold": 1},
 				"combo rank %d: the chain pays %d and the tally holds 7 standard, 1 explosive, 1 gold and 1 placed brick: %d %s" % [rank, total, round.coins, round.tally.broken])
 		if rank:

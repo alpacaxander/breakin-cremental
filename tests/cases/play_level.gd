@@ -311,12 +311,13 @@ func _check_summary(title: String) -> void:
 		var last := grid.get_child(i + 3)
 		rows[name_text] = [int((grid.get_child(i + 2) as Label).text), (last as UiPrice).amount if last is UiPrice else (last as Label).text if last is Label else ""]
 	var sum := 0
+	for price in grid.get_children():
+		if price is UiPrice:
+			sum += (price as UiPrice).amount  # the kinds and the combos
 	for id: StringName in round.tally.broken:
 		var kind := Kinds.of(id)
 		var row: Array = rows.get(kind.title if kind else "Bricks", [])
 		t.check(row.size() == 2 and row[0] == round.tally.broken[id], "a %s row counts %d" % [kind.title if kind else "Bricks", round.tally.broken[id]])
-		if row.size() == 2 and row[1] is int:
-			sum += row[1]
 	for item in round.layout.items:
 		var row: Array = rows.get("    %s hits" % item.kind.title, [])
 		t.check(rows.has("Placeables") and rows["Placeables"][1] == "" and row.size() == 2 and row[0] == round.tally.hits.get(item.kind.id, 0) and row[1] == "",

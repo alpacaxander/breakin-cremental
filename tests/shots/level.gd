@@ -1,7 +1,7 @@
 extends RefCounted
 ## The level screen in each state that matters: Setup on a fresh save and with everything unlocked and placed,
 ## a drag that fits and one that does not, an item held over the tray, Play early, mid-combo and on the zoomed level 3, and the Summary for
-## each of the three ends. Compare them with docs/art.md ("Level screen") and the level mockup.
+## each of the three ends and with several combos. Compare them with docs/art.md ("Level screen") and the level mockup.
 ##
 ## The mouse is pushed straight into Main's View, so a position here is a position in the 1280 x 720 frame
 ## whether the CRT curves the picture or not.
@@ -46,6 +46,7 @@ func shots() -> Array[Dictionary]:
 		{"name": "summary_cleared_crt_off", "save": "maxed", "crt": false, "setup": _end.bind(Round.End.CLEARED), "settle": 110},
 		{"name": "summary_time", "save": "mid", "crt": false, "setup": _end.bind(Round.End.TIME), "settle": 110},
 		{"name": "summary_ball_lost", "crt": false, "setup": _end.bind(Round.End.BALL_LOST), "settle": 110},
+		{"name": "summary_combos", "save": "maxed", "crt": false, "setup": _combos, "settle": 140},
 		{"name": "summary_counting", "save": "maxed", "crt": false, "setup": _end.bind(Round.End.CLEARED), "settle": 38, "frames": 4, "every": 8},
 	]
 
@@ -127,6 +128,22 @@ func _end(main: Main, how: Round.End) -> void:
 			round.time_left = 0.0
 		Round.End.BALL_LOST:
 			round.balls[0].put(Vector2(-20, 40), Vector2.LEFT)
+
+
+## Level 2 run out of time after seven combos, so the Summary lists the biggest as combo rows and folds the rest
+## into "more combos".
+func _combos(main: Main) -> void:
+	var level := await _play(main, 2, [], 30, 0)
+	var round: Round = level.get("round")
+	var cells := round.board.bricks.keys()
+	var next := 0
+	for size in [6, 11, 7, 9, 6, 8, 12]:
+		for i in size:
+			while round.board.brick(cells[next]):
+				round.hit_brick(cells[next], Round.Cause.BLAST, Vector2.RIGHT)
+			next += 1
+		round.combo.tick(100.0)  # the window runs out
+	round.time_left = 0.0
 
 
 func _mouse(main: Main, at: Vector2, press := false) -> void:

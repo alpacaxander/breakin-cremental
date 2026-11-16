@@ -4,13 +4,19 @@ extends RefCounted
 ## and the summary screen shows it.
 ##
 ## Keys are brick kind ids: &"" is a standard brick, &"gold" a gold brick, and so on. A brick the player placed
-## is never added to `broken` or `points`: it pays nothing.
+## is never added to `broken` or to a combo's worth: it pays nothing.
+
+## One combo: every brick broken in it is paid again at its multiplier (Coins.total).
+class Run:
+	var count := 0  ## Bricks broken in it, placed ones too
+	var multiplier := 1  ## The multiplier it reached
+	var worth := 0  ## The worth of its level bricks (Coins.worth); placed bricks add 0
 
 ## Bricks broken, by kind id.
 var broken: Dictionary[StringName, int] = {}
-## By kind id, the sum of the combo multiplier each of those bricks broke at. With combos off this equals
-## `broken`. Three standard bricks broken at x1, x1 and x2 give points[&""] = 4.
-var points: Dictionary[StringName, int] = {}
+## The round's combos in order; the last is the running one while the round's combo.count > 0. Empty while
+## combos are off.
+var combos: Array[Run] = []
 ## Placed bricks broken. They are counted here only.
 var placed_broken := 0
 ## Hits each kind of placeable took, by its id: a ball off a free item, any hit on a placed brick or on a brick
@@ -27,12 +33,20 @@ func hit(id: StringName) -> void:
 	hits[id] = hits.get(id, 0) + 1
 
 
-## Counts a brick that has just broken. `combo` is the round's combo, already grown by this break.
+## Counts a brick that has just broken. `combo` is the round's combo, already grown by this break (count 0 while
+## combos are off).
 func add(brick: Brick, combo: Combo) -> void:
 	best_combo = maxi(best_combo, combo.count)
 	best_multiplier = maxi(best_multiplier, combo.multiplier)
+	if combo.count > 0:
+		if combos.is_empty() or combo.count <= combos.back().count:  # a new combo (or one set up by hand)
+			combos.append(Run.new())
+		var run: Run = combos.back()
+		run.count = combo.count
+		run.multiplier = combo.multiplier
+		if not brick.placed:
+			run.worth += Coins.worth(brick.kind)
 	if brick.placed:
 		placed_broken += 1
 		return
 	broken[brick.kind] = broken.get(brick.kind, 0) + 1
-	points[brick.kind] = points.get(brick.kind, 0) + combo.multiplier

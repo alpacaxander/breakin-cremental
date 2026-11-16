@@ -1,8 +1,8 @@
 class_name LevelSummary
 extends Control
-## The Summary (docs/design/overview.md, "Level phases"): how the round ended, the tally by brick type, the best
-## combo, the coins it paid, and Retry (Next after a clear that has a level after it) and Upgrades. There is no
-## mockup; it is a panel over the arena in the language of the other screens, with the back button where Setup
+## The Summary (docs/design/overview.md, "Level phases"): how the round ended, the tally by brick type, each
+## combo's bonus, the best combo, the coins it paid, and Retry (Next after a clear that has a level after it) and
+## Upgrades. There is no mockup; it is a panel over the arena in the language of the other screens, with the back button where Setup
 ## has it.
 ##
 ## It appears a beat after the round ends, so the last hit is seen, then lists its rows one by one and counts
@@ -17,6 +17,7 @@ const ROW := 0.09  ## Seconds between rows
 const COUNT := 0.5  ## Seconds the coins take to count up
 const TICK := 0.05  ## The least time between two tally ticks while they count
 const WIDTH := 440.0
+const COMBO_ROWS := 3  ## The most rows the combos take
 
 var _tween: Tween
 var _coins: UiPrice
@@ -69,14 +70,10 @@ func open(round: Round, data: LevelData, unlocked: bool) -> void:
 	for id in ids:
 		if round.tally.broken.get(id, 0) > 0:
 			var kind := Kinds.of(id)
-			# ponytail: a row's coins are the formula run on that kind alone, so with a coins_per_brick that is
-			# not whole the rows can add up to one or two less than the total. Show the points instead if so.
-			var one := Tally.new()
-			one.points[id] = round.tally.points[id]
-			var paid := UiPrice.new()
-			paid.style = &"SmallTag"
-			paid.amount = Coins.total(one, round.stats)
-			rows.append(_row(grid, Palette.of(kind.colour) if kind else Palette.hp(1), kind.title if kind else "Bricks", str(round.tally.broken[id]), paid))
+			# ponytail: each row's coins are rounded on their own, so with a coins_per_brick that is not whole the
+			# rows can add up to a little less than the total. Show the points instead if so.
+			rows.append(_row(grid, Palette.of(kind.colour) if kind else Palette.hp(1), kind.title if kind else "Bricks", str(round.tally.broken[id]),
+					_price(Coins.pay(round.tally.broken[id] * Coins.worth(id), round.stats))))
 	# The placeables on the board: a heading, then one row per kind with the hits it took. They pay nothing.
 	var placed := {}
 	for item in round.layout.items:
@@ -86,6 +83,20 @@ func open(round: Round, data: LevelData, unlocked: bool) -> void:
 		for kind in Kinds.placeables():
 			if placed.has(kind.id):
 				rows.append(_row(grid, Palette.PLACEABLE, "    %s hits" % kind.title, str(round.tally.hits.get(kind.id, 0)), Control.new()))
+	# Each combo that reached a multiplier, in order, with the bricks in it and the bonus it added. Past
+	# COMBO_ROWS, the ones with the smallest bonus share one last row.
+	var runs := round.tally.combos.filter(func(r: Tally.Run) -> bool: return r.multiplier > 1)
+	var top := runs.duplicate()
+	top.sort_custom(func(a: Tally.Run, b: Tally.Run) -> bool: return Coins.bonus(a) > Coins.bonus(b))
+	top.resize(mini(top.size(), COMBO_ROWS if runs.size() <= COMBO_ROWS else COMBO_ROWS - 1))
+	var rest := 0
+	for run: Tally.Run in runs:
+		if run in top:
+			rows.append(_row(grid, Palette.COINS, "Combo ×%d" % run.multiplier, str(run.count), _price(Coins.pay(Coins.bonus(run), round.stats))))
+		else:
+			rest += Coins.bonus(run)
+	if runs.size() > top.size():
+		rows.append(_row(grid, Palette.COINS, "%d more combos" % (runs.size() - top.size()), "", _price(Coins.pay(rest, round.stats))))
 	if round.stats.combo_rank >= 1.0:
 		var times := Label.new()
 		times.theme_type_variation = &"SmallTag"
@@ -137,6 +148,13 @@ func close() -> void:
 		remove_child(child)
 		child.queue_free()  # not free(): Retry is one of them, and it is still emitting `pressed`
 	hide()
+
+
+func _price(amount: int) -> UiPrice:
+	var paid := UiPrice.new()
+	paid.style = &"SmallTag"
+	paid.amount = amount
+	return paid
 
 
 func _text(parent: Control, variation: StringName, text: String) -> Label:
