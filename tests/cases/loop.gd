@@ -117,7 +117,7 @@ func _walk() -> void:
 	_key(KEY_SPACE)
 	t.check(level.phase == PLAY and level.round.layout.items.size() == 1, "Space starts the round with the Splitter on the board")
 	var before := Progress.coins
-	await _play_out(level)
+	await _play_out(level, false)  # missed on purpose: a clear would offer Next, and Retry is tested below
 	t.check(level.phase == SUMMARY and Progress.coins == before + level.round.coins and _saved().coins == Progress.coins, "the second round is paid once and saved too")
 
 	# Retry with the keyboard: Setup again on a new round, the layout still there, and the old round let go.
@@ -166,15 +166,19 @@ func _walk() -> void:
 	t.check(play != null and (play.get_node("Hub/Bar/Coins") as UiPrice).amount == coins, "Play again opens the hub on that save")
 
 
-## Plays the round on screen to its end, as a player who keeps the mouse level with the ball, and waits for the
-## Summary's panel.
-func _play_out(level: Control) -> void:
+## Plays the round on screen to its end, as a player who keeps the mouse level with the ball (or, without
+## `follow`, at the arena's top edge), and waits for the Summary's panel.
+func _play_out(level: Control, follow := true) -> void:
 	Engine.time_scale = FAST
 	var round: Round = level.round
+	t.check(round.held, "Play waits with the ball on the paddle")
+	_mouse(LevelArena.ORIGIN + Vector2(200, 200), MOUSE_BUTTON_LEFT, true)
+	_mouse(LevelArena.ORIGIN + Vector2(200, 200), MOUSE_BUTTON_LEFT, false)
+	t.check(not round.held, "a click launches the ball")
 	var started := Time.get_ticks_msec()
 	while level.phase == PLAY and Time.get_ticks_msec() - started < 60000:
 		if not round.balls.is_empty():
-			_mouse(LevelArena.ORIGIN + Vector2(-40.0, round.balls[0].pos.y) * round.board.zoom())
+			_mouse(LevelArena.ORIGIN + Vector2(-40.0, round.balls[0].pos.y if follow else 0.0) * round.board.zoom())
 		await t.tree().physics_frame
 	var summary: Control = level.get_node("Summary")
 	while level.phase == SUMMARY and summary.find_child("Upgrades", true, false) and not (summary.find_child("Upgrades", true, false) as Control).is_visible_in_tree() \

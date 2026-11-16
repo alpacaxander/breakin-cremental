@@ -3,7 +3,7 @@ extends HBoxContainer
 ## The top bar of a screen that is not a level (art.md, "Upgrade screen"): 84 px tall at x 24 to 1256, with the
 ## back button and the screen's title on the left. The hub and Settings both use it, so the two sit in the same
 ## place. Connect `back.pressed`. Children a scene adds come after the title: give one size_flags_horizontal
-## EXPAND to push the rest to the right edge (the hub's hint and coin counter).
+## EXPAND to push the rest to the right edge (the hub's spacer before its coin counter).
 
 const RECT := Rect2(24, 0, 1232, 84)
 

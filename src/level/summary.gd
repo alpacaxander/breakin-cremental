@@ -76,18 +76,22 @@ func open(round: Round, data: LevelData, unlocked: bool) -> void:
 			var paid := UiPrice.new()
 			paid.style = &"SmallTag"
 			paid.amount = Coins.total(one, round.stats)
-			rows.append(_row(grid, Palette.of(kind.colour) if kind else Palette.hp(1), kind.title if kind else "Bricks", round.tally.broken[id], paid))
-	if round.tally.placed_broken > 0:
-		var nothing := Label.new()
-		nothing.theme_type_variation = &"Hint"
-		nothing.text = "pay nothing"
-		rows.append(_row(grid, Palette.PLACEABLE, "Placed bricks", round.tally.placed_broken, nothing))
+			rows.append(_row(grid, Palette.of(kind.colour) if kind else Palette.hp(1), kind.title if kind else "Bricks", str(round.tally.broken[id]), paid))
+	# The placeables on the board: a heading, then one row per kind with the hits it took. They pay nothing.
+	var placed := {}
+	for item in round.layout.items:
+		placed[item.kind.id] = true
+	if placed:
+		rows.append(_row(grid, Palette.PLACEABLE, "Placeables", "", Control.new()))
+		for kind in Kinds.placeables():
+			if placed.has(kind.id):
+				rows.append(_row(grid, Palette.PLACEABLE, "    %s hits" % kind.title, str(round.tally.hits.get(kind.id, 0)), Control.new()))
 	if round.stats.combo_rank >= 1.0:
 		var times := Label.new()
 		times.theme_type_variation = &"SmallTag"
 		times.text = "×%d" % round.tally.best_multiplier
 		UiTheme.light(times, Palette.COINS)
-		rows.append(_row(grid, Palette.COINS, "Best combo", round.tally.best_combo, times))
+		rows.append(_row(grid, Palette.COINS, "Best combo", str(round.tally.best_combo), times))
 
 	var total := HBoxContainer.new()
 	box.add_child(total)
@@ -144,13 +148,13 @@ func _text(parent: Control, variation: StringName, text: String) -> Label:
 
 
 # One line of the tally: a swatch, a name, a count and whatever stands in the last column. Returns its cells.
-func _row(grid: GridContainer, colour: Color, title: String, count: int, last: Control) -> Array:
+func _row(grid: GridContainer, colour: Color, title: String, count: String, last: Control) -> Array:
 	var name_label := Label.new()
 	name_label.text = title
 	name_label.size_flags_horizontal = SIZE_EXPAND_FILL
 	var number := Label.new()
 	number.theme_type_variation = &"Name"
-	number.text = str(count)
+	number.text = count
 	number.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	last.size_flags_horizontal = SIZE_SHRINK_END
 	last.custom_minimum_size.x = 96

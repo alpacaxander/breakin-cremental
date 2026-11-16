@@ -32,6 +32,7 @@ func _open(number: int) -> Control:
 func _play(main: Main, number: int, seed: int) -> void:
 	var level := _open(number)
 	level.call("start", seed)
+	(level.get("round") as Round).launch()
 	_follow(main, level, number)
 
 
@@ -54,6 +55,7 @@ func _follow(main: Main, level: Control, number: int) -> void:
 func _lose(main: Main, number: int) -> void:
 	var level := _open(number)
 	level.call("start", 5)
+	(level.get("round") as Round).launch()
 	var round: Round = level.get("round")
 	for i in 240:
 		if round.over:
@@ -110,11 +112,22 @@ func _drag(main: Main, number: int, slot: int, to: Vector2) -> void:
 		_mouse(main, from.lerp(to, (i + 1) / 4.0))
 
 
-## Level `number` with only levels up to `unlocked` open, played for a moment, then every brick broken.
+## Level `number` with only levels up to `unlocked` open, played for a moment, then every brick broken. Level 1
+## has a Bumper and a Booster placed, so its Summary shows the Placeables rows.
 func _clear(main: Main, number: int, unlocked: int) -> Control:
 	Progress.unlocked = unlocked
-	var level := _open(number)
+	Progress.layouts.erase(number)
+	if number == 1:
+		var layout := Layout.new()
+		for k: Array in [[&"bumper", Vector2(300, 150)], [&"booster", Vector2(300, 380)]]:
+			var item := Layout.Item.new()
+			item.kind = Kinds.of(k[0])
+			item.pos = k[1]
+			layout.add(item)
+		Progress.set_layout(1, layout)
+	var level := Main.show_level(number)
 	level.call("start", 7)
+	(level.get("round") as Round).launch()
 	for i in 20:
 		await main.get_tree().physics_frame
 	var round: Round = level.get("round")

@@ -45,7 +45,7 @@ Because the rules have no nodes, a round runs headless. Tests check the physics 
 - **Brick cells.** A brick always starts on an even grid row, so bricks are addressed by brick cell: `Vector2i(column, brick row)`, a 16 × 64 unit rectangle. Brick row `r` covers grid rows `2r` and `2r + 1`. Every `cell` in a signal, a hook or a saved layout is a brick cell.
 - **A row**, for a Zap, is every brick cell with the same brick row.
 - **Smallest level.** The lane is 58 screen pixels at every size, but the paddle and the ball keep their size in units. With the numbers in `balance.tres` a ball fits between the paddle's face and the grid from 14 rows up (see [levels.md](design/levels.md#arena-size)); `tests/cases/contracts.gd` checks it for every level.
-- **Launch path.** `Round.launch_path(board, stats)` is the rectangle the first ball covers before it touches the paddle: its square at rest and the strip from there straight left to the paddle's face. `Layout.fits` refuses a free-form item or a placeable brick that overlaps it or comes within `Layout.CLEAR` (0.02 units) of it from above or below, so the launch always reaches the paddle; an item may still touch the right side of the ball. A level must not paint a brick there, and `tests/cases/contracts.gd` checks that for every level.
+- **Launch path.** `Round.launch_path(board, stats)` is the rectangle the first ball covers before it touches the paddle: its square at rest and the strip from there straight left to the paddle's face. `Layout.fits` refuses a free-form item or a placeable brick that overlaps it or comes within `Layout.CLEAR` (0.02 units) of it from above or below, and an item may still touch the right side of that square. A level must not paint a brick there, and `tests/cases/contracts.gd` checks that for every level. The game no longer launches along it. `Level` calls `Round.hold()`, which keeps the first ball on the paddle's face until `Round.launch()` sends it off at a random angle within ±`Round.LAUNCH_ANGLE` (45°). The ball at rest and its path stay for the rules tests, which build rounds without `hold()` (see the `ponytail:` comment on `hold()`).
 - **A blast** reaches `blast_size × 64` units out from the edges of the brick that exploded, and hits every brick whose cell overlaps that rectangle. At the base size that is 4 columns to each side and 1 brick row above and below.
 
 ### Signals
@@ -141,7 +141,7 @@ Main                         never unloaded (src/main.tscn)
 │   ├─ Screen                holds MainMenu, Settings or Play; carries the theme
 │   │   └─ Play              src/play.tscn
 │   │       ├─ Hub           src/hub/hub.tscn; kept while a level is open
-│   │       │   ├─ Bar       UiTopBar: back, title, a hint, the coin counter
+│   │       │   ├─ Bar       UiTopBar: back, title, the coin counter
 │   │       │   ├─ Web       web.tscn: one upgrade_node.tscn per upgrade, with its cell and its links
 │   │       │   ├─ Detail    detail_panel.tscn: the selected node, and Buy
 │   │       │   └─ Levels    level_panel.tscn: the level picker, its thumbnail, Play Level

@@ -44,6 +44,7 @@ func _play(number: int) -> void:
 	level.start(7)
 	fx = level.fx
 	round = level.round
+	round.launch()
 	await t.tree().process_frame
 
 

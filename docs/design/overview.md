@@ -66,7 +66,7 @@ Nothing else about a level in progress is saved. Settings are stored separately 
 - Coins are calculated from the round's tally: the number and type of bricks broken, and the combos.
 - The tally pays out however the run ends, so a ball drop or a timeout still pays for everything broken so far.
 - The HUD shows the running coin total during Play.
-- Bricks the player placed pay nothing.
+- Bricks the player placed pay nothing. The Summary leaves them out. Instead it counts, for each kind of placeable on the board, how many times the ball hit one: touching a free item, hitting a placed brick, or hitting a brick that carries a mod.
 - The formula is not decided yet. Until then, each brick pays 1 coin, multiplied by the combo multiplier at the moment it broke. A gold brick counts as 20 bricks.
 
 ## Replaying levels

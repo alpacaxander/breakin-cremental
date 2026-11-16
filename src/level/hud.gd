@@ -19,8 +19,11 @@ const FOOTER := Rect2(96, 644, 1088, 56)
 const SWATCH := Vector2(6, 22)  ## A legend swatch
 const STEP_PULSE := 1.5  ## How far the multiplier swells when it steps up
 
+const LAUNCH_HINT := "Click, or press Space, to launch the ball\nThe mouse, W / S or the arrow keys move the paddle"
+
 var _round: Round
 var _playing := false
+var _combos := false
 var _bricks := 0  ## Level bricks on the board when Play began
 var _time_was := 0.0  ## What the round's clock, combo and multiplier were a frame ago
 var _count_was := 0
@@ -94,17 +97,15 @@ func show_round(round: Round, data: LevelData, setup: bool, footer: bool) -> voi
 	_count_was = 0
 	_times_was = 1
 	_coins.amount = round.coins
-	var combos := round.stats.combo_rank >= 1.0
-	for c: Control in [_setup_title, _hint]:
-		c.visible = setup
-	for c: Control in [_combo_tag, _combo, _combo_bar, _multiplier]:
-		c.visible = not setup and combos
+	_combos = round.stats.combo_rank >= 1.0
+	_setup_title.visible = setup
 	_footer.visible = footer
 	# The hint names only what this tray can do: turning waits for an item that turns (the Wall Segment).
 	var tray := Kinds.placeables().filter(func(k: PlaceableKind) -> bool: return round.stats.count(k.id) > 0)
 	var turns := tray.any(func(k: PlaceableKind) -> bool: return k.rotatable)
-	_hint.text = "Press Start, or Space, to launch the ball\nW / S or the arrow keys move the paddle" if tray.is_empty() \
+	_hint.text = LAUNCH_HINT if not setup else "Press Start, or Space, to begin\nW / S or the arrow keys move the paddle" if tray.is_empty() \
 			else "Drag items onto the board, then press Start\n" + ("Q / E or the wheel turns one  ·  right-click removes one" if turns else "Right-click removes one")
+	_waiting()
 	if setup or not footer:
 		return
 	_bricks = round.board.remaining()
@@ -130,9 +131,19 @@ func show_round(round: Round, data: LevelData, setup: bool, footer: bool) -> voi
 			_entry(Palette.of(kind.colour), kind.title.trim_suffix(" Brick").to_upper())
 
 
+## Setup's hint, or Play's launch hint in the combo's place while the ball waits on the paddle.
+func _waiting() -> void:
+	var waiting := _playing and _round.held and not _round.over
+	_hint.visible = not _playing or waiting
+	for c: Control in [_combo_tag, _combo, _combo_bar, _multiplier]:
+		c.visible = _playing and _combos and not waiting
+
+
 func _process(_delta: float) -> void:
 	if _round == null:
 		return
+	if _hint.visible and _playing:
+		_waiting()
 	_time.text = "%.1f" % _round.time_left
 	_time_bar.value = _round.time_left / _round.stats.round_time
 	# The warning is the bar turning red; the number stays green, because red is never a number (palette.md).

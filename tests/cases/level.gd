@@ -179,13 +179,12 @@ func _paddle() -> void:
 	await _steps(12)
 	Input.action_release(&"paddle_down")
 	var setup_y := setup_round.paddle.y
-	t.check(setup_y > setup_round.board.size().y * 0.5 and setup_round.balls[0].pos == rest and level.round == setup_round,
-			"in Setup a key moves the paddle and the ball stays at rest")
-	t.check(is_equal_approx(rest.x - setup_round.paddle.x - setup_round.stats.ball_size * 0.5, Board.BRICK.x * 8.0),
-			"the ball rests 8 bricks from the paddle's face")
+	rest = setup_round.balls[0].pos
+	t.check(setup_y > setup_round.board.size().y * 0.5 and rest == Vector2(setup_round.paddle.x + setup_round.stats.ball_size * 0.5, setup_y) and level.round == setup_round,
+			"in Setup a key moves the paddle and the ball rides on its face")
 	level.start()
 	var round: Round = level.round
-	t.check(round.paddle.y == setup_y and round.balls[0].pos == rest, "Start keeps the paddle where Setup left it, and the ball where it rested")
+	t.check(round.paddle.y == setup_y and round.balls[0].pos == rest and round.held, "Start keeps the paddle where Setup left it, with the ball held on it")
 	t.check(level.phase == PLAY and round != setup_round and _specials(round) == shown, "start() goes to Play on a new round with the special bricks Setup showed")
 	t.check(round.layout.items.size() == 4 and round.ball_bounced.is_connected(Sfx._on_ball_bounced) and round.ended.get_connections().size() >= 2,
 			"start() is complete when it returns: the round has the layout, and the sound and the screen are listening")
@@ -241,6 +240,7 @@ func _paddle() -> void:
 	_key(KEY_ESCAPE)
 	await _steps(2)
 	t.check(is_instance_valid(level) and level.phase == PLAY and not (main.screen.get_child(0) as Play)._hub.visible, "Esc does nothing during Play")
+	round.launch()
 	var left := round.time_left
 	level.fx.frozen = true
 	level._physics_process(1.0 / 120.0)
@@ -284,6 +284,7 @@ func _ends() -> void:
 	# The timer running out. Start is pressed this time.
 	(level.get_node("SetupUi").find_child("Start", true, false) as Button).pressed.emit()
 	round = level.round
+	round.launch()
 	t.check(level.phase == PLAY, "the Start button starts the round")
 	coins = Progress.coins
 	paid[0] = 0

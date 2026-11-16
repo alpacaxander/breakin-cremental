@@ -46,6 +46,35 @@ func run(p_t: Node) -> void:
 	_coins()
 	_ends()
 	_timing()
+	_launch()
+
+
+## Round.hold and Round.launch: the ball rides on the paddle and nothing else moves, then leaves within
+## LAUNCH_ANGLE of level, the same way for the same seed.
+func _launch() -> void:
+	var stats := _stats()
+	var round := Round.new(_board(), null, stats, 1)
+	round.hold()
+	for i in 10:
+		round.step(0.05, INF)
+	var ball := round.balls[0]
+	t.check(round.held and ball.pos == Vector2(round.paddle.x + stats.ball_size * 0.5, round.paddle.y) and round.paddle.y > 256.0
+			and round.time_left == stats.round_time, "a held ball rides on the paddle's face as it moves, and the clock waits")
+	var angles := []
+	for seed in 200:
+		var r := Round.new(_board(), null, stats, seed)
+		r.hold()
+		r.launch()
+		angles.append(rad_to_deg(r.balls[0].dir.angle()))
+	t.check(angles.all(func(a: float) -> bool: return absf(a) <= Round.LAUNCH_ANGLE + 0.001 and absf(a) >= stats.min_angle_horizontal - 0.001)
+			and angles.min() < -30.0 and angles.max() > 30.0, "the launch goes toward the board within 45 degrees of level either way, minimum angle kept")
+	var dirs := []
+	for i in 2:
+		var r := Round.new(_board(), null, stats, 7)
+		r.hold()
+		r.launch()
+		dirs.append(r.balls[0].dir)
+	t.check(dirs[0] == dirs[1], "the same seed launches the same way")
 
 
 # --- helpers ---------------------------------------------------------------------------------------------------
@@ -876,6 +905,7 @@ func _placeables() -> void:
 	t.check(round.balls.size() == 2 and round.balls[1].id == 1 and log.count("added 1 %s" % var_to_str(Vector2(394, 220))) == 1, "a ball that breaks a Splitter splits in two, there")
 	t.check(ball.dir == Vector2(-coming.x, coming.y) and round.balls[1].dir == coming, "off the Splitter's face one bounces back and the other carries on through")
 	t.check(round.coins == 0 and round.tally.placed_broken == 1 and round.tally.broken.is_empty(), "a Splitter pays nothing and is counted as a placed brick")
+	t.check(round.tally.hits == {&"splitter": 1}, "the tally counts the hit the Splitter took")
 	for cause: Round.Cause in [Round.Cause.BLAST, Round.Cause.ZAP]:
 		round = Round.new(board, _layout([_item(&"splitter", Vector2i(25, 3))]), stats, 1)
 		round.hit_brick(Vector2i(25, 3), cause, Vector2.RIGHT)

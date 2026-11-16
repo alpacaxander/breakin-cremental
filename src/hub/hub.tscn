@@ -19,12 +19,10 @@ layout_mode = 0
 script = ExtResource("2")
 title = "UPGRADES"
 
-[node name="Hint" type="Label" parent="Bar"]
+[node name="Spacer" type="Control" parent="Bar"]
 layout_mode = 2
 size_flags_horizontal = 3
-size_flags_vertical = 4
-theme_type_variation = &"Tag"
-text = "BUY A NODE TO UNLOCK ITS NEIGHBOURS"
+mouse_filter = 2
 
 [node name="Coins" type="HBoxContainer" parent="Bar"]
 layout_mode = 2

@@ -13,10 +13,18 @@ var broken: Dictionary[StringName, int] = {}
 var points: Dictionary[StringName, int] = {}
 ## Placed bricks broken. They are counted here only.
 var placed_broken := 0
+## Hits each kind of placeable took, by its id: a ball off a free item, any hit on a placed brick or on a brick
+## that carries a mod. Pays nothing; the Summary shows it.
+var hits: Dictionary[StringName, int] = {}
 ## The highest combo count the round reached.
 var best_combo := 0
 ## The highest multiplier the round reached. 1 if combos are off.
 var best_multiplier := 1
+
+
+## Counts one hit on a placeable of kind `id`.
+func hit(id: StringName) -> void:
+	hits[id] = hits.get(id, 0) + 1
 
 
 ## Counts a brick that has just broken. `combo` is the round's combo, already grown by this break.

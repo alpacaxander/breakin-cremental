@@ -227,6 +227,8 @@ func _set_ranks(spec: String) -> void:
 ## With `trace`, prints every bounce, hit and loss with the time, the ball and the paddle.
 func _play(level: int, layout: Layout, stats: Balance, skill: String, seed: int, trace := false) -> Dictionary:
 	var round := Round.new(_board(level), layout, stats, seed)
+	round.hold()  # the game's launch: off the centred paddle at a random angle
+	round.launch()
 	var numbers: Dictionary = SKILLS[skill].duplicate()
 	for key: String in numbers:  # reaction=, aim= and steer= on the command line override the skill's own
 		numbers[key] = float(_args.get(key, numbers[key]))

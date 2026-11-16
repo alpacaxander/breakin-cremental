@@ -107,6 +107,8 @@ const WEDGED := 8
 ## Seconds on the timer that count as none (see ONE STEP, 4). Far above what rounding leaves behind (3e-9 after
 ## two minutes at 10000 steps a second, 1e-11 in a real round) and far below any step.
 const TIME_SLOP := 1e-6
+## The launch leaves at most this many degrees above or below level: a 90 degree spread.
+const LAUNCH_ANGLE := 45.0
 
 ## A brick took a hit and is still there. `hp_left` is its hp after the hit; board.brick(cell) is the brick.
 signal brick_hit(cell: Vector2i, hp_left: int, cause: Cause)
@@ -166,6 +168,8 @@ var coins := 0
 var over := false
 ## Why it ended. Only meaningful when `over` is true.
 var reason: End
+## True while the first ball sits on the paddle waiting for launch() (see hold()).
+var held := false
 
 # The FREE items as the sweep sees them (Collide.Solid), in layout order.
 # ponytail: grown for a ball of stats.ball_size. Every ball is that size; if one ever is not, grow per size.
@@ -219,6 +223,31 @@ static func launch_path(p_board: Board, p_stats: Balance) -> Rect2:
 	return Rect2(paddle_face(p_board, p_stats), (p_board.size().y - p_stats.ball_size) * 0.5, p_stats.launch_gap + p_stats.ball_size, p_stats.ball_size)
 
 
+## Puts the first ball on the paddle's face, where it rides with the paddle until launch(). While it is held,
+## step() moves the paddle and nothing else: no timer, no combo. The level screen holds every round it builds;
+## the bot holds and launches at once.
+# ponytail: opt-in, so the rules tests' ball at rest (launch_gap, launch_path) still works. Once nothing
+# builds an unheld round, make it the constructor's default and drop launch_gap and launch_path.
+func hold() -> void:
+	held = true
+	_glue()
+
+
+## Sends the held ball off the paddle toward the board, up to LAUNCH_ANGLE above or below level, at random
+## (rng, so a seed gives the same launch), then the minimum angles. Does nothing if no ball is held.
+func launch() -> void:
+	if not held or balls.is_empty():
+		return
+	held = false
+	var dir := Vector2.RIGHT.rotated(deg_to_rad(rng.randf_range(-LAUNCH_ANGLE, LAUNCH_ANGLE)))
+	balls[0].put(balls[0].pos, _legal(dir, Vector2.RIGHT))
+
+
+func _glue() -> void:
+	if held and not balls.is_empty():
+		balls[0].put(Vector2(paddle.x + balls[0].size * 0.5, paddle.y), Vector2.RIGHT)
+
+
 ## Advances the round by `delta` seconds. The level screen calls this from _physics_process; to freeze the game
 ## it skips the call. `paddle_target` is where the paddle's centre should go along y, in units: the mouse's y, or
 ## -INF / INF while a key is held, or paddle.y to stay.
@@ -226,11 +255,12 @@ func step(delta: float, paddle_target: float) -> void:
 	if over:
 		return
 	move_paddle(delta, paddle_target)
-	for ball in balls.duplicate():  # a copy: a Splitter adds to `balls` and a lost ball leaves it
-		_move(ball, delta)
-	if combo.tick(delta):
-		combo_changed.emit(0, 1)
-	time_left -= delta
+	if not held:
+		for ball in balls.duplicate():  # a copy: a Splitter adds to `balls` and a lost ball leaves it
+			_move(ball, delta)
+		if combo.tick(delta):
+			combo_changed.emit(0, 1)
+		time_left -= delta
 	if time_left < TIME_SLOP:
 		time_left = 0.0
 	if _left == 0:
@@ -246,6 +276,7 @@ func step(delta: float, paddle_target: float) -> void:
 func move_paddle(delta: float, paddle_target: float) -> void:
 	var half := minf(paddle.length, board.size().y) * 0.5
 	paddle.y = clampf(move_toward(paddle.y, paddle_target, stats.paddle_speed * delta), half, board.size().y - half)
+	_glue()
 
 
 ## A ball's speed in units per second: stats.ball_speed * ball.boost.
@@ -260,6 +291,10 @@ func hit_brick(cell: Vector2i, cause: Cause, dir: Vector2, ball: Ball = null) ->
 	var brick := board.brick(cell)
 	if brick == null:
 		return
+	if brick.placed:
+		tally.hit(brick.kind)
+	if brick.mod:
+		tally.hit(brick.mod)
 	brick.hp -= 1
 	if brick.hp > 0:
 		brick_hit.emit(cell, brick.hp, cause)
@@ -424,6 +459,7 @@ func _bounce(ball: Ball, hit: Hit) -> void:
 		Hit.Surface.BRICK:
 			hit_brick(hit.cell, Cause.BALL, was, ball)
 		Hit.Surface.ITEM:
+			tally.hit(hit.item.kind.id)
 			hit.item.kind.on_ball_hit(self, ball, hit)
 			ball_bounced.emit(ball, hit)
 		_:

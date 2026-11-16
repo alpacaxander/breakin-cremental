@@ -56,7 +56,7 @@ func _fresh() -> void:
 	hud._process(0.0)
 	t.check(hud._time.text == "20.0" and hud._time_tag.text == "TIME" and hud._coins.amount == 0 and hud._setup_title.visible,
 			"fresh Setup: TIME 20.0, SETUP, 0 coins")
-	t.check(round.balls[0].pos.x - (round.paddle.x) > 40.0, "the ball rests to the right of the paddle")
+	t.check(round.balls[0].pos == Vector2(round.paddle.x + round.stats.ball_size * 0.5, round.paddle.y), "the ball sits on the paddle's face")
 
 	_key(KEY_SPACE)
 	t.check(level.phase == PLAY, "Space starts the round")
@@ -82,6 +82,11 @@ func _fresh() -> void:
 	_hold(KEY_W, false)
 	await _steps(4)
 	t.check(round.paddle.y == y, "let go, it stops at once")
+	t.check(round.held and round.balls[0].pos.y == round.paddle.y and round.time_left == round.stats.round_time and hud._hint.visible,
+			"until the launch the ball rides on the paddle, the clock waits and the hint says how to launch")
+	_key(KEY_SPACE)
+	hud._process(0.0)
+	t.check(not round.held and round.balls[0].dir.x > 0.0 and not hud._hint.visible, "Space launches the ball toward the board, and the hint goes")
 
 	# Nothing on screen answers during Play.
 	var start := level.get_node("SetupUi").find_child("Start", true, false) as Control
@@ -225,6 +230,7 @@ func _clear_1() -> void:
 	var specials := _specials(level.round)
 	(level.get_node("SetupUi").find_child("Start", true, false) as Button).pressed.emit()
 	var round: Round = level.round
+	round.launch()
 	t.check(level.phase == PLAY and round.layout.items.size() == 14 and _specials(round) == specials, "Start plays the board Setup showed")
 	await _follow(30)
 	for cell: Vector2i in round.board.bricks.keys():
@@ -261,6 +267,7 @@ func _level_3() -> void:
 	# bot (tests/run.sh bot) is the tool for it.
 	_key(KEY_SPACE)
 	var round: Round = level.round
+	round.launch()
 	round.time_left = 0.5
 	await _follow(120)
 	t.check(round.reason == Round.End.TIME, "the clock running out ends the round: TIME UP")
@@ -305,7 +312,7 @@ func _check_summary(title: String) -> void:
 	for i in range(0, grid.get_child_count(), 4):
 		var name_text := (grid.get_child(i + 1) as Label).text
 		var last := grid.get_child(i + 3)
-		rows[name_text] = [int((grid.get_child(i + 2) as Label).text), (last as UiPrice).amount if last is UiPrice else (last as Label).text]
+		rows[name_text] = [int((grid.get_child(i + 2) as Label).text), (last as UiPrice).amount if last is UiPrice else (last as Label).text if last is Label else ""]
 	var sum := 0
 	for id: StringName in round.tally.broken:
 		var kind := Kinds.of(id)
@@ -313,8 +320,10 @@ func _check_summary(title: String) -> void:
 		t.check(row.size() == 2 and row[0] == round.tally.broken[id], "a %s row counts %d" % [kind.title if kind else "Bricks", round.tally.broken[id]])
 		if row.size() == 2 and row[1] is int:
 			sum += row[1]
-	if round.tally.placed_broken:
-		t.check(rows.get("Placed bricks", [0])[0] == round.tally.placed_broken, "a Placed bricks row counts them")
+	for item in round.layout.items:
+		var row: Array = rows.get("    %s hits" % item.kind.title, [])
+		t.check(rows.has("Placeables") and rows["Placeables"][1] == "" and row.size() == 2 and row[0] == round.tally.hits.get(item.kind.id, 0) and row[1] == "",
+				"under Placeables, a %s row counts its hits, with nothing in the coin column" % item.kind.title)
 	var total := summary.find_children("*", "UiPrice", true, false).filter(func(p: UiPrice) -> bool: return p.style == &"HudNumber")
 	t.check(total.size() == 1 and total[0].amount == round.coins and sum == round.coins, "the rows add up to the total, which is the round's coins (%d, %d, %d)" % [sum, total[0].amount if total else -1, round.coins])
 	var first := "Next" if round.reason == Round.End.CLEARED and level.level < Progress.level_count else "Retry"
@@ -383,7 +392,7 @@ func _until_summary(frames: int) -> void:
 ## The Summary's panel is up and its rows are counted. Ten times the speed, so the wait is 0.2 s.
 func _summary_shown() -> void:
 	Engine.time_scale = 10.0
-	await t.tree().create_timer(LevelSummary.DELAY + 1.5).timeout
+	await t.tree().create_timer(LevelSummary.DELAY + 3.0).timeout  # the rows (one per placeable kind too) and the count
 	Engine.time_scale = 1.0
 
 

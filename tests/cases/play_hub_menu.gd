@@ -90,8 +90,7 @@ func _menu_into_hub() -> void:
 	await _frames(2)
 	t.check(_hub().is_visible_in_tree(), "Esc in that Setup opens the hub")
 	t.check(_hub().selected == _web().seed_node(), "the hub opens with the seed selected, the one thing a new player can buy")
-	var hint := _hub().get_node("Bar/Hint") as Label
-	t.check(hint.text == "BUY A NODE TO UNLOCK ITS NEIGHBOURS", "the top bar says what the web is for")
+	t.check(not _hub().has_node("Bar/Hint"), "the top bar has no hint line")
 	for c: Control in _screen().find_children("*", "Control", true, false):
 		t.check(c.tooltip_text == "", "%s has no tooltip (main.gd: a tooltip costs a key press)" % c.name)
 	var bar := _hub().get_node("Bar") as Control

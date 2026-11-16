@@ -61,6 +61,7 @@ The main menu, Settings and the Summary have no mockup. They are described below
 - **Low timer.** At the low-timer mark the bar turns red. The number stays green: red is never a number.
 - **Coins** are the coins of the round on screen, so 0 in Setup. The balance is on the upgrade screen.
 - **In Setup** the centre column is SETUP in lit cyan over two hint lines in secondary text: how to place and remove once a placeable is unlocked, and how to turn once one that turns is (the Wall Segment); otherwise how to start and how to move the paddle. The time label reads "TIME", as in Play.
+- **Waiting to launch.** In Play, while the ball sits on the paddle, the combo column gives way to two hint lines: how to launch (a click or Space) and how to move the paddle. They go when the ball leaves.
 
 ### Setup
 
@@ -76,7 +77,7 @@ A panel 440 px wide, centred over the arena, which stays as the round left it. I
 - a tag with the level's number and name
 - how the round ended in 56 px Jersey 10: LEVEL CLEARED in lit cyan, TIME UP or BALL LOST in primary text
 - a hint line: the bricks left, "Every brick broken", or the level that was just unlocked
-- the tally, one row for each kind of brick broken: a 6 × 18 swatch, the name, the count, and what the row paid as a small gold price. Placed bricks get a row that says "pay nothing". With combos bought, a last row gives the best combo and its multiplier. Rows appear one by one, each with a tally tick
+- the tally, one row for each kind of brick broken: a 6 × 18 swatch, the name, the count, and what the row paid as a small gold price. With items placed, a "Placeables" row with no count or price follows. Under it is one indented row for each kind of placeable on the board, "<name> hits", giving how many times the ball hit one, with no price. Placed bricks that were broken are not listed. With combos bought, a last row gives the best combo and its multiplier. Rows appear one by one, each with a tally tick
 - COINS and the round's total in 68 px gold, counting up
 - Retry and Upgrades, as a selection (see "UI pieces"): the selected one is primary, the other secondary. After a clear with a level after it, Next stands in Retry's place. The selection starts on Retry or Next, so Space or Enter retries or goes on
 
@@ -163,7 +164,7 @@ At most 600 squares are alive at once, and one frame's breaks share 240 new ones
 
 ## Upgrade screen
 
-**Layout:** a top bar 84 px tall with a back button (to the main menu) and the title on the left, the tag "BUY A NODE TO UNLOCK ITS NEIGHBOURS" after it, and coins on the right. Below it, the web view at (24, 88), 864 × 608. On the right, the detail panel at (904, 88), 352 × 284, and the level panel at (904, 388), 352 × 308.
+**Layout:** a top bar 84 px tall with a back button (to the main menu) and the title on the left and coins on the right. Below it, the web view at (24, 88), 864 × 608. On the right, the detail panel at (904, 88), 352 × 284, and the level panel at (904, 388), 352 × 308.
 
 **Web view:**
 - **Frame:** a 2 px `2a2f4e` border over a dot grid of 3 px dots every 24 px, also in `2a2f4e`.
