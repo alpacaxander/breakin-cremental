@@ -80,7 +80,7 @@ func _walk() -> void:
 	await t.tree().process_frame
 	t.check(_screen() == play and hub.is_visible_in_tree() and not is_instance_valid(level), "Upgrades goes back to the hub and the level is gone")
 	t.check(counter.amount == Progress.coins, "the hub shows the coins the round paid")
-	for node_name: String in ["PaddleSpeed", "Splitter"]:
+	for node_name: String in ["PaddleSpeed", "Combo", "Splitter"]:
 		var node: HubNode = web.get_node(node_name)
 		await _click(node)
 		t.check(hub.selected == node, "clicking %s selects it" % node_name)
@@ -93,7 +93,7 @@ func _walk() -> void:
 		await t.tree().create_timer(0.15).timeout
 		t.check(Progress.rank(node.upgrade) == 1 and Progress.coins == earned and heard.has(Sfx.BUY), "Buy buys a rank of %s for its price" % node_name)
 		t.check(int(_saved().ranks.get(String(node.upgrade.id), 0)) == 1 and _saved().coins == earned, "and the purchase is in the save")
-	t.check(web.state(web.get_node("Combo")) == HubNode.State.AVAILABLE and web.state(web.get_node("Bumper")) == HubNode.State.LOCKED, "buying opens the next ring and no more")
+	t.check(web.state(web.get_node("SplitterSplits")) == HubNode.State.AVAILABLE and web.state(web.get_node("SplitterHealth")) == HubNode.State.LOCKED, "buying opens the next ring and no more")
 
 	# The level again: place the Splitter, start with Space, play it out.
 	await _click(levels.get_node("%Play"))

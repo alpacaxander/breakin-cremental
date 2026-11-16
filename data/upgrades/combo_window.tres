@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="Upgrade" format=3]
+
+[ext_resource type="Script" path="res://src/content/upgrade.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+title = "Combo Window"
+category = 0
+text = "Combos last longer: 1 s more to break the next brick."
+first_cost = 10
+max_rank = 1
+stat = &"combo_rank"
+amount = 1.0

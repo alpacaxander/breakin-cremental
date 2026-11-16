@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="Upgrade" format=3]
+
+[ext_resource type="Script" path="res://src/content/upgrade.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+title = "Zap Range"
+category = 1
+text = "A Zap reaches 2 more bricks each way."
+first_cost = 10
+max_rank = 1
+stat = &"zap_range"
+amount = 2.0

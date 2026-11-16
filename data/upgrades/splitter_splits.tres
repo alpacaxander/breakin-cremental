@@ -4,11 +4,10 @@
 
 [resource]
 script = ExtResource("1")
-title = "Bumper"
+title = "Splitter Splits"
 category = 1
-text = "One more Bumper. A diamond you place anywhere: the ball bounces off its faces."
-first_cost = 20
-growth = 8.0
-max_rank = 3
-stat = &"bumper_count"
+text = "A Splitter splits a ball into one more."
+first_cost = 5000
+max_rank = 1
+stat = &"splitter_splits"
 amount = 1.0

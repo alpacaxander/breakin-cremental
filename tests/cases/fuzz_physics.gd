@@ -556,10 +556,10 @@ func _attack(p_seed: int, wrong: Dictionary, seen: Dictionary, cfg := {}) -> voi
 			if not ball.dir.is_equal_approx(want):
 				me._say(wrong, "a paddle bounce leaves at the wrong angle", "%s: ball %d at %s (where %f) left along %s, not %s" % [tag, ball.id, ball.pos, where, ball.dir, want])
 		follow.call("bounce %d" % hit.surface)
-		if hit.surface == Hit.Surface.PADDLE and ball.boost != 1.0:
-			me._say(wrong, "the paddle does not reset the boost", "%s: %f" % [tag, ball.boost])
+		if hit.surface == Hit.Surface.PADDLE and ball.boost != ball.kept:
+			me._say(wrong, "the paddle does not reset the boost to the Booster part", "%s: %f" % [tag, ball.boost])
 		if hit.surface == Hit.Surface.ITEM and hit.item.kind.id == &"booster":
-			var want := minf(prev + hit.item.kind.get("boost"), cap)
+			var want := minf(prev + hit.item.kind.get("boost") + stats.booster_speed, cap)
 			if not thrown and not is_equal_approx(ball.boost, want):
 				me._say(wrong, "a Booster does not add its share", "%s: %f, not %f" % [tag, ball.boost, want])
 		pass)

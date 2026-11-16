@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="Upgrade" format=3]
+
+[ext_resource type="Script" path="res://src/content/upgrade.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+title = "Booster Speed"
+category = 1
+text = "Balls leave a Booster 10% faster still."
+first_cost = 530
+max_rank = 1
+stat = &"booster_speed"
+amount = 0.1

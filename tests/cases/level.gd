@@ -10,10 +10,10 @@ const SETUP := 0
 const PLAY := 1
 const SUMMARY := 2
 ## Tray slots, in Kinds.placeables() order.
-const BUMPER := 0
-const WALL := 2
-const SPLITTER := 3
-const ZAP := 4
+const BOOSTER := 0
+const WALL := 1
+const SPLITTER := 2
+const ZAP := 3
 
 var t: Node
 var main: Main
@@ -28,7 +28,7 @@ func run(p_t: Node) -> void:
 	for u in Progress.upgrades():
 		Progress.ranks[u.id] = u.max_rank
 	# A maxed paddle fills more than half the lane and has no room for the moves _paddle makes.
-	Progress.ranks[&"paddle_size"] = 2
+	Progress.ranks[&"paddle_size"] = 0
 	main = (load("res://src/main.tscn") as PackedScene).instantiate()
 	t.add_child(main)
 	var on_played := func(cue: StringName, _player: AudioStreamPlayer) -> void: heard.append(cue)
@@ -64,7 +64,7 @@ func _seam() -> void:
 	t.check(arena.get_child_count() < 10 and round.board.bricks.size() == 512, "512 bricks are drawn by one node, not by 512")
 	for part: String in ["Hud", "SetupUi", "Summary"]:
 		t.check((level.get_node(part) as Control).z_index == 100, "%s is at z 100" % part)
-	t.check(_specials(round).size() == 9, "Setup shows this attempt's special bricks")
+	t.check(_specials(round).size() == 3, "Setup shows this attempt's special bricks")
 	# Called by hand, here and for the freeze below: the real effects set shake and frozen themselves every frame.
 	level.fx.shake = Vector2(3, -2)
 	arena._process(0.0)
@@ -82,7 +82,7 @@ func _seam() -> void:
 
 	# The hint names turning only when something in the tray turns: of the placeables only the Wall Segment does.
 	var ranks := Progress.ranks.duplicate()
-	for only: Array in [[&"bumper", false], [&"wall_segment", true]]:
+	for only: Array in [[&"booster", false], [&"wall_segment", true]]:
 		Progress.ranks.clear()
 		Progress.ranks[only[0]] = 1
 		await _open(1)
@@ -97,30 +97,30 @@ func _placing() -> void:
 	await _open(1)
 	var at := Vector2(300, 100)
 	var arena: LevelArena = level.get_node("Arena")
-	_mouse(_slot(BUMPER), MOUSE_BUTTON_LEFT, true)
+	_mouse(_slot(BOOSTER), MOUSE_BUTTON_LEFT, true)
 	t.check(arena._ghost != null and arena._ghost_fits, "a press on a tray slot shows the item at once, in the look of one that fits")
-	_mouse(_slot(BUMPER), MOUSE_BUTTON_LEFT, false)
+	_mouse(_slot(BOOSTER), MOUSE_BUTTON_LEFT, false)
 	t.check(arena._ghost == null and _items().is_empty(), "let go over the tray, it goes back")
 	heard.clear()
-	await _drag(_slot(BUMPER), _screen(at))
+	await _drag(_slot(BOOSTER), _screen(at))
 	var items := _items()
-	t.check(items.size() == 1 and items[0].kind.id == &"bumper" and items[0].pos.is_equal_approx(at), "a drag from the tray places the item where it is dropped")
-	t.check(Progress.layout(1).count(&"bumper") == 1 and _saved().layouts["1"].size() == 1, "placing saves the level's layout")
+	t.check(items.size() == 1 and items[0].kind.id == &"booster" and items[0].pos.is_equal_approx(at), "a drag from the tray places the item where it is dropped")
+	t.check(Progress.layout(1).count(&"booster") == 1 and _saved().layouts["1"].size() == 1, "placing saves the level's layout")
 	await t.tree().create_timer(0.15).timeout
 	t.check(heard.has(Sfx.PLACE_ITEM), "putting an item down plays PLACE_ITEM")
 	for spot: Vector2 in [Vector2(-30, 100), Vector2(1000, 100), Vector2(30, 256), Vector2(300, 100)]:
-		await _drag(_slot(BUMPER), _screen(spot))
-		t.check(_items().size() == 1, "a bumper at %s is refused: the lane, a brick, the launch path, another item" % spot)
+		await _drag(_slot(BOOSTER), _screen(spot))
+		t.check(_items().size() == 1, "a booster at %s is refused: the lane, a brick, the launch path, another item" % spot)
 	await _drag(_screen(at), _screen(Vector2(400, 200)))
 	t.check(_items().size() == 1 and _items()[0].pos.is_equal_approx(Vector2(400, 200)), "a placed item can be dragged somewhere else")
 	await _drag(_screen(Vector2(400, 200)), _screen(Vector2(1000, 100)))
 	t.check(_items().size() == 1 and _items()[0].pos.is_equal_approx(Vector2(400, 200)), "moved onto a brick, it goes back where it was")
 	await _drag(_screen(Vector2(400, 200)), Vector2(640, 50))
 	t.check(_items().is_empty() and Progress.layout(1).items.is_empty(), "dragged out of the arena, it is removed")
-	await _drag(_slot(BUMPER), _screen(at))
+	await _drag(_slot(BOOSTER), _screen(at))
 	_mouse(_screen(at), MOUSE_BUTTON_RIGHT, true)
 	t.check(_items().is_empty(), "a right click removes the item under it")
-	await _drag(_slot(BUMPER), _screen(at))
+	await _drag(_slot(BOOSTER), _screen(at))
 
 	# Rotation: the wheel while dragging, then Q and E over the placed item.
 	var wall := Vector2(400, 380)
@@ -138,7 +138,7 @@ func _placing() -> void:
 	t.check(_rot(&"wall_segment") == step * 2.0 and is_equal_approx(_saved().layouts["1"][1].rot, step * 2.0), "Q turns it back, and the turn is saved")
 	_mouse(_screen(at))
 	_key(KEY_E)
-	t.check(_rot(&"bumper") == 0.0, "an item that cannot be rotated is not")
+	t.check(_rot(&"booster") == 0.0, "an item that cannot be rotated is not")
 
 	# A placeable brick snaps to its cell; a brick mod goes on a brick and nowhere else.
 	await _drag(_slot(SPLITTER), _screen(Vector2(333, 140)))
@@ -148,7 +148,7 @@ func _placing() -> void:
 	t.check(_items().size() == 3, "a Zap on an empty cell is refused")
 	await _drag(_slot(ZAP), _screen(Vector2(1000, 224)))
 	t.check(level.round.board.brick(Vector2i(62, 3)).mod == &"zap" and _items().size() == 4, "a Zap goes on an existing brick")
-	t.check(level.get_node("SetupUi")._slots[BUMPER].left == 2 and level.get_node("SetupUi")._slots[ZAP].left == 2, "the tray counts what is left to place")
+	t.check(level.get_node("SetupUi")._slots[BOOSTER].left == 0 and level.get_node("SetupUi")._slots[ZAP].left == 0, "the tray counts what is left to place")
 
 
 ## Esc goes back to the hub and no further, and the layout is there on the way back in.

@@ -4,11 +4,12 @@ extends RefCounted
 
 ## docs/design/upgrades.md's web: each node and the one it hangs off.
 const WEB := {
-	&"BallSpeed": &"PaddleSpeed", &"PaddleSize": &"PaddleSpeed", &"Splitter": &"PaddleSpeed",
-	&"HourglassBrick": &"PaddleSpeed", &"Combo": &"Splitter", &"WallSegment": &"PaddleSize",
-	&"RoundTime": &"HourglassBrick", &"GoldBrick": &"BallSpeed", &"Booster": &"BallSpeed",
-	&"ExplosiveBrick": &"RoundTime", &"BlastSize": &"ExplosiveBrick", &"Shockwave": &"ExplosiveBrick",
-	&"Bumper": &"Combo", &"Zap": &"GoldBrick",
+	&"HourglassBrick": &"PaddleSpeed", &"HourglassTime": &"HourglassBrick", &"HourglassFreeze": &"HourglassTime",
+	&"Booster": &"PaddleSpeed", &"BoosterSpeed": &"Booster", &"Zap": &"Booster", &"ZapRange": &"Zap",
+	&"ZapDamage": &"ZapRange", &"RearPaddle": &"Zap", &"Combo": &"PaddleSpeed", &"ComboWindow": &"Combo",
+	&"GoldBrick": &"Combo", &"WallSegment": &"GoldBrick", &"Splitter": &"Combo", &"SplitterSplits": &"Splitter",
+	&"SplitterHealth": &"SplitterSplits", &"PaddleSize": &"PaddleSpeed", &"ExplosiveBrick": &"PaddleSize",
+	&"ExplosionSize": &"ExplosiveBrick", &"ExplosionDamage": &"ExplosionSize", &"Shockwave": &"ExplosiveBrick",
 }
 
 var _heard: Array[StringName] = []
@@ -40,8 +41,8 @@ func run(t: Node) -> void:
 	for u in Progress.upgrades():
 		Progress.ranks[u.id] = 1
 	Progress.rank_changed.emit(web.seed_node().upgrade)
-	for pair: Array in [[&"Splitter", KEY_UP, &"GoldBrick"], [&"HourglassBrick", KEY_DOWN, &"RoundTime"], [&"Splitter", KEY_DOWN, &"WallSegment"],
-			[&"Combo", KEY_RIGHT, &"Splitter"], [&"BallSpeed", KEY_UP, &"Booster"]]:
+	for pair: Array in [[&"Splitter", KEY_UP, &"PaddleSize"], [&"HourglassBrick", KEY_DOWN, &"ComboWindow"], [&"Splitter", KEY_DOWN, &"SplitterSplits"],
+			[&"Combo", KEY_RIGHT, &"ComboWindow"], [&"Booster", KEY_UP, &"Zap"]]:
 		(at.call(pair[0]) as Control).grab_focus()
 		_key(t, pair[1])
 		t.check(focus.call() == at.call(pair[2]), "%s from %s goes to %s (went to %s)" % [OS.get_keycode_string(pair[1]), pair[0], pair[2], focus.call().name])
@@ -91,8 +92,11 @@ func run(t: Node) -> void:
 	t.check(ids.size() == Progress.upgrades().size() and Progress.upgrades().all(func(u: Upgrade) -> bool: return ids.count(u.id) == 1),
 			"every upgrade is on the web exactly once")
 	t.check(web.seed_node() == at.call(&"PaddleSpeed"), "Paddle Speed is the seed")
+	# The web is taller than the view now (Splitter Health's row), so the check is that it fits zoomed out.
+	web.zoom_at(web.size / 2, 0.001)
 	for n in web.nodes():
-		t.check(web.get_rect().encloses(Rect2(web.position + n.position, n.size)), "%s sits inside the web view" % n.name)
+		t.check(Rect2(Vector2.ZERO, web.size).encloses(Rect2(n.position, n.size)), "%s sits inside the web view zoomed out" % n.name)
+	web.zoom_at(web.size / 2, 1.0 / HubWeb.ZOOM_MIN)
 
 	# A fresh save: only the seed is open, and the rest is hidden.
 	for n in web.nodes():
@@ -114,14 +118,15 @@ func run(t: Node) -> void:
 	t.check(Sfx.BUY in _heard and not Sfx.CLICK in _heard, "Buy plays the buy cue and no click (heard %s)" % [_heard])
 	var opened := web.nodes().filter(func(n: HubNode) -> bool: return web.state(n) == HubNode.State.AVAILABLE).map(func(n: HubNode) -> String: return n.name)
 	opened.sort()
-	t.check(opened == ["BallSpeed", "HourglassBrick", "PaddleSize", "Splitter"], "buying the seed opens its four neighbours and nothing else (open: %s)" % [opened])
-	t.check(web.state(seed) == HubNode.State.OWNED and web.state(at.call(&"Combo")) == HubNode.State.LOCKED, "the seed is owned and the next ring stays locked")
+	t.check(opened == ["Booster", "Combo", "HourglassBrick", "PaddleSize"], "buying the seed opens its four neighbours and nothing else (open: %s)" % [opened])
+	t.check(web.state(seed) == HubNode.State.MAXED and web.state(at.call(&"Splitter")) == HubNode.State.LOCKED, "the seed is maxed at its one rank and the next ring stays locked")
 	t.check(web.nodes().all(func(n: HubNode) -> bool: return n.visible == (web.state(n) != HubNode.State.LOCKED)), "every open node is shown and every locked one hidden")	# A click leaves no focus on Buy: Space is Start and Retry in a level, and here it would buy the next rank.
 	_key(t, KEY_SPACE)
 	t.check(focus.call() == seed and Progress.rank(seed.upgrade) == 1, "after a click on Buy the focus is back on the selected node, and Space buys nothing")
+	(at.call(&"Combo") as Control).grab_focus()
 	buy.grab_focus()
 	_key(t, KEY_ENTER)
-	t.check(focus.call() == buy and Progress.rank(seed.upgrade) == 2, "by keyboard the focus stays on Buy, and Enter buys the next rank")
+	t.check(focus.call() == buy and Progress.rank(at.call(&"Combo").upgrade) == 1, "by keyboard the focus stays on Buy, and Enter buys the selected node (Combo, which opens Splitter)")
 
 	# Too poor: Buy can still be pressed, buys nothing and plays can't afford.
 	var splitter: HubNode = at.call(&"Splitter")
@@ -138,7 +143,7 @@ func run(t: Node) -> void:
 
 	# A double click on a node buys it, as Buy does; a single click only selected it above.
 	Progress.coins = 99999
-	await _click(t, at.call(&"BallSpeed"))
+	await _click(t, at.call(&"Booster"))
 	await t.tree().create_timer(0.15).timeout
 	_heard.clear()
 	await _click(t, splitter, true)

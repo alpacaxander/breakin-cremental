@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="Upgrade" format=3]
+
+[ext_resource type="Script" path="res://src/content/upgrade.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+title = "Rear Paddle"
+category = 0
+text = "A second paddle on the back wall follows yours. A ball that hits it is 20% faster until it touches your paddle."
+first_cost = 10
+max_rank = 1
+stat = &"rear_paddle"
+amount = 0.2

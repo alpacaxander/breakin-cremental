@@ -4,11 +4,10 @@
 
 [resource]
 script = ExtResource("1")
-title = "Round Time"
-category = 0
-text = "+6 s on the timer"
+title = "Zap Damage"
+category = 1
+text = "A Zap hits each brick once more."
 first_cost = 10
-growth = 7.0
-max_rank = 5
-stat = &"round_time"
-amount = 6.0
+max_rank = 1
+stat = &"zap_damage"
+amount = 1.0

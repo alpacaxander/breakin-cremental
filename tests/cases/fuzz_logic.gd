@@ -16,6 +16,7 @@ const NUMBERS := {
 	&"paddle_thickness": 12.0, &"paddle_inset": 24.0, &"paddle_max_angle": 60.0, &"low_time": 5.0,
 	&"combo_window": 1.6, &"combo_window_per_rank": 0.5, &"combo_breaks_per_step": 4, &"combo_window_shrink": 0.9, &"combo_window_min": 0.5,
 	&"coins_per_brick": 1.0, &"rotate_step": 15.0,
+	&"explosion_damage": 1.0, &"zap_range": 64.0, &"zap_damage": 1.0, &"splitter_splits": 2.0,
 }
 const PLACEABLES: Array[StringName] = [&"bumper", &"booster", &"wall_segment", &"splitter", &"zap"]
 const SPECIALS: Array[StringName] = [&"explosive", &"gold", &"hourglass"]
@@ -320,9 +321,10 @@ func _check_tree(spy: Spy) -> void:
 		if pre.mod == &"zap":
 			var want: Array[Vector2i] = []
 			for x in spy.board.cols:
-				if x != rec.cell.x:
-					want.append(Vector2i(x, rec.cell.y))
-			_fail(zaps == want, "a Zap hits every other brick in its row, from the paddle side to the back wall (placeables.md)")
+				if x != rec.cell.x and absi(x - rec.cell.x) <= int(spy.stats.zap_range):
+					for d in int(spy.stats.zap_damage):
+						want.append(Vector2i(x, rec.cell.y))
+			_fail(zaps == want, "a Zap hits every other brick within zap_range in its row, zap_damage times, from the paddle side to the back wall")
 		else:
 			_fail(zaps.is_empty(), "only a brick with a Zap on it zaps its row")
 
@@ -369,6 +371,14 @@ func _shockwave() -> void:
 	round.set_boost(ball, 2.0)
 	_run(round, 0.2)
 	t.check(ball.boost == 1.0 and ball.dir.x > 0.0, "a boosted ball drops back to base speed when it touches the paddle (physics.md)")
+	# ...but keeps what a Booster gave it.
+	round = Round.new(board, null, stats, 1)
+	ball = round.balls[0]
+	(Kinds.of(&"booster") as PlaceableKind).on_ball_hit(round, ball, null)
+	var given := ball.boost
+	round.set_boost(ball, 2.0)
+	_run(round, 0.2)
+	t.check(given > 1.0 and ball.boost == given and ball.dir.x > 0.0, "the paddle leaves a Booster's boost (%s -> %s)" % [given, ball.boost])
 
 
 # --- the Zap ---------------------------------------------------------------------------------------------------
@@ -806,11 +816,11 @@ func _fuzz_round(sd: int) -> void:
 		var was: float = spy.boosts.get(ball.id, 1.0)
 		var want := was
 		if hit.surface == Hit.Surface.PADDLE:
-			want = 1.0
+			want = ball.kept
 		elif hit.surface == Hit.Surface.ITEM and hit.item.kind.id == &"booster":
 			want = minf(was + 0.1, cap)
 			_seen.booster = _seen.get("booster", 0) + 1
-		_fail(is_equal_approx(ball.boost, want), "a Booster adds 10% of base speed, up to 3x; the paddle takes the boost away; nothing else changes it (physics.md)",
+		_fail(is_equal_approx(ball.boost, want), "a Booster adds 10% of base speed, up to 3x; the paddle takes away all but a Booster's; nothing else changes it (physics.md)",
 				"ball %d off %s: boost %s -> %s" % [ball.id, Hit.Surface.keys()[hit.surface], was, ball.boost])
 		spy.boosts[ball.id] = ball.boost
 		m.last = "bounced")
@@ -1043,8 +1053,8 @@ func _r2_watch(spy: Round) -> void:
 			_fail(on, "a WALL hit's normal is DOWN, UP or LEFT, for the wall the ball is touching (Hit.Surface.WALL)", "normal %s, point %s" % [hit.normal, hit.point])
 			_fail(ball.dir.dot(hit.normal) > 0.0, "after a wall bounce the ball leaves the wall (Round.ball_bounced: ball.dir is the new direction)", "normal %s, dir %s" % [hit.normal, ball.dir])
 		elif hit.surface == Hit.Surface.PADDLE:
-			_fail(ball.dir.x > 0.0 and _angle(ball.dir) <= spy.stats.paddle_max_angle + 0.01 and ball.boost == 1.0,
-					"off the paddle a ball goes back toward the board, at most paddle_max_angle off level, unboosted (Round ONE BOUNCE)", "dir %s boost %s" % [ball.dir, ball.boost])
+			_fail(ball.dir.x > 0.0 and _angle(ball.dir) <= spy.stats.paddle_max_angle + 0.01 and ball.boost == ball.kept,
+					"off the paddle a ball goes back toward the board, at most paddle_max_angle off level, back to its Booster boost (Round ONE BOUNCE)", "dir %s boost %s" % [ball.dir, ball.boost])
 		elif hit.surface == Hit.Surface.ITEM:
 			_fail(ball.dir.dot(hit.normal) > 0.0, "after an item bounce the ball leaves the item (Round.ball_bounced)", "%s normal %s, dir %s" % [hit.item.kind.id, hit.normal, ball.dir])
 			if hit.item.kind.shape == PlaceableKind.Shape.CIRCLE:

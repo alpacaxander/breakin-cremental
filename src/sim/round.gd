@@ -60,7 +60,7 @@ extends RefCounted
 ## ONE BOUNCE. The ball is put exactly on the surface and given its new direction:
 ##   wall, brick, item   mirrored in the surface (Hit.normal)
 ##   paddle              RIGHT turned by stats.paddle_max_angle times where it landed, from -1 at the top end to
-##                       1 at the bottom end. The angle it came in at does not matter. Its boost goes back to 1.
+##                       1 at the bottom end. The angle it came in at does not matter. Its boost goes back to ball.kept (what Boosters gave).
 ## Then the minimum angles apply (see _legal): a direction closer than stats.min_angle_horizontal to level or
 ## than stats.min_angle_vertical to upright is turned to that angle, on the side the surface faces. So the dead
 ## centre of the paddle sends the ball back min_angle_horizontal below level, not along the line it came on.
@@ -191,7 +191,8 @@ func _init(p_board: Board, p_layout: Layout, p_stats: Balance, p_seed: int) -> v
 	for item in layout.items:
 		match item.kind.placement:
 			PlaceableKind.Placement.BRICK:
-				var brick := Brick.new(item.kind.hp, item.kind.id)
+				# ponytail: only the Splitter has a health stat; `<id>_health` reads 0 for the rest.
+				var brick := Brick.new(item.kind.hp + int(stats.base(StringName(String(item.kind.id) + "_health"))), item.kind.id)
 				brick.placed = true
 				board.bricks[item.cell] = brick
 			PlaceableKind.Placement.MOD:
@@ -279,6 +280,13 @@ func move_paddle(delta: float, paddle_target: float) -> void:
 	_glue()
 
 
+## True if the Rear Paddle is on (stats.rear_paddle > 0) and `y` is within it. It is not a solid of its own: it is
+## the stretch of back wall facing the paddle, so it follows paddle.y and has paddle.length.
+# ponytail: a wall stretch, not a body; give it its own collision if it ever moves on its own or sticks out.
+func on_rear_paddle(y: float) -> bool:
+	return stats.rear_paddle > 0.0 and absf(y - paddle.y) <= paddle.length * 0.5
+
+
 ## A ball's speed in units per second: stats.ball_speed * ball.boost.
 func speed_of(ball: Ball) -> float:
 	return stats.ball_speed * ball.boost
@@ -298,6 +306,9 @@ func hit_brick(cell: Vector2i, cause: Cause, dir: Vector2, ball: Ball = null) ->
 	brick.hp -= 1
 	if brick.hp > 0:
 		brick_hit.emit(cell, brick.hp, cause)
+		var hit_kind := Kinds.of(brick.kind)
+		if hit_kind:
+			hit_kind.on_hit(self, cell, brick, cause, dir, ball)
 		return
 	board.bricks.erase(cell)
 	if not brick.placed:
@@ -321,9 +332,9 @@ func hit_brick(cell: Vector2i, cause: Cause, dir: Vector2, ball: Ball = null) ->
 ## the blast is the rectangle board.cell_rect(cell).grow(reach). A brick is hit if its cell rectangle overlaps
 ## that rectangle; touching edges do not count. At a reach of 64 that is 4 columns to each side and 1 brick row
 ## above and below; every 32 more adds 2 columns, and brick rows are added whole as soon as the blast enters them.
-## Emits `exploded`, then hits each of those bricks once with Cause.BLAST. `cell` itself may be empty (the
+## Emits `exploded`, then hits each of those bricks stats.explosion_damage times with Cause.BLAST. `cell` itself may be empty (the
 ## explosive brick that calls this is already gone). A brick this blast breaks may set off a blast of its own
-## before the next brick of this one is hit; each blast hits a brick once.
+## before the next brick of this one is hit.
 ## If stats.shockwave is 1 or more, every ball whose centre is inside the blast is thrown: its dir points
 ## straight away from the blast's centre (then the minimum angles apply) and its boost is multiplied by
 ## stats.shockwave_boost. The throw comes after the hits, so in a chain the first blast throws last and its
@@ -342,7 +353,8 @@ func blast(cell: Vector2i, reach: float) -> void:
 	exploded.emit(centre, reach, cells)
 	for c in cells:
 		var away := board.cell_rect(c).get_center() - centre
-		hit_brick(c, Cause.BLAST, away.normalized() if away else Vector2.RIGHT)
+		for i in int(stats.explosion_damage):
+			hit_brick(c, Cause.BLAST, away.normalized() if away else Vector2.RIGHT)
 	if stats.shockwave >= 1.0:
 		for ball in balls:
 			if area.has_point(ball.pos):
@@ -359,7 +371,7 @@ func add_ball(pos: Vector2, dir: Vector2, boost := 1.0) -> Ball:
 
 
 ## Sets a ball's boost, kept between 1 and stats.boost_cap. A Booster calls
-## set_boost(ball, ball.boost + its amount); the paddle resets it to 1.
+## set_boost(ball, ball.boost + its amount); the paddle resets it to ball.kept.
 func set_boost(ball: Ball, boost: float) -> void:
 	ball.boost = clampf(boost, 1.0, maxf(stats.boost_cap, 1.0))
 
@@ -440,7 +452,7 @@ func _bounce(ball: Ball, hit: Hit) -> void:
 	if hit.surface == Hit.Surface.PADDLE:
 		var where := clampf((ball.pos.y - paddle.y) / (paddle.length * 0.5), -1.0, 1.0)
 		ball.put(ball.pos, _legal(Vector2.RIGHT.rotated(deg_to_rad(where * stats.paddle_max_angle)), Vector2.RIGHT))
-		set_boost(ball, 1.0)
+		set_boost(ball, ball.kept)
 	elif was.dot(n) < 0.0:
 		# Along an axis the mirror is an exact change of sign; off a turned face it is rounded, so it is made a
 		# unit vector again or the speed would creep.
@@ -463,6 +475,8 @@ func _bounce(ball: Ball, hit: Hit) -> void:
 			hit.item.kind.on_ball_hit(self, ball, hit)
 			ball_bounced.emit(ball, hit)
 		_:
+			if hit.surface == Hit.Surface.WALL and hit.normal == Vector2.LEFT and on_rear_paddle(ball.pos.y):
+				set_boost(ball, ball.boost + stats.rear_paddle)
 			ball_bounced.emit(ball, hit)
 
 

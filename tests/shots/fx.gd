@@ -215,6 +215,7 @@ static func worst(round: Round) -> void:
 		round.board.brick(Vector2i(column, 2)).kind = &"explosive"
 	round.board.brick(Vector2i(6, 2)).mod = &"zap"
 	round.board.brick(Vector2i(30, 6)).mod = &"zap"
+	round.stats.zap_range = maxf(round.stats.zap_range, round.board.cols)  # a whole-row Zap: past any rank, for the worst case
 	round.hit_brick(Vector2i(6, 2), Round.Cause.BALL, Vector2.RIGHT)
 	round.hit_brick(Vector2i(30, 6), Round.Cause.BALL, Vector2.RIGHT)
 

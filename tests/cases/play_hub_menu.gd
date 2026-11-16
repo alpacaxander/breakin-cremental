@@ -12,31 +12,40 @@ extends RefCounted
 ##
 ## A double click here is what the OS reports: a second press marked `double_click` (_double_click_at).
 
-## docs/design/upgrades.md's table, by web node: name, category, ranks, "Each rank", first cost, growth.
+## docs/design/upgrades.md's table, by web node: name, category, ranks, "Each rank", first cost, growth. Every
+## node has one rank (most at 10 coins) for now.
 const TABLE := {
-	&"PaddleSpeed": ["Paddle Speed", Upgrade.Category.ARENA, 2, "+100% paddle speed", 2, 20.0],
-	&"BallSpeed": ["Ball Speed", Upgrade.Category.ARENA, 3, "+10% ball speed", 5, 3.0],
-	&"PaddleSize": ["Paddle Size", Upgrade.Category.ARENA, 5, "+40% paddle length", 10, 8.0],
-	&"Bumper": ["Bumper", Upgrade.Category.PLACEABLES, 3, "One more Bumper", 20, 8.0],
-	&"ExplosiveBrick": ["Explosive Brick", Upgrade.Category.BRICKS, 4, "One more explosive brick", 20, 3.5],
-	&"Combo": ["Combo", Upgrade.Category.ARENA, 2, "Rank 1 turns combos on. Rank 2 widens the window", 20, 25.0],
-	&"WallSegment": ["Wall Segment", Upgrade.Category.PLACEABLES, 2, "One more Wall Segment", 30, 8.0],
-	&"RoundTime": ["Round Time", Upgrade.Category.ARENA, 5, "+6 s", 10, 7.0],
-	&"GoldBrick": ["Gold Brick", Upgrade.Category.BRICKS, 3, "One more gold brick", 25, 7.0],
-	&"Booster": ["Booster", Upgrade.Category.PLACEABLES, 2, "One more Booster", 100, 8.0],
-	&"BlastSize": ["Blast Size", Upgrade.Category.BRICKS, 2, "Explosions reach one square further", 50, 315.0],
-	&"Shockwave": ["Shockwave", Upgrade.Category.BRICKS, 1, "Explosions throw balls", 600, 1.8],
-	&"HourglassBrick": ["Hourglass Brick", Upgrade.Category.BRICKS, 2, "One more hourglass brick", 30, 600.0],
-	&"Splitter": ["Splitter", Upgrade.Category.PLACEABLES, 5, "One more Splitter", 25, 5.7],
-	&"Zap": ["Zap", Upgrade.Category.PLACEABLES, 3, "One more Zap", 300, 9.0],
+	&"PaddleSpeed": ["Paddle Speed", Upgrade.Category.ARENA, 1, "+100% paddle speed", 2, 1.0],
+	&"PaddleSize": ["Paddle Size", Upgrade.Category.ARENA, 1, "+40% paddle length", 80, 1.0],
+	&"Combo": ["Combo", Upgrade.Category.ARENA, 1, "Turns combos on", 40, 1.0],
+	&"ComboWindow": ["Combo Window", Upgrade.Category.ARENA, 1, "Combos last longer", 10, 1.0],
+	&"RearPaddle": ["Rear Paddle", Upgrade.Category.ARENA, 1, "A second paddle on the back wall", 10, 1.0],
+	&"Booster": ["Booster", Upgrade.Category.PLACEABLES, 1, "One more Booster", 10, 1.0],
+	&"BoosterSpeed": ["Booster Speed", Upgrade.Category.PLACEABLES, 1, "Balls leave a Booster 10% faster still", 530, 1.0],
+	&"Zap": ["Zap", Upgrade.Category.PLACEABLES, 1, "One more Zap", 270, 1.0],
+	&"ZapRange": ["Zap Range", Upgrade.Category.PLACEABLES, 1, "A Zap reaches 2 more bricks each way", 10, 1.0],
+	&"ZapDamage": ["Zap Damage", Upgrade.Category.PLACEABLES, 1, "A Zap hits each brick once more", 10, 1.0],
+	&"Splitter": ["Splitter", Upgrade.Category.PLACEABLES, 1, "One more Splitter", 110, 1.0],
+	&"SplitterSplits": ["Splitter Splits", Upgrade.Category.PLACEABLES, 1, "A Splitter splits a ball into one more", 5000, 1.0],
+	&"SplitterHealth": ["Splitter Health", Upgrade.Category.PLACEABLES, 1, "A Splitter takes one more hit", 10, 1.0],
+	&"WallSegment": ["Wall Segment", Upgrade.Category.PLACEABLES, 1, "One more Wall Segment", 10, 1.0],
+	&"ExplosiveBrick": ["Explosive Brick", Upgrade.Category.BRICKS, 1, "One more explosive brick", 10, 1.0],
+	&"ExplosionSize": ["Explosion Size", Upgrade.Category.BRICKS, 1, "Explosions reach one square further", 10, 1.0],
+	&"ExplosionDamage": ["Explosion Damage", Upgrade.Category.BRICKS, 1, "Explosions hit each brick once more", 10, 1.0],
+	&"Shockwave": ["Shockwave", Upgrade.Category.BRICKS, 1, "Explosions throw balls", 10, 1.0],
+	&"GoldBrick": ["Gold Brick", Upgrade.Category.BRICKS, 1, "One more gold brick", 10, 1.0],
+	&"HourglassBrick": ["Hourglass Brick", Upgrade.Category.BRICKS, 1, "One more hourglass brick", 20, 1.0],
+	&"HourglassTime": ["Hourglass Time", Upgrade.Category.BRICKS, 1, "An hourglass brick adds 5 s more", 1200, 1.0],
+	&"HourglassFreeze": ["Hourglass Freeze", Upgrade.Category.BRICKS, 1, "Breaking an hourglass brick holds the combo", 10, 1.0],
 }
 ## The drawn web of upgrades.md: each node and the one it hangs off, towards the seed.
 const PARENT := {
-	&"BallSpeed": &"PaddleSpeed", &"PaddleSize": &"PaddleSpeed", &"Splitter": &"PaddleSpeed",
-	&"HourglassBrick": &"PaddleSpeed", &"Combo": &"Splitter", &"WallSegment": &"PaddleSize",
-	&"RoundTime": &"HourglassBrick", &"GoldBrick": &"BallSpeed", &"Booster": &"BallSpeed",
-	&"ExplosiveBrick": &"RoundTime", &"BlastSize": &"ExplosiveBrick", &"Shockwave": &"ExplosiveBrick",
-	&"Bumper": &"Combo", &"Zap": &"GoldBrick",
+	&"HourglassBrick": &"PaddleSpeed", &"HourglassTime": &"HourglassBrick", &"HourglassFreeze": &"HourglassTime",
+	&"Booster": &"PaddleSpeed", &"BoosterSpeed": &"Booster", &"Zap": &"Booster", &"ZapRange": &"Zap",
+	&"ZapDamage": &"ZapRange", &"RearPaddle": &"Zap", &"Combo": &"PaddleSpeed", &"ComboWindow": &"Combo",
+	&"GoldBrick": &"Combo", &"WallSegment": &"GoldBrick", &"Splitter": &"Combo", &"SplitterSplits": &"Splitter",
+	&"SplitterHealth": &"SplitterSplits", &"PaddleSize": &"PaddleSpeed", &"ExplosiveBrick": &"PaddleSize",
+	&"ExplosionSize": &"ExplosiveBrick", &"ExplosionDamage": &"ExplosionSize", &"Shockwave": &"ExplosiveBrick",
 }
 const DETAIL := Rect2(904, 88, 352, 284)  ## art.md, "Upgrade screen"
 const LEVELS := Rect2(904, 388, 352, 308)
@@ -118,6 +127,7 @@ func _details(save: String) -> void:
 		if web.state(n) == HubNode.State.LOCKED:
 			t.check(not n.visible, "%s is locked, so it is hidden" % what)
 			continue
+		_web().refresh(n)  # the web is taller than the view: bring n into it, as the arrow keys would
 		await _click(n)
 		t.check(_hub().selected == n, "clicking %s selects it" % what)
 		var u := n.upgrade
@@ -157,6 +167,7 @@ func _paths() -> void:
 		var buy: Button = _hub().get_node("Detail/%Buy")
 		for step: StringName in path:
 			var n: HubNode = _web().get_node(String(step))
+			_web().refresh(n)
 			await _click(n)
 			var before := Progress.coins
 			await _click(buy)
@@ -191,15 +202,15 @@ func _max_and_poor() -> void:
 	t.check(buy.theme_type_variation == &"CantAfford" and not buy.disabled and buy.text == "BUY", "it reads BUY in the can't-afford look")
 	var paid: Array[int] = []
 	Progress.coins = 200
-	for i in 2:
+	for i in 1:
 		var before := Progress.coins
 		await _quiet()
 		await _click(buy)
 		await _heard_settle()
 		paid.append(before - Progress.coins)
 		t.check(heard == [Sfx.BUY], "buying rank %d plays the buy cue once and nothing else (heard %s)" % [i + 1, heard])
-	t.check(paid == [2, 40], "Paddle Speed's two ranks cost 2 and 40 (paid %s)" % [paid])
-	t.check(_web().state(seed) == HubNode.State.MAXED and buy.disabled and buy.text == "MAXED", "after the second rank it is maxed and Buy reads MAXED")
+	t.check(paid == [2], "Paddle Speed's one rank costs 2 (paid %s)" % [paid])
+	t.check(_web().state(seed) == HubNode.State.MAXED and buy.disabled and buy.text == "MAXED", "after its one rank it is maxed and Buy reads MAXED")
 	t.check(not (_hub().get_node("Detail/%Cost") as Control).visible and (seed.get_node("Bottom/Max") as Control).visible, "the price is gone and the node says MAX")
 	var coins := Progress.coins
 	await _quiet()
@@ -207,7 +218,7 @@ func _max_and_poor() -> void:
 	await _heard_settle()
 	t.check(Progress.coins == coins and heard.is_empty(), "a click on the maxed Buy does nothing and plays nothing (heard %s)" % [heard])
 	await _quiet()
-	await _click(_web().get_node("Splitter"))
+	await _click(_web().get_node("Combo"))
 	await _heard_settle()
 	t.check(heard == [Sfx.CLICK], "clicking a node clicks once (heard %s)" % [heard])
 

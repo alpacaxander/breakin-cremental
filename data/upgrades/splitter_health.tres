@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="Upgrade" format=3]
+
+[ext_resource type="Script" path="res://src/content/upgrade.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+title = "Splitter Health"
+category = 1
+text = "A Splitter takes one more hit before it breaks, and splits the ball on every hit."
+first_cost = 10
+max_rank = 1
+stat = &"splitter_health"
+amount = 1.0

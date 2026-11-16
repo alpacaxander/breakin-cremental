@@ -1,26 +1,34 @@
 extends RefCounted
-## The state lane: the fifteen upgrades, stats, buying, paying a round, the save file and the settings file.
+## The state lane: the upgrades, stats, buying, paying a round, the save file and the settings file.
 
 const A := Upgrade.Category.ARENA
 const P := Upgrade.Category.PLACEABLES
 const B := Upgrade.Category.BRICKS
-## docs/design/upgrades.md and docs/architecture.md ("Stats"): id -> [category, ranks, first cost, stat, amount, percent, growth].
+## The sketched web (docs/design/upgrades.md): id -> [category, ranks, first cost, stat, amount, percent]. Every
+## node has one rank (most at 10 coins) for now.
 const TABLE := {
-	&"paddle_speed": [A, 2, 2, &"paddle_speed", 1.0, true, 20.0],
-	&"ball_speed": [A, 3, 5, &"ball_speed", 0.1, true, 3.0],
-	&"paddle_size": [A, 5, 10, &"paddle_size", 0.4, true, 8.0],
-	&"bumper": [P, 3, 20, &"bumper_count", 1.0, false, 8.0],
-	&"explosive_brick": [B, 4, 20, &"explosive_count", 1.0, false, 3.5],
-	&"combo": [A, 2, 20, &"combo_rank", 1.0, false, 25.0],
-	&"wall_segment": [P, 2, 30, &"wall_segment_count", 1.0, false, 8.0],
-	&"round_time": [A, 5, 10, &"round_time", 6.0, false, 7.0],
-	&"gold_brick": [B, 3, 25, &"gold_count", 1.0, false, 7.0],
-	&"booster": [P, 2, 100, &"booster_count", 1.0, false, 8.0],
-	&"blast_size": [B, 2, 50, &"blast_size", 1.0, false, 315.0],
-	&"shockwave": [B, 1, 600, &"shockwave", 1.0, false, 1.8],
-	&"hourglass_brick": [B, 2, 30, &"hourglass_count", 1.0, false, 600.0],
-	&"splitter": [P, 5, 25, &"splitter_count", 1.0, false, 5.7],
-	&"zap": [P, 3, 300, &"zap_count", 1.0, false, 9.0],
+	&"paddle_speed": [A, 1, 2, &"paddle_speed", 1.0, true],
+	&"paddle_size": [A, 1, 80, &"paddle_size", 0.4, true],
+	&"combo": [A, 1, 40, &"combo_rank", 1.0, false],
+	&"combo_window": [A, 1, 10, &"combo_rank", 1.0, false],
+	&"rear_paddle": [A, 1, 10, &"rear_paddle", 0.2, false],
+	&"booster": [P, 1, 10, &"booster_count", 1.0, false],
+	&"booster_speed": [P, 1, 530, &"booster_speed", 0.1, false],
+	&"zap": [P, 1, 270, &"zap_count", 1.0, false],
+	&"zap_range": [P, 1, 10, &"zap_range", 2.0, false],
+	&"zap_damage": [P, 1, 10, &"zap_damage", 1.0, false],
+	&"splitter": [P, 1, 110, &"splitter_count", 1.0, false],
+	&"splitter_splits": [P, 1, 5000, &"splitter_splits", 1.0, false],
+	&"splitter_health": [P, 1, 10, &"splitter_health", 1.0, false],
+	&"wall_segment": [P, 1, 10, &"wall_segment_count", 1.0, false],
+	&"explosive_brick": [B, 1, 10, &"explosive_count", 1.0, false],
+	&"blast_size": [B, 1, 10, &"blast_size", 1.0, false],
+	&"explosion_damage": [B, 1, 10, &"explosion_damage", 1.0, false],
+	&"shockwave": [B, 1, 10, &"shockwave", 1.0, false],
+	&"gold_brick": [B, 1, 10, &"gold_count", 1.0, false],
+	&"hourglass_brick": [B, 1, 20, &"hourglass_count", 1.0, false],
+	&"hourglass_time": [B, 1, 1200, &"hourglass_time", 5.0, false],
+	&"hourglass_freeze": [B, 1, 10, &"hourglass_freeze", 1.0, false],
 }
 
 
@@ -39,7 +47,7 @@ func _upgrades(t: Node) -> void:
 	var ids := all.map(func(u: Upgrade) -> StringName: return u.id)
 	var sorted := TABLE.keys()
 	sorted.sort_custom(func(a: StringName, b: StringName) -> bool: return String(a) < String(b))
-	t.check(ids == sorted, "there are fifteen upgrades, sorted by id: %s" % [ids])
+	t.check(ids == sorted, "there are the web's 22 upgrades, sorted by id: %s" % [ids])
 	var purchases := 0
 	for u in all:
 		var row: Array = TABLE.get(u.id, [])
@@ -50,28 +58,27 @@ func _upgrades(t: Node) -> void:
 		t.check([u.category, u.max_rank, u.first_cost, u.stat] == row.slice(0, 4), "%s has the category, ranks, first cost and stat of the table" % u.id)
 		t.check(is_equal_approx(u.amount, row[4]) and u.percent == row[5], "%s adds %s%s per rank" % [u.id, row[4], " of the base" if row[5] else ""])
 		t.check(u.cost(0) == u.first_cost, "%s's first rank costs its first cost" % u.id)
-		for owned in range(1, u.max_rank):
-			t.check(u.growth == row[6] and u.cost(owned) == roundi(u.first_cost * pow(row[6], owned)), "each rank of %s costs %sx the one before, rounded" % [u.id, row[6]])
 		t.check(Progress.upgrade(u.id) == u, "Progress.upgrade finds %s" % u.id)
-	t.check(purchases == 44, "the web holds 44 purchases, not %d" % purchases)
+	t.check(purchases == 22, "the web holds 22 purchases, not %d" % purchases)
 	t.check(Progress.upgrade(&"nope") == null, "an unknown id is no upgrade")
 
 
 func _stats(t: Node) -> void:
 	var base := Progress.balance
-	t.check(Progress.stat(&"ball_speed") == base.ball_speed and Progress.stat(&"bumper_count") == 0.0, "a fresh save has base stats")
-	Progress.ranks[&"ball_speed"] = 3
-	Progress.ranks[&"round_time"] = 2
-	Progress.ranks[&"bumper"] = 3
-	Progress.ranks[&"explosive_brick"] = 2
-	t.check(is_equal_approx(Progress.stat(&"ball_speed"), base.ball_speed * 1.3), "Ball Speed rank 3 is 130% of the base")
-	t.check(is_equal_approx(Progress.stat(&"round_time"), base.round_time + 12.0), "Round Time rank 2 adds 12 s")
+	t.check(Progress.stat(&"paddle_size") == base.paddle_size and Progress.stat(&"zap_count") == 0.0, "a fresh save has base stats")
+	Progress.ranks[&"paddle_size"] = 1
+	Progress.ranks[&"combo"] = 1
+	Progress.ranks[&"combo_window"] = 1
+	Progress.ranks[&"zap"] = 1
+	Progress.ranks[&"explosive_brick"] = 1
+	t.check(is_equal_approx(Progress.stat(&"paddle_size"), base.paddle_size * 1.4), "Paddle Size rank 1 is 140% of the base")
+	t.check(Progress.stat(&"combo_rank") == base.combo_rank + 2.0, "Combo and Combo Window both raise combo_rank")
 	var s := Progress.snapshot()
-	t.check(is_equal_approx(s.ball_speed, base.ball_speed * 1.3) and is_equal_approx(s.round_time, base.round_time + 12.0), "the snapshot carries the upgraded stats")
-	t.check(s.count(&"bumper") == 3 and s.count(&"explosive") == 2 and s.count(&"gold") == 0, "the counts land in the snapshot as <kind id>_count")
-	t.check(s.extra.get(&"explosive_count") == 2.0 and not s.extra.has(&"explosive_brick_count"), "a special brick's count is named after the kind, not the upgrade")
+	t.check(is_equal_approx(s.paddle_size, base.paddle_size * 1.4) and s.combo_rank == base.combo_rank + 2.0, "the snapshot carries the upgraded stats")
+	t.check(s.count(&"zap") == 1 and s.count(&"explosive") == 1 and s.count(&"gold") == 0, "the counts land in the snapshot as <kind id>_count")
+	t.check(s.extra.get(&"explosive_count") == 1.0 and not s.extra.has(&"explosive_brick_count"), "a special brick's count is named after the kind, not the upgrade")
 	t.check(is_equal_approx(s.paddle_speed, base.paddle_speed) and s.ball_size == base.ball_size, "what no rank changes stays at its base")
-	t.check(base.ball_speed == (load(Progress.BALANCE) as Balance).ball_speed and base.extra.is_empty(), "a snapshot leaves balance.tres alone")
+	t.check(base.paddle_size == (load(Progress.BALANCE) as Balance).paddle_size and base.extra.is_empty(), "a snapshot leaves balance.tres alone")
 	Progress.reset()
 
 
@@ -92,9 +99,9 @@ func _buy(t: Node) -> void:
 	t.check(FileAccess.file_exists(Progress.path) and _saved().get("coins") == 198.0, "buy saves")
 	while Progress.buy(u):
 		pass
-	t.check(Progress.maxed(u) and Progress.rank(u) == 2 and Progress.coins == 200 - (2 + 40), "Paddle Speed tops out at rank 2 for 42 coins")
+	t.check(Progress.maxed(u) and Progress.rank(u) == 1 and Progress.coins == 198, "Paddle Speed tops out at rank 1")
 	heard.clear()
-	t.check(not Progress.buy(u) and Progress.rank(u) == 2 and heard.is_empty(), "buy refuses at the top rank")
+	t.check(not Progress.buy(u) and Progress.rank(u) == 1 and heard.is_empty(), "buy refuses at the top rank")
 	Progress.coins_changed.disconnect(on_coins)
 	Progress.rank_changed.disconnect(on_rank)
 
@@ -126,7 +133,7 @@ func _finish_round(t: Node) -> void:
 func _round_trip(t: Node) -> void:
 	Progress.reset()
 	Progress.coins = 142
-	Progress.ranks[&"bumper"] = 2
+	Progress.ranks[&"zap"] = 1
 	Progress.ranks[&"shockwave"] = 1
 	Progress.unlocked = 2
 	Progress.layouts[1] = [{"kind": "bumper", "x": 512.0, "y": 256.0, "rot": 0.0}, {"kind": "splitter", "col": 30, "row": 3}]
@@ -147,11 +154,11 @@ func _bad_saves(t: Node) -> void:
 	var path: String = Progress.path
 	var bad := path + ".bad"
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(bad))
-	_write(path, JSON.stringify({"coins": 50, "ranks": {"bumper": 9, "gone": 2, "zap": "x"}, "unlocked": 2,
+	_write(path, JSON.stringify({"coins": 50, "ranks": {"zap": 9, "gone": 2, "booster": "x"}, "unlocked": 2,
 			"layouts": {"2": [{"kind": "zap"}], "x": [], "4": "no"}, "future": true}))
 	Progress.use(path)
 	t.check(Progress.coins == 50 and Progress.unlocked == 2, "a save with no version and an unknown field keeps coins and level")
-	t.check(Progress.ranks == ({&"bumper": 3} as Dictionary[StringName, int]), "a rank above the top is lowered, and unknown ids and bad ranks are dropped")
+	t.check(Progress.ranks == ({&"zap": 1} as Dictionary[StringName, int]), "a rank above the top is lowered, and unknown ids and bad ranks are dropped")
 	t.check(Progress.layouts.keys() == [2], "only well-formed layouts are kept")
 	t.check(not FileAccess.file_exists(bad), "a readable save is not set aside")
 

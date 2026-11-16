@@ -147,6 +147,10 @@ func _draw_paddle() -> void:
 	var p := round.paddle
 	_paddle.draw_rect(Rect2(0, 0, p.thickness, p.length), Palette.PADDLE)
 	_paddle.draw_rect(Rect2(p.thickness - STRIPE, 0, STRIPE, p.length), Palette.lit(Palette.PLAYER))
+	if round.stats.rear_paddle > 0.0:  # Round.on_rear_paddle: the back wall's stretch facing this paddle
+		var rear := round.board.size().x - p.x
+		_paddle.draw_rect(Rect2(rear, 0, p.thickness, p.length), Palette.PADDLE)
+		_paddle.draw_rect(Rect2(rear, 0, STRIPE, p.length), Palette.lit(Palette.PLAYER))
 
 
 func _draw_balls() -> void:

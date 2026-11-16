@@ -247,7 +247,8 @@ func _names(t: Node) -> void:
 				"the %s upgrade's stat, \"%s\", is a Balance property or the count of a kind that exists" % [u.id, u.stat])
 		counted.append(kind_id)
 	for kind in Kinds.all():
-		t.check(kind.id in counted, "an upgrade raises %s, or nobody can ever have a %s" % [Balance.count_stat(kind.id), kind.title])
+		# ponytail: the Bumper is off the web (its node was dropped) but kept, as the rules checks' plain item.
+		t.check(kind.id in counted or kind.id == &"bumper", "an upgrade raises %s, or nobody can ever have a %s" % [Balance.count_stat(kind.id), kind.title])
 
 
 ## With every upgrade owned, Progress.snapshot() hands a round each number it reads, moved off its base.
@@ -289,6 +290,8 @@ func _levels(t: Node) -> void:
 		var stats := Progress.snapshot()
 		var layout := Layout.new()
 		for kind in Kinds.placeables():
+			if stats.count(kind.id) == 0:  # off the web: nobody can place one
+				continue
 			var item := _place(kind, layout, level.board, stats)
 			t.check(item != null, "a %s has somewhere to go on level %d" % [kind.title, n])
 			if item:

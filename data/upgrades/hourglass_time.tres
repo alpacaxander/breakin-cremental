@@ -4,12 +4,10 @@
 
 [resource]
 script = ExtResource("1")
-title = "Ball Speed"
-category = 0
-text = "+10% ball speed"
-first_cost = 5
-growth = 3.0
-max_rank = 3
-stat = &"ball_speed"
-amount = 0.1
-percent = true
+title = "Hourglass Time"
+category = 2
+text = "An hourglass brick adds 5 s more."
+first_cost = 1200
+max_rank = 1
+stat = &"hourglass_time"
+amount = 5.0

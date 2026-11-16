@@ -12,8 +12,10 @@ var dir: Vector2
 var size: float
 ## Speed as a multiple of the base speed: 1 is no boost. The ball's speed is always stats.ball_speed * boost
 ## (see Round.speed_of). A Booster and a Shockwave raise it through Round.set_boost, which caps it at
-## stats.boost_cap. It drops back to 1 when the ball next touches the paddle.
+## stats.boost_cap. When the ball next touches the paddle it drops back to `kept`.
 var boost := 1.0
+## The part of the boost a Booster gave, which the paddle leaves alone (1: none). Capped like boost.
+var kept := 1.0
 ## Rules only: the straight line the ball is on. It began at `from` and the ball is `gone` units along it, so
 ## pos is always from + dir * gone. The sweep measures every contact from `from`, never from pos, so where a
 ## ball bounces next does not depend on how the time was cut into steps.

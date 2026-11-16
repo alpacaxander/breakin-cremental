@@ -34,6 +34,12 @@ func on_ball_hit(_round: Round, _ball: Ball, _hit: Hit) -> void:
 	pass
 
 
+## A brick of this kind took a hit and still stands (hp left, brick_hit already emitted). Same arguments as
+## on_broken. The Splitter splits the ball here.
+func on_hit(_round: Round, _cell: Vector2i, _brick: Brick, _cause: Round.Cause, _dir: Vector2, _ball: Ball) -> void:
+	pass
+
+
 ## A brick of this kind broke: a special brick, or a placed brick such as the Splitter. `brick` is the brick,
 ## already off the board. `dir` is the hit's direction from Round.hit_brick: for a ball, the way it was moving
 ## before it bounced. `ball` is the ball that broke it, or null when the cause is not Round.Cause.BALL.

@@ -12,11 +12,10 @@ const SETUP := 0
 const PLAY := 1
 const SUMMARY := 2
 ## Tray slots, in Kinds.placeables() order.
-const BUMPER := 0
-const BOOSTER := 1
-const WALL := 2
-const SPLITTER := 3
-const ZAP := 4
+const BOOSTER := 0
+const WALL := 1
+const SPLITTER := 2
+const ZAP := 3
 
 var t: Node
 var main: Main
@@ -141,24 +140,22 @@ func _placing() -> void:
 	Main.show_hub()
 	await _open(1)
 	var setup: LevelSetupUi = level.get_node("SetupUi")
-	t.check(setup._slots.size() == 5, "a maxed save has five slots in the tray")
+	t.check(setup._slots.size() == 4, "a maxed save has four slots in the tray")
 	var ok_spots := {
-		BUMPER: [Vector2(300, 100), Vector2(300, 420), Vector2(450, 100)],
-		BOOSTER: [Vector2(400, 200), Vector2(400, 330)],
-		WALL: [Vector2(600, 200), Vector2(600, 330)],
-		SPLITTER: [Vector2(700, 100), Vector2(720, 400), Vector2(680, 200), Vector2(660, 300), Vector2(800, 480)],
-		ZAP: [Vector2(1000, 100), Vector2(1000, 480), Vector2(1000, 300)],
+		BOOSTER: [Vector2(400, 200)],
+		WALL: [Vector2(600, 200)],
+		SPLITTER: [Vector2(720, 400)],
+		ZAP: [Vector2(1000, 100)],
 	}
 	## Refused wherever the layout stands: off the grid, in the paddle lane, on the launch path, on a brick.
 	var refused := {
-		BUMPER: [Vector2(-30, 100), Vector2(30, 256), Vector2(1000, 300), Vector2(1020, 10)],
-		BOOSTER: [Vector2(1000, 32), Vector2(40, 250)],
+		BOOSTER: [Vector2(-30, 100), Vector2(30, 256), Vector2(1000, 300), Vector2(1000, 32), Vector2(40, 250)],
 		WALL: [Vector2(600, 10), Vector2(1000, 300)],
 		SPLITTER: [Vector2(1000, 100), Vector2(24, 280), Vector2(1100, 100)],
 		ZAP: [Vector2(600, 300), Vector2(-20, 300)],
 	}
 	## Refused once the first ok spot is taken: on top of it.
-	var on_first := {BUMPER: Vector2(310, 110), BOOSTER: Vector2(410, 210), WALL: Vector2(604, 210), SPLITTER: Vector2(700, 100), ZAP: Vector2(1000, 100)}
+	var on_first := {BOOSTER: Vector2(410, 210), WALL: Vector2(604, 210), SPLITTER: Vector2(720, 400), ZAP: Vector2(1000, 100)}
 	for slot: int in ok_spots:
 		var title := setup._slots[slot].kind.title
 		for spot: Vector2 in refused[slot]:
@@ -198,20 +195,20 @@ func _placing() -> void:
 	_key(KEY_Q)
 	_key(KEY_Q)
 	t.check(wall.rot == 0.0, "E and Q turn it each way")
-	var low := _item_at_pos(Vector2(600, 330))
+	var low := _item_at_pos(Vector2(600, 200))
 	for i in 6:
-		_mouse(_screen(Vector2(600, 330)))
+		_mouse(_screen(Vector2(600, 200)))
 		_key(KEY_E)
 	t.check(low != null and _fits_now(low), "turning never leaves an item where it does not fit")
 	low.rot = 0.0
 	level._on_edited(true)
 
 	# Move one, remove one.
-	await _drag(_screen(Vector2(450, 100)), _screen(Vector2(450, 470)))
-	t.check(_item_at_pos(Vector2(450, 470)) != null and _item_at_pos(Vector2(450, 100)) == null, "a placed Bumper can be dragged elsewhere")
+	await _drag(_screen(Vector2(400, 200)), _screen(Vector2(450, 470)))
+	t.check(_item_at_pos(Vector2(450, 470)) != null and _item_at_pos(Vector2(400, 200)) == null, "a placed Booster can be dragged elsewhere")
 	_mouse(_screen(Vector2(450, 470)), MOUSE_BUTTON_RIGHT, true)
 	_mouse(_screen(Vector2(450, 470)), MOUSE_BUTTON_RIGHT, false)
-	t.check(_item_at_pos(Vector2(450, 470)) == null and setup._slots[BUMPER].left == 1, "a right click takes it off, back to the tray")
+	t.check(_item_at_pos(Vector2(450, 470)) == null and setup._slots[BOOSTER].left == 1, "a right click takes it off, back to the tray")
 
 	# Leave and come back.
 	var kept := JSON.stringify(level.round.layout.to_data())
@@ -231,7 +228,7 @@ func _clear_1() -> void:
 	(level.get_node("SetupUi").find_child("Start", true, false) as Button).pressed.emit()
 	var round: Round = level.round
 	round.launch()
-	t.check(level.phase == PLAY and round.layout.items.size() == 14 and _specials(round) == specials, "Start plays the board Setup showed")
+	t.check(level.phase == PLAY and round.layout.items.size() == 3 and _specials(round) == specials, "Start plays the board Setup showed")
 	await _follow(30)
 	for cell: Vector2i in round.board.bricks.keys():
 		while not round.over and round.board.brick(cell):
@@ -258,7 +255,7 @@ func _level_3() -> void:
 		if rects[i] != now[i]:
 			moved.append("%s -> %s" % [rects[i], now[i]])
 	t.check(rects.size() == now.size() and moved.is_empty(), "level 3's HUD and footer sit exactly where level 1's do %s" % [moved])
-	await _drag(_slot(BUMPER), Vector2(600, 367))
+	await _drag(_slot(BOOSTER), Vector2(600, 367))
 	var items := _items()
 	t.check(items.size() == 1 and items[0].pos.is_equal_approx((Vector2(600, 367) - LevelArena.ORIGIN) * 18.0 / 16.0),
 			"a drop on level 3 lands under the cursor (%s)" % [items.map(func(i: Layout.Item) -> Vector2: return i.pos)])

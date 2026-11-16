@@ -16,6 +16,8 @@ var time_left := 0.0
 ## The full length of the window that is counting down, so time_left / window is the HUD bar's fill.
 ## 0 when no combo is running.
 var window := 0.0
+## Seconds the window stands still before it counts down again (an hourglass brick, stats.hourglass_freeze).
+var held := 0.0
 
 
 ## A brick broke: the combo grows by one and its window starts again. The round calls this only while combos
@@ -35,6 +37,10 @@ func add(stats: Balance) -> void:
 func tick(delta: float) -> bool:
 	if count == 0:
 		return false
+	# ponytail: a step that ends the hold counts down none of its own rest; exact enough at 120 steps a second.
+	if held > 0.0:
+		held -= delta
+		return false
 	time_left -= delta
 	if time_left > Round.TIME_SLOP:
 		return false
@@ -42,4 +48,5 @@ func tick(delta: float) -> bool:
 	multiplier = 1
 	time_left = 0.0
 	window = 0.0
+	held = 0.0
 	return true

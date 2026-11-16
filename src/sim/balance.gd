@@ -21,6 +21,15 @@ extends Resource
 @export var combo_rank: float  ## 0: combos are off. 1: on. Each rank above 1 widens the window
 @export var blast_size: float  ## How far an explosion reaches out from the brick's edges, in squares (1 square = 64 units)
 @export var shockwave: float  ## 0: off. 1 or more: an explosion throws the balls inside it
+@export var explosion_damage: float  ## Hits an explosion gives each brick in it
+@export var hourglass_time: float  ## Seconds an hourglass brick adds on top of its kind's own
+@export var hourglass_freeze: float  ## Seconds breaking an hourglass brick holds a running combo's window
+@export var zap_range: float  ## Bricks a Zap reaches on each side of its brick
+@export var zap_damage: float  ## Hits a Zap gives each brick it reaches
+@export var booster_speed: float  ## Added to every Booster's boost
+@export var splitter_health: float  ## HP a placed Splitter has on top of its kind's own
+@export var splitter_splits: float  ## Balls a Splitter splits a ball into, the ball itself included
+@export var rear_paddle: float  ## 0: off. Above 0: a paddle on the back wall adds this to Ball.boost on a hit
 ## Stats that have no property of their own, by name. The per-kind counts live here: `<kind id>_count` is how many
 ## of that kind the player may place (a placeable) or how many are rolled onto the board (a special brick). A name
 ## that is missing is 0, so the shipped file leaves this empty. An entry here is a free item before any upgrade.
