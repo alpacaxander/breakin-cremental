@@ -1,6 +1,6 @@
 extends RefCounted
 ## The upgrade screen: fresh, mid and maxed saves, with and without the CRT, a node of each shown state selected, a
-## Buy the player cannot afford, a locked level in the level panel, and the pointer over a node.
+## Buy the player cannot afford, a locked level in the level panel, the pointer over a node, and the web zoomed fully out and fully in.
 
 
 func shots() -> Array[Dictionary]:
@@ -15,7 +15,16 @@ func shots() -> Array[Dictionary]:
 		{"name": "maxed_flat", "save": "maxed", "crt": false, "setup": _pick.bind(&"Combo")},
 		{"name": "small", "save": "mid", "size": Vector2i(960, 540), "setup": _hub},
 		{"name": "mid_hover", "save": "mid", "crt": false, "setup": _hover.bind(&"Combo")},
+		{"name": "maxed_zoom_out", "save": "maxed", "crt": false, "setup": _zoom.bind(HubWeb.ZOOM_MIN)},
+		{"name": "maxed_zoom_in", "save": "maxed", "crt": false, "setup": _zoom.bind(HubWeb.ZOOM_MAX)},
 	]
+
+
+## The web zoomed to `z` about the view's top left quarter.
+func _zoom(main: Main, z: float) -> void:
+	Main.show_hub()
+	var web: HubWeb = _screen(main).get_node("Web")
+	web.zoom_at(web.size / 4, z)
 
 
 func _hub(_main: Main) -> void:

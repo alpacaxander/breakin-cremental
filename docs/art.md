@@ -20,7 +20,7 @@ The main menu, Settings and the Summary have no mockup. They are described below
 - A tray slot reads "1 OF 2 LEFT", and locked placeables are in the tray. A slot now shows pips, and only unlocked placeables are listed (see [Setup](#setup)).
 - The combo is one number, "×12". It is now the combo count with the multiplier beside it (see [HUD numbers](#level-screen)).
 - The legend lists every brick type. It now lists only what is on the board.
-- The web view has a legend of the node states, zoom buttons and a "drag to pan" hint. The web has none of them: it does not pan or zoom yet.
+- The web view has a legend of the node states, zoom buttons and a "drag to pan" hint. The web has none of them: it pans and zooms by drag, wheel and touchpad only (see [Upgrade screen](#upgrade-screen)).
 - A Buy the player can't afford reads "CAN'T AFFORD" in a small font. It reads BUY in the can't-afford look.
 - A locked level's button reads "CLEAR LEVEL N TO UNLOCK". It reads "CLEAR LEVEL N FIRST", which fits in the button font.
 - Older coin pop-ups shrink to 30 px and 26 px. They keep their size and dim (see [Effects](#effects)).
@@ -168,7 +168,8 @@ At most 600 squares are alive at once, and one frame's breaks share 240 new ones
 
 **Web view:**
 - **Frame:** a 2 px `2a2f4e` border over a dot grid of 3 px dots every 24 px, also in `2a2f4e`.
-- **Spacing:** nodes sit on a 170 × 116 px pitch. The demo's web is 5 columns × 5 rows with the seed in the centre. It fills the view, so the web does not pan or zoom yet.
+- **Spacing:** nodes sit on a 170 × 116 px pitch. The demo's web is 5 columns × 5 rows with the seed in the centre, and at zoom 1 with no pan it fills the view.
+- **Pan and zoom:** a drag with any mouse button, on a node or between them, pans; so does a two-finger swipe. The wheel or a pinch zooms about the pointer, by 1.1 a notch, from 0.5 to 1.5. Everything in the view scales with the zoom (nodes, their text, lines and the dot grid, which also moves with the pan) except the frame, which is drawn over the nodes. The view's centre can't leave the box around the shown nodes, so the web is never lost. When the selection changes (an arrow key, a click), the view moves just enough to show the selected node whole, 12 px clear of the frame. The view is not saved: it lasts while you go into a level and back, and resets when the screen is opened from the main menu.
 - **Node:** 148 × 60 px (the seed node is 168 × 72), with 8 × 10 px padding. The name is top left. Rank pips (8 px squares, 4 px apart) are bottom left, and the price or MAX is bottom right. There is a pip for each rank owned and one for the next rank, so the web never shows how many ranks a node has; a maxed node has a pip per rank. Five pips and a five-digit price are about 10 px wider than the padding leaves, so on those nodes (Splitter, Paddle Size and Round Time before their last rank) the row runs to 4 px from each border.
 - **Connections:** 3 px lines that run straight across or straight down through node centres. A line is lit in its outer node's category colour once either end is owned; otherwise it's `424c6e`. A line to a locked node is not drawn.
 - **Locked nodes are hidden.** A node shows once it can be bought with coins alone, that is once a node it connects to is owned; until then it, its ranks and its lines are not drawn. A fresh save shows only the seed.

@@ -35,6 +35,8 @@ const DASH := 6.0
 @export var links: Array[NodePath] = []
 
 var state := State.AVAILABLE
+## The web view's zoom, which HubWeb also sets as this node's scale: a pulse swells from it and settles back to it.
+var zoom := 1.0
 ## Drawn with the selection outline.
 var selected := false:
 	set(v):
@@ -45,13 +47,14 @@ var selected := false:
 func _ready() -> void:
 	flat = true
 	mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	mouse_filter = MOUSE_FILTER_PASS  # the wheel and drags over a node go on to the web, which pans and zooms
 	mouse_entered.connect(queue_redraw)
 	mouse_exited.connect(queue_redraw)
 	_place()
 	if not Engine.is_editor_hint():  # a rank of this node was bought: it swells for a moment
 		Progress.rank_changed.connect(func(u: Upgrade) -> void:
 			if u == upgrade:
-				UiTheme.pulse(self))
+				UiTheme.pulse(self, 0.5, UiTheme.PULSE, zoom))
 
 
 ## Shows the node in `s`. `affordable` lights the price gold.
@@ -81,9 +84,15 @@ static func shown_pips(u: Upgrade) -> int:
 	return mini(Progress.rank(u) + 1, u.max_rank)
 
 
+## Where the node sits in web.tscn's layout: at zoom 1 with no pan.
+func home() -> Rect2:
+	return Rect2(ORIGIN + Vector2(cell) * PITCH - size / 2, size)
+
+
 func _place() -> void:
 	size = SEED_SIZE if is_seed else SIZE
-	position = ORIGIN + Vector2(cell) * PITCH - size / 2
+	pivot_offset = size / 2
+	position = home().position
 	if is_node_ready():
 		($Name as Label).theme_type_variation = &"Name" if is_seed else &"SmallName"
 		($Name as Label).text = String(name) if Engine.is_editor_hint() or upgrade == null else upgrade.title

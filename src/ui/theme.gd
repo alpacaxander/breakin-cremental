@@ -110,11 +110,13 @@ static func light(control: Control, colour: Color) -> void:
 
 
 ## A quick swell on a control that has just changed: a HUD number, an upgrade node just bought. `anchor` is
-## where across its width it grows from: 0 the left edge, 0.5 the middle, 1 the right edge.
-static func pulse(control: Control, anchor := 0.5, by := PULSE) -> void:
+## where across its width it grows from: 0 the left edge, 0.5 the middle, 1 the right edge. `rest` is the scale it
+## settles back to: a web node's is the view's zoom.
+static func pulse(control: Control, anchor := 0.5, by := PULSE, rest := 1.0) -> void:
 	control.pivot_offset = control.size * Vector2(anchor, 0.5)
-	control.scale = Vector2.ONE * by
-	control.create_tween().tween_property(control, ^"scale", Vector2.ONE, PULSE_TIME)
+	control.scale = Vector2.ONE * by * rest
+	# ponytail: a zoom during the pulse is undone when it settles; the next zoom or pan sets the scale right again.
+	control.create_tween().tween_property(control, ^"scale", Vector2.ONE * rest, PULSE_TIME)
 
 
 ## The menus' one selection (docs/art.md, "Selection") over a screen's list of `controls`: the mouse (hover takes

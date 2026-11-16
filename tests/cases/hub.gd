@@ -45,6 +45,33 @@ func run(t: Node) -> void:
 		(at.call(pair[0]) as Control).grab_focus()
 		_key(t, pair[1])
 		t.check(focus.call() == at.call(pair[2]), "%s from %s goes to %s (went to %s)" % [OS.get_keycode_string(pair[1]), pair[0], pair[2], focus.call().name])
+	# Pan and zoom: the wheel over a node zooms about the pointer, a drag on the background pans, and the view's
+	# centre can't leave the web.
+	var combo: HubNode = at.call(&"Combo")
+	var spot := combo.get_global_rect().get_center()
+	var wheel := InputEventMouseButton.new()
+	wheel.button_index = MOUSE_BUTTON_WHEEL_UP
+	wheel.pressed = true
+	wheel.position = spot
+	wheel.global_position = spot
+	t.get_viewport().push_input(wheel, true)
+	t.check(web.zoom > 1.0 and combo.get_global_rect().get_center().distance_to(spot) < 0.5,
+			"the wheel over a node zooms in about the pointer (zoom %.2f)" % web.zoom)
+	var before := combo.global_position
+	var drag := InputEventMouseMotion.new()
+	drag.button_mask = MOUSE_BUTTON_MASK_LEFT
+	drag.position = web.global_position + Vector2(4, 4)
+	drag.global_position = drag.position
+	drag.relative = Vector2(-30, 20)
+	t.get_viewport().push_input(drag, true)
+	t.check(combo.global_position.distance_to(before + drag.relative) < 0.5, "a drag pans the web with the pointer")
+	web.move(Vector2(99999, 99999))
+	var middle := web.get_global_rect().get_center()
+	t.check(web.nodes().any(func(n: HubNode) -> bool: return n.get_global_rect().position.x <= middle.x + 1)
+			and web.nodes().any(func(n: HubNode) -> bool: return n.get_global_rect().position.y <= middle.y + 1),
+			"a long drag stops with the web still under the view's centre")
+	web.zoom_at(Vector2.ZERO, 0.001)
+	t.check(web.zoom == HubWeb.ZOOM_MIN, "zoom stops at its minimum")
 	Progress.ranks.clear()
 	Main.show_menu()
 	Main.show_hub()

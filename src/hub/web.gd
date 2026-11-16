@@ -11,12 +11,22 @@ extends Control
 ## decided here, from the links, never by Progress (which only checks price and max rank). A node that is not
 ## reachable (LOCKED) is hidden, and so are its links: the web shows only what is bought or what coins alone buy.
 ##
-## ponytail: no pan or zoom. The demo's 5 x 5 web fills the 864 x 608 view; a bigger web needs a drag-to-pan
-## offset on the nodes' parent and clip_contents, which is already on.
+## The view pans and zooms (art.md, "Web view"): a drag with any mouse button or a two-finger swipe pans, the wheel
+## or a pinch zooms about the pointer. The nodes are laid out in web.tscn at zoom 1 with no pan; _layout moves and
+## scales them from there. The view's centre stays over the shown nodes, so the web can't be lost off screen.
 
 const DOT := 3.0
 const DOT_STEP := 24
 const LINE := 3.0
+const ZOOM_MIN := 0.5
+const ZOOM_MAX := 1.5
+const ZOOM_STEP := 1.1  ## per wheel notch
+const PAN_GESTURE := 16.0  ## px per unit of a touchpad swipe
+const REVEAL := 12.0  ## px kept between the selected node and the frame when the view moves to show it
+
+## Where the web's origin is in the view, and its scale. (0, 0) and 1 show it as web.tscn lays it out.
+var pan := Vector2.ZERO
+var zoom := 1.0
 
 
 ## Every node of the web, in scene order.
@@ -72,18 +82,74 @@ func buyable(n: HubNode) -> bool:
 	return state(n) in [HubNode.State.AVAILABLE, HubNode.State.OWNED] and Progress.can_buy(n.upgrade)
 
 
-## Shows every node's state from Progress, with `selected` outlined, and hides the locked ones.
+## Shows every node's state from Progress, with `selected` outlined, and hides the locked ones. The view moves just
+## enough to show `selected` whole, so the arrow keys never leave the selection off screen.
 func refresh(selected: HubNode) -> void:
 	for n in nodes():
 		n.show_state(state(n), buyable(n))
 		n.visible = n.state != HubNode.State.LOCKED
 		n.selected = n == selected
 	_focus_neighbours()
+	if selected:
+		var r := Rect2(pan + selected.home().position * zoom, selected.size * zoom).grow(REVEAL)
+		pan += (-r.position).max(Vector2.ZERO) + (size - r.end).min(Vector2.ZERO)
+	_layout()
+
+
+## Zooms by `factor` about `at`, a point in the view, which stays where it is.
+func zoom_at(at: Vector2, factor: float) -> void:
+	var z := clampf(zoom * factor, ZOOM_MIN, ZOOM_MAX)
+	pan = at - (at - pan) * z / zoom
+	zoom = z
+	_layout()
+
+
+func move(by: Vector2) -> void:
+	pan += by
+	_layout()
+
+
+## Keeps the view's centre over the shown nodes, then places and scales every node for pan and zoom. A node's
+## pivot is its centre, so its centre lands at pan + home centre × zoom.
+func _layout() -> void:
+	var shown := nodes().filter(func(n: HubNode) -> bool: return n.visible)
+	if shown:
+		var bounds: Rect2 = shown[0].home()
+		for n: HubNode in shown:
+			bounds = bounds.merge(n.home())
+		pan = pan.clamp(size / 2 - bounds.end * zoom, size / 2 - bounds.position * zoom)
+	for n in nodes():
+		n.zoom = zoom
+		n.scale = Vector2.ONE * zoom
+		n.position = pan + n.home().get_center() * zoom - n.size / 2
 	queue_redraw()
+
+
+func _gui_input(event: InputEvent) -> void:
+	var b := event as InputEventMouseButton
+	if b and b.pressed and b.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:
+		zoom_at(b.position, ZOOM_STEP if b.button_index == MOUSE_BUTTON_WHEEL_UP else 1 / ZOOM_STEP)
+	elif event is InputEventMouseMotion and event.button_mask:
+		move(event.relative)
+	elif event is InputEventMagnifyGesture:
+		zoom_at(event.position, event.factor)
+	elif event is InputEventPanGesture:
+		move(-event.delta * PAN_GESTURE)
+	else:
+		return
+	accept_event()
 
 
 func _ready() -> void:
 	clip_contents = true
+	# The frame goes over the nodes, which a pan or zoom pushes against it.
+	var frame := ReferenceRect.new()
+	frame.editor_only = false
+	frame.border_color = Palette.WALL
+	frame.border_width = 2
+	frame.mouse_filter = MOUSE_FILTER_IGNORE
+	frame.set_anchors_and_offsets_preset(PRESET_FULL_RECT, PRESET_MODE_MINSIZE, 1)  # its stroke straddles its edge
+	add_child(frame, false, INTERNAL_MODE_BACK)
 	if Engine.is_editor_hint():
 		child_order_changed.connect(queue_redraw)
 
@@ -106,10 +172,14 @@ func _focus_neighbours() -> void:
 
 
 func _draw() -> void:
-	for x in range(DOT_STEP / 2, int(size.x), DOT_STEP):
-		for y in range(DOT_STEP / 2, int(size.y), DOT_STEP):
+	var step := DOT_STEP * zoom  # the dots move with the web, so a pan shows even where there is no node
+	var x := fposmod(pan.x + step / 2, step)
+	while x < size.x:
+		var y := fposmod(pan.y + step / 2, step)
+		while y < size.y:
 			draw_rect(Rect2(x - 1, y - 1, DOT, DOT), Palette.WALL)
-	draw_rect(Rect2(Vector2.ONE, size - Vector2(2, 2)), Palette.WALL, false, 2)
+			y += step
+		x += step
 	var depth := _depth()
 	for l in links():
 		var a: HubNode = l[0]
@@ -120,7 +190,7 @@ func _draw() -> void:
 		var lit := not Engine.is_editor_hint() and (Progress.rank(a.upgrade) > 0 or Progress.rank(b.upgrade) > 0)
 		var colour := Palette.lit(Palette.of(outer.upgrade.meaning()), Palette.LIT_TEXT) if lit else Palette.BORDER
 		# ponytail: a straight line between centres; the demo's links are all straight across or straight down.
-		draw_line(a.position + a.size / 2, b.position + b.size / 2, colour, LINE)
+		draw_line(a.position + a.size / 2, b.position + b.size / 2, colour, LINE * zoom)
 
 
 ## Steps from the seed to each node, for colouring a line by its outer end.
