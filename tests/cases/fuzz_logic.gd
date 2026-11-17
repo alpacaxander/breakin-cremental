@@ -477,7 +477,7 @@ func _fits() -> void:
 		[empty, _item(&"bumper", rest), false, "a Bumper on the ball at rest"],
 		[empty, _item(&"wall_segment", Vector2(5, 300)), false, "a Wall Segment between the ball at rest and the paddle"],
 		[empty, _item(&"splitter", Vector2i(0, 3)), false, "a Splitter between the ball at rest and the paddle"],
-		[empty, _item(&"booster", rest + Vector2(18, 0)), false, "a Booster over the ball at rest"],
+		[empty, _item(&"booster", rest + Vector2(13, 0)), false, "a Booster over the ball at rest"],
 		[empty, _item(&"booster", Vector2(1100, 300)), false, "a Booster off the board"],
 		[empty, _item(&"booster", Vector2(500, -10)), false, "a Booster over the top wall"],
 		[empty, _item(&"booster", Vector2(500, 515)), false, "a Booster over the bottom wall"],
@@ -1070,11 +1070,10 @@ func _r2_watch(spy: Round) -> void:
 		elif hit.surface == Hit.Surface.PADDLE:
 			_fail(ball.dir.x > 0.0 and _angle(ball.dir) <= spy.stats.paddle_max_angle + 0.01 and ball.boost == ball.kept,
 					"off the paddle a ball goes back toward the board, at most paddle_max_angle off level, back to its Booster boost (Round ONE BOUNCE)", "dir %s boost %s" % [ball.dir, ball.boost])
+		elif hit.surface == Hit.Surface.ITEM and hit.item.kind.gate:
+			_fail(hit.normal.is_equal_approx(-ball.dir), "a gate's normal points back along the ball's way, which it does not change (Hit.normal)", "normal %s, dir %s" % [hit.normal, ball.dir])
 		elif hit.surface == Hit.Surface.ITEM:
 			_fail(ball.dir.dot(hit.normal) > 0.0, "after an item bounce the ball leaves the item (Round.ball_bounced)", "%s normal %s, dir %s" % [hit.item.kind.id, hit.normal, ball.dir])
-			if hit.item.kind.shape == PlaceableKind.Shape.CIRCLE:
-				_fail(hit.normal.is_equal_approx((hit.point - hit.item.pos).normalized()), "a Booster hit's normal points from the Booster's centre to the ball (Hit.normal)",
-						"normal %s, from centre %s" % [hit.normal, (hit.point - hit.item.pos).normalized()])
 	)
 
 

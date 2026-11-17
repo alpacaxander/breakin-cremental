@@ -8,7 +8,7 @@ See also: [overview.md](overview.md#level-phases), [levels.md](levels.md), [phys
 
 | Kind | Where it can go | Items in the demo |
 |---|---|---|
-| **Free-form** | Anywhere in the arena where it doesn't overlap a brick, another placed item or the paddle lane, and is clear of the ball where it rests and of its way to the paddle. It doesn't snap to the grid. Some free-form items can be rotated | Bumper, Booster, Wall Segment (rotatable) |
+| **Free-form** | Anywhere in the arena where it doesn't overlap a brick, another placed item or the paddle lane, and is clear of the ball where it rests and of its way to the paddle. It doesn't snap to the grid. Some free-form items can be rotated | Bumper, Booster (rotatable), Wall Segment (rotatable) |
 | **Placeable brick** | Snaps to the brick grid, on empty brick cells only, and not on the ball where it rests or its way to the paddle | Splitter, Growth, Refresh |
 | **Brick mod** | Only on a brick that is already on the board. It gives that one brick an effect | Zap |
 
@@ -21,7 +21,7 @@ Each item is unlocked by the node of the same name in the [upgrade web](upgrades
 | Item | Kind | What it does |
 |---|---|---|
 | **Bumper** | Free-form | A diamond. The ball bounces off its faces. It doesn't change the ball's speed |
-| **Booster** | Free-form | A circle. The ball bounces off it at the point where it touches, and leaves faster by 20% of its base speed (100 units/s). The extra speed is a boost (see [physics.md](physics.md#ball)) |
+| **Booster** | Free-form, rotatable | A gate. The ball passes through it either way, never bounces, and comes out faster by 20% of its base speed (100 units/s). The extra speed is a boost (see [physics.md](physics.md#ball)) |
 | **Wall Segment** | Free-form, rotatable | A straight wall the ball bounces off |
 | **Splitter** | Placeable brick | A 1 HP brick. When a ball breaks it, that ball splits in two: one bounces back off it as usual and the other carries on the way the ball came in, through the gap. Each rank of Splitter Splits adds one more ball, fanned 20° from the last and kept to the minimum angles. If a blast or a Zap breaks it, it just breaks |
 | **Growth** | Placeable brick | A block that never breaks: a ball bounces off it as off a brick, and no hit takes its HP. Every 5 s of play (1 s less per rank of Pulse Rate, never under 1 s) it gives 1 HP to each level brick within 1 square of its edges (the area of a base blast), up to 4 HP. Each rank of Growth Reach adds one more square. It never grows a placed brick |
@@ -42,7 +42,7 @@ A Zap can go on any brick, including a special brick or a Splitter, but not on a
   - don't count toward clearing the level
   - extend the combo when broken; a hit that leaves one standing does not (a hit on a level brick does, broken or not)
   - Growth and Refresh never break: their hits pay nothing and don't extend the combo
-- **Ball speed.** Only the Booster changes a ball's speed. Every other placeable just bounces the ball (see [physics.md](physics.md#ball)).
+- **Ball speed.** Only the Booster changes a ball's speed, and it is the one placeable the ball goes through. Every other placeable just bounces the ball (see [physics.md](physics.md#ball)).
 
 ## Controls
 

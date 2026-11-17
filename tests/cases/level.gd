@@ -81,9 +81,9 @@ func _seam() -> void:
 	legend = _texts(level.get_node("Hud")._legend).filter(func(s: String) -> bool: return s.ends_with("HP"))
 	t.check(legend == ["1 HP", "2 HP", "3 HP", "4+ HP"], "the legend stops at the palette's top step, 4+ HP (%s)" % [legend])
 
-	# The hint names turning only when something in the tray turns: of the placeables only the Wall Segment does.
+	# The hint names turning only when something in the tray turns: of the placeables the Booster and the Wall Segment do.
 	var ranks := Progress.ranks.duplicate()
-	for only: Array in [[&"booster", false], [&"wall_segment", true]]:
+	for only: Array in [[&"splitter", false], [&"booster", true]]:
 		Progress.ranks.clear()
 		Progress.ranks[only[0]] = 1
 		await _open(1)
@@ -139,7 +139,7 @@ func _placing() -> void:
 	t.check(_rot(&"wall_segment") == step * 2.0 and is_equal_approx(_saved().layouts["1"][1].rot, step * 2.0), "Q turns it back, and the turn is saved")
 	_mouse(_screen(at))
 	_key(KEY_E)
-	t.check(_rot(&"booster") == 0.0, "an item that cannot be rotated is not")
+	t.check(_rot(&"booster") == step, "a Booster turns as well")
 
 	# A placeable brick snaps to its cell; a brick mod goes on a brick and nowhere else.
 	await _drag(_slot(SPLITTER), _screen(Vector2(333, 140)))

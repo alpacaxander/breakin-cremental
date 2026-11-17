@@ -82,7 +82,7 @@ A kind is a `Resource`. `Kind` is the base, with the id, the title, the colour m
 
 | Hook | Called when | Example |
 |---|---|---|
-| `on_ball_hit(round, ball, hit)` | A ball has bounced off a placed item | The Booster adds a boost |
+| `on_ball_hit(round, ball, hit)` | A ball has bounced off a placed item, or crossed a gate's middle line (`gate`: no bounce; `Round._cross`) | The Booster adds a boost |
 | `on_hit(round, cell, brick, cause, dir, ball)` | The brick took a hit and still stands | The Splitter splits a ball that hits it (with more than 1 HP) |
 | `on_broken(round, cell, brick, cause, dir, ball)` | The brick broke | The explosive brick calls `round.blast`; the Splitter adds a ball |
 | `on_host_broken(round, cell, brick, cause, dir, ball)` | A brick with this mod on it broke | Zap hits the rest of the row |
@@ -95,7 +95,7 @@ The demo's kinds. The id is the file name in `data/kinds/`, and `<id>_count` is 
 | Id | Base | Shape and size (units) | Colour | Cue | Its own numbers |
 |---|---|---|---|---|---|
 | `bumper` | PlaceableKind, FREE | RECT 30 × 30, turn 45 | `placeable` | `bumper` | |
-| `booster` | PlaceableKind, FREE | CIRCLE, 32 across | `placeable` | `booster` | Adds 0.2 to the ball's boost |
+| `booster` | PlaceableKind, FREE, `gate` | RECT 16 × 96, rotatable, passed through | `placeable` | `booster` | Adds 0.2 to the ball's boost |
 | `wall_segment` | PlaceableKind, FREE, rotatable | RECT 10 × 112 | `placeable` | `wall_bounce` | |
 | `splitter` | PlaceableKind, BRICK | A brick cell, 1 HP | `placeable` | none (`ball_added` has its own) | |
 | `zap` | PlaceableKind, MOD | A 6 × 6 mark | `placeable` | `zap` | |

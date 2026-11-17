@@ -80,10 +80,10 @@ extends RefCounted
 ## centre of the paddle sends the ball back min_angle_horizontal below level, not along the line it came on.
 ## Turned like that, a ball can leave straight back along the line it came on. Once is harmless. Twice, with
 ## whatever it touched in between, can be a ball passed back and forth for ever: between two Wall Segments
-## turned 105 degrees one above the other, in the neck between two Boosters, between one Booster and a paddle
+## turned 105 degrees one above the other, in the neck between two Bumpers, between one Bumper and a paddle
 ## that stays put. So every second time a ball is turned straight back (Ball.back) it gets the same angle on
 ## the other side of the axis instead. That still leaves the surface.
-## # ponytail: only straight back is caught. A loop through three surfaces is not: a Booster in a corner beside
+## # ponytail: only straight back is caught. A loop through three surfaces is not: a Bumper in a corner beside
 ## # the lane, the top wall and a paddle at the end of its travel pass a ball round for ever, and moving the
 ## # paddle a few units does not break it. Catch repeats in general (the same contacts again with no brick between)
 ## # if players meet one.
@@ -220,6 +220,8 @@ var level_cells: Dictionary[Vector2i, bool] = {}
 # The FREE items as the sweep sees them (Collide.Solid), in layout order.
 # ponytail: grown for a ball of stats.ball_size. Every ball is that size; if one ever is not, grow per size.
 var _solids: Array[Collide.Solid] = []
+## FREE items the ball passes through (PlaceableKind.gate).
+var _gates: Array[Layout.Item] = []
 # Level bricks still to break: board.remaining(), kept as a count because walking 512 bricks every step makes a
 # round ten times slower.
 # ponytail: so a brick put on or taken off round.board by hand is not seen. Count again there if that is needed.
@@ -249,7 +251,10 @@ func _init(p_board: Board, p_layout: Layout, p_stats: Balance, p_seed: int) -> v
 			PlaceableKind.Placement.MOD:
 				board.brick(item.cell).mod = item.kind.id
 			_:
-				_solids.append(Collide.solid(item, stats.ball_size))
+				if item.kind.gate:
+					_gates.append(item)
+				else:
+					_solids.append(Collide.solid(item, stats.ball_size))
 	_left = board.remaining()
 	for cell in board.bricks:
 		if not board.bricks[cell].placed:
@@ -559,12 +564,15 @@ func _move(ball: Ball, time: float) -> void:
 				balls.erase(ball)
 				ball_lost.emit(ball)
 				return
+		var was := ball.pos
 		if hit == null:
 			ball.gone += reach
 			ball.pos = ball.from + ball.dir * ball.gone
+			_cross(ball, was)
 			return
 		time = maxf(time - hit.travel / speed, 0.0)
 		ball.pos = hit.point
+		_cross(ball, was)
 		_bounce(ball, hit)
 		# Wedged: the ball is where two surfaces close to a gap narrower than itself, and each sends it back into
 		# the other (the paddle does not mirror, so its bounces can shrink toward that point for ever). It leaves
@@ -576,6 +584,25 @@ func _move(ball: Ball, time: float) -> void:
 			ball.put(ball.pos, nudged if nudged.dot(hit.normal) > 0.0 and nudged.dot(last) > 0.0 else between)
 			still = 0
 		last = hit.normal
+
+
+## Runs on_ball_hit for every gate whose long centre line the ball crossed going from `was` to ball.pos.
+# ponytail: the new speed applies from the next move, not mid-move; fine at 60 Hz steps.
+func _cross(ball: Ball, was: Vector2) -> void:
+	for item in _gates:
+		var half := Vector2(0.0, item.kind.size.y * 0.5).rotated(deg_to_rad(item.kind.turn + item.rot))
+		if Geometry2D.segment_intersects_segment(was, ball.pos, item.pos - half, item.pos + half) == null:
+			continue
+		# The ball goes on, so there is no surface: the point is where the ball is (ball_bounced's contract), at
+		# most a step past the line, and the normal faces back along its way.
+		var hit := Hit.new()
+		hit.surface = Hit.Surface.ITEM
+		hit.item = item
+		hit.point = ball.pos
+		hit.normal = -ball.dir
+		tally.hit(item.kind.id)
+		item.kind.on_ball_hit(self, ball, hit)
+		ball_bounced.emit(ball, hit)
 
 
 func _bounce(ball: Ball, hit: Hit) -> void:

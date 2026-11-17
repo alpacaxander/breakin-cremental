@@ -32,7 +32,7 @@ The main menu, Settings and the Summary have no mockup. They are described below
 - **Arena sizes are for a 16-row level.** Things inside the arena shrink or grow with the level's size (see [Arena zoom](#arena-zoom)).
 - **Draw shapes, don't paint them.** Bricks, the paddle, the ball, placeables, bars, panels and upgrade nodes are flat rectangles drawn in the engine (`ColorRect`, `Polygon2D` or `draw_rect`). They have no textures, outlines, bevels, gradients or rounded corners. If something does need a texture, make it white and tint it with a palette colour, so every colour is defined only in `palette.md`.
 - **Bake no glow.** Halos, shadows and flashes all come from bloom. Lit colours bloom and slate never does: set the bloom threshold above the slate neutrals and push lit colours over it (in Godot: WorldEnvironment glow with HDR 2D on).
-- **Squares, never circles, with one exception.** The ball, particles and the coin glyph are squares. The coin glyph and the bumper are squares turned 45°. The Booster is the only round object in the game (`draw_circle`): it has to bounce like a round thing, and its shape sets it apart from the Bumper. The light pool under an explosion is round too, because it is light and not an object: as a square it showed edges and diagonal creases.
+- **Squares, never circles.** The ball, particles and the coin glyph are squares. The coin glyph and the bumper are squares turned 45°. The light pool under an explosion is round too, because it is light and not an object: as a square it showed edges and diagonal creases.
 - **Snap to the grid.** Bricks sit on the level's grid from [levels.md](design/levels.md). Placeable bricks and brick mods snap to it too. Free-form placeables, such as the bumper and the wall segment, don't snap (see [placeables.md](design/placeables.md)).
 - **Bloom target.** The mockups fake bloom with CSS shadows: a tight halo of about 6 px and a soft one of about 15 px around bricks, with a stronger one around the ball. Tune bloom to that at ×1 and let the combo push it higher.
 
@@ -48,7 +48,7 @@ The main menu, Settings and the Summary have no mockup. They are described below
 | Paddle | 12 × 96, 24 px in from the arena's left edge | Body `657392`, with a 4 px cyan stripe on the side facing the board |
 | Ball | 12 × 12 | White. In Setup it sits 8 bricks to the right of the paddle's stripe (128 units, so 128 px on level 1 and less on the zoomed levels), at the arena's vertical centre |
 | Bumper | 30 × 30, turned 45° | Blue. Free-form |
-| Booster | A circle 32 across | Blue. Free-form |
+| Booster | A gate 16 × 96: a 6 px lit cap across each end, the span between in dim blue (`00396d`, unlit), and down its middle a 2 px lit line in 8 px dashes that stops 4 px short of each cap, the line the ball crosses | Blue. Free-form, and it can be rotated. Dashed and dim because the ball goes through it, so it never reads as a Wall Segment. Its tray icon is the same gate at 6 × 24 |
 | Wall segment | 10 × 112 | Blue. Free-form, and it can be rotated |
 | Placeable brick (Splitter) | A brick cell, drawn like a brick | Blue, so it can't be mistaken for a brick that pays |
 | Block that never breaks (Growth) | A brick cell, drawn as a hollow frame: a 3 px blue rim round a base-colour centre | Blue like the Splitter, and hollow so it can't be mistaken for one. Its tray icon is hollow too |
@@ -115,7 +115,7 @@ Effects take the colour of whatever made them. Sizes below are at their peak, in
 | Bricks grown back (Overgrowth) | None: the brick just reappears in its 1 HP colour, already lit. On level 3 hundreds of bricks come back in a few seconds and a blast's worth can in one step, so an outline or a flash on each would be a constant flicker, and would push the shockwaves and the combo's ring out of their lists of 48. It is a rule of the arena, not something the player did, so it stays in the background |
 | Gold brick, hourglass brick, Splitter | A 72 px ring with a 2 px line, in gold, green or blue. The hourglass adds a green "+15s" pop-up under its brick, and at least a text height under its coins: a top-row brick's coin pop-up has no room above it and sits lower. The Splitter's ring is at the new ball |
 | Multiplier step | A gold 72 px ring at the brick and a small flash |
-| Bumper, Booster, Wall Segment | The item's own outline, growing by 18 px over 0.25 s, and 4 blue squares (more off a boosted ball) |
+| Bumper, Booster, Wall Segment | The item's own outline, growing by 18 px over 0.25 s, and 4 blue squares (more off a boosted ball). The Booster's outline only widens, by 18 px a side, as the ball goes through, and its squares fly on the way the ball goes |
 | Paddle hit | A 34 px cyan ring and 5 cyan squares |
 | Ball lost | On the edge it left through: a red 72 px ring and 12 red squares. A red bar 10 px wide runs down the open side for 0.4 s. A shake |
 | Time up | A green 72 px ring and 12 green squares at every ball |

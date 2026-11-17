@@ -28,6 +28,12 @@ const MARK_RIM := 2.0  ## The dark rim around a Zap mark, in units, so it reads 
 const BLOCK_EDGE := 3.0  ## A block that never breaks (Growth) is a frame this thick round base-colour panes, in units
 const DASH := 6.0  ## The ghost's border: dashes this long, 2 units thick
 const GHOST_EDGE := 2.0
+## A gate's look, as shares of its length so the tray's icon is the same picture smaller. At the 96 units of the
+## Booster: caps 6 long, a centre line 2 thick in dashes 8 long that stops 4 short of each cap.
+const GATE_POST := 1.0 / 16.0
+const GATE_DASH := 1.0 / 12.0
+const GATE_GAP := 1.0 / 24.0
+const GATE_LINE := 2.0  ## The centre line's thickness, in units, at any length
 
 var round: Round
 
@@ -162,9 +168,35 @@ static func panes(on: CanvasItem, inside: Rect2, count: int, gap: float, colour:
 		on.draw_rect(Rect2(inside.position.x, inside.position.y + i * (tall + gap), inside.size.x, tall), colour)
 
 
+## A gate (PlaceableKind.gate), `size` wide by long, centred on `at` and turned `angle` radians: a cap
+## across each end, in `lit`, and between them an unlit span in `dim` with a dashed `lit` line down its middle,
+## the line the ball crosses. Dashes because it can be crossed, so it never reads as a Wall Segment. The tray's icon
+## is drawn with this too.
+static func gate(on: CanvasItem, at: Vector2, size: Vector2, angle: float, lit: Color, dim: Color) -> void:
+	var along := Vector2.DOWN.rotated(angle)
+	var across := Vector2.RIGHT.rotated(angle)
+	var post := size.y * GATE_POST
+	var reach := size.y * 0.5 - post  # from the centre to the inner face of a post
+	var w := across * size.x * 0.5
+	on.draw_colored_polygon(PackedVector2Array([at - along * reach - w, at - along * reach + w,
+			at + along * reach + w, at + along * reach - w]), dim)
+	for end: float in [-1.0, 1.0]:
+		var c := at + along * end * (reach + post * 0.5)
+		var h := along * post * 0.5
+		on.draw_colored_polygon(PackedVector2Array([c - h - w, c - h + w, c + h + w, c + h - w]), lit)
+	var gap := reach - size.y * GATE_GAP
+	on.draw_dashed_line(at - along * gap, at + along * gap, lit, minf(GATE_LINE, size.x * 0.34),
+			size.y * GATE_DASH, false)
+
+
 func _draw_items() -> void:
 	for item in round.layout.items:
-		if item.kind.placement == PlaceableKind.Placement.FREE:
+		if item.kind.placement != PlaceableKind.Placement.FREE:
+			continue
+		if item.kind.gate:
+			gate(_items, item.pos, item.kind.size, deg_to_rad(item.kind.turn + item.rot),
+					Palette.lit(Palette.of(item.kind.colour)), Palette.dim(item.kind.colour))
+		else:
 			_shape(_items, item, Palette.lit(Palette.of(item.kind.colour)))
 
 
@@ -193,12 +225,7 @@ func _draw_ghost() -> void:
 	var kind := _ghost.kind
 	if kind.placement == PlaceableKind.Placement.FREE:
 		_shape(_ghost_view, _ghost, fill)
-		if kind.shape == PlaceableKind.Shape.CIRCLE:
-			var turn := GHOST_EDGE * DASH / kind.size.x  # the angle of one dash
-			for i in int(TAU / turn / 2.0):
-				_ghost_view.draw_arc(_ghost.pos, kind.size.x * 0.5, i * turn * 2.0, i * turn * 2.0 + turn, 4, edge, GHOST_EDGE)
-		else:
-			_dashed(_ghost.outline(), edge)
+		_dashed(_ghost.outline(), edge)
 		return
 	var cell := round.board.cell_rect(_ghost.cell)
 	if round.board.has_cell(_ghost.cell):
@@ -219,10 +246,7 @@ func _draw_ghost() -> void:
 
 # A free-form item's shape, filled.
 func _shape(on: Node2D, item: Layout.Item, colour: Color) -> void:
-	if item.kind.shape == PlaceableKind.Shape.CIRCLE:
-		on.draw_circle(item.pos, item.kind.size.x * 0.5, colour, true, -1.0, true)
-	else:
-		on.draw_colored_polygon(item.outline(), colour)
+	on.draw_colored_polygon(item.outline(), colour)
 
 
 func _dashed(outline: PackedVector2Array, colour: Color) -> void:

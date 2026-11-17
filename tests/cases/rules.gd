@@ -208,20 +208,20 @@ func _kinds() -> void:
 	var ids := func(kinds: Array) -> Array: return kinds.map(func(k: Kind) -> StringName: return k.id)
 	t.check(ids.call(Kinds.placeables()) == [&"bumper", &"booster", &"wall_segment", &"splitter", &"zap", &"growth", &"refresh"], "the placeables are the seven of the kinds table, in tray order")
 	t.check(ids.call(Kinds.bricks()) == [&"explosive", &"gold", &"hourglass", &"tough"], "the special bricks are the four of the kinds table, in roll order")
-	# id: [placement, shape, size, turn, rotatable, cue]
+	# id: [placement, size, turn, rotatable, gate, cue]
 	var placeables := {
-		&"bumper": [PlaceableKind.Placement.FREE, PlaceableKind.Shape.RECT, Vector2(30, 30), 45.0, false, Sfx.BUMPER],
-		&"booster": [PlaceableKind.Placement.FREE, PlaceableKind.Shape.CIRCLE, Vector2(32, 32), 0.0, false, Sfx.BOOSTER],
-		&"wall_segment": [PlaceableKind.Placement.FREE, PlaceableKind.Shape.RECT, Vector2(10, 112), 0.0, true, Sfx.WALL_BOUNCE],
-		&"splitter": [PlaceableKind.Placement.BRICK, PlaceableKind.Shape.RECT, Vector2.ZERO, 0.0, false, &""],  # no cue: Sfx plays SPLITTER from ball_added
-		&"zap": [PlaceableKind.Placement.MOD, PlaceableKind.Shape.RECT, Vector2(6, 6), 0.0, false, Sfx.ZAP],
-		&"growth": [PlaceableKind.Placement.BRICK, PlaceableKind.Shape.RECT, Vector2.ZERO, 0.0, false, Sfx.BOOSTER],  # the cue of its pulse
-		&"refresh": [PlaceableKind.Placement.BRICK, PlaceableKind.Shape.RECT, Vector2.ZERO, 0.0, false, Sfx.PLACE_ITEM],  # the cue of the bricks it brings back
+		&"bumper": [PlaceableKind.Placement.FREE, Vector2(30, 30), 45.0, false, false, Sfx.BUMPER],
+		&"booster": [PlaceableKind.Placement.FREE, Vector2(16, 96), 0.0, true, true, Sfx.BOOSTER],
+		&"wall_segment": [PlaceableKind.Placement.FREE, Vector2(10, 112), 0.0, true, false, Sfx.WALL_BOUNCE],
+		&"splitter": [PlaceableKind.Placement.BRICK, Vector2.ZERO, 0.0, false, false, &""],  # no cue: Sfx plays SPLITTER from ball_added
+		&"zap": [PlaceableKind.Placement.MOD, Vector2(6, 6), 0.0, false, false, Sfx.ZAP],
+		&"growth": [PlaceableKind.Placement.BRICK, Vector2.ZERO, 0.0, false, false, Sfx.BOOSTER],  # the cue of its pulse
+		&"refresh": [PlaceableKind.Placement.BRICK, Vector2.ZERO, 0.0, false, false, Sfx.PLACE_ITEM],  # the cue of the bricks it brings back
 	}
 	for id: StringName in placeables:
 		var k := Kinds.of(id) as PlaceableKind
 		var want: Array = placeables[id]
-		t.check(k != null and [k.placement, k.shape, k.size, k.turn, k.rotatable, k.cue] == want and k.colour == &"placeable" and k.hp == 1 and k.title != "",
+		t.check(k != null and [k.placement, k.size, k.turn, k.rotatable, k.gate, k.cue] == want and k.colour == &"placeable" and k.hp == 1 and k.title != "",
 				"the %s is as the kinds table has it" % id)
 	# id: [colour, cue, worth, hp]. The tough brick has no colour: it is drawn in the HP steps.
 	var bricks := {&"explosive": [&"explosive", &"", 1, 1], &"gold": [&"coins", Sfx.GOLD_BRICK, 20, 1], &"hourglass": [&"time", Sfx.HOURGLASS_BRICK, 1, 1], &"tough": [&"", &"", 1, 3]}
@@ -422,8 +422,8 @@ func _tunnelling() -> void:
 			past += 1
 	t.check(past == 0, "a fast ball stays in front of the back wall")
 
-	# Placed items: a ball penned in by four Wall Segments, boosted to the cap by a Booster, never gets out and
-	# never gets into the Booster. Square on, and turned.
+	# Placed items: a ball penned in by four Wall Segments, boosted to the cap by going through a Booster, never
+	# gets out. Square on, and turned.
 	for turn: float in [0.0, 30.0, 45.0]:
 		for dt: float in [1.0 / 240.0, 1.0 / 60.0, 1.0 / 20.0]:
 			var centre := Vector2(351, 261)
@@ -437,10 +437,10 @@ func _tunnelling() -> void:
 				round.step(dt, round.paddle.y)
 				top = maxf(top, ball.boost)
 				var inside := (ball.pos - centre).rotated(deg_to_rad(-turn))
-				if absf(inside.x) > 51.0 - 6.0 + NEAR or absf(inside.y) > 51.0 - 6.0 + NEAR or inside.length() < 16.0 + 6.0 - NEAR:
+				if absf(inside.x) > 51.0 - 6.0 + NEAR or absf(inside.y) > 51.0 - 6.0 + NEAR:
 					out += 1
 			t.check(round.layout.items.size() == 5, "the pen turned %d degrees fits: walls that touch do not overlap" % turn)
-			t.check(out == 0 and top == stats.boost_cap, "a ball at the boost cap and %d steps a second stays inside a pen turned %d degrees and outside its Booster" % [roundi(1.0 / dt), turn])
+			t.check(out == 0 and top == stats.boost_cap, "a ball at the boost cap and %d steps a second stays inside a pen turned %d degrees, through its Booster" % [roundi(1.0 / dt), turn])
 
 
 # --- the same, on boards made at random ------------------------------------------------------------------------
@@ -485,7 +485,7 @@ func _fuzz_round(p_seed: int, wrong: Array[String], seen: Dictionary) -> void:
 	# Not `round` itself in the lambdas: a round that holds a lambda that holds the round is never freed.
 	var live := round.board
 	var balls := round.balls
-	var solids := round.layout.items.filter(func(item: Layout.Item) -> bool: return item.kind.placement == PlaceableKind.Placement.FREE)
+	var solids := round.layout.items.filter(func(item: Layout.Item) -> bool: return item.kind.placement == PlaceableKind.Placement.FREE and not item.kind.gate)
 	var left := round.paddle.x if sealed else -INF
 	var low := stats.min_angle_horizontal - 0.01
 	var high := 90.0 - stats.min_angle_vertical + 0.01
@@ -564,10 +564,7 @@ func _overlap(point: Vector2, half: float, board: Board, solids: Array, left: fl
 	for item: Layout.Item in solids:
 		if point.distance_to(item.pos) > 80.0:
 			continue
-		if item.kind.shape == PlaceableKind.Shape.CIRCLE:
-			if point.distance_to(item.pos) < item.kind.size.x * 0.5 + half - slack:  # the sweep's own rule for the round item
-				return "into a %s at %s" % [item.kind.id, point]
-		elif not Geometry2D.intersect_polygons(Collide.box(square), item.outline()).is_empty():
+		if not Geometry2D.intersect_polygons(Collide.box(square), item.outline()).is_empty():
 			return "into a %s at %s" % [item.kind.id, point]
 	return ""
 
@@ -876,12 +873,16 @@ func _placeables() -> void:
 	hit = shot[1][0]
 	t.check(hit.normal == Vector2.LEFT and shot[0].dir == Vector2(-coming.x, coming.y) and absf(hit.point.x - (400.0 - 15.0 * sqrt(2.0) - 6.0)) < NEAR, "the point of the Bumper turns back a ball that meets it flat on")
 
-	# Booster: round. The normal runs from its centre to the ball, and every hit adds a quarter of the base speed.
+	# Booster: a gate. The ball goes through its middle line on the same line, faster by the Booster's share of the
+	# base speed; past either end of the line it is left alone, and turned the gate is crossed where it lies.
 	var booster := _item(&"booster", at)
 	shot = shoot.call(booster, Vector2(340, 240), coming)
-	hit = shot[1][0]
-	t.check(hit.item == booster and hit.normal.is_equal_approx((hit.point - at).normalized()) and absf(hit.point.distance_to(at) - 22.0) < NEAR, "a ball bounces off the Booster at the point where it touches")
-	t.check(shot[0].dir.is_equal_approx(coming.bounce(hit.normal)) and shot[0].boost == 1.0 + booster.kind.get("boost"), "and leaves mirrored there, faster by the Booster's share of its base speed")
+	t.check(shot[1].size() == 1 and shot[1][0].item == booster and shot[0].pos.x > at.x + 8.0 and shot[0].dir == coming, "a ball goes through the Booster without turning")
+	t.check(shot[0].boost == 1.0 + booster.kind.get("boost") and shot[1][0].normal.is_equal_approx(-coming), "and comes out faster by the Booster's share of its base speed")
+	shot = shoot.call(booster, Vector2(340, 140), coming)
+	t.check(shot[1].is_empty() and shot[0].boost == 1.0, "a ball that passes beyond the end of the Booster's line is not boosted")
+	shot = shoot.call(_item(&"booster", at, 90.0), Vector2(400, 180), Vector2.DOWN)
+	t.check(shot[1].size() == 1 and shot[0].boost > 1.0 and shot[0].dir == Vector2.DOWN, "a Booster turned a quarter boosts a ball crossing it from above")
 
 	# Wall Segment: straight on, turned a quarter, and at an angle.
 	var wall := _item(&"wall_segment", at)
@@ -1219,17 +1220,17 @@ func _layouts() -> void:
 	# Free-form.
 	t.check(not empty.fits(_item(&"bumper", Vector2(-20, 200)), board, stats), "a free-form item does not fit in the paddle lane")
 	t.check(not empty.fits(_item(&"bumper", Vector2(15, 200)), board, stats) and empty.fits(_item(&"bumper", Vector2(22, 200)), board, stats), "a free-form item must be wholly inside the grid")
-	t.check(not empty.fits(_item(&"booster", Vector2(1010, 500)), board, stats) and empty.fits(_item(&"booster", Vector2(1008, 496)), board, stats), "a Booster may touch the walls but not cross them")
+	t.check(not empty.fits(_item(&"booster", Vector2(1017, 464)), board, stats) and not empty.fits(_item(&"booster", Vector2(1016, 465)), board, stats) and empty.fits(_item(&"booster", Vector2(1016, 464)), board, stats), "a Booster may touch the walls but not cross them")
 	t.check(not empty.fits(_item(&"bumper", Vector2(488, 224)), board, stats), "a free-form item does not fit over a brick")
 	t.check(empty.fits(_item(&"wall_segment", Vector2(475, 224)), board, stats) and not empty.fits(_item(&"wall_segment", Vector2(476, 224)), board, stats), "touching a brick is not overlapping it")
 	t.check(empty.fits(_item(&"wall_segment", Vector2(462, 152)), board, stats) and empty.fits(_item(&"wall_segment", Vector2(462, 152), 45.0), board, stats)
 			and not empty.fits(_item(&"wall_segment", Vector2(462, 152), -45.0), board, stats), "a turned item is tested as it is turned")
-	t.check(not empty.fits(_item(&"bumper", Vector2(40, 256)), board, stats) and not empty.fits(_item(&"booster", Vector2(52, 256)), board, stats) and empty.fits(_item(&"booster", Vector2(55, 256)), board, stats),
+	t.check(not empty.fits(_item(&"bumper", Vector2(40, 256)), board, stats) and not empty.fits(_item(&"booster", Vector2(45, 256)), board, stats) and empty.fits(_item(&"booster", Vector2(46, 256)), board, stats),
 			"a free-form item does not fit over the ball at rest")
 	t.check(not empty.fits(_item(&"bumper", Vector2(22, 256)), board, stats) and not empty.fits(_item(&"wall_segment", Vector2(10, 256)), board, stats) and not empty.fits(_item(&"splitter", Vector2i(0, 4)), board, stats),
 			"nothing fits between the ball at rest and the paddle")
 	t.check(Round.launch_path(board, stats) == Rect2(-22, 250, 60, 12), "Round.launch_path runs from the paddle's face to the far side of the ball at rest")
-	t.check(not one.fits(_item(&"bumper", Vector2(600, 130)), board, stats) and one.fits(_item(&"bumper", Vector2(600, 150)), board, stats), "a free-form item does not fit over another")
+	t.check(not one.fits(_item(&"bumper", Vector2(600, 165)), board, stats) and one.fits(_item(&"bumper", Vector2(600, 170)), board, stats), "a free-form item does not fit over another")
 	var with_brick := _layout([_item(&"splitter", Vector2i(10, 2))])
 	t.check(not with_brick.fits(_item(&"bumper", Vector2(168, 160)), board, stats), "a free-form item does not fit over a placed brick")
 
@@ -1277,7 +1278,7 @@ func _layouts() -> void:
 	layout = _layout([_item(&"bumper", Vector2(200, 100)), _item(&"booster", Vector2(600, 100)), _item(&"wall_segment", Vector2(400, 300), 90.0), _item(&"splitter", Vector2i(12, 2)), _item(&"zap", Vector2i(12, 2)),
 			_item(&"zap", Vector2i(30, 3))])
 	t.check(layout.item_at(Vector2(200, 118)) == layout.items[0] and layout.item_at(Vector2(214, 114)) == null, "item_at finds a Bumper inside its diamond only")
-	t.check(layout.item_at(Vector2(611, 111)) == layout.items[1] and layout.item_at(Vector2(613, 113)) == null, "item_at finds a Booster inside its circle only")
+	t.check(layout.item_at(Vector2(607, 147)) == layout.items[1] and layout.item_at(Vector2(609, 100)) == null, "item_at finds a Booster inside its bar only")
 	t.check(layout.item_at(Vector2(450, 303)) == layout.items[2] and layout.item_at(Vector2(403, 340)) == null, "item_at finds a Wall Segment as it is turned")
 	t.check(layout.item_at(Vector2(200, 160)) == layout.items[4] and layout.item_at(Vector2(484, 250)) == layout.items[5] and layout.item_at(Vector2(2, 2)) == null, "item_at finds a Zap anywhere on its brick, before the brick under it")
 	layout.remove(layout.items[4])

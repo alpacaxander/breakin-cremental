@@ -9,6 +9,5 @@ colour = &"placeable"
 cue = &"bumper"
 order = 1
 placement = 0
-shape = 0
 size = Vector2(30, 30)
 turn = 45.0

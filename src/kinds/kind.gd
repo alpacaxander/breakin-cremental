@@ -33,7 +33,9 @@ var id: StringName:
 
 
 ## A ball touched this placed item (FREE placeables only). The round has already bounced the ball, so ball.dir
-## is its new direction; ball_bounced is emitted after this returns. The Booster raises the ball's boost here.
+## is its new direction; ball_bounced is emitted after this returns. A gate (the Booster) is not bounced off: this
+## runs as the ball crosses its middle line, hit.normal points back along the ball's way and dir is unchanged. The
+## Booster raises the ball's boost here.
 func on_ball_hit(_round: Round, _ball: Ball, _hit: Hit) -> void:
 	pass
 

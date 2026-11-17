@@ -40,6 +40,7 @@ func shots() -> Array[Dictionary]:
 		# The placeables, the paddle, a boosted ball, a ball lost, the last brick.
 		{"name": "items", "save": "maxed", "crt": false, "setup": _items},
 		{"name": "boost", "save": "maxed", "crt": false, "setup": _boost, "settle": 0, "frames": 3, "every": 4},
+		{"name": "gate", "save": "maxed", "crt": false, "setup": _gate, "settle": 0, "frames": 8, "every": 2},
 		{"name": "paddle_lost", "crt": false, "setup": _paddle_lost},
 		{"name": "paddle_lost_calm", "crt": false, "calm": true, "setup": _paddle_lost},
 		{"name": "cleared", "save": "maxed", "setup": _cleared, "settle": 0, "frames": 8, "every": 6},
@@ -243,3 +244,10 @@ func _follow(main: Main, level: Control, round: Round) -> void:
 		event.global_position = event.position
 		main.view.push_input(event, true)
 		await main.get_tree().physics_frame
+
+
+## A ball launched, then sent through the Booster's gate on a slant, just short of it.
+func _gate(main: Main) -> void:
+	var round := await _start(main, 1, 0, PLACED)
+	round.launch()
+	round.balls[0].put(Vector2(570, 165), Vector2(1, 0.3).normalized())

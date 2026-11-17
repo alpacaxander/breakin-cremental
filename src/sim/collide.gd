@@ -3,7 +3,7 @@ class_name Collide
 ## Only Round and Layout call it; nothing outside the rules depends on its shape.
 ##
 ## HOW THE SWEEP WORKS. The ball is a square that never turns, so it is treated as its centre point and every
-## solid is grown by half the ball: a wall, a brick and the paddle by a plain margin, a RECT item by the square
+## solid is grown by half the ball: a wall, a brick and the paddle by a plain margin, an item by the square
 ## itself (its outline with the ball's square added on, which is still a convex polygon). The ball's line is then
 ## a ray against those shapes and the nearest entry wins. Nothing is tested by overlap after a move, so no speed
 ## and no step size passes through anything.
@@ -16,12 +16,8 @@ class_name Collide
 ##   - A brick is hit on the face the ray enters through: one of LEFT, RIGHT, UP, DOWN. An exact corner takes
 ##     the side face. When the ball lands across two bricks at once, the one more of the ball is on takes the
 ##     hit, so a seam inside a wall of bricks is never an edge.
-##   - A RECT item (Bumper, Wall Segment) bounces the ball off its faces. Where a corner of the item meets a flat
-##     side of the ball, the normal is that side's.
-##   - A CIRCLE item (Booster) is hit as if the ball were round too: at a distance of its radius plus half the
-##     ball, with the normal pointing from its centre to the ball.
-##     # ponytail: so the ball's corner can dip up to 2.5 units into a Booster on a diagonal hit. A rounded
-##     # square would be exact; nobody will see it at 1 unit a pixel.
+##   - An item (Bumper, Wall Segment) bounces the ball off its faces. Where a corner of the item meets a flat
+##     side of the ball, the normal is that side's. A gate (the Booster) is not a solid: Round checks it.
 ##   - The paddle is solid on every side, so its ends save a ball too. If the paddle moves onto a ball that is
 ##     heading out, the ball bounces where it is and is then let out of the paddle.
 ##   - A ball that is already inside something by more than SKIN is let out of it, never pushed.
@@ -36,13 +32,11 @@ class Solid:
 	var item: Layout.Item
 	## Its bounds, already grown, for a quick miss.
 	var box: Rect2
-	## RECT: a point on each face of the grown outline, and that face's outward normal.
+	## A point on each face of the grown outline, and that face's outward normal.
 	var points := PackedVector2Array()
 	var normals := PackedVector2Array()
-	## CIRCLE: its radius plus half the ball. 0 for a RECT.
-	var radius := 0.0
 
-# What the last _slab, _poly or _circle that found a hit also found: the surface normal, and for a face that
+# What the last _slab or _poly that found a hit also found: the surface normal, and for a face that
 # lies along an axis the coordinate the ball's centre has on it (else NAN). Kept here so a miss allocates nothing.
 static var _normal: Vector2
 static var _plane: float
@@ -129,7 +123,7 @@ static func sweep(round: Round, ball: Ball, distance: float) -> Hit:
 	for s: Solid in round._solids:
 		if not s.box.intersects(path, true):
 			continue
-		e = _circle(s, a, d, gone) if s.radius > 0.0 else _poly(s, a, d, gone)
+		e = _poly(s, a, d, gone)
 		if e < t:
 			t = e
 			normal = _normal
@@ -195,7 +189,7 @@ static func _slab(l: float, t: float, r: float, b: float, a: Vector2, d: Vector2
 	return maxf(enter, gone)
 
 
-## The same for a RECT item's grown outline: the ray is clipped against each face in turn.
+## The same for an item's grown outline: the ray is clipped against each face in turn.
 static func _poly(s: Solid, a: Vector2, d: Vector2, gone: float) -> float:
 	var enter := -INF
 	var leave := INF
@@ -219,30 +213,11 @@ static func _poly(s: Solid, a: Vector2, d: Vector2, gone: float) -> float:
 	return maxf(enter, gone)
 
 
-## The same for a CIRCLE item. The normal is the one at the point of entry.
-static func _circle(s: Solid, a: Vector2, d: Vector2, gone: float) -> float:
-	var m := a - s.item.pos
-	var b := m.dot(d)
-	var disc := b * b - m.length_squared() + s.radius * s.radius
-	if disc <= 0.0:
-		return INF
-	var enter := -b - sqrt(disc)
-	if -b + sqrt(disc) <= gone or gone - enter > SKIN:
-		return INF
-	_normal = (m + d * enter).normalized()
-	_plane = NAN
-	return maxf(enter, gone)
-
-
 ## A FREE item as the sweep needs it, for balls of side `ball_size`.
 static func solid(item: Layout.Item, ball_size: float) -> Solid:
 	var s := Solid.new()
 	s.item = item
 	var h := ball_size * 0.5
-	if item.kind.shape == PlaceableKind.Shape.CIRCLE:
-		s.radius = item.kind.size.x * 0.5 + h
-		s.box = Rect2(item.pos, Vector2.ZERO).grow(s.radius)
-		return s
 	# The outline with the ball's square added on: every corner of one plus every corner of the other, and the
 	# hull of those.
 	var sums := PackedVector2Array()

@@ -182,7 +182,6 @@ class Shape:
 	var boost := RING_BOOST  ## Its strength as it starts (see _lit)
 	var width := 0.0  ## The outline's width; 0 fills it
 	var turn := 0.0
-	var circle := false  ## A circle as wide as `from.x`, then `to.x`: the Booster's outline, and nothing else
 	var life := 0.3
 	var age := 0.0  ## Below 0 it has not started
 
@@ -493,13 +492,15 @@ func _on_ball_bounced(ball: Ball, hit: Hit) -> void:
 			_ring(at, PADDLE_RING, 2.0, Palette.PLAYER, ITEM_TIME)
 			_ask(Rect2(at, Vector2.ZERO), Palette.PLAYER, ball.dir, PADDLE_SPARKS, HIT_THROW * 1.5)
 		Hit.Surface.ITEM:
-			# The item's own outline, growing: a diamond off the Bumper, a bar off the Wall Segment, a circle off
-			# the Booster.
+			# The item's own outline, growing: a diamond off the Bumper, a bar off the Wall Segment, a frame round
+			# the Booster's gate.
 			var kind := hit.item.kind
 			var colour := Palette.of(kind.colour)
-			var size := kind.size if kind.shape == PlaceableKind.Shape.RECT else Vector2.ONE * kind.size.x
-			_shape(_shapes, hit.item.pos, size, size + Vector2.ONE * ITEM_RING, colour, 2.0, ITEM_TIME, 0.0,
-					deg_to_rad(kind.turn + hit.item.rot)).circle = kind.shape == PlaceableKind.Shape.CIRCLE
+			# A gate's only widens, opening round the line the ball went through.
+			var size := kind.size
+			var grow := Vector2(ITEM_RING * 2.0, 0.0) if kind.gate else Vector2.ONE * ITEM_RING
+			_shape(_shapes, hit.item.pos, size, size + grow, colour, 2.0, ITEM_TIME, 0.0,
+					deg_to_rad(kind.turn + hit.item.rot))
 			_ask(Rect2(hit.point - hit.normal * ball.size * 0.5, Vector2.ZERO), colour, ball.dir,
 					BOOST_SPARKS * ball.boost if ball.boost > 1.0 else ITEM_SPARKS, BREAK_THROW)
 	# A wall bounce shows nothing: the wall is slate and the ball's own colour is the ball's alone.
@@ -714,9 +715,7 @@ func _draw_sparks() -> void:
 		var size := shape.from.lerp(shape.to, 1.0 - (1.0 - t) * (1.0 - t))  # fast out, then easing
 		var colour := _lit(shape.colour, shape.boost * pow(1.0 - t, FADE))
 		_sparks.draw_set_transform(shape.at, shape.turn)
-		if shape.circle:
-			_sparks.draw_arc(Vector2.ZERO, size.x * 0.5, 0.0, TAU, 48, colour, shape.width)
-		elif shape.width > 0.0:
+		if shape.width > 0.0:
 			_sparks.draw_rect(Rect2(-size * 0.5, size), colour, false, shape.width)
 		else:
 			_sparks.draw_rect(Rect2(-size * 0.5, size), colour)

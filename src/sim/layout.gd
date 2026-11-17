@@ -15,10 +15,6 @@ extends RefCounted
 ## ghost under the cursor; loading calls it through fitted(). Overlap means sharing area: touching does not count.
 ## The one exception is the launch path (Round.launch_path), which an item may not touch from above or below.
 
-## Sides of the polygon that stands in for a CIRCLE item in fits().
-# ponytail: the polygon is drawn around the circle, so a Booster is refused up to 0.3 units before it really
-# touches something on a diagonal. Test the true circle if that margin is ever felt.
-const ROUND := 16
 ## How far, in units, an item must stay from the launch path above and below it. Collide.overlap lets an overlap
 ## under SKIN pass, but the sweep has no such allowance: a corner that far into the path would take the launch's
 ## first bounce. So the path is tested this much taller than it is. One SKIN is the overlap that does not count,
@@ -36,17 +32,12 @@ class Item:
 	var rot := 0.0
 
 
-	## FREE only: the shape as a convex polygon, in round units. A RECT's four corners, turned by kind.turn + rot;
-	## a CIRCLE as ROUND sides drawn around it. fits() and the sweep both work from this.
+	## FREE only: the rectangle's four corners, in round units, turned by kind.turn + rot. fits() and the sweep
+	## both work from this.
 	func outline() -> PackedVector2Array:
 		var out := PackedVector2Array()
-		if kind.shape == PlaceableKind.Shape.CIRCLE:
-			var reach := kind.size.x * 0.5 / cos(PI / ROUND)
-			for i in ROUND:
-				out.append(pos + Vector2.from_angle((i + 0.5) * TAU / ROUND) * reach)
-		else:
-			for corner in Collide.box(Rect2(-kind.size * 0.5, kind.size)):
-				out.append(pos + corner.rotated(deg_to_rad(kind.turn + rot)))
+		for corner in Collide.box(Rect2(-kind.size * 0.5, kind.size)):
+			out.append(pos + corner.rotated(deg_to_rad(kind.turn + rot)))
 		return out
 
 var items: Array[Item] = []
@@ -185,10 +176,7 @@ func item_at(point: Vector2) -> Item:
 				if item.cell == cell:
 					return item
 			PlaceableKind.Placement.FREE:
-				if item.kind.shape == PlaceableKind.Shape.CIRCLE:
-					if point.distance_to(item.pos) <= item.kind.size.x * 0.5:
-						return item
-				elif Geometry2D.is_point_in_polygon(point, item.outline()):
+				if Geometry2D.is_point_in_polygon(point, item.outline()):
 					return item
 	return null
 

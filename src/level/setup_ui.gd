@@ -102,8 +102,9 @@ class Slot:
 				draw_rect(Rect2(c - Vector2(5, 12), Vector2(10, 24)), Palette.BORDER)
 				draw_rect(Rect2(c - Vector2(3, 3), Vector2(6, 6)), colour)
 			_:
-				if kind.shape == PlaceableKind.Shape.CIRCLE:
-					draw_circle(c, ICON * 0.5 - 2.0, colour, true, -1.0, true)
+				if kind.gate:  # upright and as long as the icon, so its dashes show
+					LevelArena.gate(self, c, Vector2(6.0, ICON), 0.0, colour,
+							Palette.dim(kind.colour) if on else Palette.BORDER)
 					return
 				# The item's own rectangle, shrunk until its turned outline fits the icon's box, no side under 5 px.
 				var item := Layout.Item.new()

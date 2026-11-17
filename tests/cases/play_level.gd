@@ -203,11 +203,11 @@ func _placing() -> void:
 	level._on_edited(true)
 
 	# Move one, remove one.
-	await _drag(_screen(Vector2(400, 200)), _screen(Vector2(450, 410)))
-	t.check(_item_at_pos(Vector2(450, 410)) != null and _item_at_pos(Vector2(400, 200)) == null, "a placed Booster can be dragged elsewhere")
-	_mouse(_screen(Vector2(450, 410)), MOUSE_BUTTON_RIGHT, true)
-	_mouse(_screen(Vector2(450, 410)), MOUSE_BUTTON_RIGHT, false)
-	t.check(_item_at_pos(Vector2(450, 410)) == null and setup._slots[BOOSTER].left == 1, "a right click takes it off, back to the tray")
+	await _drag(_screen(Vector2(400, 200)), _screen(Vector2(450, 340)))
+	t.check(_item_at_pos(Vector2(450, 340)) != null and _item_at_pos(Vector2(400, 200)) == null, "a placed Booster can be dragged elsewhere")
+	_mouse(_screen(Vector2(450, 340)), MOUSE_BUTTON_RIGHT, true)
+	_mouse(_screen(Vector2(450, 340)), MOUSE_BUTTON_RIGHT, false)
+	t.check(_item_at_pos(Vector2(450, 340)) == null and setup._slots[BOOSTER].left == 1, "a right click takes it off, back to the tray")
 
 	# Leave and come back.
 	var kept := JSON.stringify(level.round.layout.to_data())
@@ -254,9 +254,9 @@ func _level_3() -> void:
 		if rects[i] != now[i]:
 			moved.append("%s -> %s" % [rects[i], now[i]])
 	t.check(rects.size() == now.size() and moved.is_empty(), "level 3's HUD and footer sit exactly where level 1's do %s" % [moved])
-	await _drag(_slot(BOOSTER), Vector2(600, 367))
+	await _drag(_slot(BOOSTER), Vector2(1150, 243))
 	var items := _items()
-	t.check(items.size() == 1 and items[0].pos.is_equal_approx((Vector2(600, 367) - LevelArena.ORIGIN) * 18.0 / 16.0),
+	t.check(items.size() == 1 and items[0].pos.is_equal_approx((Vector2(1150, 243) - LevelArena.ORIGIN) * 18.0 / 16.0),
 			"a drop on level 3 lands under the cursor (%s)" % [items.map(func(i: Layout.Item) -> Vector2: return i.pos)])
 	# Whether a maxed level 3 can be cleared at all is a question for tuning (step 6, data/ only), not a check
 	# here: it cannot yet, and tests/cases/contracts.gd prints how far a maxed round gets on every run. The

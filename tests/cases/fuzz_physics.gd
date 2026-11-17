@@ -151,20 +151,13 @@ func _launch() -> void:
 ## surfaces that face each other with normals tilted to opposite sides each turned the ball straight back along
 ## the line it came in on, so it went back and forth along one line until the round ended:
 ##   - Two Wall Segments turned 105 degrees (a rotate_step), 60 apart: back and forth at exactly 70 degrees.
-##   - Two Boosters 44.5 apart (fence seed 434 on 14 rows, found from a random start, here started on the line it
-##     fell into): back and forth 0.64 apart in the neck between them at exactly 8 degrees, some 2600 bounces a
-##     second, and the boost stays because the paddle is never touched.
-##   - One Booster and a paddle that stays put, from the launch itself: the centre of the paddle sends the ball
-##     out 8 degrees below level, the Booster turns it straight back, and the paddle sends it out again.
 ## Each bounce moves the ball more than Collide.SKIN, so the WEDGED way out never fires. Round fixes it by turning
 ## every second such ball to the other side (round.gd, ONE BOUNCE).
 ## Each case is 4 s at 60 steps a second; the check fails if its last 40 bounces are only two points.
 ## A case is [rows, kind, where its items are, their rotation, the ball's start and heading or null for the launch].
 func _shuttle() -> void:
 	for c: Array in [
-			[16, &"wall_segment", [Vector2(400, 200), Vector2(400, 260)], 105.0, Vector2(400, 230), Vector2.from_angle(deg_to_rad(-70.0))],
-			[14, &"booster", [Vector2(549.5, 354.5), Vector2(594, 351.5)], 0.0, Vector2(571.69, 352.12), Vector2(-0.99026805, 0.1391731)],
-			[14, &"booster", [Vector2(211, 253.5)], 0.0, null, null]]:
+			[16, &"wall_segment", [Vector2(400, 200), Vector2(400, 260)], 105.0, Vector2(400, 230), Vector2.from_angle(deg_to_rad(-70.0))]]:
 		var stats := _stats_base.copy()
 		stats.put(Balance.count_stat(c[1]), 2)
 		var board := Board.new(c[0])
@@ -396,12 +389,9 @@ func _inside(point: Vector2, half: float, round: Round, paddle: bool, grown := {
 			if board.bricks.has(Vector2i(column, row)) and not grown.has(Vector2i(column, row)):
 				return "brick %s" % Vector2i(column, row)
 	for item: Layout.Item in round.layout.items:
-		if item.kind.placement != PlaceableKind.Placement.FREE or point.distance_to(item.pos) > 90.0:
+		if item.kind.placement != PlaceableKind.Placement.FREE or item.kind.gate or point.distance_to(item.pos) > 90.0:
 			continue
-		if item.kind.shape == PlaceableKind.Shape.CIRCLE:
-			if point.distance_to(item.pos) < item.kind.size.x * 0.5 + half - SLACK:
-				return "booster"
-		elif not Geometry2D.intersect_polygons(Collide.box(square), item.outline()).is_empty():
+		if not Geometry2D.intersect_polygons(Collide.box(square), item.outline()).is_empty():
 			return String(item.kind.id)
 	return ""
 
@@ -541,15 +531,14 @@ func _attack(p_seed: int, wrong: Dictionary, seen: Dictionary, cfg := {}) -> voi
 		# times where it landed (-1 at the top end, 1 at the bottom), then the minimum angles.
 		if hit.surface == Hit.Surface.WALL and legal and ball.dir != was.bounce(hit.normal):
 			me._say(wrong, "a wall bounce is not a mirror", "%s: ball %d %s off %s gave %s" % [tag, ball.id, was, hit.normal, ball.dir])
-		if hit.surface == Hit.Surface.ITEM and not thrown:
+		var gate := hit.surface == Hit.Surface.ITEM and hit.item.kind.gate
+		if gate and not thrown and ball.dir != was:
+			me._say(wrong, "a gate turns the ball", "%s: ball %d %s through %s gave %s" % [tag, ball.id, was, hit.item.kind.id, ball.dir])
+		if hit.surface == Hit.Surface.ITEM and not gate and not thrown:
 			var m := was.bounce(hit.normal).normalized()
 			if legal and me._legal_dir(m, stats) and was.dot(hit.normal) < 0.0 and not ball.dir.is_equal_approx(m):
 				me._say(wrong, "an item bounce is not a mirror", "%s: ball %d %s off %s (normal %s) gave %s, not %s" % [tag, ball.id, was, hit.item.kind.id, hit.normal, ball.dir, m])
-			if hit.item.kind.shape == PlaceableKind.Shape.CIRCLE:
-				var r: float = hit.item.kind.size.x * 0.5 + h
-				if absf(hit.point.distance_to(hit.item.pos) - r) > SLACK or not hit.normal.is_equal_approx((hit.point - hit.item.pos).normalized()):
-					me._say(wrong, "a Booster is not hit where it touches", "%s: ball %d at %s, %f from its centre, not %f; normal %s" % [tag, ball.id, hit.point, hit.point.distance_to(hit.item.pos), r, hit.normal])
-		if hit.surface != Hit.Surface.PADDLE and not thrown and still.get(ball.id, 0) < Round.WEDGED - 2 and ball.dir.dot(hit.normal) <= 0.0:
+		if hit.surface != Hit.Surface.PADDLE and not gate and not thrown and still.get(ball.id, 0) < Round.WEDGED - 2 and ball.dir.dot(hit.normal) <= 0.0:
 			me._say(wrong, "a ball leaves a bounce heading into the surface", "%s: ball %d surface %d normal %s, was %s, now %s" % [tag, ball.id, hit.surface, hit.normal, was, ball.dir])
 		if hit.surface == Hit.Surface.PADDLE:
 			var where := clampf((ball.pos.y - round.paddle.y) / (round.paddle.length * 0.5), -1.0, 1.0)

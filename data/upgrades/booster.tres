@@ -6,7 +6,7 @@
 script = ExtResource("1")
 title = "Booster"
 category = 1
-text = "One more Booster. A circle: balls leave it faster until they touch the paddle."
+text = "One more Booster. A gate: balls that pass through it leave faster."
 first_cost = 12
 growth = 20
 max_rank = 2

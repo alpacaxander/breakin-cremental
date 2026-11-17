@@ -9,6 +9,5 @@ colour = &"placeable"
 cue = &"wall_bounce"
 order = 3
 placement = 0
-shape = 0
 size = Vector2(10, 112)
 rotatable = true
