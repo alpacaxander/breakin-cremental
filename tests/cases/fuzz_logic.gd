@@ -416,7 +416,7 @@ func _zap() -> void:
 
 func _specials() -> void:
 	var level := Levels.read(1)
-	t.check(level != null and level.board.bricks.size() == 20, "level 1 reads as 20 bricks")
+	t.check(level != null and level.board.bricks.size() == 28, "level 1 reads as 28 bricks")
 	if level == null:
 		return
 	var board := level.board

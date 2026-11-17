@@ -109,12 +109,12 @@ func _placing() -> void:
 	t.check(Progress.layout(1).count(&"booster") == 1 and _saved().layouts["1"].size() == 1, "placing saves the level's layout")
 	await t.tree().create_timer(0.15).timeout
 	t.check(heard.has(Sfx.PLACE_ITEM), "putting an item down plays PLACE_ITEM")
-	for spot: Vector2 in [Vector2(-30, 100), Vector2(1000, 100), Vector2(30, 256), Vector2(300, 100)]:
+	for spot: Vector2 in [Vector2(-30, 100), Vector2(870, 100), Vector2(30, 224), Vector2(300, 100)]:
 		await _drag(_slot(BOOSTER), _screen(spot))
 		t.check(_items().size() == 1, "a booster at %s is refused: the lane, a brick, the launch path, another item" % spot)
 	await _drag(_screen(at), _screen(Vector2(400, 200)))
 	t.check(_items().size() == 1 and _items()[0].pos.is_equal_approx(Vector2(400, 200)), "a placed item can be dragged somewhere else")
-	await _drag(_screen(Vector2(400, 200)), _screen(Vector2(1000, 100)))
+	await _drag(_screen(Vector2(400, 200)), _screen(Vector2(870, 100)))
 	t.check(_items().size() == 1 and _items()[0].pos.is_equal_approx(Vector2(400, 200)), "moved onto a brick, it goes back where it was")
 	await _drag(_screen(Vector2(400, 200)), Vector2(640, 50))
 	t.check(_items().is_empty() and Progress.layout(1).items.is_empty(), "dragged out of the arena, it is removed")
@@ -147,8 +147,8 @@ func _placing() -> void:
 	t.check(brick != null and brick.placed and brick.kind == &"splitter", "a Splitter snaps to the brick cell under the cursor")
 	await _drag(_slot(ZAP), _screen(Vector2(600, 300)))
 	t.check(_items().size() == 3, "a Zap on an empty cell is refused")
-	await _drag(_slot(ZAP), _screen(Vector2(1000, 224)))
-	t.check(level.round.board.brick(Vector2i(62, 3)).mod == &"zap" and _items().size() == 4, "a Zap goes on an existing brick")
+	await _drag(_slot(ZAP), _screen(Vector2(870, 224)))
+	t.check(level.round.board.brick(Vector2i(54, 3)).mod == &"zap" and _items().size() == 4, "a Zap goes on an existing brick")
 	t.check(level.get_node("SetupUi")._slots[BOOSTER].left == 0 and level.get_node("SetupUi")._slots[ZAP].left == 0, "the tray counts what is left to place")
 
 
@@ -205,20 +205,20 @@ func _paddle() -> void:
 	await _steps(6)
 	t.check(round.paddle.y == y, "the paddle stops when the key is let go")
 
-	_mouse(_screen(Vector2(0, 400)))
+	_mouse(_screen(Vector2(0, 350)))
 	await _steps(6)
 	t.check(round.paddle.y - y > speed * 0.03 and round.paddle.y - y < speed * 0.06, "the paddle chases the mouse's height at paddle speed, from the first step")
 	await _steps(120)
-	t.check(is_equal_approx(round.paddle.y, 400.0), "it stops on the mouse's height, without overshooting")
+	t.check(is_equal_approx(round.paddle.y, 350.0), "it stops on the mouse's height, without overshooting")
 	await _steps(6)
-	t.check(is_equal_approx(round.paddle.y, 400.0), "and stays there")
+	t.check(is_equal_approx(round.paddle.y, 350.0), "and stays there")
 
 	Input.action_press(&"paddle_up")
 	await _steps(12)
 	Input.action_release(&"paddle_up")
 	y = round.paddle.y
-	t.check(y < 400.0 - speed * 0.08, "a key takes the paddle from the mouse at once")
-	_mouse(_screen(Vector2(0, 400)) + Vector2(0, 2))
+	t.check(y < 350.0 - speed * 0.08, "a key takes the paddle from the mouse at once")
+	_mouse(_screen(Vector2(0, 350)) + Vector2(0, 2))
 	await _steps(12)
 	t.check(round.paddle.y == y, "after a key, a mouse that only trembles does not pull the paddle back")
 	_mouse(_screen(Vector2(0, 300)))
@@ -226,12 +226,12 @@ func _paddle() -> void:
 	t.check(round.paddle.y != y, "a mouse that moves takes the paddle back")
 
 	# The pointer leaves the window low down: Main clears hover with a motion far outside the frame.
-	_mouse(_screen(Vector2(0, 470)))
+	_mouse(_screen(Vector2(0, 430)))
 	await _steps(240)
 	y = round.paddle.y
 	main._notification(Node.NOTIFICATION_WM_MOUSE_EXIT)
 	await _steps(120)
-	t.check(y > 400.0 and round.paddle.y == y, "the pointer leaving the window leaves the paddle where it was (%.0f, then %.0f)" % [y, round.paddle.y])
+	t.check(y > 350.0 and round.paddle.y == y, "the pointer leaving the window leaves the paddle where it was (%.0f, then %.0f)" % [y, round.paddle.y])
 	# Only that motion is ignored. A real pointer outside the frame is in a wide screen's bars, or at the left
 	# edge, which the CRT's curve puts a few pixels outside: the paddle's own edge.
 	_mouse(Vector2(-40, _screen(Vector2(0, 200)).y))
@@ -257,11 +257,11 @@ func _ends() -> void:
 	var round: Round = level.round
 	var coins := Progress.coins
 	paid[0] = 0
-	for row in 8:  # column 62 is 1 HP; one that is still a standard brick
-		if round.board.brick(Vector2i(62, row)).kind == &"":
-			round.hit_brick(Vector2i(62, row), Round.Cause.BALL, Vector2.RIGHT)
+	for row in 7:  # column 54 is 1 HP; one that is still a standard brick
+		if round.board.brick(Vector2i(54, row)).kind == &"":
+			round.hit_brick(Vector2i(54, row), Round.Cause.BALL, Vector2.RIGHT)
 			break
-	round.balls[0].put(Vector2(-20.0, 20.0 if round.paddle.y > 256.0 else 492.0), Vector2.LEFT)
+	round.balls[0].put(Vector2(-20.0, 20.0 if round.paddle.y > 224.0 else 428.0), Vector2.LEFT)
 	await _until_summary()
 	t.check(level.phase == SUMMARY and round.reason == Round.End.BALL_LOST, "losing the last ball ends the round in the Summary")
 	await _steps(12)

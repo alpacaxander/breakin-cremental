@@ -73,7 +73,7 @@ func _seam_and_clear() -> void:
 	t.check(fx.z_index == 0, "Fx itself stays at z 0")
 
 	_combo(round, 20)
-	round.blast(Vector2i(48, 3), 64.0)
+	round.blast(Vector2i(54, 5), 64.0)
 	round.add_time(2.0)
 	t.check(fx.frozen and fx._strength > 0.0 and fx.heat > 0.0, "a blast freezes and shakes, and the combo heats up")
 	for i in 3:
@@ -104,7 +104,7 @@ func _seam_and_clear() -> void:
 	var lone := Round.new(Levels.read(1).board, null, Progress.snapshot(), 7)
 	var held: WeakRef = weakref(lone)
 	fx.watch(lone)
-	lone.blast(Vector2i(48, 3), 64.0)
+	lone.blast(Vector2i(42, 3), 64.0)
 	lone.step(1.0 / 120.0, 0.0)
 	fx._process(1.0 / 60.0)
 	lone = null
@@ -115,24 +115,24 @@ func _seam_and_clear() -> void:
 
 func _freeze() -> void:
 	await _play(1)
-	round.blast(Vector2i(48, 3), 64.0)
+	round.blast(Vector2i(42, 3), 64.0)
 	t.check(fx.frozen, "an explosion freezes the game")
 	var left := round.time_left
 	await t.tree().create_timer(0.3).timeout
 	t.check(not fx.frozen and round.time_left < left, "the freeze ends by itself, well inside the second the level case waits")
 
 	await _play(1)
-	round.blast(Vector2i(48, 3), 64.0)
+	round.blast(Vector2i(42, 3), 64.0)
 	fx._process(Fx.BLAST_FREEZE * 0.5)
 	t.check(fx.frozen, "a freeze lasts BLAST_FREEZE")
 	fx._process(Fx.BLAST_FREEZE)
 	t.check(not fx.frozen, "and no longer")
-	round.blast(Vector2i(48, 5), 64.0)
+	round.blast(Vector2i(42, 5), 64.0)
 	fx._process(Fx.FREEZE_GAP * 0.5)
-	round.blast(Vector2i(48, 1), 64.0)
+	round.blast(Vector2i(42, 1), 64.0)
 	t.check(not fx.frozen, "a second and a third big hit inside FREEZE_GAP do not freeze again")
 	fx._process(Fx.FREEZE_GAP)
-	round.blast(Vector2i(62, 6), 64.0)
+	round.blast(Vector2i(54, 6), 64.0)
 	t.check(fx.frozen, "after FREEZE_GAP the next one does")
 	fx.frozen = false
 	fx._hold = 0.0
@@ -236,7 +236,7 @@ func _pop_ups() -> void:
 func _calm() -> void:
 	await _play(1)
 	Settings.reduce_flashing = true
-	round.blast(Vector2i(48, 3), 64.0)
+	round.blast(Vector2i(54, 5), 64.0)
 	fx._process(1.0 / 60.0)
 	t.check(fx._pools.is_empty() and fx._kick == 0.0, "reduce flashing: no light pool and no flash")
 	var tagged := round.board.bricks.keys()[0] as Vector2i
@@ -255,7 +255,7 @@ func _calm() -> void:
 	shapes = fx._shapes.size()
 	round.ball_lost.emit(round.balls[0])
 	t.check(fx._shapes.size() == shapes + 2, "without it the bar is there")
-	round.blast(Vector2i(48, 5), 64.0)
+	round.blast(Vector2i(42, 5), 64.0)
 	fx._process(1.0 / 60.0)
 	t.check(fx._pools.size() == 1 and fx._kick > 0.0, "and so are the pool and the flash, the moment the setting changes")
 	var wild := _widest_shake()

@@ -39,7 +39,7 @@ extends Node
 ## Without that a ball caught dead centre always leaves at the minimum angle below level, and on level 3 it
 ## walks down the wall's face until it comes back too steep to reach, even for the perfect player.
 ## A level can mark cells a skilled player goes for (LevelData.aims: the aim tile, painted in the level scene),
-## such as level 1's gaps that let the ball behind the first column. Each time the bot plans a catch, it aims
+## such as level 3's tunnel mouth. Each time the bot plans a catch, it aims
 ## at the easiest of them instead of steering, with the chance `focus`, if one can be reached: in a straight
 ## line or off the top or bottom wall once, from the paddle's middle 80%. That is the player knowing the level.
 ## # ponytail: the skills are three hand-set rows in SKILLS. Fit them to recordings of real players once there

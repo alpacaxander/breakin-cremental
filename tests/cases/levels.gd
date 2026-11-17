@@ -2,21 +2,20 @@ extends RefCounted
 ## The three levels against docs/design/levels.md: names, sizes, totals and cells picked from its drawings.
 ## Cells are brick cells, Vector2i(column, brick row); levels.md's "rows 8-9" is brick row 4.
 
-## The cells each level marks for the balance bot to aim at (LevelData.aims): level 1's two gaps in its first
-## column, level 3's tunnel mouth.
-const AIMS := {1: [Vector2i(48, 0), Vector2i(48, 7), Vector2i(49, 0), Vector2i(49, 7)], 2: [], 3: [Vector2i(4, 4)]}
+## The cells each level marks for the balance bot to aim at (LevelData.aims): level 3's tunnel mouth.
+const AIMS := {1: [], 2: [], 3: [Vector2i(4, 4)]}
 const LEVELS := {
-	1: {"title": "Two Columns", "rows": 16, "bricks": 20, "top": 1, "at_top": 20, "hits": 20},
+	1: {"title": "Two Columns", "rows": 14, "bricks": 28, "top": 1, "at_top": 28, "hits": 28},
 	2: {"title": "Checkerboard", "rows": 16, "bricks": 128, "top": 1, "at_top": 128, "hits": 128},
 	3: {"title": "The Tunnel", "rows": 18, "bricks": 512, "top": 2, "at_top": 134, "hits": 646},
 }
 ## HP at a cell, 0 for empty: grid corners, the first and last brick columns, and the pattern's edges.
 const CELLS := {
 	1: {
-		Vector2i(0, 0): 0, Vector2i(63, 0): 0, Vector2i(0, 7): 0, Vector2i(63, 7): 0,
-		Vector2i(31, 3): 0, Vector2i(32, 1): 0, Vector2i(33, 7): 0,
-		Vector2i(46, 1): 0, Vector2i(47, 4): 0, Vector2i(48, 0): 0, Vector2i(48, 1): 1, Vector2i(49, 6): 1, Vector2i(49, 7): 0, Vector2i(50, 5): 0,
-		Vector2i(60, 4): 0, Vector2i(61, 0): 0, Vector2i(62, 0): 1, Vector2i(62, 7): 1, Vector2i(63, 3): 0,
+		Vector2i(0, 0): 0, Vector2i(55, 0): 1, Vector2i(0, 6): 0, Vector2i(55, 6): 1,
+		Vector2i(27, 3): 0, Vector2i(28, 1): 0, Vector2i(29, 6): 0,
+		Vector2i(40, 1): 0, Vector2i(41, 4): 0, Vector2i(42, 0): 1, Vector2i(42, 1): 1, Vector2i(43, 5): 1, Vector2i(43, 6): 1, Vector2i(44, 5): 0,
+		Vector2i(52, 4): 0, Vector2i(53, 0): 0, Vector2i(54, 0): 1, Vector2i(54, 6): 1, Vector2i(55, 3): 1,
 	},
 	2: {
 		Vector2i(0, 0): 0, Vector2i(63, 0): 0, Vector2i(0, 7): 0, Vector2i(63, 7): 0, Vector2i(23, 0): 0, Vector2i(56, 7): 0,
