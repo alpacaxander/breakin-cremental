@@ -18,6 +18,8 @@ extends Node
 ##           level the file leaves out gets the auto layout
 ##   rounds  the campaign's round limit
 ##   base    added to every seed a batch or a campaign plays with (default 0), to measure on other seeds
+##   reaction, aim, steer, focus   override the skill's own numbers (see THE PLAYER); focus=0 ignores the aims
+##   probe   seeds per skill for the campaign's stage probes (default 10; 0 skips them, see _stages)
 ##
 ## tests/layouts/found.json is what the search found, kept: on levels 1 and 2 the Splitters and Zaps only (wherever
 ## the search puts a Bumper, a Booster or a Wall Segment there, this player does no better, and often worse: it does
@@ -36,16 +38,20 @@ extends Node
 ## players also `steer`: they catch the ball off centre so it leaves toward the middle of the bricks left.
 ## Without that a ball caught dead centre always leaves at the minimum angle below level, and on level 3 it
 ## walks down the wall's face until it comes back too steep to reach, even for the perfect player.
+## A level can mark cells a skilled player goes for (LevelData.aims: the aim tile, painted in the level scene),
+## such as level 1's gaps that let the ball behind the first column. Each time the bot plans a catch, it aims
+## at the easiest of them instead of steering, with the chance `focus`, if one can be reached: in a straight
+## line or off the top or bottom wall once, from the paddle's middle 80%. That is the player knowing the level.
 ## # ponytail: the skills are three hand-set rows in SKILLS. Fit them to recordings of real players once there
 ## # are any.
 
 const STEP := 1.0 / 120.0
 const OUT := "res://tests/out/bot"
 const SKILLS := {
-	"clumsy": {"reaction": 0.30, "aim": 44.0, "steer": 0.0},
-	"average": {"reaction": 0.20, "aim": 18.0, "steer": 0.4},
-	"good": {"reaction": 0.12, "aim": 8.0, "steer": 0.8},
-	"perfect": {"reaction": 0.0, "aim": 0.0, "steer": 0.8},  # nobody plays like this: it tells the bot's misses from the rules'
+	"clumsy": {"reaction": 0.30, "aim": 44.0, "steer": 0.0, "focus": 0.0},
+	"average": {"reaction": 0.20, "aim": 18.0, "steer": 0.4, "focus": 0.3},
+	"good": {"reaction": 0.12, "aim": 8.0, "steer": 0.8, "focus": 0.8},
+	"perfect": {"reaction": 0.0, "aim": 0.0, "steer": 0.8, "focus": 1.0},  # nobody plays like this: it tells the bot's misses from the rules'
 }
 ## The auto layout's search (_best_spot): the seeds every spot is played with, how many of the best go on to be
 ## played again with FINAL_SEEDS, and the turns it tries a rotatable item at. None of these are the batch's seeds.
@@ -53,6 +59,9 @@ const SEARCH_SEEDS := [1001, 1002, 1003]
 const KEEP := 4
 const FINAL_SEEDS := [2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012]
 const ROTATIONS := [0.0, 45.0, 90.0, 135.0]
+## Where each level's stages should end (_stages), in rounds from its first: [stage 1, stage 2]. The goals in
+## docs/design.md, "Progression"; change them there too.
+const STAGE_GOALS := {1: [2, 6], 2: [4, 12], 3: [8, 25]}
 ## The upgrade web's scene: the bot reads which nodes connect from it, so it buys what the hub would offer.
 const WEB_SCENE := "res://src/hub/web.tscn"
 
@@ -60,6 +69,7 @@ var _args := {"mode": "report", "level": "all", "ranks": "fresh", "skill": "aver
 		"layout": "auto", "rounds": "400", "base": "0"}
 var _boards := {}  # level -> Board, read once
 var _targets := {0: 1 << 30}  # level -> its LevelData.target, read with its board; the test board is never cleared
+var _aims := {0: [] as Array[Vector2]}  # level -> its LevelData.aims as cell centres, for Player
 var _layouts := {}  # cache key -> Layout, for _auto
 var _web: Array[Array] = []  # the web's connections as pairs of upgrade ids
 var _seed_node := &""
@@ -70,14 +80,18 @@ class Player:
 	var reaction_steps: int
 	var aim: float
 	var steer: float
+	var focus: float
+	var aims: Array[Vector2] = []  # the level's aim cells' centres, in units
 	var rng := RandomNumberGenerator.new()
 	var _seen: Array = []  # what each step showed: [[id, pos, dir, speed], ...], oldest first
 	var _plan := {}  # ball id -> [the dir it was last seen with, how far off its arrival the paddle goes]
 
-	func _init(skill: Dictionary, p_seed: int) -> void:
+	func _init(skill: Dictionary, p_seed: int, p_aims: Array[Vector2] = []) -> void:
 		reaction_steps = roundi(skill.reaction / STEP)
 		aim = skill.aim
 		steer = skill.steer
+		focus = skill.focus
+		aims = p_aims
 		rng.seed = p_seed
 
 	## Where the paddle's centre should go this step.
@@ -97,10 +111,29 @@ class Player:
 			soonest = arrival.y / seen[3]
 			var plan: Array = _plan.get(seen[0], [Vector2.ZERO, 0.0])
 			if plan[0] != seen[2]:
-				plan = [seen[2], _steer(round, arrival.x) + rng.randfn(0.0, aim)]
+				var off := NAN
+				if focus > 0.0 and aims and rng.randf() < focus:  # no draw without aims, so other levels play as before
+					off = _aim(round, arrival.x)
+				plan = [seen[2], (_steer(round, arrival.x) if is_nan(off) else off) + rng.randfn(0.0, aim)]
 				_plan[seen[0]] = plan
 			aim_at = arrival.x + plan[1]
 		return aim_at
+
+	## How far from the ball's arrival to put the paddle's centre so that the ball leaves for the easiest aim
+	## cell: the shallowest line to one, straight or off the top or bottom wall once, that leaves from the
+	## paddle's middle 80%. NAN if none can be reached.
+	# ponytail: aims never switch off, and the line ignores bricks and items in the way. Give an aim a condition
+	# (while bricks stand behind it, say) or trace the line if a level's aims start to cost the bot.
+	func _aim(round: Round, arrival_y: float) -> float:
+		var best := NAN
+		var h := round.board.size().y
+		for a in aims:
+			for y: float in [a.y, -a.y, 2.0 * h - a.y]:
+				var angle := rad_to_deg(atan2(y - arrival_y, a.x - round.paddle.x))
+				var where := angle / round.stats.paddle_max_angle
+				if absf(where) <= 0.8 and (is_nan(best) or absf(where) < absf(best)):
+					best = where
+		return NAN if is_nan(best) else -best * round.paddle.length * 0.5
 
 	## How far from the ball's arrival to put the paddle's centre so that the ball leaves toward the middle of
 	## the level bricks still standing, times `steer`. Never more than 0.8 of the way to the paddle's end.
@@ -208,6 +241,10 @@ func _board(level: int) -> Board:
 			var data := Levels.read(level)
 			_boards[level] = data.board
 			_targets[level] = data.target
+			var aims: Array[Vector2] = []
+			for cell in data.aims:
+				aims.append(data.board.cell_rect(cell).get_center())
+			_aims[level] = aims
 	return _boards[level]
 
 
@@ -235,9 +272,9 @@ func _play(level: int, layout: Layout, stats: Balance, skill: String, seed: int,
 	round.first_clear = not Progress.is_cleared(level)
 	round.target = _targets[level]
 	var numbers: Dictionary = SKILLS[skill].duplicate()
-	for key: String in numbers:  # reaction=, aim= and steer= on the command line override the skill's own
+	for key: String in numbers:  # reaction=, aim=, steer= and focus= on the command line override the skill's own
 		numbers[key] = float(_args.get(key, numbers[key]))
-	var player := Player.new(numbers, hash([seed, skill]))
+	var player := Player.new(numbers, hash([seed, skill]), _aims[level])
 	var steps := [0]  # an Array, so the lambdas see it change
 	var paddle := round.paddle  # the lambdas hold this, not the round, which would then hold itself and leak
 	if trace:
@@ -358,7 +395,7 @@ func _filed(level: int, kind: String) -> Variant:
 ## The auto layout for a level and a snapshot, from nothing. Cached: a batch asks for it once per level.
 func _auto(level: int, stats: Balance) -> Layout:
 	var key := [level, Kinds.placeables().map(func(k: PlaceableKind) -> int: return stats.count(k.id)), _args.get("aim"),
-			_args.get("reaction"), _args.get("steer")]
+			_args.get("reaction"), _args.get("steer"), _args.get("focus")]
 	if not _layouts.has(key):
 		_layouts[key] = _fill(level, Layout.new(), stats)
 	return _layouts[key]
@@ -446,9 +483,11 @@ func _value(level: int, layout: Layout, item: Layout.Item, stats: Balance, seeds
 
 
 ## From a fresh save, as a player would: play the highest level unlocked with its saved layout plus anything new
-## the ranks allow (_fill; with layout=<file> or empty, that layout instead), take the coins, then buy. Stops when the last level is cleared or after `limit`
-## rounds. Buying: while anything is affordable, the cheapest next rank of a node the web offers (the seed node,
-## or one next to a node owned); a tie goes to the first by id.
+## the ranks allow (_fill; with layout=<file> or empty, that layout instead), take the coins, then buy. Stops after
+## `limit` rounds, or once the last level is cleared and every level's stages are measured (_stages) or every
+## rank is bought: until then it goes on playing the last level, as a player farming it would. Buying: while
+## anything is affordable, the cheapest next rank of a node the web offers (the seed node, or one next to a node
+## owned); a tie goes to the first by id.
 # ponytail: cheapest first is one sensible player, not the best one. Add a smarter buyer (save up for a node
 # that unlocks a kind, say) if the campaign's pace looks wrong for a reason the buying explains.
 func _campaign(skill: String, limit: int) -> Dictionary:
@@ -458,14 +497,21 @@ func _campaign(skill: String, limit: int) -> Dictionary:
 	var rounds := []
 	var purchases := []
 	var levels := {}  # level -> {rounds, coins, cleared_on}: rounds played and coins earned there up to its first clear
-	var done := false
+	var stages := {}  # level -> what _stages measured
+	var probe := int(_args.get("probe", "10"))
+	var done_on := 0  # the round the last level was first cleared on
 	var last_progress := 0  # the last round that bought something or unlocked a level
 	print("\ncampaign, skill %s, at most %d rounds" % [skill, limit])
 	for i in limit:
-		var level := Progress.unlocked
+		var level := mini(Progress.unlocked, Progress.level_count)
 		var stats := Progress.snapshot()
 		var layout := _fill(level, Progress.layout(level), stats) if _filed(level, _args.layout) == null and _args.layout != "empty" else _given(level, stats, _args.layout)
 		Progress.set_layout(level, layout)
+		if probe > 0:
+			_stages(stages, i + 1, probe)
+		if done_on and (stages.values().all(func(s: Dictionary) -> bool: return s.stage2 > 0)
+				or Progress.upgrades().all(func(u: Upgrade) -> bool: return Progress.rank(u) >= u.max_rank)):
+			break  # measured, or nothing left to buy that could change it
 		var r := _play(level, layout, stats, skill, int(_args.base) + i + 1)
 		r.level = level
 		r.items = layout.items.size()
@@ -493,20 +539,83 @@ func _campaign(skill: String, limit: int) -> Dictionary:
 			last_progress = i + 1
 			purchases.append({"round": i + 1, "id": String(pick.id), "rank": Progress.rank(pick), "cost": price})
 			print("round %d: bought %s rank %d for %d" % [i + 1, pick.id, Progress.rank(pick), price])
-		if r.cleared and level == Progress.level_count:
-			done = true
-			break
+		if r.cleared and level == Progress.level_count and not done_on:
+			done_on = i + 1
+			if probe <= 0:
+				break
 	print("\n%-5s %-8s %-8s %s" % ["level", "rounds", "coins", "first clear on round"])
 	for level: int in levels:
 		print("%-5d %-8d %-8d %s" % [level, levels[level].rounds, levels[level].coins,
 				levels[level].cleared_on if levels[level].cleared_on > 0 else "never"])
-	var stuck := not done
-	print("%s after %d rounds, %d purchases, %d coins left. Last progress on round %d." % [
-			"Finished" if done else "STUCK on level %d" % Progress.unlocked, rounds.size(), purchases.size(),
-			Progress.coins, last_progress])
-	return {"skill": skill, "finished": done, "stuck": stuck, "rounds_played": rounds.size(),
-			"last_progress": last_progress, "levels": levels, "purchases": purchases, "ranks": Progress.ranks,
-			"coins_left": Progress.coins, "rounds": rounds}
+	if stages:
+		_print_stages(stages, levels)
+	var done := done_on > 0
+	print("%s, %d rounds played, %d purchases, %d coins left. Last progress on round %d." % [
+			"Finished on round %d" % done_on if done else "STUCK on level %d" % Progress.unlocked, rounds.size(),
+			purchases.size(), Progress.coins, last_progress])
+	return {"skill": skill, "finished": done, "finished_on": done_on, "stuck": not done, "rounds_played": rounds.size(),
+			"last_progress": last_progress, "levels": levels, "stages": stages, "purchases": purchases,
+			"ranks": Progress.ranks, "coins_left": Progress.coins, "rounds": rounds}
+
+
+## THE THREE STAGES of a level (docs/design.md, "Progression"), measured as a campaign goes. Before each round,
+## every level reached so far is played `seeds` times by the good player and by the clumsy one, with the ranks
+## owned then and the layout saved for the level. Stage 1, almost unbeatable, ends on the first round the good
+## player clears 10% or more; stage 2, beatable with skill, ends on the first round the clumsy player clears half.
+## A level stops being probed once both are found. Rounds count from the level's first round, which is round 1.
+## On that first round the average player also plays the new level and the one before it: the new level should pay
+## more, or farming the old one beats trying the new one. Probes play their own seeds, the same every time, so a
+## change from one round to the next is the upgrades and not the dice.
+# ponytail: a level left behind is probed with its saved layout, so items bought after leaving it are not placed
+# there (with layout=<file>, the file's layout is). Run the search for it too if that makes stage 2 look late.
+func _stages(stages: Dictionary, round_no: int, seeds: int) -> void:
+	var stats := Progress.snapshot()
+	for level in range(1, mini(Progress.unlocked, Progress.level_count) + 1):
+		if not stages.has(level):
+			stages[level] = {"first_round": round_no, "stage1": -1, "stage2": -1}
+			if level > 1:
+				stages[level].pays_new = _probe(level, stats, "average", seeds).coins
+				stages[level].pays_old = _probe(level - 1, stats, "average", seeds).coins
+		var s: Dictionary = stages[level]
+		var nth: int = round_no - s.first_round + 1
+		if s.stage1 < 0 and _probe(level, stats, "good", seeds).clear >= 0.1:
+			s.stage1 = nth
+		if s.stage1 > 0 and s.stage2 < 0 and _probe(level, stats, "clumsy", seeds).clear >= 0.5:
+			s.stage2 = nth
+
+
+## `seeds` rounds of a level by one skill with the ranks in `stats` and the level's saved layout:
+## {clear: the share cleared, coins: the mean paid}.
+func _probe(level: int, stats: Balance, skill: String, seeds: int) -> Dictionary:
+	var layout := Layout.new()
+	if _args.layout != "empty":
+		layout = _given(level, stats, _args.layout) if _filed(level, _args.layout) != null else Progress.layout(level).fitted(_board(level), stats)
+	var out := {"clear": 0.0, "coins": 0.0}
+	for j in seeds:
+		var r := _play(level, layout, stats, skill, int(_args.base) + 100001 + j)
+		out.clear += float(r.cleared) / seeds
+		out.coins += float(r.coins) / seeds
+	return out
+
+
+## The stages table: where each stage ended against STAGE_GOALS, with a ! where it is off by more than half the
+## goal, and on a level's first round what the average player earns there and on the level before.
+func _print_stages(stages: Dictionary, levels: Dictionary) -> void:
+	print("\nstages, in rounds from the level's first (goal in brackets; ! is off by more than half)")
+	print("%-5s %-12s %-14s %-14s %-15s %s" % ["level", "first round", "stage 1 ends", "stage 2 ends",
+			"average clears", "pays on arrival, new / old"])
+	for level: int in stages:
+		var s: Dictionary = stages[level]
+		var goal: Array = STAGE_GOALS.get(level, [0, 0])
+		var cells := []
+		for k in 2:
+			var got: int = s["stage%d" % (k + 1)]
+			var off: bool = goal[k] > 0 and (got < 0 or absf(got - goal[k]) > goal[k] * 0.5)
+			cells.append("%s (%d)%s" % [str(got) if got > 0 else "never", goal[k], " !" if off else ""])
+		var first: Dictionary = levels.get(level, {})
+		var clears: String = str(first.rounds) if first.get("cleared_on", -1) > 0 else "never"
+		var pays := "%.0f / %.0f%s" % [s.pays_new, s.pays_old, "" if s.pays_new >= s.pays_old else " !"] if s.has("pays_new") else ""
+		print("%-5d %-12d %-14s %-14s %-15s %s" % [level, s.first_round, cells[0], cells[1], clears, pays])
 
 
 ## True if the hub offers this node: the seed node, or one next to an owned node. The connections come from the

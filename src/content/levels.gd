@@ -11,6 +11,10 @@ class_name Levels
 ## tile's HP is its custom data `hp`; each tile shows its HP as a digit and, in the editor, in the game's HP
 ## colour. Every brick read is a standard brick: no kind, no mod, not placed. A tile outside the grid is an
 ## error and is left out.
+##
+## The tile whose `hp` is 0 (the hollow one with a cross) is not a brick: it marks a cell a skilled player aims
+## for, such as a gap that lets the ball behind a wall. It goes to LevelData.aims, and only the balance bot reads
+## those; the game never sees them.
 
 const DIR := "res://levels"
 
@@ -40,9 +44,13 @@ static func read(number: int) -> LevelData:
 	level.target = layer.target
 	level.board = Board.new(layer.rows)
 	for cell in layer.get_used_cells():
-		if level.board.has_cell(cell):
-			level.board.bricks[cell] = Brick.new(layer.get_cell_tile_data(cell).get_custom_data(&"hp"))
+		var hp: int = layer.get_cell_tile_data(cell).get_custom_data(&"hp")
+		if not level.board.has_cell(cell):
+			push_error("%s: the tile at %s is outside the %d-row grid" % [path(number), cell, layer.rows])
+		elif hp == 0:
+			level.aims.append(cell)
 		else:
-			push_error("%s: the brick at %s is outside the %d-row grid" % [path(number), cell, layer.rows])
+			level.board.bricks[cell] = Brick.new(hp)
+	level.aims.sort()
 	layer.free()
 	return level

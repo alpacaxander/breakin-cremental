@@ -2,6 +2,9 @@ extends RefCounted
 ## The three levels against docs/design/levels.md: names, sizes, totals and cells picked from its drawings.
 ## Cells are brick cells, Vector2i(column, brick row); levels.md's "rows 8-9" is brick row 4.
 
+## The cells each level marks for the balance bot to aim at (LevelData.aims): level 1's two gaps in its first
+## column, level 3's tunnel mouth.
+const AIMS := {1: [Vector2i(48, 0), Vector2i(48, 7), Vector2i(49, 0), Vector2i(49, 7)], 2: [], 3: [Vector2i(4, 4)]}
 const LEVELS := {
 	1: {"title": "Two Columns", "rows": 16, "bricks": 20, "top": 1, "at_top": 20, "hits": 20},
 	2: {"title": "Checkerboard", "rows": 16, "bricks": 128, "top": 1, "at_top": 128, "hits": 128},
@@ -39,6 +42,7 @@ func run(t: Node) -> void:
 	var tiles := tile_set.get_source(0) as TileSetAtlasSource
 	for hp in range(1, 5):
 		t.check(tiles.get_tile_data(Vector2i(hp - 1, 0), 0).get_custom_data(&"hp") == hp, "tile %d of bricks.tres is a %d HP brick" % [hp - 1, hp])
+	t.check(tiles.get_tile_data(Vector2i(4, 0), 0).get_custom_data(&"hp") == 0, "tile 4 of bricks.tres is the bot's aim mark, hp 0")
 	for n: int in LEVELS:
 		var want: Dictionary = LEVELS[n]
 		var level := Levels.read(n)
@@ -64,6 +68,7 @@ func run(t: Node) -> void:
 		t.check(board.bricks.size() == want.bricks and board.remaining() == want.bricks, "level %d has %d bricks" % [n, want.bricks])
 		t.check(top == want.top and at_top == want.at_top, "level %d's toughest bricks have %d HP, and there are %d of them" % [n, want.top, want.at_top])
 		t.check(hits == want.hits, "level %d takes %d hits to clear" % [n, want.hits])
+		t.check(level.aims == Array(AIMS[n], TYPE_VECTOR2I, "", null), "level %d marks %s for the bot to aim at" % [n, AIMS[n]])
 		for cell: Vector2i in CELLS[n]:
 			var b := board.brick(cell)
 			var hp := b.hp if b else 0

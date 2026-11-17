@@ -39,6 +39,25 @@ Feel like a high-score engineer: clever setup turns a stubborn wall of bricks in
 
 - Each level has a target score. A round that reaches it clears the level and unlocks the next one. The round still plays out to the timer, the last ball or the last brick.
 - A new level is usually too hard on the first try. Failed attempts still pay out, so upgrades make the retry easier.
+- **Every level goes through three stages**, counted in rounds from the first time the player reaches it, with the upgrades they had then:
+  1. **Almost unbeatable.** The first rounds pay but don't clear. Failing still buys upgrades.
+  2. **Beatable with skill.** A few upgrades in, good aim or good placement clears it; an average player doesn't yet.
+  3. **Easy.** With the upgrades that are reasonable for this level, clearing it takes little skill.
+- **Each stage is longer on each later level.** The goals, in rounds from the level's first round:
+
+  | Level | Stage 1 ends | Stage 2 ends |
+  |---|---|---|
+  | 1 | 2 | 6 |
+  | 2 | 4 | 12 |
+  | 3 | 8 | 25 |
+
+  The whole demo comes to about 40 to 60 rounds. Level 1 is the tutorial, and its stage 1 is a round or two.
+- **Rules that come with the stages:**
+  - **The first round** pays a cheap first upgrade (the seed node, Paddle Speed) even when it is played badly, and with some skill it also pays for a more useful one.
+  - **The first few purchases show the core of the game.** Placement and aim make combos, and combos make the round exciting. So they include Combo and an item that visibly sends the ball into bricks.
+  - **The stages overlap.** A level's stage 3 comes at about the same time as the next level's stage 1, and a failed round on the new level pays more than a round on the old one. Otherwise farming the old level beats trying the new one.
+  - **"Skill" means aim or placement.** Placement is the game's hook, so good placement alone should be enough to reach a clear in stage 2.
+- **How it is measured:** the balance bot's campaign (`tests/run.sh bot campaign`) prints a stages table. Stage 1 ends on the first round its good player clears 10% of tries; stage 2 ends on the first round its clumsy player clears half. It also prints what a round pays on the new level and on the old one when the new level is reached. The goals above are `STAGE_GOALS` in `tests/balance.gd`; change them in both places. The bot's skills differ in their reaction time and aim, and its good player knows the level: it aims at the cells the level marks for it (see [levels.md](design/levels.md#rules)). The bot is a stand-in, and playing the game by hand settles it.
 - Any unlocked level can be replayed. There is no deliberate payout curve, but later levels hold more bricks, so they happen to pay more.
 - There is one save slot. It holds the coin balance, the upgrade ranks, the highest level unlocked and each level's placed layout.
 - There is no prestige or reset layer; that is out of scope for the demo.

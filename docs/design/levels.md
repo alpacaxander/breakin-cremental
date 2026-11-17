@@ -9,6 +9,7 @@
 - Bricks have **HP**, the number of hits needed to destroy them. The default is 1. A brick's colour shows the hits it has left and changes each time it is hit (see [palette.md](../palette.md#brick-hp)). The three levels here use 1 and 2 HP. 3 and 4 are further colour steps, 4 the top one, a deep violet, and no level uses them yet.
 - Every brick is a standard brick unless the level says otherwise.
 - **Editable in Godot:** each level is its own scene, `levels/level_<n>.tscn`, and you paint its bricks in the editor. The scene's root is a TileMapLayer with a `title` and a `rows` field. One tile is one brick, and the tile set has a tile for each HP, with the number on it. The grid's edge is outlined, because the columns follow from the rows. To add a level, duplicate a scene under the next number.
+- **Aim marks:** a level can mark cells a skilled player aims the ball at, such as a gap that lets the ball behind a wall. Paint them with the tile set's fifth tile, the hollow one with a cross (`hp` 0, shown cyan in the editor), on empty cells. They are not bricks, and the game never shows them: only the balance bot reads them (`LevelData.aims`), and its better players aim at them instead of the middle of the bricks (`focus` in `tests/balance.gd`).
 - A round whose score reaches the level's target clears it and unlocks the next level. Phases and end conditions are described in [overview.md](overview.md#level-phases).
 - Each level scene sets its `target`. First values, twice the brick count and not yet measured: level 1 is 40, level 2 is 256 and level 3 is 1024.
 
@@ -50,6 +51,8 @@ Legend: `█` = 1 HP brick, `▓` = 2 HP brick, `.` = empty, `|` = paddle.
 Every brick is 1 HP. That is 20 hits to clear.
 
 The gaps let the ball round the first column to the back, where the last few bricks take the longest to find.
+
+The four cells of the two gaps (columns 48–49 of rows 0–1 and 14–15) are aim marks: a good player sends the ball through a gap to reach the back column.
 
 ```
    +----------------------------------------------------------------+
@@ -110,7 +113,7 @@ The gaps let the ball round the first column to the back, where the last few bri
 - Column 4, the face of the wall toward the paddle, is 2 HP.
 - The brick rows on both sides of the tunnel (rows 6–7 and 10–11) are 2 HP.
 - Every other brick is 1 HP.
-- The tunnel mouth is left open.
+- The tunnel mouth is left open. Its first cell (column 4, rows 8–9) is an aim mark: a good player gets the ball into the tunnel, where it bounces between the 2 HP rows and wears them down. The ball's shallowest angle, 8°, takes it to a tunnel wall within about 370 units, so a ball never flies the tunnel clean.
 - 512 bricks, 134 of them 2 HP. That is 646 hits to clear. A round with every upgrade breaks most of the board in its first 10 s, with blasts and Zaps, and spends the rest on what they leave: the tough bricks along the tunnel, one ball at a time. So their HP sets how long the level takes: at 3 HP the balance bot's average player clears it in 3 rounds of 10 with everything bought, and only a longer round raises that (4 of 10 at 82 s); at 2 HP it is 4 of 10 in 55 s.
 - The wall's face is 81 units from the paddle's, so a ball that misses the tunnel mouth is back in a fifth of a second. What makes that playable is in the numbers, not the layout: the paddle's steepest angle is 45°, and Paddle Size grows the paddle to half the lane.
 
