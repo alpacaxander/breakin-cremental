@@ -288,9 +288,6 @@ func _play(level: int, layout: Layout, stats: Balance, skill: String, seed: int,
 	# left: nobody could have saved it, however quick. Many of those mean the rules, not the player, lose balls.
 	var turned := {}  # ball id -> [its line's start, the step it turned on, the paddle's y then]
 	var drops := [0, 0]  # drops, hopeless drops
-	var hits := [0]  # every hit on a brick, broken or not
-	round.brick_hit.connect(func(_c: Vector2i, _hp: int, _c2: Round.Cause) -> void: hits[0] += 1)
-	round.brick_broken.connect(func(_c: Vector2i, _b: Brick, _c2: Round.Cause, _d: Vector2, _n: int) -> void: hits[0] += 1)
 	round.ball_lost.connect(func(b: Ball) -> void:
 		var t: Array = turned[b.id]
 		var reach: float = stats.paddle_speed * (steps[0] + 1 - t[1]) * STEP + (paddle.length + b.size) * 0.5
@@ -308,7 +305,7 @@ func _play(level: int, layout: Layout, stats: Balance, skill: String, seed: int,
 	var bricks := 0
 	for n: int in round.tally.broken.values():
 		bricks += n
-	return {"seed": seed, "bricks": bricks, "hits": hits[0], "coins": round.coins, "time": steps[0] * STEP,
+	return {"seed": seed, "bricks": bricks, "coins": round.coins, "time": steps[0] * STEP,
 			"end": String(Round.End.find_key(round.reason)).to_lower(), "best_combo": round.tally.best_combo,
 			"cleared": round.tally.cleared, "drops": drops[0], "hopeless": drops[1]}
 
@@ -455,8 +452,9 @@ func _spots(board: Board, layout: Layout, kind: PlaceableKind, stats: Balance) -
 
 
 ## The spot that pays most: each is played with SEARCH_SEEDS by the average player, and the best KEEP of those
-## are played again with FINAL_SEEDS, which decide. What pays is coins, and a tenth of a coin for every hit on
-## a brick, so that on a level where nothing breaks yet the spot that wears the bricks down still wins.
+## are played again with FINAL_SEEDS, which decide. What pays is coins: every hit on a level brick scores, so a
+## spot that only wears the bricks down still beats one that does nothing, and a hit on a placed brick or a
+## block (Growth, Refresh) counts only for what it does to the level bricks.
 func _best_spot(level: int, layout: Layout, spots: Array[Layout.Item], stats: Balance) -> Layout.Item:
 	var scored := []
 	for item in spots:
@@ -478,7 +476,7 @@ func _value(level: int, layout: Layout, item: Layout.Item, stats: Balance, seeds
 	var sum := 0.0
 	for s: int in seeds:
 		var r := _play(level, trial, stats, "average", s)
-		sum += r.coins + 0.1 * r.hits
+		sum += r.coins
 	return sum / seeds.size()
 
 
