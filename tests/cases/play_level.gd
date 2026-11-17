@@ -264,7 +264,9 @@ func _level_3() -> void:
 	_key(KEY_SPACE)
 	var round: Round = level.round
 	round.launch()
-	round.time_left = 0.5
+	# Three frames: the round's seed is random and a ball off level 3's paddle is sometimes lost within half a
+	# second, which ended this round BALL LOST about once in twenty runs. No ball gets past the paddle this fast.
+	round.time_left = 0.05
 	await _follow(120)
 	t.check(round.reason == Round.End.TIME, "the clock running out ends the round: TIME UP")
 	await _summary_shown()
