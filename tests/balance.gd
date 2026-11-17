@@ -336,7 +336,7 @@ func _batches(levels: Array, ranks: String, skills: Array, seeds: int, layout_ki
 				drops += r.drops
 				hopeless += r.hopeless
 			line.ends = ends
-			line.clear_rate = ends.cleared / float(seeds)
+			line.clear_rate = rounds.filter(func(r: Dictionary) -> bool: return r.cleared).size() / float(seeds)  # the target, not End.CLEARED
 			line.lost_rate = ends.ball_lost / float(seeds)
 			line.drops = drops
 			line.hopeless_drops = hopeless
