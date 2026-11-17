@@ -354,14 +354,15 @@ func _play(t: Node, what: String, round: Round, sound: bool) -> void:
 
 ## A place where one more `kind` fits on the layout, found by trying: the first spot of a 16-unit raster for a
 ## free-form item (upright, or lying down if it only fits that way), the first empty cell for a placed brick,
-## the first brick for a mod. Null if there is none.
+## the first brick for a mod. Null if there is none. The raster starts a square off the lane: an item in the
+## corner beside it can hold the ball in a loop with the top wall and this paddle (see Round, ONE BOUNCE).
 func _place(kind: PlaceableKind, layout: Layout, board: Board, stats: Balance) -> Layout.Item:
 	var item := Layout.Item.new()
 	item.kind = kind
 	if kind.placement == PlaceableKind.Placement.FREE:
 		for rot: float in [0.0, 90.0] if kind.rotatable else [0.0]:
 			item.rot = rot
-			for x in range(8, int(board.size().x), 16):
+			for x in range(72, int(board.size().x), 16):
 				for y in range(8, int(board.size().y), 16):
 					item.pos = Vector2(x, y)
 					if layout.fits(item, board, stats):

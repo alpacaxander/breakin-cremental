@@ -81,6 +81,10 @@ extends RefCounted
 ## turned 105 degrees one above the other, in the neck between two Boosters, between one Booster and a paddle
 ## that stays put. So every second time a ball is turned straight back (Ball.back) it gets the same angle on
 ## the other side of the axis instead. That still leaves the surface.
+## # ponytail: only straight back is caught. A loop through three surfaces is not: a Booster in a corner beside
+## # the lane, the top wall and a paddle at the end of its travel pass a ball round for ever, and moving the
+## # paddle a few units does not break it. Catch repeats in general (the same contacts again with no brick between)
+## # if players meet one.
 ## A bounce never changes the speed.
 ## One exception to the angles: a ball wedged where two surfaces close to a gap narrower than itself (WEDGED
 ## contacts in a row without moving) leaves along the line between them. If no legal angle fits in that gap it
