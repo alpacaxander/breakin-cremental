@@ -30,7 +30,7 @@ func run(p_t: Node) -> void:
 	t.add_child(main)
 	await t.tree().process_frame
 	await _fresh()
-	_max()
+	_own_one_of_each()
 	await _placing()
 	await _clear_1()
 	await _level_3()
@@ -40,10 +40,10 @@ func run(p_t: Node) -> void:
 	main.free()
 
 
-func _max() -> void:
+func _own_one_of_each() -> void:
 	Progress.unlocked = 1
 	for u in Progress.upgrades():
-		Progress.ranks[u.id] = u.max_rank
+		Progress.ranks[u.id] = 1  # one rank of each: the checks count one of every item and special brick
 	Progress.save()
 
 

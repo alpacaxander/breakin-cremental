@@ -26,8 +26,8 @@ func run(p_t: Node) -> void:
 	t = p_t
 	Settings.crt = false
 	for u in Progress.upgrades():
-		Progress.ranks[u.id] = u.max_rank
-	# A maxed paddle fills more than half the lane and has no room for the moves _paddle makes.
+		Progress.ranks[u.id] = 1  # one rank of each: the checks count one of every item and special brick
+	# A longer paddle has no room for the moves _paddle makes.
 	Progress.ranks[&"paddle_size"] = 0
 	main = (load("res://src/main.tscn") as PackedScene).instantiate()
 	t.add_child(main)

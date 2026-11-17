@@ -13,30 +13,30 @@ extends RefCounted
 ## A double click here is what the OS reports: a second press marked `double_click` (_double_click_at).
 
 ## docs/design/upgrades.md's table, by web node: name, category, ranks, "Each rank", first cost, growth. Every
-## node has one rank (most at 10 coins) for now.
+## node's ranks and prices are first values, set with the balance bot.
 const TABLE := {
-	&"PaddleSpeed": ["Paddle Speed", Upgrade.Category.ARENA, 1, "+100% paddle speed", 5, 1.0],
-	&"PaddleSize": ["Paddle Size", Upgrade.Category.ARENA, 1, "+40% paddle length", 80, 1.0],
-	&"Combo": ["Combo", Upgrade.Category.ARENA, 1, "Turns combos on", 30, 1.0],
-	&"ComboWindow": ["Combo Window", Upgrade.Category.ARENA, 1, "Combos last longer", 10, 1.0],
-	&"RearPaddle": ["Rear Paddle", Upgrade.Category.ARENA, 1, "A second paddle on the back wall", 10, 1.0],
-	&"Booster": ["Booster", Upgrade.Category.PLACEABLES, 1, "One more Booster", 10, 1.0],
-	&"BoosterSpeed": ["Booster Speed", Upgrade.Category.PLACEABLES, 1, "Balls leave a Booster 10% faster still", 530, 1.0],
-	&"Zap": ["Zap", Upgrade.Category.PLACEABLES, 1, "One more Zap", 270, 1.0],
-	&"ZapRange": ["Zap Range", Upgrade.Category.PLACEABLES, 1, "A Zap reaches 2 more bricks each way", 10, 1.0],
-	&"ZapDamage": ["Zap Damage", Upgrade.Category.PLACEABLES, 1, "A Zap hits each brick once more", 10, 1.0],
-	&"Splitter": ["Splitter", Upgrade.Category.PLACEABLES, 1, "One more Splitter", 110, 1.0],
-	&"SplitterSplits": ["Splitter Splits", Upgrade.Category.PLACEABLES, 1, "A Splitter splits a ball into one more", 5000, 1.0],
-	&"SplitterHealth": ["Splitter Health", Upgrade.Category.PLACEABLES, 1, "A Splitter takes one more hit", 10, 1.0],
-	&"WallSegment": ["Wall Segment", Upgrade.Category.PLACEABLES, 1, "One more Wall Segment", 10, 1.0],
-	&"ExplosiveBrick": ["Explosive Brick", Upgrade.Category.BRICKS, 1, "One more explosive brick", 10, 1.0],
-	&"ExplosionSize": ["Explosion Size", Upgrade.Category.BRICKS, 1, "Explosions reach one square further", 10, 1.0],
-	&"ExplosionDamage": ["Explosion Damage", Upgrade.Category.BRICKS, 1, "Explosions hit each brick once more", 10, 1.0],
-	&"Shockwave": ["Shockwave", Upgrade.Category.BRICKS, 1, "Explosions throw balls", 10, 1.0],
-	&"GoldBrick": ["Gold Brick", Upgrade.Category.BRICKS, 1, "One more gold brick", 10, 1.0],
-	&"HourglassBrick": ["Hourglass Brick", Upgrade.Category.BRICKS, 1, "One more hourglass brick", 20, 1.0],
-	&"HourglassTime": ["Hourglass Time", Upgrade.Category.BRICKS, 1, "An hourglass brick adds 5 s more", 1200, 1.0],
-	&"HourglassFreeze": ["Hourglass Freeze", Upgrade.Category.BRICKS, 1, "Breaking an hourglass brick holds the combo", 10, 1.0],
+	&"PaddleSpeed": ["Paddle Speed", Upgrade.Category.ARENA, 2, "+100% paddle speed", 5, 30.0],
+	&"PaddleSize": ["Paddle Size", Upgrade.Category.ARENA, 5, "+40% paddle length", 50, 3.5],
+	&"Combo": ["Combo", Upgrade.Category.ARENA, 1, "Turns combos on", 12, 1.0],
+	&"ComboWindow": ["Combo Window", Upgrade.Category.ARENA, 2, "Combos last longer", 40, 15.0],
+	&"RearPaddle": ["Rear Paddle", Upgrade.Category.ARENA, 2, "+20% speed off the Rear Paddle", 300, 8.0],
+	&"Booster": ["Booster", Upgrade.Category.PLACEABLES, 2, "One more Booster", 12, 20.0],
+	&"BoosterSpeed": ["Booster Speed", Upgrade.Category.PLACEABLES, 2, "Balls leave a Booster 10% faster still", 500, 6.0],
+	&"Zap": ["Zap", Upgrade.Category.PLACEABLES, 3, "One more Zap", 200, 4.0],
+	&"ZapRange": ["Zap Range", Upgrade.Category.PLACEABLES, 2, "A Zap reaches 2 more bricks each way", 400, 5.0],
+	&"ZapDamage": ["Zap Damage", Upgrade.Category.PLACEABLES, 2, "A Zap hits each brick once more", 800, 5.0],
+	&"Splitter": ["Splitter", Upgrade.Category.PLACEABLES, 5, "One more Splitter", 80, 3.0],
+	&"SplitterSplits": ["Splitter Splits", Upgrade.Category.PLACEABLES, 2, "A Splitter splits a ball into one more", 2000, 5.0],
+	&"SplitterHealth": ["Splitter Health", Upgrade.Category.PLACEABLES, 2, "A Splitter takes one more hit", 500, 6.0],
+	&"WallSegment": ["Wall Segment", Upgrade.Category.PLACEABLES, 2, "One more Wall Segment", 40, 10.0],
+	&"ExplosiveBrick": ["Explosive Brick", Upgrade.Category.BRICKS, 4, "One more explosive brick", 40, 3.5],
+	&"ExplosionSize": ["Explosion Size", Upgrade.Category.BRICKS, 2, "Explosions reach one square further", 150, 20.0],
+	&"ExplosionDamage": ["Explosion Damage", Upgrade.Category.BRICKS, 2, "Explosions hit each brick once more", 300, 10.0],
+	&"Shockwave": ["Shockwave", Upgrade.Category.BRICKS, 1, "Explosions throw balls", 600, 1.0],
+	&"GoldBrick": ["Gold Brick", Upgrade.Category.BRICKS, 3, "One more gold brick", 30, 6.0],
+	&"HourglassBrick": ["Hourglass Brick", Upgrade.Category.BRICKS, 2, "One more hourglass brick", 25, 100.0],
+	&"HourglassTime": ["Hourglass Time", Upgrade.Category.BRICKS, 2, "An hourglass brick adds 5 s more", 1200, 5.0],
+	&"HourglassFreeze": ["Hourglass Freeze", Upgrade.Category.BRICKS, 2, "Breaking an hourglass brick holds the combo", 800, 5.0],
 }
 ## The drawn web of upgrades.md: each node and the one it hangs off, towards the seed.
 const PARENT := {
@@ -197,20 +197,20 @@ func _max_and_poor() -> void:
 	await _quiet()
 	await _click(buy)
 	await _heard_settle()
-	t.check(Progress.coins == 1 and Progress.rank(seed.upgrade) == 0, "Buy with 1 coin on a 2-coin node buys nothing")
+	t.check(Progress.coins == 1 and Progress.rank(seed.upgrade) == 0, "Buy with 1 coin on a 5-coin node buys nothing")
 	t.check(heard == [Sfx.CANT_AFFORD], "it plays can't afford once and nothing else (heard %s)" % [heard])
 	t.check(buy.theme_type_variation == &"CantAfford" and not buy.disabled and buy.text == "BUY", "it reads BUY in the can't-afford look")
 	var paid: Array[int] = []
 	Progress.coins = 200
-	for i in 1:
+	for i in 2:
 		var before := Progress.coins
 		await _quiet()
 		await _click(buy)
 		await _heard_settle()
 		paid.append(before - Progress.coins)
 		t.check(heard == [Sfx.BUY], "buying rank %d plays the buy cue once and nothing else (heard %s)" % [i + 1, heard])
-	t.check(paid == [5], "Paddle Speed's one rank costs 5 (paid %s)" % [paid])
-	t.check(_web().state(seed) == HubNode.State.MAXED and buy.disabled and buy.text == "MAXED", "after its one rank it is maxed and Buy reads MAXED")
+	t.check(paid == [5, 150], "Paddle Speed's two ranks cost 5 and 150 (paid %s)" % [paid])
+	t.check(_web().state(seed) == HubNode.State.MAXED and buy.disabled and buy.text == "MAXED", "after its top rank it is maxed and Buy reads MAXED")
 	t.check(not (_hub().get_node("Detail/%Cost") as Control).visible and (seed.get_node("Bottom/Max") as Control).visible, "the price is gone and the node says MAX")
 	var coins := Progress.coins
 	await _quiet()

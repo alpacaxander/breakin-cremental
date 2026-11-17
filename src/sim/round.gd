@@ -379,9 +379,10 @@ func blast(cell: Vector2i, reach: float) -> void:
 				set_boost(ball, ball.boost * stats.shockwave_boost)
 
 
-## Adds a ball at `pos` moving along `dir` and emits ball_added.
+## Adds a ball at `pos` moving along `dir`, turned to the minimum angles (_legal), and emits ball_added. A wide
+## split fans a ball past them.
 func add_ball(pos: Vector2, dir: Vector2, boost := 1.0) -> Ball:
-	var ball := _spawn(pos, dir, boost)
+	var ball := _spawn(pos, _legal(dir), boost)
 	ball_added.emit(ball)
 	return ball
 

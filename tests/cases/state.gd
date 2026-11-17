@@ -5,30 +5,30 @@ const A := Upgrade.Category.ARENA
 const P := Upgrade.Category.PLACEABLES
 const B := Upgrade.Category.BRICKS
 ## The sketched web (docs/design/upgrades.md): id -> [category, ranks, first cost, stat, amount, percent]. Every
-## node has one rank (most at 10 coins) for now.
+## node's ranks and prices are first values, set with the balance bot.
 const TABLE := {
-	&"paddle_speed": [A, 1, 5, &"paddle_speed", 1.0, true],
-	&"paddle_size": [A, 1, 80, &"paddle_size", 0.4, true],
-	&"combo": [A, 1, 30, &"combo_rank", 1.0, false],
-	&"combo_window": [A, 1, 10, &"combo_rank", 1.0, false],
-	&"rear_paddle": [A, 1, 10, &"rear_paddle", 0.2, false],
-	&"booster": [P, 1, 10, &"booster_count", 1.0, false],
-	&"booster_speed": [P, 1, 530, &"booster_speed", 0.1, false],
-	&"zap": [P, 1, 270, &"zap_count", 1.0, false],
-	&"zap_range": [P, 1, 10, &"zap_range", 2.0, false],
-	&"zap_damage": [P, 1, 10, &"zap_damage", 1.0, false],
-	&"splitter": [P, 1, 110, &"splitter_count", 1.0, false],
-	&"splitter_splits": [P, 1, 5000, &"splitter_splits", 1.0, false],
-	&"splitter_health": [P, 1, 10, &"splitter_health", 1.0, false],
-	&"wall_segment": [P, 1, 10, &"wall_segment_count", 1.0, false],
-	&"explosive_brick": [B, 1, 10, &"explosive_count", 1.0, false],
-	&"blast_size": [B, 1, 10, &"blast_size", 1.0, false],
-	&"explosion_damage": [B, 1, 10, &"explosion_damage", 1.0, false],
-	&"shockwave": [B, 1, 10, &"shockwave", 1.0, false],
-	&"gold_brick": [B, 1, 10, &"gold_count", 1.0, false],
-	&"hourglass_brick": [B, 1, 20, &"hourglass_count", 1.0, false],
-	&"hourglass_time": [B, 1, 1200, &"hourglass_time", 5.0, false],
-	&"hourglass_freeze": [B, 1, 10, &"hourglass_freeze", 1.0, false],
+	&"paddle_speed": [A, 2, 5, &"paddle_speed", 1.0, true],
+	&"paddle_size": [A, 5, 50, &"paddle_size", 0.4, true],
+	&"combo": [A, 1, 12, &"combo_rank", 1.0, false],
+	&"combo_window": [A, 2, 40, &"combo_rank", 1.0, false],
+	&"rear_paddle": [A, 2, 300, &"rear_paddle", 0.2, false],
+	&"booster": [P, 2, 12, &"booster_count", 1.0, false],
+	&"booster_speed": [P, 2, 500, &"booster_speed", 0.1, false],
+	&"zap": [P, 3, 200, &"zap_count", 1.0, false],
+	&"zap_range": [P, 2, 400, &"zap_range", 2.0, false],
+	&"zap_damage": [P, 2, 800, &"zap_damage", 1.0, false],
+	&"splitter": [P, 5, 80, &"splitter_count", 1.0, false],
+	&"splitter_splits": [P, 2, 2000, &"splitter_splits", 1.0, false],
+	&"splitter_health": [P, 2, 500, &"splitter_health", 1.0, false],
+	&"wall_segment": [P, 2, 40, &"wall_segment_count", 1.0, false],
+	&"explosive_brick": [B, 4, 40, &"explosive_count", 1.0, false],
+	&"blast_size": [B, 2, 150, &"blast_size", 1.0, false],
+	&"explosion_damage": [B, 2, 300, &"explosion_damage", 1.0, false],
+	&"shockwave": [B, 1, 600, &"shockwave", 1.0, false],
+	&"gold_brick": [B, 3, 30, &"gold_count", 1.0, false],
+	&"hourglass_brick": [B, 2, 25, &"hourglass_count", 1.0, false],
+	&"hourglass_time": [B, 2, 1200, &"hourglass_time", 5.0, false],
+	&"hourglass_freeze": [B, 2, 800, &"hourglass_freeze", 1.0, false],
 }
 
 
@@ -59,7 +59,7 @@ func _upgrades(t: Node) -> void:
 		t.check(is_equal_approx(u.amount, row[4]) and u.percent == row[5], "%s adds %s%s per rank" % [u.id, row[4], " of the base" if row[5] else ""])
 		t.check(u.cost(0) == u.first_cost, "%s's first rank costs its first cost" % u.id)
 		t.check(Progress.upgrade(u.id) == u, "Progress.upgrade finds %s" % u.id)
-	t.check(purchases == 22, "the web holds 22 purchases, not %d" % purchases)
+	t.check(purchases == 52, "the web holds 52 purchases, not %d" % purchases)
 	t.check(Progress.upgrade(&"nope") == null, "an unknown id is no upgrade")
 
 
@@ -99,9 +99,9 @@ func _buy(t: Node) -> void:
 	t.check(FileAccess.file_exists(Progress.path) and _saved().get("coins") == 195.0, "buy saves")
 	while Progress.buy(u):
 		pass
-	t.check(Progress.maxed(u) and Progress.rank(u) == 1 and Progress.coins == 195, "Paddle Speed tops out at rank 1")
+	t.check(Progress.maxed(u) and Progress.rank(u) == 2 and Progress.coins == 45, "Paddle Speed tops out at rank 2, the second for 150")
 	heard.clear()
-	t.check(not Progress.buy(u) and Progress.rank(u) == 1 and heard.is_empty(), "buy refuses at the top rank")
+	t.check(not Progress.buy(u) and Progress.rank(u) == 2 and heard.is_empty(), "buy refuses at the top rank")
 	Progress.coins_changed.disconnect(on_coins)
 	Progress.rank_changed.disconnect(on_rank)
 
@@ -158,7 +158,7 @@ func _bad_saves(t: Node) -> void:
 			"layouts": {"2": [{"kind": "zap"}], "x": [], "4": "no"}, "future": true}))
 	Progress.use(path)
 	t.check(Progress.coins == 50 and Progress.unlocked == 2, "a save with no version and an unknown field keeps coins and level")
-	t.check(Progress.ranks == ({&"zap": 1} as Dictionary[StringName, int]), "a rank above the top is lowered, and unknown ids and bad ranks are dropped")
+	t.check(Progress.ranks == ({&"zap": 3} as Dictionary[StringName, int]), "a rank above the top is lowered, and unknown ids and bad ranks are dropped")
 	t.check(Progress.layouts.keys() == [2], "only well-formed layouts are kept")
 	t.check(not FileAccess.file_exists(bad), "a readable save is not set aside")
 

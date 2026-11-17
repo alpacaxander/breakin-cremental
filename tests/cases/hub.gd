@@ -119,7 +119,7 @@ func run(t: Node) -> void:
 	var opened := web.nodes().filter(func(n: HubNode) -> bool: return web.state(n) == HubNode.State.AVAILABLE).map(func(n: HubNode) -> String: return n.name)
 	opened.sort()
 	t.check(opened == ["Booster", "Combo", "HourglassBrick", "PaddleSize"], "buying the seed opens its four neighbours and nothing else (open: %s)" % [opened])
-	t.check(web.state(seed) == HubNode.State.MAXED and web.state(at.call(&"Splitter")) == HubNode.State.LOCKED, "the seed is maxed at its one rank and the next ring stays locked")
+	t.check(web.state(seed) == HubNode.State.OWNED and web.state(at.call(&"Splitter")) == HubNode.State.LOCKED, "the seed is owned, with a rank still to buy, and the next ring stays locked")
 	t.check(web.nodes().all(func(n: HubNode) -> bool: return n.visible == (web.state(n) != HubNode.State.LOCKED)), "every open node is shown and every locked one hidden")	# A click leaves no focus on Buy: Space is Start and Retry in a level, and here it would buy the next rank.
 	_key(t, KEY_SPACE)
 	t.check(focus.call() == seed and Progress.rank(seed.upgrade) == 1, "after a click on Buy the focus is back on the selected node, and Space buys nothing")
