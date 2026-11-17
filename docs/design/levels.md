@@ -11,7 +11,7 @@
 - **Editable in Godot:** each level is its own scene, `levels/level_<n>.tscn`, and you paint its bricks in the editor. The scene's root is a TileMapLayer with a `title` and a `rows` field. One tile is one brick, and the tile set has a tile for each HP, with the number on it. The grid's edge is outlined, because the columns follow from the rows. To add a level, duplicate a scene under the next number.
 - **Aim marks:** a level can mark cells a skilled player aims the ball at, such as a gap that lets the ball behind a wall. Paint them with the tile set's fifth tile, the hollow one with a cross (`hp` 0, shown cyan in the editor), on empty cells. They are not bricks, and the game never shows them: only the balance bot reads them (`LevelData.aims`), and its better players aim at them instead of the middle of the bricks (`focus` in `tests/balance.gd`).
 - A round whose score reaches the level's target clears it and unlocks the next level. Phases and end conditions are described in [overview.md](overview.md#level-phases).
-- Each level scene sets its `target`, set with the balance bot's campaign against the stages (see [design.md](../design.md#progression)) and not yet by hand: level 1 is 28, level 2 is 320 and level 3 is 8192. On level 3 the target cannot pull the stages apart, because a round that keeps its ball scores many times one that loses it: from 6144 up, stage 2 ends a few rounds after stage 1 (at 8192, both on about its 14th round; at 12288 to 16384, about its 17th to 21st), and at 4096 stage 1 ends on its first round. Those were measured when only a break grew the combo; since a hit grows it too, at 8192 the average player's stages end on its 14th and 17th rounds and the good player clears on its first (see [upgrades.md](upgrades.md#the-demos-web), "What the bot measured").
+- Each level scene sets its `target`, set with the balance bot's campaign against the stages (see [design.md](../design.md#progression)) and not yet by hand: level 1 is 28, level 2 is 320 and level 3 is 8192. On level 3 the target cannot pull the stages apart, because a round that keeps its ball scores many times one that loses it: from 6144 up, stage 2 ends a few rounds after stage 1 (at 8192, both on about its 14th round; at 12288 to 16384, about its 17th to 21st), and at 4096 stage 1 ends on its first round. Those were measured when only a break grew the combo; since a hit grows it too, at 8192 the average player's stages ended on its 14th and 17th rounds and the good player cleared on its first, and since the Booster doubled and level 2's squares grew they end on its 2nd and 8th (see [upgrades.md](upgrades.md#the-demos-web), "What the bot measured").
 
 ## Arena size
 
@@ -75,32 +75,32 @@ The four cells of the two gaps (columns 48–49 of rows 0–1 and 14–15) are a
    +----------------------------------------------------------------+
 ```
 
-## Level 2: 8×8 checkerboard of squares
+## Level 2: 4×4 checkerboard of big squares
 
 - 64 × 16. Every brick is 1 HP.
-- An 8×8 checkerboard of squares, alternating filled and empty. It covers columns 24–55 and the full height.
+- A 4×4 checkerboard of big squares, alternating filled and empty. A big square is 2 × 2 squares: 8 columns × 4 rows, 16 bricks. It covers columns 24–55 and the full height.
 - Behind it are 2 square-widths of empty space (columns 56–63).
 - In front of it, columns 0–23 are empty.
-- 32 filled squares × 4 bricks = 128 bricks.
+- 8 filled big squares × 16 bricks = 128 bricks.
 
 ```
    +----------------------------------------------------------------+
-   |........................████....████....████....████............|
-   |........................████....████....████....████............|
-   |............................████....████....████....████........|
-   |............................████....████....████....████........|
-   |........................████....████....████....████............|
-   |........................████....████....████....████............|
-|  |............................████....████....████....████........|
-|  |............................████....████....████....████........|
-|  |........................████....████....████....████............|
-|  |........................████....████....████....████............|
-   |............................████....████....████....████........|
-   |............................████....████....████....████........|
-   |........................████....████....████....████............|
-   |........................████....████....████....████............|
-   |............................████....████....████....████........|
-   |............................████....████....████....████........|
+   |........................████████........████████................|
+   |........................████████........████████................|
+   |........................████████........████████................|
+   |........................████████........████████................|
+   |................................████████........████████........|
+   |................................████████........████████........|
+|  |................................████████........████████........|
+|  |................................████████........████████........|
+|  |........................████████........████████................|
+|  |........................████████........████████................|
+   |........................████████........████████................|
+   |........................████████........████████................|
+   |................................████████........████████........|
+   |................................████████........████████........|
+   |................................████████........████████........|
+   |................................████████........████████........|
    +----------------------------------------------------------------+
 ```
 

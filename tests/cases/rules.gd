@@ -231,7 +231,7 @@ func _kinds() -> void:
 	for k in Kinds.all():
 		t.check(Palette.MEANINGS.has(k.colour) or k.id == &"tough", "%s's colour is a Palette meaning" % k.id)
 	# The three amounts are pinned here and nowhere else: the other checks read them from the kinds.
-	t.check(Kinds.of(&"booster").get("boost") == 0.1 and Kinds.of(&"hourglass").get("seconds") == 15.0, "the Booster adds 0.1 and the hourglass 15 s, from their files")
+	t.check(Kinds.of(&"booster").get("boost") == 0.2 and Kinds.of(&"hourglass").get("seconds") == 15.0, "the Booster adds 0.2 and the hourglass 15 s, from their files")
 
 
 # --- building and the first step -------------------------------------------------------------------------------

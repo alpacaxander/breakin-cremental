@@ -20,9 +20,9 @@ const CELLS := {
 	},
 	2: {
 		Vector2i(0, 0): 0, Vector2i(63, 0): 0, Vector2i(0, 7): 0, Vector2i(63, 7): 0, Vector2i(23, 0): 0, Vector2i(56, 7): 0,
-		Vector2i(24, 0): 1, Vector2i(27, 0): 1, Vector2i(28, 0): 0, Vector2i(24, 1): 0, Vector2i(28, 1): 1, Vector2i(31, 1): 1,
-		Vector2i(48, 0): 1, Vector2i(51, 0): 1, Vector2i(52, 0): 0, Vector2i(55, 0): 0,
-		Vector2i(24, 7): 0, Vector2i(28, 7): 1, Vector2i(52, 7): 1, Vector2i(55, 7): 1,
+		Vector2i(24, 0): 1, Vector2i(31, 0): 1, Vector2i(32, 0): 0, Vector2i(24, 1): 1, Vector2i(24, 2): 0, Vector2i(32, 2): 1, Vector2i(39, 3): 1,
+		Vector2i(40, 0): 1, Vector2i(47, 1): 1, Vector2i(48, 0): 0, Vector2i(55, 0): 0, Vector2i(55, 2): 1,
+		Vector2i(24, 7): 0, Vector2i(32, 7): 1, Vector2i(48, 7): 1, Vector2i(55, 7): 1,
 	},
 	3: {
 		Vector2i(0, 0): 0, Vector2i(71, 0): 0, Vector2i(0, 8): 0, Vector2i(71, 8): 0, Vector2i(3, 0): 0, Vector2i(68, 8): 0,

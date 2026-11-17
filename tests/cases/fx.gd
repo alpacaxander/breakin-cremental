@@ -176,6 +176,7 @@ func _bloom() -> void:
 
 	# The combo runs out: the round says so, and the bloom comes down over half a second, not at once.
 	round.combo.time_left = 1.0 / 240.0
+	round.combo.held = 0.0  # the blast may have broken an hourglass brick, which holds the window
 	for i in 3:
 		await t.tree().physics_frame
 	t.check(round.combo.count == 0 and fx.heat == 0.0, "the heat is gone when the combo ends")

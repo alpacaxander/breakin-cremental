@@ -6,9 +6,9 @@
 script = ExtResource("1")
 title = "Booster Speed"
 category = 1
-text = "Balls leave a Booster 10% faster still."
+text = "Balls leave a Booster 20% faster still."
 first_cost = 500
 growth = 6
 max_rank = 2
 stat = &"booster_speed"
-amount = 0.1
+amount = 0.2

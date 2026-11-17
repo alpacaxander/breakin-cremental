@@ -833,9 +833,9 @@ func _fuzz_round(sd: int) -> void:
 		if hit.surface == Hit.Surface.PADDLE:
 			want = ball.kept
 		elif hit.surface == Hit.Surface.ITEM and hit.item.kind.id == &"booster":
-			want = minf(was + 0.1, cap)
+			want = minf(was + float(Kinds.of(&"booster").get("boost")), cap)
 			_seen.booster = _seen.get("booster", 0) + 1
-		_fail(is_equal_approx(ball.boost, want), "a Booster adds 10% of base speed, up to 3x; the paddle takes away all but a Booster's; nothing else changes it (physics.md)",
+		_fail(is_equal_approx(ball.boost, want), "a Booster adds its file's boost, up to 3x; the paddle takes away all but a Booster's; nothing else changes it (physics.md)",
 				"ball %d off %s: boost %s -> %s" % [ball.id, Hit.Surface.keys()[hit.surface], was, ball.boost])
 		spy.boosts[ball.id] = ball.boost
 		m.last = "bounced")

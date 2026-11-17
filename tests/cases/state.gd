@@ -13,7 +13,7 @@ const TABLE := {
 	&"combo_window": [A, 2, 40, &"combo_rank", 1.0, false],
 	&"rear_paddle": [A, 2, 300, &"rear_paddle", 0.2, false],
 	&"booster": [P, 2, 12, &"booster_count", 1.0, false],
-	&"booster_speed": [P, 2, 500, &"booster_speed", 0.1, false],
+	&"booster_speed": [P, 2, 500, &"booster_speed", 0.2, false],
 	&"zap": [P, 3, 200, &"zap_count", 1.0, false],
 	&"zap_range": [P, 2, 400, &"zap_range", 2.0, false],
 	&"zap_damage": [P, 2, 800, &"zap_damage", 1.0, false],

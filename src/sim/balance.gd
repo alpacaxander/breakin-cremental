@@ -44,7 +44,7 @@ extends Resource
 @export var launch_gap: float  ## At rest, the gap between the paddle's face and the ball's near edge
 @export var min_angle_vertical: float  ## After a bounce or a throw, the direction is at least this far from straight up or down
 @export var min_angle_horizontal: float  ## ...and at least this far from straight left or right. The launch is exempt
-@export var boost_cap: float  ## The highest Ball.boost: 1.5 is one and a half times the base speed
+@export var boost_cap: float  ## The highest Ball.boost: 2 is twice the base speed
 @export var shockwave_boost: float  ## A Shockwave multiplies Ball.boost by this
 
 @export_group("Paddle")

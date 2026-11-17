@@ -11,4 +11,4 @@ order = 2
 placement = 0
 shape = 1
 size = Vector2(32, 32)
-boost = 0.1
+boost = 0.2

@@ -95,7 +95,7 @@ The demo's kinds. The id is the file name in `data/kinds/`, and `<id>_count` is 
 | Id | Base | Shape and size (units) | Colour | Cue | Its own numbers |
 |---|---|---|---|---|---|
 | `bumper` | PlaceableKind, FREE | RECT 30 × 30, turn 45 | `placeable` | `bumper` | |
-| `booster` | PlaceableKind, FREE | CIRCLE, 32 across | `placeable` | `booster` | Adds 0.1 to the ball's boost |
+| `booster` | PlaceableKind, FREE | CIRCLE, 32 across | `placeable` | `booster` | Adds 0.2 to the ball's boost |
 | `wall_segment` | PlaceableKind, FREE, rotatable | RECT 10 × 112 | `placeable` | `wall_bounce` | |
 | `splitter` | PlaceableKind, BRICK | A brick cell, 1 HP | `placeable` | none (`ball_added` has its own) | |
 | `zap` | PlaceableKind, MOD | A 6 × 6 mark | `placeable` | `zap` | |

@@ -21,7 +21,7 @@ const TABLE := {
 	&"ComboWindow": ["Combo Window", Upgrade.Category.ARENA, 2, "Combos last longer", 40, 15.0],
 	&"RearPaddle": ["Rear Paddle", Upgrade.Category.ARENA, 2, "+20% speed off the Rear Paddle", 300, 8.0],
 	&"Booster": ["Booster", Upgrade.Category.PLACEABLES, 2, "One more Booster", 12, 20.0],
-	&"BoosterSpeed": ["Booster Speed", Upgrade.Category.PLACEABLES, 2, "Balls leave a Booster 10% faster still", 500, 6.0],
+	&"BoosterSpeed": ["Booster Speed", Upgrade.Category.PLACEABLES, 2, "Balls leave a Booster 20% faster still", 500, 6.0],
 	&"Zap": ["Zap", Upgrade.Category.PLACEABLES, 3, "One more Zap", 200, 4.0],
 	&"ZapRange": ["Zap Range", Upgrade.Category.PLACEABLES, 2, "A Zap reaches 2 more bricks each way", 400, 5.0],
 	&"ZapDamage": ["Zap Damage", Upgrade.Category.PLACEABLES, 2, "A Zap hits each brick once more", 800, 5.0],
