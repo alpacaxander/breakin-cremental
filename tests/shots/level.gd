@@ -28,12 +28,12 @@ func shots() -> Array[Dictionary]:
 		{"name": "setup_placed_crt_off", "save": "maxed", "crt": false, "setup": _open.bind(1, PLACED)},
 		{"name": "setup_mid_2", "save": "mid", "crt": false, "setup": _open.bind(2, [])},
 		{"name": "setup_maxed_3", "save": "maxed", "setup": _open.bind(3, [])},
-		{"name": "drag_fits", "save": "maxed", "crt": false, "setup": _drag.bind(Vector2(520, 300), 2)},
-		{"name": "drag_refused", "save": "maxed", "crt": false, "setup": _drag.bind(Vector2(1138, 300), 2)},
-		{"name": "drag_brick", "save": "maxed", "crt": false, "setup": _drag.bind(Vector2(700, 420), 3)},
-		{"name": "drag_zap", "save": "maxed", "crt": false, "setup": _drag.bind(Vector2(1138, 420), 4)},
-		{"name": "hold_tray", "save": "maxed", "crt": false, "setup": _hold.bind(0, Vector2(30, -8))},
-		{"name": "hold_tray_splitter", "save": "maxed", "crt": false, "setup": _hold.bind(3, Vector2.ZERO)},
+		{"name": "drag_fits", "save": "maxed", "crt": false, "setup": _drag.bind(Vector2(520, 300), &"wall_segment")},
+		{"name": "drag_refused", "save": "maxed", "crt": false, "setup": _drag.bind(Vector2(1138, 300), &"wall_segment")},
+		{"name": "drag_brick", "save": "maxed", "crt": false, "setup": _drag.bind(Vector2(700, 420), &"splitter")},
+		{"name": "drag_zap", "save": "maxed", "crt": false, "setup": _drag.bind(Vector2(1138, 420), &"zap")},
+		{"name": "hold_tray", "save": "maxed", "crt": false, "setup": _hold.bind(&"booster", Vector2(30, -8))},
+		{"name": "hold_tray_splitter", "save": "maxed", "crt": false, "setup": _hold.bind(&"splitter", Vector2.ZERO)},
 		{"name": "play_fresh", "setup": _play.bind(1, [], 45, 0)},
 		{"name": "play_fresh_crt_off", "crt": false, "setup": _play.bind(1, [], 45, 0)},
 		{"name": "play_mid_2", "save": "mid", "setup": _play.bind(2, [], 150, 9)},
@@ -56,16 +56,16 @@ func _open(_main: Main, number: int, placed: Array) -> Control:
 	return Main.show_level(number)
 
 
-## Level 1 with everything placed, and tray slot `slot` dragged to `to`.
-func _drag(main: Main, to: Vector2, slot: int) -> void:
+## Level 1 with everything placed, and the tray slot of kind `slot` dragged to `to`.
+func _drag(main: Main, to: Vector2, slot: StringName) -> void:
 	var level := _open(main, 1, PLACED.slice(0, 1))
 	await main.get_tree().process_frame
 	await main.get_tree().process_frame
-	var from: Vector2 = (level.get_node("SetupUi").get("_slots")[slot] as Control).get_global_rect().get_center()
+	var from := _slot(level, slot).get_global_rect().get_center()
 	_mouse(main, from, true)
 	for i in 4:
 		_mouse(main, from.lerp(to, (i + 1) / 4.0))
-	if slot == 2:
+	if slot == &"wall_segment":
 		var wheel := InputEventMouseButton.new()
 		wheel.button_index = MOUSE_BUTTON_WHEEL_DOWN
 		wheel.pressed = true
@@ -75,14 +75,22 @@ func _drag(main: Main, to: Vector2, slot: int) -> void:
 			main.view.push_input(wheel, true)
 
 
-## Level 1 with tray slot `slot` just pressed and held, the cursor `by` from the slot's centre: over the tray.
-func _hold(main: Main, slot: int, by: Vector2) -> void:
+## Level 1 with the tray slot of kind `slot` just pressed and held, the cursor `by` from its centre: over the tray.
+func _hold(main: Main, slot: StringName, by: Vector2) -> void:
 	var level := _open(main, 1, [])
 	await main.get_tree().process_frame
 	await main.get_tree().process_frame
-	var from: Vector2 = (level.get_node("SetupUi").get("_slots")[slot] as Control).get_global_rect().get_center()
+	var from := _slot(level, slot).get_global_rect().get_center()
 	_mouse(main, from, true)
 	_mouse(main, from + by)
+
+
+## The tray slot of kind `id`. By kind, not by index: which slots the tray has follows the upgrade web.
+func _slot(level: Control, id: StringName) -> LevelSetupUi.Slot:
+	for slot: LevelSetupUi.Slot in level.get_node("SetupUi").get("_slots"):
+		if slot.kind.id == id:
+			return slot
+	return null
 
 
 ## Starts level `number` and lets a paddle that follows the ball play it for `frames` physics ticks. Then, to

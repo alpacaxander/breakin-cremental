@@ -92,7 +92,7 @@ func _hover(main: Main) -> void:
 	Main.show_hub()
 	await main.get_tree().process_frame
 	var hub := _screen().get_node("Hub")
-	await _click(hub.get_node("Web/Bumper"))
+	await _click(hub.get_node("Web/Booster"))
 	_mouse((hub.get_node("Detail/%Buy") as Control).get_global_rect().get_center())
 
 
