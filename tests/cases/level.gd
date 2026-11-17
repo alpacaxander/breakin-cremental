@@ -64,16 +64,17 @@ func _seam() -> void:
 	t.check(arena.get_child_count() < 10 and round.board.bricks.size() == 512, "512 bricks are drawn by one node, not by 512")
 	for part: String in ["Hud", "SetupUi", "Summary"]:
 		t.check((level.get_node(part) as Control).z_index == 100, "%s is at z 100" % part)
-	t.check(_specials(round).size() == 3, "Setup shows this attempt's special bricks")
+	t.check(_specials(round).size() == 4, "Setup shows this attempt's special bricks")
 	# Called by hand, here and for the freeze below: the real effects set shake and frozen themselves every frame.
 	level.fx.shake = Vector2(3, -2)
 	arena._process(0.0)
 	t.check(arena.position == ORIGIN + Vector2(3, -2), "Arena follows the effects' shake")
 	level.fx.shake = Vector2.ZERO
-	# Level 3 has 1 and 2 HP bricks.
+	# Level 3 has 1 and 2 HP bricks, and the tough brick rolled on it has 3: it shows as its HP step, not by name.
 	level.start(7)
 	var legend: Array = _texts(level.get_node("Hud")._legend).filter(func(s: String) -> bool: return s.ends_with("HP"))
-	t.check(legend == ["1 HP", "2 HP"], "Play's legend lists every HP step up to the board's toughest brick (%s)" % [legend])
+	t.check(legend == ["1 HP", "2 HP", "3 HP"] and not _texts(level.get_node("Hud")._legend).has("TOUGH"),
+			"Play's legend lists every HP step up to the board's toughest brick, a tough brick's too, and no TOUGH entry (%s)" % [legend])
 	# No level has a brick over 2 HP, so the top step is checked on a brick made tougher than the palette goes.
 	(round.board.bricks.values().filter(func(b: Brick) -> bool: return b.kind == &"")[0] as Brick).hp = 6
 	level.get_node("Hud").show_round(round, Levels.read(3), false, true)

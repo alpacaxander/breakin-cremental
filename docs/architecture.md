@@ -97,8 +97,9 @@ The demo's kinds. The id is the file name in `data/kinds/`, and `<id>_count` is 
 | `explosive` | BrickKind | 1 HP | `explosive` | none (`exploded` has its own) | Reach comes from the `blast_size` stat |
 | `gold` | BrickKind | 1 HP, worth 20 | `coins` | `gold_brick` | |
 | `hourglass` | BrickKind | 1 HP | `time` | `hourglass_brick` | Adds 15 s |
+| `tough` | BrickKind (no script of its own) | 3 HP | none: drawn in the HP steps, like a plain brick | none (the brick sounds) | |
 
-`order` runs 1 to 5 down the placeables and 1 to 3 down the bricks; it is the tray order and the order special bricks are rolled in.
+`order` runs 1 to 5 down the placeables and 1 to 4 down the bricks; it is the tray order and the order special bricks are rolled in. A kind with no hook, such as `tough`, uses `src/kinds/brick_kind.gd` itself as its script, so it is one file. A brick kind with no colour is drawn by its HP, as a plain brick is (`Palette.brick`).
 
 ### Stats
 
@@ -122,7 +123,7 @@ The demo's upgrades. The id is the file name in `data/upgrades/`:
 | `blast_size` | `blast_size` | 1 |
 | `shockwave` | `shockwave` | 1 |
 | `bumper`, `booster`, `wall_segment`, `splitter`, `zap` | `<id>_count` | 1 |
-| `explosive_brick`, `gold_brick`, `hourglass_brick` | `explosive_count`, `gold_count`, `hourglass_count` | 1 |
+| `explosive_brick`, `gold_brick`, `hourglass_brick`, `tough_brick` | `explosive_count`, `gold_count`, `hourglass_count`, `tough_count` | 1 |
 
 The web scene (`src/hub/web.tscn`) holds only layout: where each node sits, which `.tres` it shows, and which nodes it connects to. Whether a node can be reached yet is the hub's question; `Progress.buy` checks only the price and the maximum rank.
 

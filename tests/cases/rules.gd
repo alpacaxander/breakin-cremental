@@ -204,7 +204,7 @@ func _shipped() -> void:
 func _kinds() -> void:
 	var ids := func(kinds: Array) -> Array: return kinds.map(func(k: Kind) -> StringName: return k.id)
 	t.check(ids.call(Kinds.placeables()) == [&"bumper", &"booster", &"wall_segment", &"splitter", &"zap"], "the placeables are the five of the kinds table, in tray order")
-	t.check(ids.call(Kinds.bricks()) == [&"explosive", &"gold", &"hourglass"], "the special bricks are the three of the kinds table, in roll order")
+	t.check(ids.call(Kinds.bricks()) == [&"explosive", &"gold", &"hourglass", &"tough"], "the special bricks are the four of the kinds table, in roll order")
 	# id: [placement, shape, size, turn, rotatable, cue]
 	var placeables := {
 		&"bumper": [PlaceableKind.Placement.FREE, PlaceableKind.Shape.RECT, Vector2(30, 30), 45.0, false, Sfx.BUMPER],
@@ -218,13 +218,13 @@ func _kinds() -> void:
 		var want: Array = placeables[id]
 		t.check(k != null and [k.placement, k.shape, k.size, k.turn, k.rotatable, k.cue] == want and k.colour == &"placeable" and k.hp == 1 and k.title != "",
 				"the %s is as the kinds table has it" % id)
-	# id: [colour, cue, worth]
-	var bricks := {&"explosive": [&"explosive", &"", 1], &"gold": [&"coins", Sfx.GOLD_BRICK, 20], &"hourglass": [&"time", Sfx.HOURGLASS_BRICK, 1]}
+	# id: [colour, cue, worth, hp]. The tough brick has no colour: it is drawn in the HP steps.
+	var bricks := {&"explosive": [&"explosive", &"", 1, 1], &"gold": [&"coins", Sfx.GOLD_BRICK, 20, 1], &"hourglass": [&"time", Sfx.HOURGLASS_BRICK, 1, 1], &"tough": [&"", &"", 1, 3]}
 	for id: StringName in bricks:
 		var k := Kinds.of(id) as BrickKind
-		t.check(k != null and [k.colour, k.cue, k.worth] == bricks[id] and k.hp == 1 and k.title != "", "the %s brick is as the kinds table has it" % id)
+		t.check(k != null and [k.colour, k.cue, k.worth, k.hp] == bricks[id] and k.title != "", "the %s brick is as the kinds table has it" % id)
 	for k in Kinds.all():
-		t.check(Palette.MEANINGS.has(k.colour), "%s's colour is a Palette meaning" % k.id)
+		t.check(Palette.MEANINGS.has(k.colour) or k.id == &"tough", "%s's colour is a Palette meaning" % k.id)
 	# The three amounts are pinned here and nowhere else: the other checks read them from the kinds.
 	t.check(Kinds.of(&"booster").get("boost") == 0.1 and Kinds.of(&"hourglass").get("seconds") == 15.0, "the Booster adds 0.1 and the hourglass 15 s, from their files")
 
@@ -943,7 +943,7 @@ func _specials() -> void:
 		for row in 4:
 			bricks[Vector2i(column, row)] = 4
 	var board := _board(bricks)
-	var stats := _stats({&"explosive_count": 2, &"gold_count": 1, &"hourglass_count": 3, &"bumper_count": 1, &"splitter_count": 1, &"zap_count": 1})
+	var stats := _stats({&"explosive_count": 2, &"gold_count": 1, &"hourglass_count": 3, &"tough_count": 1, &"bumper_count": 1, &"splitter_count": 1, &"zap_count": 1})
 	var picks := func(round: Round) -> Dictionary:
 		var out := {}
 		for cell: Vector2i in round.board.bricks:
@@ -952,10 +952,10 @@ func _specials() -> void:
 		return out
 	var round := Round.new(board, null, stats, 5)
 	var got: Dictionary = picks.call(round)
-	t.check(got.values().count(&"explosive") == 2 and got.values().count(&"gold") == 1 and got.values().count(&"hourglass") == 3 and got.size() == 6,
+	t.check(got.values().count(&"explosive") == 2 and got.values().count(&"gold") == 1 and got.values().count(&"hourglass") == 3 and got.values().count(&"tough") == 1 and got.size() == 7,
 			"rank N of a special brick replaces N standard bricks")
-	t.check(got.keys().all(func(c: Vector2i) -> bool: return round.board.brick(c).hp == 1) and round.board.bricks.values().filter(func(b: Brick) -> bool: return b.hp == 4).size() == 34,
-			"a special brick has 1 HP whatever it replaced, and the others keep theirs")
+	t.check(got.keys().all(func(c: Vector2i) -> bool: return round.board.brick(c).hp == (3 if got[c] == &"tough" else 1)) and round.board.bricks.values().filter(func(b: Brick) -> bool: return b.hp == 4).size() == 33,
+			"a special brick has its kind's HP (1, a tough brick 3) whatever it replaced, and the others keep theirs")
 	t.check(board.bricks.values().all(func(b: Brick) -> bool: return b.kind == &"" and b.hp == 4), "the level's own board is not changed by the roll")
 	t.check(picks.call(Round.new(board, null, stats, 5)) == got, "the same seed picks the same bricks")
 	var layout := _layout([_item(&"bumper", Vector2(200, 400)), _item(&"splitter", Vector2i(40, 2)), _item(&"zap", Vector2i(22, 1))])

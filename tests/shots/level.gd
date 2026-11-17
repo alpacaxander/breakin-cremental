@@ -1,6 +1,6 @@
 extends RefCounted
 ## The level screen in each state that matters: Setup on a fresh save and with everything unlocked and placed,
-## a drag that fits and one that does not, an item held over the tray, Play early, mid-combo and on the zoomed level 3, and the Summary for
+## a drag that fits and one that does not, an item held over the tray, Play early, mid-combo, with tough bricks hit and on the zoomed level 3, and the Summary for
 ## each of the three ends and with several combos. Compare them with docs/art.md ("Level screen") and the level mockup.
 ##
 ## The mouse is pushed straight into Main's View, so a position here is a position in the 1280 x 720 frame
@@ -41,6 +41,7 @@ func shots() -> Array[Dictionary]:
 		{"name": "play_maxed_1", "save": "maxed", "crt": false, "setup": _play.bind(1, PLACED, 200, 0)},
 		{"name": "play_maxed_3", "save": "maxed", "setup": _play.bind(3, [], 240, 0)},
 		{"name": "play_low_time", "save": "mid", "crt": false, "setup": _low_time},
+		{"name": "play_tough", "save": "maxed", "crt": false, "setup": _tough},
 		{"name": "play_strip", "save": "mid", "crt": false, "setup": _play.bind(2, [], 60, 0), "settle": 0, "frames": 4, "every": 2},
 		{"name": "summary_cleared", "save": "maxed", "setup": _end.bind(Round.End.CLEARED), "settle": 110},
 		{"name": "summary_cleared_crt_off", "save": "maxed", "crt": false, "setup": _end.bind(Round.End.CLEARED), "settle": 110},
@@ -112,6 +113,16 @@ func _play(main: Main, number: int, placed: Array, frames: int, breaks: int) -> 
 	for i in mini(breaks, cells.size()):
 		round.hit_brick(cells[i], Round.Cause.BLAST, Vector2.RIGHT)
 	return level
+
+
+## Level 1 in Play with its three tough bricks hit 0, 1 and 2 times: they show the 3, 2 and 1 HP steps.
+func _tough(main: Main) -> void:
+	var level := await _play(main, 1, [], 0, 0)
+	var round: Round = level.get("round")
+	var tough := round.board.bricks.keys().filter(func(c: Vector2i) -> bool: return round.board.brick(c).kind == &"tough")
+	for i in tough.size():
+		for j in i:
+			round.hit_brick(tough[i], Round.Cause.BLAST, Vector2.RIGHT)
 
 
 func _low_time(main: Main) -> void:

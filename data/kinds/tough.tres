@@ -1,0 +1,10 @@
+[gd_resource type="Resource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/kinds/brick_kind.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+title = "Tough Brick"
+order = 4
+hp = 3
+worth = 1

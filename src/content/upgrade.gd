@@ -2,7 +2,7 @@ class_name Upgrade
 extends Resource
 ## One node of the upgrade web. Each is a .tres in data/upgrades/, and its file name is its id. It changes one
 ## stat (see Progress.stat). Where the node sits and what it connects to is in the hub's web scene, not here.
-## The demo's 22 are listed in docs/design/upgrades.md.
+## The demo's 23 are listed in docs/design/upgrades.md.
 
 enum Category { ARENA, PLACEABLES, BRICKS }
 

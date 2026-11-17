@@ -18,7 +18,7 @@ See also: [placeables.md](placeables.md), [physics.md](physics.md), [overview.md
 | Category | What it does | Nodes in the demo |
 |---|---|---|
 | **Placeables** | Items you unlock and then place in the arena during the Setup phase to help yourself. The three kinds and their rules are in [placeables.md](placeables.md) | Booster, Booster Speed, Zap, Zap Range, Zap Damage, Splitter, Splitter Splits, Splitter Health, Wall Segment |
-| **Bricks** | When a level starts, some standard bricks are randomly replaced by special bricks that do something when broken. Some nodes improve a special brick instead | Explosive Brick, Explosion Size, Explosion Damage, Shockwave, Gold Brick, Hourglass Brick, Hourglass Time, Hourglass Freeze |
+| **Bricks** | When a level starts, some standard bricks are randomly replaced by special bricks that do something when broken. Some nodes improve a special brick instead | Explosive Brick, Explosion Size, Explosion Damage, Shockwave, Gold Brick, Tough Brick, Hourglass Brick, Hourglass Time, Hourglass Freeze |
 | **Arena** | Changes the arena's base stats | Paddle Speed, Paddle Size, Combo, Combo Window, Rear Paddle |
 
 ## Counts come from ranks
@@ -48,12 +48,12 @@ Bracket shape shows the category: `( )` Arena, `[ ]` Placeables, `{ }` Bricks. R
 {  Shockwave   }   [   Splitter   ]───(    Combo     )───( Combo Window )   {Hourglass Frz.}
                            │                 │
                    [SplitterSplits]   {  Gold Brick  }───[ Wall Segment ]
-                           │
-                   [SplitterHealth]
+                           │                 │
+                   [SplitterHealth]   { Tough Brick  }
 ```
 
 - Only the drawn lines are connections. The scene `src/hub/web.tscn` is the source; this drawing follows it.
-- The web is 5 columns × 6 rows, taller than the view at zoom 1: Splitter Health is reached by panning, or the view scrolls to it when it is selected.
+- The web is 5 columns × 6 rows, taller than the view at zoom 1: Splitter Health and Tough Brick are reached by panning, or the view scrolls to one when it is selected.
 
 A price is the first price times the growth for every rank owned, rounded to a whole coin. The ranks and prices are first values, set with the balance bot against the three stages of [design.md](../design.md#progression).
 
@@ -78,15 +78,16 @@ A price is the first price times the growth for every rank owned, rounded to a w
 | Explosion Damage | Bricks | Explosions hit each brick once more | 2 | ×10 | 300, 3,000 |
 | Shockwave | Bricks | Explosions throw balls | 1 |  | 600 |
 | Gold Brick | Bricks | One gold brick | 3 | ×6 | 30, 180, 1,080 |
+| Tough Brick | Bricks | One tough brick | 3 | ×6 | 20, 120, 720 |
 | Hourglass Brick | Bricks | One hourglass brick | 2 | ×100 | 25, 2,500 |
 | Hourglass Time | Bricks | An hourglass brick adds 5 s more | 2 | ×5 | 1,200, 6,000 |
 | Hourglass Freeze | Bricks | Breaking an hourglass brick holds the combo's window for 1 s | 2 | ×5 | 800, 4,000 |
 
-- That is 22 nodes and 52 purchases, 80,014 coins in all. The Bumper is still a kind in the code but no node unlocks it.
-- **The prices come in three bands, one per level**, because each level pays several times the one before. A round pays about 15 to 75 coins on level 1, 40 to 500 on level 2, and on level 3 either almost nothing (the ball is lost in the first seconds) or 1,500 to 5,000 and more. Up to 50 coins is what level 1 pays for: 9 ranks, the first of nearly every node next to the seed, so the first trip to the hub shows the core of the game. From 80 to 1,200 is level 2: 25 ranks. From 1,700 to 10,000 is level 3: 18 ranks. The balance bot buys the cheapest rank on offer, so the bands are the order it buys in.
+- That is 23 nodes and 55 purchases, 80,874 coins in all. The Bumper is still a kind in the code but no node unlocks it.
+- **The prices come in three bands, one per level**, because each level pays several times the one before. A round pays about 15 to 75 coins on level 1, 40 to 500 on level 2, and on level 3 either almost nothing (the ball is lost in the first seconds) or 1,500 to 5,000 and more. Up to 50 coins is what level 1 pays for: 10 ranks, the first of nearly every node next to the seed, so the first trip to the hub shows the core of the game. From 80 to 1,200 is level 2: 27 ranks. From 1,700 to 10,000 is level 3: 18 ranks. The balance bot buys the cheapest rank on offer, so the bands are the order it buys in.
 - **The growth puts a node's later ranks in a later band.** Hourglass Brick grows ×100 and Booster ×20 because their first rank belongs to level 1 and their second to level 3 or 2.
 - **The first round.** A fresh round on level 1 pays the bot's clumsy player about 14 coins and its good player about 19: the seed (5) either way, and with some skill Combo or a Booster (12) as well.
-- **What the bot measured** (`bot campaign`, average player, with the layout search): the first trip buys Paddle Speed and a Booster, the second Combo. Level 1 is cleared on round 4, level 2 on round 13 and level 3 on round 20. In rounds from each level's first, against the goals in brackets: level 1's stage 1 ends on round 3 (2) and its stage 2 on 8 (6); level 2's on 1 (4) and 19 (12); level 3's on 1 (8) and 25 (25). On the kept layouts (`tests/layouts/found.json`, four seed sets) the demo's first finish is on rounds 18 to 27, level 2's stage 2 ends on rounds 9 to 25, and level 3's on 16 to 30, or not within the run.
+- **What the bot measured** (`bot campaign`, average player, with the layout search, on the 52 ranks before Tough Brick was added): the first trip buys Paddle Speed and a Booster, the second Combo. Level 1 is cleared on round 4, level 2 on round 13 and level 3 on round 20. In rounds from each level's first, against the goals in brackets: level 1's stage 1 ends on round 3 (2) and its stage 2 on 8 (6); level 2's on 1 (4) and 19 (12); level 3's on 1 (8) and 25 (25). On the kept layouts (`tests/layouts/found.json`, four seed sets) the demo's first finish is on rounds 18 to 27, level 2's stage 2 ends on rounds 9 to 25, and level 3's on 16 to 30, or not within the run.
 - **Level 3 is a lottery, and prices cannot fix that.** Its good player clears 10% of tries on arrival, so its stage 1 ends at once, and with every rank its clumsy player still loses the ball in about 7 rounds of 10. Only a paddle long enough to fill the lane (12 ranks of Paddle Size) stops the drops, and then skill no longer matters. The level's layout and target are what need changing: the wall's face is 81 units from the paddle.
 - **The base values** are in `data/balance.tres`: the paddle moves 600 units a second and is 96 long, the ball moves 500 units a second, and a round lasts 20 s. A unit is a screen pixel on a 16-row level.
 
@@ -94,13 +95,14 @@ A price is the first price times the growth for every rank owned, rounded to a w
 
 ## What the special bricks do
 
-A special brick has 1 HP, whatever the brick it replaced had. What the placeables do is in [placeables.md](placeables.md#items).
+A special brick has 1 HP, a tough brick 3, whatever the brick it replaced had. What the placeables do is in [placeables.md](placeables.md#items).
 
 | Brick | When it breaks |
 |---|---|
 | **Explosive** | Every brick within the blast takes 1 hit, and 1 more per rank of Explosion Damage. The blast reaches 1 square (4 columns, or 1 brick height) out from the brick's edges in every direction, and each rank of Explosion Size adds one more square, so the blast covers 26 brick cells around it, then 84, then 174. An explosive brick broken by a blast explodes too |
 | **Gold** | It counts as 20 bricks in the round's tally |
 | **Hourglass** | It adds 15 s to the timer, plus Hourglass Time. With Hourglass Freeze it holds a running combo's window |
+| **Tough** | Nothing more. It takes 3 hits, and each scores a point (see [overview.md](overview.md#coins)). It looks like any 3 HP brick, its colour stepping down the HP colours as it is hit |
 
 **Shockwave** changes the explosion: every ball inside the blast is thrown straight away from the blast's centre, with its speed raised by a quarter as a boost (see [physics.md](physics.md#ball)).
 

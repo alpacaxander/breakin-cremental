@@ -110,6 +110,12 @@ func _palette(t: Node) -> void:
 	t.check(Palette.lit(Palette.COINS, 1.0).is_equal_approx(Palette.COINS), "a boost of 1 leaves a colour as it is")
 	t.check(Palette.hp(0) == Palette.HP[0] and Palette.hp(4) == Palette.HP[3] and Palette.hp(9) == Palette.HP[3], "HP 4 and up share the top colour step")
 	t.check(Palette.brick(Brick.new(2)) == Palette.HP[1], "a plain brick's colour is its HP step")
+	var tough := Brick.new(3)
+	tough.kind = &"tough"
+	var steps := [Palette.brick(tough), Palette.kind(Kinds.of(&"tough"))]
+	tough.hp = 2
+	steps.append(Palette.brick(tough))
+	t.check(steps == [Palette.HP[2], Palette.HP[2], Palette.HP[1]], "a tough brick is drawn and listed in the HP steps, 3 HP at first, and changes colour as it is hit")
 
 
 ## The game can be walked from the menu to a level and back through Main's navigation.
@@ -233,7 +239,7 @@ func _names(t: Node) -> void:
 	t.check(not Kinds.bricks().is_empty() and not Kinds.placeables().is_empty(), "data/kinds holds special bricks and placeables")
 	for kind in Kinds.all():
 		t.check(kind.cue == &"" or kind.cue in cues, "the %s kind's cue, \"%s\", is a cue Sfx has" % [kind.id, kind.cue])
-		t.check(Palette.MEANINGS.has(kind.colour), "the %s kind's colour, \"%s\", is a Palette meaning" % [kind.id, kind.colour])
+		t.check(Palette.MEANINGS.has(kind.colour) or kind is BrickKind and kind.colour == &"", "the %s kind's colour, \"%s\", is a Palette meaning, or none for a brick drawn in the HP steps" % [kind.id, kind.colour])
 		t.check(kind.title != "", "the %s kind has a title" % kind.id)
 
 	var counted: Array[StringName] = []

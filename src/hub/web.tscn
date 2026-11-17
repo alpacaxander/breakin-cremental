@@ -20,6 +20,7 @@
 [ext_resource type="Resource" path="res://data/upgrades/splitter_health.tres" id="splitter_health"]
 [ext_resource type="Resource" path="res://data/upgrades/splitter_splits.tres" id="splitter_splits"]
 [ext_resource type="Resource" path="res://data/upgrades/splitter.tres" id="splitter"]
+[ext_resource type="Resource" path="res://data/upgrades/tough_brick.tres" id="tough_brick"]
 [ext_resource type="Resource" path="res://data/upgrades/wall_segment.tres" id="wall_segment"]
 [ext_resource type="Resource" path="res://data/upgrades/zap_damage.tres" id="zap_damage"]
 [ext_resource type="Resource" path="res://data/upgrades/zap_range.tres" id="zap_range"]
@@ -141,3 +142,8 @@ links = Array[NodePath]([NodePath("../ExplosionSize")])
 upgrade = ExtResource("shockwave")
 cell = Vector2i(0, 3)
 links = Array[NodePath]([NodePath("../ExplosiveBrick")])
+
+[node name="ToughBrick" parent="." instance=ExtResource("node")]
+upgrade = ExtResource("tough_brick")
+cell = Vector2i(2, 5)
+links = Array[NodePath]([NodePath("../GoldBrick")])

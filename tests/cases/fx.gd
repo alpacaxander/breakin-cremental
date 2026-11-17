@@ -24,6 +24,8 @@ func run(p_t: Node) -> void:
 	Progress.unlocked = Levels.count()
 	for u in Progress.upgrades():
 		Progress.ranks[u.id] = u.max_rank
+	# No tough bricks: a hit that breaks nothing pays without a pop-up, and the checks add up what pop-ups carry.
+	Progress.ranks[&"tough_brick"] = 0
 	main = (load("res://src/main.tscn") as PackedScene).instantiate()
 	t.add_child(main)
 	await _seam_and_clear()

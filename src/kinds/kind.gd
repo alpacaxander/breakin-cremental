@@ -2,10 +2,11 @@ class_name Kind
 extends Resource
 ## What a special brick or a placeable is. The base of BrickKind and PlaceableKind.
 ##
-## Adding a kind is adding two files: a script in src/kinds/ that extends BrickKind or PlaceableKind and
-## overrides the hooks it needs, and a .tres in data/kinds/ that uses that script and holds its numbers. Kinds
-## finds it by its file. Nothing else names it: the round only calls hooks, the views draw from the fields here,
-## and Sfx plays `cue`. Its count comes from the stat `<id>_count`, which its upgrade raises.
+## Adding a kind is adding two files, or one: a script in src/kinds/ that extends BrickKind or PlaceableKind and
+## overrides the hooks it needs, and a .tres in data/kinds/ that uses that script and holds its numbers. A kind
+## with no hook (the tough brick) needs no script: its .tres uses BrickKind's own. Kinds finds it by its file.
+## Nothing else names it: the round only calls hooks, the views draw from the fields here, and Sfx plays `cue`.
+## Its count comes from the stat `<id>_count`, which its upgrade raises.
 ##
 ## A kind is fixed data. It holds no state of a round, and a hook changes the round only through the round's own
 ## functions (hit_brick, blast, add_ball, set_boost, add_time), so chains work without special cases.
@@ -17,8 +18,9 @@ var id: StringName:
 		return id if id else StringName(resource_path.get_file().get_basename())
 ## The name shown to the player: "Wall Segment".
 @export var title: String
-## A Palette meaning (Palette.MEANINGS): &"placeable" for every placeable, &"explosive", &"coins", &"time".
-## Screens draw the kind in Palette.of(colour).
+## A Palette meaning (Palette.MEANINGS): &"placeable" for every placeable, &"explosive", &"coins", &"time". &"" for
+## a brick kind drawn in the HP steps like a plain brick (the tough brick); Palette.brick and Palette.kind see to it.
+## Otherwise screens draw the kind in Palette.of(colour).
 @export var colour: StringName
 ## The cue Sfx plays when this kind acts: for a free-form item when a ball bounces off it, for a brick or a mod
 ## when its brick breaks. A file name in assets/audio/wav without the extension, &"" for none. Leave it empty

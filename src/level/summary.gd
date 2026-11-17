@@ -86,7 +86,7 @@ func open(round: Round, data: LevelData, unlocked: bool) -> void:
 			var kind := Kinds.of(id)
 			# ponytail: each row's coins are rounded on their own, so with a coins_per_brick that is not whole the
 			# rows can add up to a little less than the total. Show the points instead if so.
-			rows.append(_row(grid, Palette.of(kind.colour) if kind else Palette.hp(1), kind.title if kind else "Bricks", str(round.tally.broken[id]),
+			rows.append(_row(grid, Palette.kind(kind) if kind else Palette.hp(1), kind.title if kind else "Bricks", str(round.tally.broken[id]),
 					_price(Coins.pay(round.tally.broken[id] * Coins.worth(id), round.stats))))
 	# The hits that left a level brick standing, 1 point each, in the 2 HP colour: only a brick with HP to spare takes one.
 	if round.tally.dents:

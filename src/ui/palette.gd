@@ -85,11 +85,18 @@ static func hp(hits_left: int) -> Color:
 	return HP[clampi(hits_left, 1, HP.size()) - 1]
 
 
-## The palette colour of a brick: its kind's meaning if it has a kind (a special brick, a Splitter), else its HP
-## step. The board, the thumbnail, the legend and the break particles all use this, so they always agree.
+## The palette colour of a brick: its kind's meaning if it has a kind with one (a special brick, a Splitter), else
+## its HP step, as for the tough brick, whose kind has no colour. The board, the thumbnail, the legend and the
+## break particles all use this, so they always agree.
 static func brick(b: Brick) -> Color:
 	var kind := Kinds.of(b.kind)
-	return of(kind.colour) if kind else hp(b.hp)
+	return of(kind.colour) if kind and kind.colour else hp(b.hp)
+
+
+## The palette colour a kind is listed in (a swatch in Setup's or the Summary's list): its meaning, or for a brick
+## kind with none (the tough brick), the HP step it starts at.
+static func kind(k: Kind) -> Color:
+	return hp((k as BrickKind).hp) if k is BrickKind and not k.colour else of(k.colour)
 
 
 ## The colour to draw a brick in on the board: lit(brick(b)). Every brick is lit at the same boost, so the HP

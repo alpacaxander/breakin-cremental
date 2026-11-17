@@ -112,13 +112,15 @@ func show_round(round: Round, data: LevelData, setup: bool, footer: bool) -> voi
 	for old in _legend.get_children():
 		old.free()
 	# What is on this board: every HP step up to its toughest plain brick (a brick shows each step on its way
-	# down, so a level that starts at 1 and 4 HP shows 2 and 3 too), then its special bricks.
-	# ponytail: one row. Four HP steps and the demo's three special bricks come to about 660 px of the 708
-	# between the two columns; a fourth special brick needs shorter names or swatches alone.
+	# down, so a level that starts at 1 and 4 HP shows 2 and 3 too), then its special bricks. A tough brick is
+	# drawn in the HP steps, so it is one of those and has no entry of its own.
+	# ponytail: one row. Four HP steps and the demo's three coloured special bricks come to about 660 px of the 708
+	# between the two columns; a fourth coloured one needs shorter names or swatches alone.
 	var top := 0
 	var kinds := {}
 	for brick: Brick in round.board.bricks.values():
-		if brick.kind == &"":
+		var kind := Kinds.of(brick.kind)
+		if kind == null or not kind.colour:
 			top = maxi(top, mini(brick.hp, Palette.HP.size()))
 		elif not brick.placed:
 			kinds[brick.kind] = true

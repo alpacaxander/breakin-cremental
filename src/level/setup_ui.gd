@@ -125,7 +125,7 @@ func _ready() -> void:
 	back.size_flags_vertical = SIZE_SHRINK_CENTER
 	back.pressed.connect(back_pressed.emit)
 	footer.add_child(back)
-	# ponytail: the tray is one row. With everything unlocked, the demo's five slots, three special bricks and
+	# ponytail: the tray is one row. With everything unlocked, the demo's four slots, four special bricks and
 	# Start fill the footer's 1088 px to within about 15; a sixth placeable needs narrower slots or a second row.
 	_tray.mouse_filter = MOUSE_FILTER_IGNORE
 	_tray.size_flags_horizontal = SIZE_EXPAND_FILL
@@ -178,7 +178,7 @@ func refresh(round: Round) -> void:
 		if counts.has(kind.id):
 			var entry := HBoxContainer.new()
 			entry.add_theme_constant_override(&"separation", 8)
-			entry.add_child(LevelHud.swatch(Palette.of(kind.colour), Vector2(6, 18)))
+			entry.add_child(LevelHud.swatch(Palette.kind(kind), Vector2(6, 18)))
 			var label := Label.new()
 			label.theme_type_variation = &"Hint"
 			label.text = "%d %s" % [counts[kind.id], kind.title.trim_suffix(" Brick")]
