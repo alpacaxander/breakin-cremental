@@ -62,9 +62,9 @@ extends Resource
 # multiplier = 1 + (count - 1) / combo_breaks_per_step, in whole numbers.
 # window = max(combo_window_min,
 #         (combo_window + combo_window_per_rank * (combo_rank - 1)) * combo_window_shrink ^ (multiplier - 1))
-@export var combo_window: float  ## Seconds to break the next brick, at combo rank 1 and multiplier 1
+@export var combo_window: float  ## Seconds to hit the next brick, at combo rank 1 and multiplier 1
 @export var combo_window_per_rank: float  ## Seconds each combo rank above 1 adds to the window
-@export var combo_breaks_per_step: int  ## Breaks in a combo that raise the multiplier by 1
+@export var combo_breaks_per_step: int  ## Hits in a combo (a break is one) that raise the multiplier by 1
 @export var combo_window_shrink: float  ## The window is multiplied by this for every multiplier step above 1
 @export var combo_window_min: float  ## The window never shrinks below this
 

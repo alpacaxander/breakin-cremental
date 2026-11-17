@@ -58,13 +58,15 @@ extends RefCounted
 ## ONE BRICK HIT (hit_brick), in this order:
 ##   The brick loses 1 hp, unless its kind is unbreakable (PlaceableKind.unbreakable: Growth), which keeps its hp
 ##   and so always has hp left. A placed brick's hit, or its mod's, counts in tally.hits.
-##   If it has hp left: a level brick (not a placed one) scores 1 point (Tally.dent: added to the running combo's
-##   worth too, if one is running; the combo does not grow) and `coins` is updated. Then brick_hit is emitted.
+##   If combos are on (stats.combo_rank >= 1) and the hit is on a level brick or breaks the brick, the combo grows
+##   and combo_changed is emitted: a hit that leaves a placed brick or a block standing does not grow it. Every
+##   point in the combo is paid at the multiplier it has now reached, so a hit that raises it pays the rise on
+##   the earlier ones too (Coins.total).
+##   If it has hp left: a level brick (not a placed one) scores 1 point (Tally.dent, into the running combo's
+##   worth too) and `coins` is updated. Then brick_hit is emitted.
 ##   If not: it is erased from the board. With Overgrowth, a level brick's cell is due back at clock +
-##   stats.overgrowth_delay (see ONE STEP, 4). If combos are on (stats.combo_rank >= 1) the combo grows and
-##   combo_changed is emitted; every brick in the combo is paid at the multiplier it has now reached, so a
-##   break that raises it pays the rise on the earlier ones too (Coins.total). The tally and `coins`
-##   are updated. brick_broken is emitted. Then its kind's on_broken hook runs, then its mod's on_host_broken.
+##   stats.overgrowth_delay (see ONE STEP, 4). The tally and `coins` are updated. brick_broken is emitted. Then
+##   its kind's on_broken hook runs, then its mod's on_host_broken.
 ##   Hits a hook asks for (a blast, a Zap) go through hit_brick too, so chains need no special case.
 ##   # ponytail: a chain is a call inside a call, about three deep per link, and GDScript stops at 1024. That is
 ##   # some 300 explosive bricks set off by each other in one hit; queue the hits if a level ever gets there.
@@ -366,6 +368,9 @@ func hit_brick(cell: Vector2i, cause: Cause, dir: Vector2, ball: Ball = null) ->
 	var hit_kind := Kinds.of(brick.kind)
 	if not (hit_kind is PlaceableKind and (hit_kind as PlaceableKind).unbreakable):
 		brick.hp -= 1
+	if stats.combo_rank >= 1.0 and (brick.hp <= 0 or not brick.placed):  # a level brick's hit, or any break
+		combo.add(stats)
+		combo_changed.emit(combo.count, combo.multiplier)
 	if brick.hp > 0:
 		if not brick.placed:
 			tally.dent(combo)
@@ -379,9 +384,6 @@ func hit_brick(cell: Vector2i, cause: Cause, dir: Vector2, ball: Ball = null) ->
 		_left -= 1
 		if stats.overgrowth >= 1.0:
 			_due[cell] = clock + stats.overgrowth_delay
-	if stats.combo_rank >= 1.0:
-		combo.add(stats)
-		combo_changed.emit(combo.count, combo.multiplier)
 	tally.add(brick, combo, _blasts > 0)
 	var paid := Coins.total(tally, stats) - coins
 	coins += paid

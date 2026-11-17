@@ -709,6 +709,8 @@ func _fuzz_round(sd: int) -> void:
 		_fail(hp.has(c) and hp[c] - 1 == hp_left and hp_left > 0 and spy.board.brick(c).hp == hp_left, "a hit takes exactly 1 HP and brick_hit says what is left")
 		_fail(rec.cell == c and rec.cause == cause, "brick_hit carries the cell and cause of the hit")
 		hp[c] = hp_left
+		_fail((m.last == "combo") == (stats.combo_rank >= 1.0 and not placed[c]),
+				"with combos on, a hit that leaves a level brick standing comes just after combo_changed; a placed brick's or a block's grows nothing")
 		if not placed[c]:
 			m.base += 1
 			if m.count > 0:
@@ -728,7 +730,7 @@ func _fuzz_round(sd: int) -> void:
 		else:
 			@warning_ignore("integer_division")
 			var want := 1 + (n - 1) / stats.combo_breaks_per_step
-			_fail(n == m.count + 1 and mult == want, "a break adds 1 to the combo; the multiplier is 1 + (count - 1) / 4 (balance.tres)")
+			_fail(n == m.count + 1 and mult == want, "a hit on a level brick or a break adds 1 to the combo; the multiplier is 1 + (count - 1) / 4 (balance.tres)")
 			m.best = maxi(m.best, n)
 		m.count = n
 		m.was = m.mult

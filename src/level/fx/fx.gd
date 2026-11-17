@@ -237,7 +237,7 @@ var _kick := 0.0  ## The flash on top of it
 var _sent := 0.0  ## What Main.set_bloom last got
 var _multiplier := 1
 var _stepped := false  ## The multiplier went up this frame
-var _last := Vector2.ZERO  ## The centre of the brick that broke last
+var _last := Vector2.ZERO  ## The centre of the brick hit or broken last
 
 var _under := _layer(5, _draw_pools)
 var _sparks := _layer(15, _draw_sparks)
@@ -384,6 +384,7 @@ func _process(delta: float) -> void:
 
 func _on_brick_hit(cell: Vector2i, _hp_left: int, cause: Round.Cause) -> void:
 	var rect := _round.board.cell_rect(cell).grow(-1.0)
+	_last = rect.get_center()
 	var colour := Palette.brick(_round.board.brick(cell))
 	var ball := _nearest(rect.get_center()) if cause == Round.Cause.BALL else null
 	if ball == null:  # a blast or a Zap, which has its own picture: a few chips, every way

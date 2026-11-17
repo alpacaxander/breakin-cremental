@@ -11,7 +11,7 @@ extends RefCounted
 
 ## One combo: every point scored while it ran is paid again at its multiplier (Coins.total).
 class Run:
-	var count := 0  ## Bricks broken in it, placed ones too
+	var count := 0  ## Bricks hit or broken in it, placed ones broken too
 	var multiplier := 1  ## The multiplier it reached
 	var worth := 0  ## Points scored while it ran: its level bricks' worth (Coins.worth) and its dents. Placed bricks add 0
 
@@ -55,12 +55,11 @@ func hit(id: StringName) -> void:
 	hits[id] = hits.get(id, 0) + 1
 
 
-## Counts a hit that left a level brick standing: 1 point, added to the running combo's worth too while `combo`
-## (the round's) has one running. Only a break grows the combo.
+## Counts a hit that left a level brick standing: 1 point. `combo` is the round's combo, already grown by this hit
+## as by a break (count 0 while combos are off).
 func dent(combo: Combo) -> void:
 	dents += 1
-	if combo.count > 0 and combos:
-		combos.back().worth += 1
+	_record(combo, 1)
 
 
 ## Counts a ball touching the paddle: the rally starts again.
@@ -78,17 +77,23 @@ func add(brick: Brick, combo: Combo, in_chain := false) -> void:
 		if in_chain:
 			chain += 1
 			best_chain = maxi(best_chain, chain)
-	best_combo = maxi(best_combo, combo.count)
-	best_multiplier = maxi(best_multiplier, combo.multiplier)
-	if combo.count > 0:
-		if combos.is_empty() or combo.count <= combos.back().count:  # a new combo (or one set up by hand)
-			combos.append(Run.new())
-		var run: Run = combos.back()
-		run.count = combo.count
-		run.multiplier = combo.multiplier
-		if not brick.placed:
-			run.worth += Coins.worth(brick.kind)
+	_record(combo, 0 if brick.placed else Coins.worth(brick.kind))
 	if brick.placed:
 		placed_broken += 1
 		return
 	broken[brick.kind] = broken.get(brick.kind, 0) + 1
+
+
+# Keeps the best combo and multiplier, and brings the running combo's Run up to `combo`, which a hit scoring
+# `points` has just grown.
+func _record(combo: Combo, points: int) -> void:
+	best_combo = maxi(best_combo, combo.count)
+	best_multiplier = maxi(best_multiplier, combo.multiplier)
+	if combo.count == 0:
+		return
+	if combos.is_empty() or combo.count <= combos.back().count:  # a new combo (or one set up by hand)
+		combos.append(Run.new())
+	var run: Run = combos.back()
+	run.count = combo.count
+	run.multiplier = combo.multiplier
+	run.worth += points

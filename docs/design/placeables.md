@@ -40,7 +40,7 @@ A Zap can go on any brick, including a special brick or a Splitter, but not on a
 - **Placed bricks:**
   - pay no coins
   - don't count toward clearing the level
-  - do extend the combo when broken
+  - extend the combo when broken; a hit that leaves one standing does not (a hit on a level brick does, broken or not)
   - Growth and Refresh never break: their hits pay nothing and don't extend the combo
 - **Ball speed.** Only the Booster changes a ball's speed. Every other placeable just bounces the ball (see [physics.md](physics.md#ball)).
 
