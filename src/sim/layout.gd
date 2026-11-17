@@ -110,13 +110,15 @@ func add(item: Item) -> void:
 ##     above and below. It may touch the right side of the ball at rest.
 ##   - BRICK: board.has_cell(cell). The cell holds no brick and no other BRICK item, no FREE item overlaps it,
 ##     and it is clear of the launch path in the same way.
-##   - MOD: the cell holds a brick of the board or a BRICK item, and no other MOD item is on that cell.
+##   - MOD: the cell holds a brick of the board or a BRICK item that can break (not PlaceableKind.unbreakable:
+##     a mod goes off when its brick breaks), and no other MOD item is on that cell.
 ## Pass the level's board as read (Levels.read), not a round's board, which already has the layout's bricks on it.
 func fits(item: Item, board: Board, stats: Balance) -> bool:
 	if count(item.kind.id) >= stats.count(item.kind.id):
 		return false
 	if item.kind.placement == PlaceableKind.Placement.MOD:
-		return (board.brick(item.cell) != null or _on(item.cell, PlaceableKind.Placement.BRICK) != null) \
+		var host := _on(item.cell, PlaceableKind.Placement.BRICK)
+		return (board.brick(item.cell) != null or host != null and not host.kind.unbreakable) \
 				and _on(item.cell, PlaceableKind.Placement.MOD) == null
 	var shape: PackedVector2Array
 	if item.kind.placement == PlaceableKind.Placement.BRICK:

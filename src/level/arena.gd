@@ -24,6 +24,7 @@ const FRAME := Rect2(96, 104, 1088, 524)
 const WALL := 6.0  ## The walls' thickness, in screen pixels at every level size
 const STRIPE := 4.0  ## The paddle's cyan stripe, in units
 const MARK_RIM := 2.0  ## The dark rim around a Zap mark, in units, so it reads on a brick of any colour
+const BLOCK_EDGE := 3.0  ## A block that never breaks (Growth) is a frame this thick round a base-colour centre, in units
 const DASH := 6.0  ## The ghost's border: dashes this long, 2 units thick
 const GHOST_EDGE := 2.0
 
@@ -61,6 +62,7 @@ func show_round(p_round: Round, setup: bool) -> void:
 	scale = Vector2.ONE * round.board.zoom()
 	round.brick_hit.connect(_bricks.queue_redraw.unbind(3))
 	round.brick_broken.connect(_bricks.queue_redraw.unbind(5))
+	round.grew.connect(_bricks.queue_redraw.unbind(3))
 	remember()
 	for layer: Node2D in [_backdrop, _bricks, _items, _paddle, _balls]:
 		layer.queue_redraw()
@@ -130,6 +132,9 @@ func _draw_bricks() -> void:
 		var brick := board.bricks[cell]
 		var rect := board.cell_rect(cell)
 		_bricks.draw_rect(rect.grow(-1.0), Palette.lit_brick(brick))
+		var kind := Kinds.of(brick.kind) as PlaceableKind
+		if kind and kind.unbreakable:
+			_bricks.draw_rect(rect.grow(-1.0 - BLOCK_EDGE), Palette.BASE)
 		var mod := Kinds.of(brick.mod) as PlaceableKind
 		if mod:
 			var mark := Rect2(rect.get_center() - mod.size * 0.5, mod.size)

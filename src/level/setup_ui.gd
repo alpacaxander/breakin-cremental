@@ -46,7 +46,7 @@ var _run_list := HBoxContainer.new()
 class Slot:
 	extends MarginContainer
 
-	const PAD := 12.0
+	const PAD := 8.0
 	const ICON := 24.0
 
 	var kind: PlaceableKind
@@ -68,7 +68,7 @@ class Slot:
 		kind = p_kind
 		mouse_filter = MOUSE_FILTER_IGNORE
 		custom_minimum_size.y = UiTheme.BUTTON_HEIGHT
-		add_theme_constant_override(&"margin_left", int(PAD + ICON + 10.0))
+		add_theme_constant_override(&"margin_left", int(PAD + ICON + 6.0))
 		add_theme_constant_override(&"margin_right", int(PAD))
 		var text := VBoxContainer.new()
 		text.mouse_filter = MOUSE_FILTER_IGNORE
@@ -86,13 +86,18 @@ class Slot:
 
 	func _draw() -> void:
 		var on := left > 0
-		draw_rect(Rect2(Vector2.ZERO, size), Palette.dim(kind.colour) if hot and on else Palette.PANEL)
+		var fill := Palette.dim(kind.colour) if hot and on else Palette.PANEL
+		draw_rect(Rect2(Vector2.ZERO, size), fill)
 		draw_rect(Rect2(Vector2.ONE, size - Vector2(2, 2)), Palette.of(kind.colour) if on else Palette.BORDER, false, 2.0)
 		var c := Vector2(PAD + ICON * 0.5, size.y * 0.5)
 		var colour := Palette.lit(Palette.of(kind.colour)) if on else Palette.dim(kind.colour)
 		match kind.placement:
 			PlaceableKind.Placement.BRICK:
-				draw_rect(Rect2(c - Vector2(3, 12), Vector2(6, 24)), colour)
+				if kind.unbreakable:  # hollow, as on the board
+					draw_rect(Rect2(c - Vector2(4, 12), Vector2(8, 24)), colour)
+					draw_rect(Rect2(c - Vector2(2, 10), Vector2(4, 20)), fill)
+				else:
+					draw_rect(Rect2(c - Vector2(3, 12), Vector2(6, 24)), colour)
 			PlaceableKind.Placement.MOD:
 				draw_rect(Rect2(c - Vector2(5, 12), Vector2(10, 24)), Palette.BORDER)
 				draw_rect(Rect2(c - Vector2(3, 3), Vector2(6, 6)), colour)
@@ -118,18 +123,19 @@ func _ready() -> void:
 	footer.position = LevelHud.FOOTER.position
 	footer.size = LevelHud.FOOTER.size
 	footer.mouse_filter = MOUSE_FILTER_IGNORE
-	footer.add_theme_constant_override(&"separation", 12)
+	footer.add_theme_constant_override(&"separation", 8)
 	add_child(footer)
 	var back := UiBackButton.new()
 	back.name = "Back"
 	back.size_flags_vertical = SIZE_SHRINK_CENTER
 	back.pressed.connect(back_pressed.emit)
 	footer.add_child(back)
-	# ponytail: the tray is one row. With everything unlocked, the demo's four slots, four special bricks and
-	# Start fill the footer's 1088 px to within about 15; a sixth placeable needs narrower slots or a second row.
+	# ponytail: the tray is one row. With everything unlocked, the demo's five slots, four special bricks and
+	# Start fill the footer's 1088 px to within about 30 (tests/cases/play_level.gd checks it fits); a sixth
+	# placeable needs shorter names or a second row.
 	_tray.mouse_filter = MOUSE_FILTER_IGNORE
 	_tray.size_flags_horizontal = SIZE_EXPAND_FILL
-	_tray.add_theme_constant_override(&"separation", 6)
+	_tray.add_theme_constant_override(&"separation", 4)
 	footer.add_child(_tray)
 	_run.mouse_filter = MOUSE_FILTER_IGNORE
 	_run.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -138,7 +144,7 @@ func _ready() -> void:
 	tag.theme_type_variation = &"Tag"
 	tag.text = "THIS RUN"
 	_run.add_child(tag)
-	_run_list.add_theme_constant_override(&"separation", 14)
+	_run_list.add_theme_constant_override(&"separation", 8)
 	_run.add_child(_run_list)
 	footer.add_child(_run)
 	var start := Button.new()

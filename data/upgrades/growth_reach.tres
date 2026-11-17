@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="Upgrade" format=3]
+
+[ext_resource type="Script" path="res://src/content/upgrade.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+title = "Growth Reach"
+category = 1
+text = "Growth reaches one square further."
+first_cost = 300
+growth = 10
+max_rank = 2
+stat = &"growth_reach"
+amount = 1.0

@@ -30,7 +30,8 @@ extends RefCounted
 ##      time_left is stats.round_time.
 ## Nothing moves until step() is called. The first step sends the ball straight left into the paddle. Nothing
 ## placed is in its way: Layout.fits keeps every item out of launch_path().
-## A round counts its bricks as it is built: after that, change the board only through hit_brick.
+## A round counts its bricks as it is built: after that, change the board only through hit_brick (grow changes
+## only hp).
 ##
 ## ONE STEP, in this order:
 ##   1. The paddle moves toward paddle_target at stats.paddle_speed.
@@ -38,19 +39,22 @@ extends RefCounted
 ##      passed through. Every contact is resolved where it happens and its signals are emitted then. A ball made
 ##      during this step (a Splitter) starts moving on the next one.
 ##   3. The combo's window counts down. If it runs out the combo resets and combo_changed(0, 1) is emitted.
-##      Less than TIME_SLOP left has run out, as in 4.
-##   4. time_left counts down. It stops at 0, and less than TIME_SLOP left is 0: a step such as 1/120 s is not an
+##      Less than TIME_SLOP left has run out, as in 5.
+##   4. `clock` goes up by delta. Then each placed brick still on the board, in layout order, gets its kind's
+##      on_step hook (Growth pulses here: see grow).
+##   5. time_left counts down. It stops at 0, and less than TIME_SLOP left is 0: a step such as 1/120 s is not an
 ##      exact number, so counting down by it ends a hair off 0, and a hair above 0 would be one more whole step
 ##      at some rates and not at others. A round whose time is a whole number of steps plays exactly that many;
 ##      any other plays to the end of the step its time runs out in.
-##   5. The round ends if every level brick is broken (CLEARED), else if no ball is left (BALL_LOST), else if
+##   6. The round ends if every level brick is broken (CLEARED), else if no ball is left (BALL_LOST), else if
 ##      time_left is 0 (TIME). However it ended, the level is cleared if the score has reached `target`. The
 ##      tally notes how it ended (cleared, a ball kept, whole seconds left if every level brick broke, a first
 ##      clear) and `coins` takes the end bonuses (Coins.bonuses), then `ended` is emitted, once; after it step()
 ##      does nothing. A board with no level bricks ends on its first step.
 ##
 ## ONE BRICK HIT (hit_brick), in this order:
-##   The brick loses 1 hp.
+##   The brick loses 1 hp, unless its kind is unbreakable (PlaceableKind.unbreakable: Growth), which keeps its hp
+##   and so always has hp left. A placed brick's hit, or its mod's, counts in tally.hits.
 ##   If it has hp left: a level brick (not a placed one) scores 1 point (Tally.dent: added to the running combo's
 ##   worth too, if one is running; the combo does not grow) and `coins` is updated. Then brick_hit is emitted.
 ##   If not: it is erased from the board. If combos are on (stats.combo_rank >= 1) the combo grows and
@@ -145,6 +149,12 @@ signal ball_lost(ball: Ball)
 ##   cells  every brick cell the blast is about to hit, by column from the paddle side and then down
 signal exploded(pos: Vector2, reach: float, cells: Array[Vector2i])
 
+## A placed block's pulse (Growth) gave bricks 1 HP each. Emitted after they gained it, and only if one did.
+##   cell   the block's brick cell
+##   reach  how far the pulse reaches out from the block's edges, in units
+##   cells  every brick that gained, by column from the paddle side and then down
+signal grew(cell: Vector2i, reach: float, cells: Array[Vector2i])
+
 ## The combo grew, or it reset (count 0, multiplier 1). Not emitted while combos are off.
 signal combo_changed(count: int, multiplier: int)
 
@@ -166,6 +176,9 @@ var combo := Combo.new()
 var tally := Tally.new()
 ## Seconds left on the timer.
 var time_left: float
+## Seconds of play: it goes up as time_left goes down, but an hourglass brick does not move it. 0 until the first
+## step of play. Pulses are timed by it.
+var clock := 0.0
 ## What the tally pays so far: Coins.total(tally, stats). The HUD shows this during Play, and it is what the
 ## round pays when it ends, however it ends.
 var coins := 0
@@ -275,6 +288,11 @@ func step(delta: float, paddle_target: float) -> void:
 			_move(ball, delta)
 		if combo.tick(delta):
 			combo_changed.emit(0, 1)
+		clock += delta
+		for item in layout.items:
+			var brick := board.brick(item.cell)
+			if item.kind.placement == PlaceableKind.Placement.BRICK and brick and brick.placed:
+				item.kind.on_step(self, item.cell, brick, delta)
 		time_left -= delta
 	if time_left < TIME_SLOP:
 		time_left = 0.0
@@ -317,13 +335,14 @@ func hit_brick(cell: Vector2i, cause: Cause, dir: Vector2, ball: Ball = null) ->
 		tally.hit(brick.kind)
 	if brick.mod:
 		tally.hit(brick.mod)
-	brick.hp -= 1
+	var hit_kind := Kinds.of(brick.kind)
+	if not (hit_kind is PlaceableKind and (hit_kind as PlaceableKind).unbreakable):
+		brick.hp -= 1
 	if brick.hp > 0:
 		if not brick.placed:
 			tally.dent(combo)
 			coins = Coins.total(tally, stats)
 		brick_hit.emit(cell, brick.hp, cause)
-		var hit_kind := Kinds.of(brick.kind)
 		if hit_kind:
 			hit_kind.on_hit(self, cell, brick, cause, dir, ball)
 		return
@@ -359,14 +378,7 @@ func hit_brick(cell: Vector2i, cause: Cause, dir: Vector2, ball: Ball = null) ->
 func blast(cell: Vector2i, reach: float) -> void:
 	var area := board.cell_rect(cell).grow(reach)
 	var centre := area.get_center()
-	var first := board.cell_at(area.position)
-	var last := board.cell_at(area.end)
-	var cells: Array[Vector2i] = []
-	for x in range(first.x, last.x + 1):
-		for y in range(first.y, last.y + 1):
-			var c := Vector2i(x, y)
-			if board.bricks.has(c) and board.cell_rect(c).intersects(area):
-				cells.append(c)
+	var cells := board.bricks_in(area)
 	exploded.emit(centre, reach, cells)
 	if _blasts == 0:
 		tally.chain = 0  # a new chain
@@ -382,6 +394,20 @@ func blast(cell: Vector2i, reach: float) -> void:
 				if ball.pos != centre:
 					ball.put(ball.pos, _legal((ball.pos - centre).normalized()))
 				set_boost(ball, ball.boost * stats.shockwave_boost)
+
+
+## A pulse from the placed block at `cell` (Growth), reaching `reach` units out from its edges by the blast's rule
+## (Board.bricks_in). Every level brick there (not a placed one) under stats.max_hp gains 1 hp. That is no hit:
+## it scores nothing and the tally does not see it. Emits grew if any brick gained.
+func grow(cell: Vector2i, reach: float) -> void:
+	var cells: Array[Vector2i] = []
+	for c in board.bricks_in(board.cell_rect(cell).grow(reach)):
+		var brick := board.brick(c)
+		if not brick.placed and brick.hp < stats.max_hp:
+			brick.hp += 1
+			cells.append(c)
+	if not cells.is_empty():
+		grew.emit(cell, reach, cells)
 
 
 ## Adds a ball at `pos` moving along `dir`, turned to the minimum angles (_legal), and emits ball_added. A wide

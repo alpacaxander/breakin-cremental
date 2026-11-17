@@ -38,6 +38,8 @@ const TABLE := {
 	&"HourglassTime": ["Hourglass Time", Upgrade.Category.BRICKS, 2, "An hourglass brick adds 5 s more", 1200, 5.0],
 	&"HourglassFreeze": ["Hourglass Freeze", Upgrade.Category.BRICKS, 2, "Breaking an hourglass brick holds the combo", 800, 5.0],
 	&"ToughBrick": ["Tough Brick", Upgrade.Category.BRICKS, 3, "One more tough brick", 20, 6.0],
+	&"Growth": ["Growth", Upgrade.Category.PLACEABLES, 3, "One more Growth block", 100, 4.5],
+	&"GrowthReach": ["Growth Reach", Upgrade.Category.PLACEABLES, 2, "Growth reaches one square further", 300, 10.0],
 }
 ## The drawn web of upgrades.md: each node and the one it hangs off, towards the seed.
 const PARENT := {
@@ -47,7 +49,7 @@ const PARENT := {
 	&"GoldBrick": &"Combo", &"WallSegment": &"GoldBrick", &"Splitter": &"Combo", &"SplitterSplits": &"Splitter",
 	&"SplitterHealth": &"SplitterSplits", &"PaddleSize": &"PaddleSpeed", &"ExplosiveBrick": &"PaddleSize",
 	&"ExplosionSize": &"ExplosiveBrick", &"ExplosionDamage": &"ExplosionSize", &"Shockwave": &"ExplosiveBrick",
-	&"ToughBrick": &"GoldBrick",
+	&"ToughBrick": &"GoldBrick", &"Growth": &"ToughBrick", &"GrowthReach": &"Growth",
 }
 const DETAIL := Rect2(904, 88, 352, 284)  ## art.md, "Upgrade screen"
 const LEVELS := Rect2(904, 388, 352, 308)

@@ -33,10 +33,10 @@ extends Node2D
 ## WHAT IS IN HERE. One script and four layers, each drawn from a plain list. There is no scene per effect.
 ##   squares   every particle, in fixed arrays of PARTICLES that are written round and round, so there are
 ##             never more. What a frame's breaks ask for is thinned evenly to DEBRIS (see _process).
-##   shapes    a rectangle that grows and fades: a shockwave, an item's pulse, the Zap's bolt, the red bar
-##             where a ball left
-##   marks     the same, but small and many: the flash of a brick a ball hit, and the combo's ring. Kept
-##             apart, so a run of them never pushes a shockwave out
+##   shapes    a rectangle that grows and fades: a shockwave, an item's pulse, a Growth block's reach, the Zap's
+##             bolt, the red bar where a ball left
+##   marks     the same, but small and many: the flash of a brick a ball hit or a Growth pulse grew, and the
+##             combo's ring. Kept apart, so a run of them never pushes a shockwave out
 ##   pools     the light under an explosion
 ##   pops      "+12" and "+15s"
 ##   the trail is drawn from where each ball was on the last physics ticks.
@@ -106,6 +106,7 @@ const BOLT := 10.0  ## The Zap's bolt along its row: this thick at first, in uni
 const BOLT_TIME := 0.3
 const PADDLE_RING := 34.0
 const PADDLE_SPARKS := 5.0
+const GROW_TIME := 0.5  ## A Growth pulse: its reach, an outline growing out of the block, and its bricks flashing
 
 # The explosion (docs/art.md). Sizes are for the base blast (a reach of one square) and grow with the reach.
 const BLAST_RINGS: Array[float] = [96.0, 160.0]  ## Peak sizes
@@ -169,7 +170,7 @@ const CLEAR_TIME := 0.6
 const CLEAR_SPARKS := 40
 
 const HEARD: Array[StringName] = [&"brick_hit", &"brick_broken", &"ball_bounced", &"ball_added", &"ball_lost",
-		&"exploded", &"combo_changed", &"time_changed", &"ended"]
+		&"exploded", &"grew", &"combo_changed", &"time_changed", &"ended"]
 
 
 class Shape:
@@ -459,6 +460,15 @@ func _on_exploded(pos: Vector2, reach: float, cells: Array[Vector2i]) -> void:
 			var colour := Palette.EXPLOSIVE if i % 3 != 0 or cells.is_empty() else Palette.brick(board.brick(cells.pick_random()))
 			_square(Rect2(pos, Vector2.ZERO), colour, Vector2.ZERO, BLAST_THROW * grow, BLAST_SIZE)
 	_blasts += 1
+
+
+## A Growth block pulsed: a blue outline grows from the block out to the edge of its reach, and every brick that
+## gained HP flashes in its new colour. No shake and no freeze: it is not a hit.
+func _on_grew(cell: Vector2i, reach: float, cells: Array[Vector2i]) -> void:
+	var rect := _round.board.cell_rect(cell).grow(-1.0)
+	_shape(_shapes, rect.get_center(), rect.size, rect.size + Vector2.ONE * reach * 2.0, Palette.PLACEABLE, 2.0, GROW_TIME)
+	for c in cells:
+		_pulse(_round.board.cell_rect(c).grow(-1.0), Palette.brick(_round.board.brick(c)), HIT_POP, GROW_TIME)
 
 
 func _on_ball_bounced(ball: Ball, hit: Hit) -> void:

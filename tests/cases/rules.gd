@@ -40,6 +40,7 @@ func run(p_t: Node) -> void:
 	_zap()
 	_shockwave()
 	_placeables()
+	_growth()
 	_balls()
 	_specials()
 	_layouts()
@@ -203,7 +204,7 @@ func _shipped() -> void:
 
 func _kinds() -> void:
 	var ids := func(kinds: Array) -> Array: return kinds.map(func(k: Kind) -> StringName: return k.id)
-	t.check(ids.call(Kinds.placeables()) == [&"bumper", &"booster", &"wall_segment", &"splitter", &"zap"], "the placeables are the five of the kinds table, in tray order")
+	t.check(ids.call(Kinds.placeables()) == [&"bumper", &"booster", &"wall_segment", &"splitter", &"zap", &"growth"], "the placeables are the six of the kinds table, in tray order")
 	t.check(ids.call(Kinds.bricks()) == [&"explosive", &"gold", &"hourglass", &"tough"], "the special bricks are the four of the kinds table, in roll order")
 	# id: [placement, shape, size, turn, rotatable, cue]
 	var placeables := {
@@ -212,6 +213,7 @@ func _kinds() -> void:
 		&"wall_segment": [PlaceableKind.Placement.FREE, PlaceableKind.Shape.RECT, Vector2(10, 112), 0.0, true, Sfx.WALL_BOUNCE],
 		&"splitter": [PlaceableKind.Placement.BRICK, PlaceableKind.Shape.RECT, Vector2.ZERO, 0.0, false, &""],  # no cue: Sfx plays SPLITTER from ball_added
 		&"zap": [PlaceableKind.Placement.MOD, PlaceableKind.Shape.RECT, Vector2(6, 6), 0.0, false, Sfx.ZAP],
+		&"growth": [PlaceableKind.Placement.BRICK, PlaceableKind.Shape.RECT, Vector2.ZERO, 0.0, false, Sfx.BOOSTER],  # the cue of its pulse
 	}
 	for id: StringName in placeables:
 		var k := Kinds.of(id) as PlaceableKind
@@ -915,6 +917,59 @@ func _placeables() -> void:
 	round = Round.new(_board({FAR: SOLID, Vector2i(40, 3): 2}), _layout([_item(&"splitter", Vector2i(25, 3)), _item(&"zap", Vector2i(25, 3))]), stats, 1)
 	round.hit_brick(Vector2i(25, 3), Round.Cause.BALL, Vector2.RIGHT)
 	t.check(round.board.brick(Vector2i(40, 3)).hp == 1, "a Zap can sit on a Splitter")
+
+
+## Growth: a placed block that never breaks, and its pulse.
+func _growth() -> void:
+	var block := Vector2i(25, 3)
+	var board := _board({FAR: SOLID, Vector2i(20, 3): 1, Vector2i(24, 4): 1})
+	board.bricks[Vector2i(24, 4)].kind = &"explosive"
+	var stats := _sealed(board, {&"growth_count": 1, &"zap_count": 1})
+	var round := Round.new(board, _layout([_item(&"growth", block), _item(&"zap", Vector2i(20, 3))]), stats, 1)
+	var log := _events(round)
+	var coming := Vector2.from_angle(deg_to_rad(10.0))
+	var ball := round.balls[0]
+	ball.put(Vector2(394, 220) - coming * 20.0, coming)
+	_run(round, 0.05)
+	t.check(ball.dir == Vector2(-coming.x, coming.y) and log.has("hit %s 1 %d" % [block, Round.Cause.BALL]), "a ball bounces off a Growth block as off a brick, and the hit takes no HP")
+	round.hit_brick(Vector2i(24, 4), Round.Cause.BALL, Vector2.RIGHT)  # an explosive brick: its blast reaches the block
+	round.hit_brick(Vector2i(20, 3), Round.Cause.BALL, Vector2.RIGHT)  # the Zap's brick: its row runs through the block
+	t.check(log.has("hit %s 1 %d" % [block, Round.Cause.BLAST]) and log.has("hit %s 1 %d" % [block, Round.Cause.ZAP]) and round.board.brick(block).hp == 1,
+			"a blast and a Zap hit a Growth block too, and it keeps its 1 HP")
+	t.check(round.tally.hits.get(&"growth") == 3 and round.tally.dents == 0 and round.tally.placed_broken == 0 and round.coins == 2,
+			"its three hits count in the tally and pay nothing: the coins are the two level bricks'")
+	t.check(not _layout([_item(&"growth", block)]).fits(_item(&"zap", block), board, stats), "a Zap cannot go on a Growth block, where it would never go off")
+	round = Round.new(_board({Vector2i(30, 3): 1}), _layout([_item(&"growth", block)]), stats, 1)
+	round.hit_brick(Vector2i(30, 3), Round.Cause.BALL, Vector2.RIGHT)
+	round.step(TICK, round.paddle.y)
+	t.check(round.over and round.reason == Round.End.CLEARED, "a Growth block left standing does not keep a level from being cleared")
+
+	# The pulse: every 5 s, 1 HP to each level brick within a square of the block's edges, up to max_hp. In reach:
+	# (21, 3) at the edge of it, (24, 3), and (25, 2) already at 4; (25, 4) is a Splitter. Out: (20, 3), (25, 5).
+	board = _board({FAR: SOLID, Vector2i(21, 3): 3, Vector2i(24, 3): 1, Vector2i(25, 2): 4, Vector2i(20, 3): 1, Vector2i(25, 5): 1})
+	var layout := _layout([_item(&"growth", block), _item(&"splitter", Vector2i(25, 4))])
+	# Returns [[step, cells] for each pulse, the round], played with the ball at a standstill.
+	var pulses := func(rate: float, seconds: float) -> Array:
+		var s := _sealed(board, {&"growth_count": 1, &"splitter_count": 1, &"growth_reach": 1.0, &"pulse_min": 1.0, &"pulse_rate": rate})
+		s.max_hp = 4
+		s.ball_speed = 0.0
+		var r := Round.new(board, layout, s, 1)
+		var seen := []
+		var steps := [0]
+		r.grew.connect(func(cell: Vector2i, reach: float, cells: Array[Vector2i]) -> void: seen.append([steps[0], cells.duplicate()] if cell == block and reach == 64.0 else null))
+		for i in roundi(seconds / TICK):
+			steps[0] = i + 1
+			r.step(TICK, r.paddle.y)
+		return [seen, r]
+	var got: Array = pulses.call(0.0, 10.0)
+	var hp := func(c: Vector2i) -> int: return (got[1] as Round).board.brick(c).hp
+	t.check(got[0] == [[600, [Vector2i(21, 3), Vector2i(24, 3)]], [1200, [Vector2i(24, 3)]]],
+			"a Growth block pulses at 5 s and 10 s of play, giving 1 HP to the level bricks in reach under the ceiling (%s)" % [got[0]])
+	t.check([hp.call(Vector2i(21, 3)), hp.call(Vector2i(24, 3)), hp.call(Vector2i(25, 2)), hp.call(Vector2i(25, 4)), hp.call(Vector2i(20, 3)), hp.call(Vector2i(25, 5))] == [4, 3, 4, 1, 1, 1],
+			"no brick goes over max_hp, a placed brick gains nothing, and nothing out of reach does")
+	t.check((got[0] as Array).map(func(p: Array) -> int: return p[0]) == [600, 1200] and (pulses.call(2.0, 6.0)[0] as Array).map(func(p: Array) -> int: return p[0]) == [360, 720],
+			"pulse_rate takes seconds off the period: 3 s at a rate of 2")
+	t.check((pulses.call(10.0, 3.0)[0] as Array).map(func(p: Array) -> int: return p[0]) == [120, 240, 360], "and the period never goes under pulse_min, 1 s")
 
 
 # --- several balls ---------------------------------------------------------------------------------------------

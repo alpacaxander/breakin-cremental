@@ -165,7 +165,8 @@ static func combo_pitch(count: int) -> float:
 ##                  no cue and the sound follows the signal (the launch ball is not added, so it is silent)
 ##   exploded       EXPLOSION
 ##   ball_lost      BALL_LOST
-##   ended          CLEARED: LEVEL_CLEARED
+##   grew           the cue of the block that pulsed (Growth: BOOSTER, its rising sweep)
+##   ended         CLEARED: LEVEL_CLEARED
 ## It also plays LOW_TIMER_TICK each time round.time_left crosses a whole second at or under
 ## round.stats.low_time, by watching the round from _process.
 ## No handler holds the round itself (a lambda or bind that did would keep it alive through its own signals).
@@ -176,6 +177,7 @@ func connect_round(p_round: Round) -> void:
 	p_round.ball_added.connect(func(_ball: Ball) -> void: play(SPLITTER))
 	p_round.exploded.connect(func(_pos: Vector2, _reach: float, _cells: Array[Vector2i]) -> void: play(EXPLOSION))
 	p_round.ball_lost.connect(func(_ball: Ball) -> void: play(BALL_LOST))
+	p_round.grew.connect(_on_grew.bind(p_round.board))
 	p_round.ended.connect(_on_ended)
 	_round = p_round
 	_second = ceili(p_round.time_left)
@@ -185,6 +187,10 @@ func connect_round(p_round: Round) -> void:
 func _on_ended(reason: Round.End) -> void:
 	if reason == Round.End.CLEARED:
 		play(LEVEL_CLEARED)
+
+
+func _on_grew(cell: Vector2i, _reach: float, _cells: Array[Vector2i], board: Board) -> void:
+	play(Kinds.of(board.brick(cell).kind).cue)
 
 
 func _on_ball_bounced(_ball: Ball, hit: Hit) -> void:

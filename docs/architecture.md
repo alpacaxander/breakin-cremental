@@ -47,6 +47,7 @@ Because the rules have no nodes, a round runs headless. Tests check the physics 
 - **Smallest level.** The lane is 58 screen pixels at every size, but the paddle and the ball keep their size in units. With the numbers in `balance.tres` a ball fits between the paddle's face and the grid from 14 rows up (see [levels.md](design/levels.md#arena-size)); `tests/cases/contracts.gd` checks it for every level.
 - **Launch path.** `Round.launch_path(board, stats)` is the rectangle the first ball covers before it touches the paddle: its square at rest and the strip from there straight left to the paddle's face. `Layout.fits` refuses a free-form item or a placeable brick that overlaps it or comes within `Layout.CLEAR` (0.02 units) of it from above or below, and an item may still touch the right side of that square. A level must not paint a brick there, and `tests/cases/contracts.gd` checks that for every level. The game no longer launches along it. `Level` calls `Round.hold()`, which keeps the first ball on the paddle's face until `Round.launch()` sends it off at a random angle within ±`Round.LAUNCH_ANGLE` (45°). The ball at rest and its path stay for the rules tests, which build rounds without `hold()` (see the `ponytail:` comment on `hold()`).
 - **A blast** reaches `blast_size × 64` units out from the edges of the brick that exploded, and hits every brick whose cell overlaps that rectangle. At the base size that is 4 columns to each side and 1 brick row above and below.
+- **An area of bricks.** `board.bricks_in(area)` lists the brick cells that overlap a rectangle in units, by column and then row. A blast and a Growth pulse both use it.
 
 ### Signals
 
@@ -59,6 +60,7 @@ There is no global event bus. A round's events are signals on the `Round` object
 | `ball_bounced(ball, hit)` | A ball bounced off a wall, the paddle or a placed item. `hit` (`src/sim/hit.gd`) says which, where, and the surface normal |
 | `ball_added(ball)` / `ball_lost(ball)` | A Splitter made a ball, or a ball left through the open side |
 | `exploded(pos, reach, cells)` | An explosive brick went off. `cells` are the bricks it is about to hit, still on the board |
+| `grew(cell, reach, cells)` | A placed block at `cell` pulsed (`round.grow`): `cells` are the level bricks that gained 1 HP, out to `reach` units from its edges. Not emitted when none gained |
 | `combo_changed(count, multiplier)` | The combo grew or reset |
 | `time_changed(seconds_left, added)` | An hourglass brick added time |
 | `ended(reason)` | The timer ran out, the last ball was lost, or the level was cleared |
@@ -80,10 +82,12 @@ A kind is a `Resource`. `Kind` is the base, with the id, the title, the colour m
 | Hook | Called when | Example |
 |---|---|---|
 | `on_ball_hit(round, ball, hit)` | A ball has bounced off a placed item | The Booster adds a boost |
+| `on_hit(round, cell, brick, cause, dir, ball)` | The brick took a hit and still stands | The Splitter splits a ball that hits it (with more than 1 HP) |
 | `on_broken(round, cell, brick, cause, dir, ball)` | The brick broke | The explosive brick calls `round.blast`; the Splitter adds a ball |
 | `on_host_broken(round, cell, brick, cause, dir, ball)` | A brick with this mod on it broke | Zap hits the rest of the row |
+| `on_step(round, cell, brick, delta)` | Every step of play, for each placed brick still on the board, in layout order, after the balls have moved and `round.clock` has advanced. Not while the ball is held | Growth calls `round.grow` each time `round.clock` crosses its period |
 
-A hook changes the round through the round's own functions (`hit_brick`, `blast`, `add_ball`, `set_boost`, `add_time`), so chains work without special cases: an explosion that breaks an explosive brick calls that brick's hook too.
+A hook changes the round through the round's own functions (`hit_brick`, `blast`, `grow`, `add_ball`, `set_boost`, `add_time`), so chains work without special cases: an explosion that breaks an explosive brick calls that brick's hook too.
 
 The demo's kinds. The id is the file name in `data/kinds/`, and `<id>_count` is the stat that counts it:
 
@@ -94,12 +98,15 @@ The demo's kinds. The id is the file name in `data/kinds/`, and `<id>_count` is 
 | `wall_segment` | PlaceableKind, FREE, rotatable | RECT 10 × 112 | `placeable` | `wall_bounce` | |
 | `splitter` | PlaceableKind, BRICK | A brick cell, 1 HP | `placeable` | none (`ball_added` has its own) | |
 | `zap` | PlaceableKind, MOD | A 6 × 6 mark | `placeable` | `zap` | |
+| `growth` | PlaceableKind, BRICK, `unbreakable` | A brick cell that never breaks | `placeable` | `booster` (on `grew`) | Pulses every 5 s, less `pulse_rate`, at least `pulse_min`; reach from `growth_reach` |
 | `explosive` | BrickKind | 1 HP | `explosive` | none (`exploded` has its own) | Reach comes from the `blast_size` stat |
 | `gold` | BrickKind | 1 HP, worth 20 | `coins` | `gold_brick` | |
 | `hourglass` | BrickKind | 1 HP | `time` | `hourglass_brick` | Adds 15 s |
 | `tough` | BrickKind (no script of its own) | 3 HP | none: drawn in the HP steps, like a plain brick | none (the brick sounds) | |
 
-`order` runs 1 to 5 down the placeables and 1 to 4 down the bricks; it is the tray order and the order special bricks are rolled in. A kind with no hook, such as `tough`, uses `src/kinds/brick_kind.gd` itself as its script, so it is one file. A brick kind with no colour is drawn by its HP, as a plain brick is (`Palette.brick`).
+`order` runs 1 to 6 down the placeables and 1 to 4 down the bricks; it is the tray order and the order special bricks are rolled in. A kind with no hook, such as `tough`, uses `src/kinds/brick_kind.gd` itself as its script, so it is one file. A brick kind with no colour is drawn by its HP, as a plain brick is (`Palette.brick`).
+
+A placeable brick with `unbreakable` set is a block: a ball bounces off it as off any brick, and a ball, blast or Zap hit calls its `on_hit`, counts in the tally's `hits` and emits `brick_hit`, but takes no HP. It pays nothing, does not count toward a clear and does not grow the combo, as any placed brick. A Zap cannot go on one (`Layout.fits`). Growth is the first; a block that does something on a timer does it from `on_step`, reading `round.clock` (seconds of play since the round's first step, not moved by an hourglass), and says so with a signal of its own, as Growth does with `grew`.
 
 ### Stats
 
@@ -122,14 +129,15 @@ The demo's upgrades. The id is the file name in `data/upgrades/`:
 | `combo` | `combo_rank` | 1 |
 | `blast_size` | `blast_size` | 1 |
 | `shockwave` | `shockwave` | 1 |
-| `bumper`, `booster`, `wall_segment`, `splitter`, `zap` | `<id>_count` | 1 |
+| `bumper`, `booster`, `wall_segment`, `splitter`, `zap`, `growth` | `<id>_count` | 1 |
+| `growth_reach` | `growth_reach` | 1 |
 | `explosive_brick`, `gold_brick`, `hourglass_brick`, `tough_brick` | `explosive_count`, `gold_count`, `hourglass_count`, `tough_count` | 1 |
 
 The web scene (`src/hub/web.tscn`) holds only layout: where each node sits, which `.tres` it shows, and which nodes it connects to. Whether a node can be reached yet is the hub's question; `Progress.buy` checks only the price and the maximum rank.
 
 ### Other numbers
 
-- `data/balance.tres` also holds the numbers that are not stats: ball and paddle sizes, the launch gap, the minimum angles, the paddle's steepest angle, the boost cap, the combo numbers, the low-timer mark, coins per brick and the rotation step. The defaults in `balance.gd` are 0, so a number can only come from the file. A kind's own amounts are in its `.tres`.
+- `data/balance.tres` also holds the numbers that are not stats: ball and paddle sizes, the launch gap, the minimum angles, the paddle's steepest angle, the boost cap, the combo numbers, the low-timer mark, coins per brick, the rotation step, the most HP a brick can grow to (`max_hp`) and the shortest pulse period (`pulse_min`). The defaults in `balance.gd` are 0, so a number can only come from the file. A kind's own amounts are in its `.tres`.
 - The coin formula is one function, `Coins.total(tally, stats)` in `src/sim/coins.gd`. It turns a tally into coins.
 - Colours are constants in `src/ui/palette.gd`, copied from [palette.md](palette.md). No other file contains a colour value, scenes and resources included: a script assigns the colour.
 

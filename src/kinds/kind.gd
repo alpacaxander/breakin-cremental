@@ -9,7 +9,7 @@ extends Resource
 ## Its count comes from the stat `<id>_count`, which its upgrade raises.
 ##
 ## A kind is fixed data. It holds no state of a round, and a hook changes the round only through the round's own
-## functions (hit_brick, blast, add_ball, set_boost, add_time), so chains work without special cases.
+## functions (hit_brick, blast, grow, add_ball, set_boost, add_time), so chains work without special cases.
 
 ## The file name: data/kinds/<id>.tres gives &"<id>". Saves, Brick.kind, Brick.mod and the count stat all use
 ## it. A kind made in code, in a test, has no file and sets its id by hand before Kinds.add.
@@ -23,8 +23,9 @@ var id: StringName:
 ## Otherwise screens draw the kind in Palette.of(colour).
 @export var colour: StringName
 ## The cue Sfx plays when this kind acts: for a free-form item when a ball bounces off it, for a brick or a mod
-## when its brick breaks. A file name in assets/audio/wav without the extension, &"" for none. Leave it empty
-## when the effect has a round signal of its own (the explosive brick: `exploded`; the Splitter: `ball_added`).
+## when its brick breaks, for a placed block when it pulses (Growth: `grew`). A file name in assets/audio/wav
+## without the extension, &"" for none. Leave it empty when the effect has a round signal of its own that Sfx
+## gives a sound (the explosive brick: `exploded`; the Splitter: `ball_added`).
 @export var cue: StringName
 ## Where it comes in lists (the tray, the legend, the special-brick roll): lowest first, ties by id.
 @export var order: int
@@ -47,6 +48,13 @@ func on_hit(_round: Round, _cell: Vector2i, _brick: Brick, _cause: Round.Cause, 
 ## before it bounced. `ball` is the ball that broke it, or null when the cause is not Round.Cause.BALL.
 ## Called after brick_broken is emitted. The explosive brick calls round.blast here; the Splitter adds a ball.
 func on_broken(_round: Round, _cell: Vector2i, _brick: Brick, _cause: Round.Cause, _dir: Vector2, _ball: Ball) -> void:
+	pass
+
+
+## Every step of play, for each placed brick of this kind still on the board (BRICK placeables only), in layout
+## order, after the balls have moved and round.clock has gone up by `delta`. Not called while the ball is held.
+## Growth pulses here when round.clock passes a multiple of its period.
+func on_step(_round: Round, _cell: Vector2i, _brick: Brick, _delta: float) -> void:
 	pass
 
 

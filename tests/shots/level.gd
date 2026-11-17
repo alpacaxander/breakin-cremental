@@ -1,6 +1,6 @@
 extends RefCounted
 ## The level screen in each state that matters: Setup on a fresh save and with everything unlocked and placed,
-## a drag that fits and one that does not, an item held over the tray, Play early, mid-combo, with tough bricks hit and on the zoomed level 3, and the Summary for
+## a drag that fits and one that does not, an item held over the tray, Play early, mid-combo, with tough bricks hit, with bricks grown by a Growth block and on the zoomed level 3, and the Summary for
 ## each of the three ends and with several combos. Compare them with docs/art.md ("Level screen") and the level mockup.
 ##
 ## The mouse is pushed straight into Main's View, so a position here is a position in the 1280 x 720 frame
@@ -17,6 +17,7 @@ const PLACED := [
 	{"kind": "splitter", "col": 40, "row": 5},
 	{"kind": "zap", "col": 62, "row": 1},
 	{"kind": "zap", "col": 40, "row": 5},
+	{"kind": "growth", "col": 47, "row": 3},
 ]
 
 
@@ -42,6 +43,7 @@ func shots() -> Array[Dictionary]:
 		{"name": "play_maxed_3", "save": "maxed", "setup": _play.bind(3, [], 240, 0)},
 		{"name": "play_low_time", "save": "mid", "crt": false, "setup": _low_time},
 		{"name": "play_tough", "save": "maxed", "crt": false, "setup": _tough},
+		{"name": "play_growth", "save": "maxed", "setup": _growth, "settle": 12},
 		{"name": "play_strip", "save": "mid", "crt": false, "setup": _play.bind(2, [], 60, 0), "settle": 0, "frames": 4, "every": 2},
 		{"name": "summary_cleared", "save": "maxed", "setup": _end.bind(Round.End.CLEARED), "settle": 110},
 		{"name": "summary_cleared_crt_off", "save": "maxed", "crt": false, "setup": _end.bind(Round.End.CLEARED), "settle": 110},
@@ -123,6 +125,15 @@ func _tough(main: Main) -> void:
 	for i in tough.size():
 		for j in i:
 			round.hit_brick(tough[i], Round.Cause.BLAST, Vector2.RIGHT)
+
+
+## Level 1 in Play with everything placed, after the Growth block has pulsed twice: the bricks beside it have
+## grown, and the second pulse's effect is still on screen.
+func _growth(main: Main) -> void:
+	var level := await _play(main, 1, PLACED, 0, 0)
+	var round: Round = level.get("round")
+	for i in 2:
+		round.grow(Vector2i(47, 3), round.stats.growth_reach * Board.BRICK.y)
 
 
 func _low_time(main: Main) -> void:

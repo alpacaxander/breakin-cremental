@@ -1,0 +1,14 @@
+[gd_resource type="Resource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/kinds/growth.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+title = "Growth"
+colour = &"placeable"
+cue = &"booster"
+order = 6
+placement = 1
+hp = 1
+unbreakable = true
+pulse = 5.0

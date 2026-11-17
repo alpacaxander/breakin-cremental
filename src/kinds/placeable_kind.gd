@@ -25,3 +25,7 @@ enum Shape {
 @export var rotatable: bool
 ## BRICK only: the placed brick's HP.
 @export var hp := 1
+## BRICK only: true for a block that never breaks (Growth). The ball bounces off it as off a brick, and a hit
+## from a ball, a blast or a Zap takes no HP: it counts in the tally's `hits`, emits brick_hit and calls on_hit.
+## It cannot carry a mod, which would never go off (Layout.fits).
+@export var unbreakable := false

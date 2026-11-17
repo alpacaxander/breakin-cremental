@@ -95,6 +95,20 @@ func brick(cell: Vector2i) -> Brick:
 	return bricks.get(cell)
 
 
+## Every cell holding a brick whose rectangle overlaps `area` (touching edges do not count), by column from the
+## paddle side and then down. A blast and a Growth pulse both reach this way.
+func bricks_in(area: Rect2) -> Array[Vector2i]:
+	var first := cell_at(area.position)
+	var last := cell_at(area.end)
+	var cells: Array[Vector2i] = []
+	for x in range(first.x, last.x + 1):
+		for y in range(first.y, last.y + 1):
+			var c := Vector2i(x, y)
+			if bricks.has(c) and cell_rect(c).intersects(area):
+				cells.append(c)
+	return cells
+
+
 ## Bricks still to break before the level counts as cleared. Bricks the player placed are not counted.
 func remaining() -> int:
 	var n := 0
