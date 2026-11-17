@@ -31,7 +31,8 @@ extends Resource
 @export var splitter_splits: float  ## Balls a Splitter splits a ball into, the ball itself included
 @export var rear_paddle: float  ## 0: off. Above 0: a paddle on the back wall adds this to Ball.boost on a hit
 @export var growth_reach: float  ## How far a Growth block's pulse reaches out from its edges, in squares (1 square = 64 units)
-@export var pulse_rate: float  ## Seconds taken off a Growth block's pulse period, down to pulse_min
+@export var pulse_rate: float  ## Seconds taken off a Growth block's pulse period and a Refresh block's cooldown, down to pulse_min
+@export var refresh_size: float  ## How many broken level bricks a Refresh block brings back
 ## Stats that have no property of their own, by name. The per-kind counts live here: `<kind id>_count` is how many
 ## of that kind the player may place (a placeable) or how many are rolled onto the board (a special brick). A name
 ## that is missing is 0, so the shipped file leaves this empty. An entry here is a free item before any upgrade.
@@ -53,7 +54,7 @@ extends Resource
 @export_group("Round")
 @export var low_time: float  ## With this many seconds left or fewer, the timer warns (danger colour, the tick cue)
 @export var max_hp: int  ## A pulse (Growth) never takes a brick above this HP
-@export var pulse_min: float  ## The shortest a pulse period gets, whatever pulse_rate takes off
+@export var pulse_min: float  ## The shortest a pulse period or a Refresh cooldown gets, whatever pulse_rate takes off
 
 @export_group("Combo")
 # multiplier = 1 + (count - 1) / combo_breaks_per_step, in whole numbers.

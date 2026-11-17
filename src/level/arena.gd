@@ -6,7 +6,8 @@ extends Node2D
 ## Each child is one z layer (the numbers are fx.gd's seam). A layer has no script: it is drawn from here through
 ## its `draw` signal, and only when what it shows has changed.
 ##   Backdrop     0  the backdrop grid and the walls           when the round or the phase changes
-##   BoardView   10  every brick, in one draw                  when a brick is hit or broken
+##   BoardView   10  every brick, in one draw                  when a brick is hit, broken, grown or brought back,
+##                                                             and when a Refresh block's cooldown ends
 ##   ItemViews   10  the free-form placed items                with the round
 ##   PaddleView  10  the paddle; it is moved, not redrawn      with the round
 ##   BallViews   20  the balls                                 every frame of Play
@@ -24,7 +25,7 @@ const FRAME := Rect2(96, 104, 1088, 524)
 const WALL := 6.0  ## The walls' thickness, in screen pixels at every level size
 const STRIPE := 4.0  ## The paddle's cyan stripe, in units
 const MARK_RIM := 2.0  ## The dark rim around a Zap mark, in units, so it reads on a brick of any colour
-const BLOCK_EDGE := 3.0  ## A block that never breaks (Growth) is a frame this thick round a base-colour centre, in units
+const BLOCK_EDGE := 3.0  ## A block that never breaks (Growth) is a frame this thick round base-colour panes, in units
 const DASH := 6.0  ## The ghost's border: dashes this long, 2 units thick
 const GHOST_EDGE := 2.0
 
@@ -36,6 +37,7 @@ var _ghost_fits := false
 ## Where each ball (by id) and the paddle were one step ago.
 var _was: Dictionary[int, Vector2] = {}
 var _was_paddle := 0.0
+var _cooling := 0
 
 @onready var fx: Fx = $Fx
 @onready var _backdrop: Node2D = $Backdrop
@@ -63,6 +65,7 @@ func show_round(p_round: Round, setup: bool) -> void:
 	round.brick_hit.connect(_bricks.queue_redraw.unbind(3))
 	round.brick_broken.connect(_bricks.queue_redraw.unbind(5))
 	round.grew.connect(_bricks.queue_redraw.unbind(3))
+	round.restored.connect(_bricks.queue_redraw.unbind(2))
 	remember()
 	for layer: Node2D in [_backdrop, _bricks, _items, _paddle, _balls]:
 		layer.queue_redraw()
@@ -99,6 +102,14 @@ func _process(_delta: float) -> void:
 	_paddle.position = Vector2(p.x - p.thickness, lerpf(_was_paddle, p.y, _between()) - p.length * 0.5)
 	if not _setup:
 		_balls.queue_redraw()
+		var cooling := 0  # a block's cooldown ends with no signal: redraw when the number cooling changes
+		for item in round.layout.items:
+			var brick := round.board.brick(item.cell)
+			if brick and brick.ready_at > round.clock:
+				cooling += 1
+		if cooling != _cooling:
+			_cooling = cooling
+			_bricks.queue_redraw()
 
 
 # How far the picture is from the step before (0) to the last step (1).
@@ -131,15 +142,24 @@ func _draw_bricks() -> void:
 	for cell: Vector2i in board.bricks:
 		var brick := board.bricks[cell]
 		var rect := board.cell_rect(cell)
-		_bricks.draw_rect(rect.grow(-1.0), Palette.lit_brick(brick))
 		var kind := Kinds.of(brick.kind) as PlaceableKind
+		var cooling := brick.ready_at > round.clock  # a Refresh block waiting: dim
+		_bricks.draw_rect(rect.grow(-1.0), Palette.dim(kind.colour) if cooling else Palette.lit_brick(brick))
 		if kind and kind.unbreakable:
-			_bricks.draw_rect(rect.grow(-1.0 - BLOCK_EDGE), Palette.BASE)
+			panes(_bricks, rect.grow(-1.0 - BLOCK_EDGE), kind.panes, BLOCK_EDGE, Palette.BASE)
 		var mod := Kinds.of(brick.mod) as PlaceableKind
 		if mod:
 			var mark := Rect2(rect.get_center() - mod.size * 0.5, mod.size)
 			_bricks.draw_rect(mark.grow(MARK_RIM), Palette.BASE)
 			_bricks.draw_rect(mark, Palette.lit(Palette.of(mod.colour)))
+
+
+## The inside of a block that never breaks: `count` panes of `colour` stacked in `inside`, `gap` apart, so the
+## frame drawn under them shows between. Setup's tray draws its icon with this too.
+static func panes(on: CanvasItem, inside: Rect2, count: int, gap: float, colour: Color) -> void:
+	var tall := (inside.size.y - gap * (count - 1)) / count
+	for i in count:
+		on.draw_rect(Rect2(inside.position.x, inside.position.y + i * (tall + gap), inside.size.x, tall), colour)
 
 
 func _draw_items() -> void:

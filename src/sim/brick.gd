@@ -12,6 +12,8 @@ var mod: StringName = &""
 ## True if the player put this brick there. A placed brick pays nothing and does not count toward a clear, but
 ## breaking it still extends the combo.
 var placed := false
+## A placed block with a cooldown (Refresh): the round.clock at which it is ready again. 0 is ready from the start.
+var ready_at := 0.0
 
 
 func _init(p_hp := 1, p_kind: StringName = &"") -> void:
@@ -23,4 +25,5 @@ func copy() -> Brick:
 	var b := Brick.new(hp, kind)
 	b.mod = mod
 	b.placed = placed
+	b.ready_at = ready_at
 	return b

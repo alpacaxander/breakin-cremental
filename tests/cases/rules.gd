@@ -41,6 +41,7 @@ func run(p_t: Node) -> void:
 	_shockwave()
 	_placeables()
 	_growth()
+	_refresh()
 	_balls()
 	_specials()
 	_layouts()
@@ -204,7 +205,7 @@ func _shipped() -> void:
 
 func _kinds() -> void:
 	var ids := func(kinds: Array) -> Array: return kinds.map(func(k: Kind) -> StringName: return k.id)
-	t.check(ids.call(Kinds.placeables()) == [&"bumper", &"booster", &"wall_segment", &"splitter", &"zap", &"growth"], "the placeables are the six of the kinds table, in tray order")
+	t.check(ids.call(Kinds.placeables()) == [&"bumper", &"booster", &"wall_segment", &"splitter", &"zap", &"growth", &"refresh"], "the placeables are the seven of the kinds table, in tray order")
 	t.check(ids.call(Kinds.bricks()) == [&"explosive", &"gold", &"hourglass", &"tough"], "the special bricks are the four of the kinds table, in roll order")
 	# id: [placement, shape, size, turn, rotatable, cue]
 	var placeables := {
@@ -214,6 +215,7 @@ func _kinds() -> void:
 		&"splitter": [PlaceableKind.Placement.BRICK, PlaceableKind.Shape.RECT, Vector2.ZERO, 0.0, false, &""],  # no cue: Sfx plays SPLITTER from ball_added
 		&"zap": [PlaceableKind.Placement.MOD, PlaceableKind.Shape.RECT, Vector2(6, 6), 0.0, false, Sfx.ZAP],
 		&"growth": [PlaceableKind.Placement.BRICK, PlaceableKind.Shape.RECT, Vector2.ZERO, 0.0, false, Sfx.BOOSTER],  # the cue of its pulse
+		&"refresh": [PlaceableKind.Placement.BRICK, PlaceableKind.Shape.RECT, Vector2.ZERO, 0.0, false, Sfx.PLACE_ITEM],  # the cue of the bricks it brings back
 	}
 	for id: StringName in placeables:
 		var k := Kinds.of(id) as PlaceableKind
@@ -970,6 +972,93 @@ func _growth() -> void:
 	t.check((got[0] as Array).map(func(p: Array) -> int: return p[0]) == [600, 1200] and (pulses.call(2.0, 6.0)[0] as Array).map(func(p: Array) -> int: return p[0]) == [360, 720],
 			"pulse_rate takes seconds off the period: 3 s at a rate of 2")
 	t.check((pulses.call(10.0, 3.0)[0] as Array).map(func(p: Array) -> int: return p[0]) == [120, 240, 360], "and the period never goes under pulse_min, 1 s")
+
+
+func _refresh() -> void:
+	# Around the block at (25, 3): (24, 3) a gold brick and (26, 3) a Zap's 2 HP brick, both 256 away (squared,
+	# centre to centre), then (25, 2) and the Splitter (25, 4) at 4096, then (20, 3) and (30, 3) at 6400. (25, 1)
+	# stands. The Zap's break takes out the rest of row 3.
+	var block := Vector2i(25, 3)
+	var board := _board({FAR: SOLID, Vector2i(24, 3): 1, Vector2i(26, 3): 2, Vector2i(25, 2): 1, Vector2i(25, 1): 1, Vector2i(20, 3): 1, Vector2i(30, 3): 1})
+	board.bricks[Vector2i(24, 3)].kind = &"gold"
+	var stats := _sealed(board, {&"refresh_count": 1, &"splitter_count": 1, &"zap_count": 1, &"refresh_size": 3.0, &"pulse_min": 1.0})
+	stats.ball_speed = 0.0
+	var layout := _layout([_item(&"refresh", block), _item(&"splitter", Vector2i(25, 4)), _item(&"zap", Vector2i(26, 3))])
+	var round := Round.new(board, layout, stats, 1)
+	t.check(round.broken_near(block, 3).is_empty(), "nothing is broken yet, so there is nothing to bring back")
+	for cell: Vector2i in [Vector2i(26, 3), Vector2i(26, 3), Vector2i(25, 2), Vector2i(25, 4)]:
+		round.hit_brick(cell, Round.Cause.BLAST, Vector2.RIGHT)
+	var nearest: Array[Vector2i] = [Vector2i(24, 3), Vector2i(26, 3), Vector2i(25, 2), Vector2i(20, 3), Vector2i(30, 3)]
+	t.check(round.broken_near(block, 3) == nearest.slice(0, 3) and round.broken_near(block, 9) == nearest,
+			"the broken level cells nearest the block, a tie to the lower column and then the lower row; never a placed brick's (%s)" % [round.broken_near(block, 9)])
+	var ball := round.balls[0]
+	ball.put(round.board.cell_rect(Vector2i(24, 3)).get_center() + Vector2(-13, 0), Vector2.LEFT)
+	t.check(round.broken_near(block, 3) == [Vector2i(26, 3), Vector2i(25, 2), Vector2i(20, 3)], "a cell a ball overlaps is skipped")
+	t.check(round.restore(block, [Vector2i(24, 3), Vector2i(25, 1), Vector2i(25, 4), Vector2i(26, 3)]) == [Vector2i(26, 3)],
+			"restore brings back only a broken level cell: not one a ball is over, one still standing or a placed brick's")
+	var back := round.board.brick(Vector2i(26, 3))
+	t.check(back.hp == 1 and back.kind == &"" and back.mod == &"" and not back.placed, "it comes back a plain 1 HP level brick, its Zap gone")
+	ball.put(round.board.cell_rect(Vector2i(24, 3)).get_center() + Vector2(-14, 0), Vector2.LEFT)
+	t.check(round.restorable(Vector2i(24, 3)), "a ball that only touches the cell does not keep it")
+
+	# Only a ball's hit, and only when ready: then the cooldown, 4 s less pulse_rate and never under pulse_min.
+	var log := _events(round)
+	var heard := []
+	round.restored.connect(func(cell: Vector2i, cells: Array[Vector2i]) -> void: heard.append([cell, cells.duplicate()]))
+	round.hit_brick(block, Round.Cause.BLAST, Vector2.RIGHT)
+	round.hit_brick(block, Round.Cause.ZAP, Vector2.RIGHT)
+	t.check(heard.is_empty() and round.board.brick(block).hp == 1 and log.size() == 2, "a blast or a Zap hits the block and brings nothing back")
+	round.hit_brick(block, Round.Cause.BALL, Vector2.RIGHT)
+	t.check(heard == [[block, [Vector2i(24, 3), Vector2i(25, 2), Vector2i(20, 3)]]] and round.board.brick(Vector2i(24, 3)).kind == &"",
+			"a ball's hit brings back the nearest three, and the gold brick comes back plain (%s)" % [heard])
+	t.check(round.board.brick(block).ready_at == 4.0, "then it waits 4 s")
+	# Returns the steps at which a ball's hit, one every step, brought bricks back; each time they break again.
+	var refreshes := func(rate: float, seconds: float) -> Array:
+		var s := stats.duplicate() as Balance
+		s.put(&"pulse_rate", rate)
+		var r := Round.new(board, layout, s, 1)
+		for cell: Vector2i in [Vector2i(26, 3), Vector2i(26, 3)]:
+			r.hit_brick(cell, Round.Cause.BLAST, Vector2.RIGHT)
+		var at := []
+		for i in roundi(seconds / TICK):
+			r.step(TICK, r.paddle.y)
+			r.hit_brick(block, Round.Cause.BALL, Vector2.RIGHT)
+			for cell in r.level_cells:
+				if r.board.brick(cell) and cell.y == 3:
+					at.append(i + 1)
+					r.hit_brick(cell, Round.Cause.BLAST, Vector2.RIGHT)
+		return at.reduce(func(seen: Array, step: int) -> Array: return seen if seen.has(step) else seen + [step], [])
+	t.check(refreshes.call(0.0, 10.0) == [1, 481, 961], "every 4 s while it is hit all the time")
+	t.check(refreshes.call(2.0, 6.0) == [1, 241, 481], "pulse_rate takes seconds off the cooldown: 2 s at a rate of 2")
+	t.check(refreshes.call(10.0, 3.0) == [1, 121, 241], "and it never goes under pulse_min, 1 s")
+
+	# A brick brought back scores and counts toward a clear.
+	round = Round.new(_board({Vector2i(20, 3): 1}), _layout([_item(&"refresh", block)]), stats, 1)
+	round.hit_brick(Vector2i(20, 3), Round.Cause.BLAST, Vector2.RIGHT)
+	var coins := round.coins
+	round.hit_brick(block, Round.Cause.BALL, Vector2.RIGHT)
+	round.step(TICK, round.paddle.y)
+	t.check(not round.over and round.board.brick(Vector2i(20, 3)) != null, "the level is not cleared while a brick brought back stands")
+	round.hit_brick(Vector2i(20, 3), Round.Cause.BLAST, Vector2.RIGHT)
+	round.step(TICK, round.paddle.y)
+	t.check(round.over and round.reason == Round.End.CLEARED and round.coins > coins and round.tally.score == 2, "breaking it scores, and then the board is cleared")
+
+	# A real ball bounces off it and sets it off. (25, 2) stands in this round.
+	var played := func() -> Array:
+		var s := stats.duplicate() as Balance
+		s.ball_speed = 560.0
+		var r := Round.new(board, layout, s, 1)
+		for cell: Vector2i in [Vector2i(26, 3), Vector2i(26, 3)]:
+			r.hit_brick(cell, Round.Cause.BLAST, Vector2.RIGHT)
+		var seen := []
+		r.restored.connect(func(cell: Vector2i, cells: Array[Vector2i]) -> void: seen.append([cell, cells.duplicate()]))
+		var coming := Vector2.from_angle(deg_to_rad(10.0))
+		r.balls[0].put(Vector2(394, 220) - coming * 20.0, coming)
+		_run(r, 0.05)
+		return seen
+	var first: Array = played.call()
+	t.check(first == [[block, [Vector2i(26, 3), Vector2i(20, 3), Vector2i(30, 3)]]] and played.call() == first,
+			"a ball's bounce off the block brings bricks back, the same every time, but not (24, 3), which the ball is in (%s)" % [first])
 
 
 # --- several balls ---------------------------------------------------------------------------------------------

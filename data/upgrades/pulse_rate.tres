@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="Upgrade" format=3]
+
+[ext_resource type="Script" path="res://src/content/upgrade.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+title = "Pulse Rate"
+category = 1
+text = "Growth and Refresh are 1 s faster."
+first_cost = 1000
+growth = 6
+max_rank = 2
+stat = &"pulse_rate"
+amount = 1.0

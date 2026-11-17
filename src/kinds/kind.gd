@@ -8,8 +8,9 @@ extends Resource
 ## Nothing else names it: the round only calls hooks, the views draw from the fields here, and Sfx plays `cue`.
 ## Its count comes from the stat `<id>_count`, which its upgrade raises.
 ##
-## A kind is fixed data. It holds no state of a round, and a hook changes the round only through the round's own
-## functions (hit_brick, blast, grow, add_ball, set_boost, add_time), so chains work without special cases.
+## A kind is fixed data. It holds no state of a round (a placed brick's own Brick can), and a hook changes the
+## round only through the round's functions (hit_brick, blast, grow, restore, add_ball, set_boost, add_time), so chains
+## work without special cases.
 
 ## The file name: data/kinds/<id>.tres gives &"<id>". Saves, Brick.kind, Brick.mod and the count stat all use
 ## it. A kind made in code, in a test, has no file and sets its id by hand before Kinds.add.
@@ -23,9 +24,9 @@ var id: StringName:
 ## Otherwise screens draw the kind in Palette.of(colour).
 @export var colour: StringName
 ## The cue Sfx plays when this kind acts: for a free-form item when a ball bounces off it, for a brick or a mod
-## when its brick breaks, for a placed block when it pulses (Growth: `grew`). A file name in assets/audio/wav
-## without the extension, &"" for none. Leave it empty when the effect has a round signal of its own that Sfx
-## gives a sound (the explosive brick: `exploded`; the Splitter: `ball_added`).
+## when its brick breaks, for a placed block when it acts (Growth: `grew`; Refresh: `restored`). A file name in
+## assets/audio/wav without the extension, &"" for none. Leave it empty when the effect has a round signal of its
+## own that Sfx gives a sound (the explosive brick: `exploded`; the Splitter: `ball_added`).
 @export var cue: StringName
 ## Where it comes in lists (the tray, the legend, the special-brick roll): lowest first, ties by id.
 @export var order: int

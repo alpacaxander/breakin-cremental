@@ -20,7 +20,7 @@ Every sound is synthesised by one script. Nothing is recorded or downloaded.
 |---|---|
 | Ball and paddle | paddle hit, wall bounce, ball lost |
 | Bricks | brick hit, brick break, explosion, gold brick, hourglass brick |
-| Placeables | bumper, booster, splitter, zap. A Growth pulse plays booster, its rising sweep |
+| Placeables | bumper, booster, splitter, zap. A Growth pulse plays booster, its rising sweep; bricks a Refresh block brings back play place item, the thunk of a brick put down |
 | Round | round start, low-timer tick, level cleared, summary tally tick |
 | UI | click, buy, can't afford, place item |
 

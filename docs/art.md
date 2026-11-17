@@ -14,7 +14,7 @@ The main menu, Settings and the Summary have no mockup. They are described below
 - The bumper ghost snaps to a grid cell. The bumper is free-form and doesn't snap.
 - Special bricks are a share of the level's bricks, and the web has "Explosive Chance" and "Bumper Count" nodes. Counts now come from the unlock node's ranks (see [upgrades.md](design/upgrades.md#counts-come-from-ranks)).
 - The web is grouped by category, with a label over each group and a junction square under the seed. The demo's web mixes the categories around a seed in the centre (see [upgrades.md](design/upgrades.md#the-demos-web)).
-- The Booster, the Splitter, the Zap mark and the Growth block are not drawn.
+- The Booster, the Splitter, the Zap mark and the Growth and Refresh blocks are not drawn.
 - The web shows locked nodes in grey. Locked nodes, and their lines, are now hidden until a neighbour is owned (see [Upgrade screen](#upgrade-screen)).
 - Nodes and the detail panel show a pip for every rank, and the panel reads "RANK 2/4". They now show only the ranks owned and the next, and never the max rank (see [Upgrade screen](#upgrade-screen)).
 - A tray slot reads "1 OF 2 LEFT", and locked placeables are in the tray. A slot now shows pips, and only unlocked placeables are listed (see [Setup](#setup)).
@@ -52,6 +52,7 @@ The main menu, Settings and the Summary have no mockup. They are described below
 | Wall segment | 10 × 112 | Blue. Free-form, and it can be rotated |
 | Placeable brick (Splitter) | A brick cell, drawn like a brick | Blue, so it can't be mistaken for a brick that pays |
 | Block that never breaks (Growth) | A brick cell, drawn as a hollow frame: a 3 px blue rim round a base-colour centre | Blue like the Splitter, and hollow so it can't be mistaken for one. Its tray icon is hollow too |
+| Block that never breaks, acting when hit (Refresh) | A brick cell, drawn as a 3 px blue rim round two base-colour panes stacked 3 px apart | Two panes so it reads apart from Growth's one. While it cools it is drawn in dim blue (`00396d`) instead of lit. Its tray icon has the two panes too |
 | Zap mark | A 6 × 6 square in the centre of the tagged brick | Blue, with a 2 px base-colour rim so it shows on a brick of any colour, a blue Splitter included. The brick keeps its own colour |
 | Placement ghost | Same as the item | Where it fits: fill `00396d`, a 2 px dashed blue border and no glow. For an item that snaps, the cell under it gets a cyan fill at 12% and a 1 px cyan border at 50%. Where it does not fit: fill `891e2b`, a dashed `ff0040` border, and the cell in red instead of cyan. A snapping item whose cell is off the board is drawn at the cursor. The held item is drawn from the press on and above everything else on the screen; outside the arena frame (over the tray and the footer) it is in the look of one that fits, because nothing has refused it yet |
 | Footer | x 96–1184, y 644–700 | Play: level number and name, a legend with 6 × 22 swatches of every HP step up to this board's toughest brick and of its coloured special bricks (a tough brick shows as its HP step), SCORE as "<score> / <target>". Setup: a back button (to Upgrades), the placeable tray, a count of this run's special bricks, Start (see [Setup](#setup)). Summary: only the back button |
@@ -67,7 +68,7 @@ The main menu, Settings and the Summary have no mockup. They are described below
 ### Setup
 
 - **Tray slot:** 56 px tall, panel fill, a 2 px blue border. It shows the item's shape (24 px, lit), its name in 14 px Chakra Petch semibold, and one 8 px pip for each one allowed, lit while it is still to place. With all of them placed the border goes grey and the shape dim. Under the cursor the fill turns `00396d`. Only unlocked placeables have a slot; with none, the tray is empty.
-- **This run:** a "THIS RUN" tag over the count of each special brick rolled for this attempt, each with a 6 × 18 swatch (a tough brick's is the 3 HP step).
+- **This run:** a "THIS RUN" tag over the count of each special brick rolled for this attempt, each with a 6 × 18 swatch (a tough brick's is the 3 HP step), in two columns, 12 px apart, so four take two rows and the footer holds six tray slots.
 - **Start:** the primary button with a triangle, at the right end. Space and Enter do the same.
 - **Backdrop:** the cell lines of the table above, so a snapping item's cell can be seen.
 
@@ -110,6 +111,7 @@ Effects take the colour of whatever made them. Sizes below are at their peak, in
 | Explosion | Two square shockwaves: 96 px with a lit 3 px `ff5000` border, and 160 px with an unlit 2 px `c64524` border at 40%. Under them, an orange light pool 360 px wide, round: 24% at the centre, fading to nothing at 68% of the radius. 24 squares of 3–6 px spread 24–120 px out, fading with distance; two thirds are orange and a third take the colour of the bricks it hit. All of it grows with the blast's reach. Blasts that set each other off start 0.07 s apart, so a chain reads as a chain. An explosion also shakes the screen, freezes the game for 0.05 s and flashes |
 | Zap | A blue bar along the row, 10 px thick, thinning out over 0.3 s, with a shake and a 0.035 s freeze |
 | Growth pulse | A 2 px blue outline growing out of the block to the edge of its reach over 0.5 s, and each brick that grew filled once more in its new colour for 0.5 s, swelling by 6 px. No pop-up |
+| Bricks brought back (Refresh) | The block flashes blue, swelling by 6 px, and on each brick that came back a 2 px blue outline closes in from 6 px out over 0.5 s while the brick flashes in its colour. No pop-up |
 | Gold brick, hourglass brick, Splitter | A 72 px ring with a 2 px line, in gold, green or blue. The hourglass adds a green "+15s" pop-up under its brick, and at least a text height under its coins: a top-row brick's coin pop-up has no room above it and sits lower. The Splitter's ring is at the new ball |
 | Multiplier step | A gold 72 px ring at the brick and a small flash |
 | Bumper, Booster, Wall Segment | The item's own outline, growing by 18 px over 0.25 s, and 4 blue squares (more off a boosted ball) |

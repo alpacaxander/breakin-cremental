@@ -1,0 +1,15 @@
+[gd_resource type="Resource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/kinds/refresh.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+title = "Refresh"
+colour = &"placeable"
+cue = &"place_item"
+order = 7
+placement = 1
+hp = 1
+unbreakable = true
+panes = 2
+cooldown = 4.0

@@ -30,8 +30,8 @@ extends RefCounted
 ##      time_left is stats.round_time.
 ## Nothing moves until step() is called. The first step sends the ball straight left into the paddle. Nothing
 ## placed is in its way: Layout.fits keeps every item out of launch_path().
-## A round counts its bricks as it is built: after that, change the board only through hit_brick (grow changes
-## only hp).
+## A round counts its bricks as it is built: after that, change the board only through hit_brick and restore
+## (grow changes only hp).
 ##
 ## ONE STEP, in this order:
 ##   1. The paddle moves toward paddle_target at stats.paddle_speed.
@@ -155,6 +155,11 @@ signal exploded(pos: Vector2, reach: float, cells: Array[Vector2i])
 ##   cells  every brick that gained, by column from the paddle side and then down
 signal grew(cell: Vector2i, reach: float, cells: Array[Vector2i])
 
+## Broken level bricks came back (restore: Refresh). Emitted after they are on the board, and only if one came.
+##   cell   where they were brought back from: the Refresh block's brick cell
+##   cells  every brick that came back, in the order they were asked for (Refresh: nearest first)
+signal restored(cell: Vector2i, cells: Array[Vector2i])
+
 ## The combo grew, or it reset (count 0, multiplier 1). Not emitted while combos are off.
 signal combo_changed(count: int, multiplier: int)
 
@@ -194,6 +199,9 @@ var first_clear := false
 ## The score (Coins.points before the end bonuses) a clear needs: LevelData.target. The level screen and the
 ## bot set it. At 0, the default, every round is a clear.
 var target := 0
+## Every cell that held a level brick (not a placed one) once the round was built, as keys (all true). Only
+## these can have a brick brought back (restore).
+var level_cells: Dictionary[Vector2i, bool] = {}
 
 # The FREE items as the sweep sees them (Collide.Solid), in layout order.
 # ponytail: grown for a ball of stats.ball_size. Every ball is that size; if one ever is not, grow per size.
@@ -226,6 +234,9 @@ func _init(p_board: Board, p_layout: Layout, p_stats: Balance, p_seed: int) -> v
 			_:
 				_solids.append(Collide.solid(item, stats.ball_size))
 	_left = board.remaining()
+	for cell in board.bricks:
+		if not board.bricks[cell].placed:
+			level_cells[cell] = true
 	paddle.length = stats.paddle_size
 	paddle.thickness = stats.paddle_thickness
 	paddle.x = paddle_face(board, stats)
@@ -408,6 +419,45 @@ func grow(cell: Vector2i, reach: float) -> void:
 			cells.append(c)
 	if not cells.is_empty():
 		grew.emit(cell, reach, cells)
+
+
+## Brings broken level bricks back (Refresh; Overgrowth will too). Each of `cells` that can take one
+## (restorable()) gets a standard 1 HP level brick: no kind, no mod, not placed, whatever was there before. It
+## scores and counts toward a clear like any level brick. Emits restored(cell, those cells) if any came back, and
+## returns them, so a caller can try a cell a ball was over again later. `cell` is where they came back from.
+func restore(cell: Vector2i, cells: Array[Vector2i]) -> Array[Vector2i]:
+	var back: Array[Vector2i] = []
+	for c in cells:
+		if restorable(c):
+			board.bricks[c] = Brick.new()
+			_left += 1
+			back.append(c)
+	if not back.is_empty():
+		restored.emit(cell, back)
+	return back
+
+
+## True if a level brick can be brought back to `cell`: it held one once the round was built (level_cells), it
+## is empty now, and no ball overlaps it (touching does not count).
+func restorable(cell: Vector2i) -> bool:
+	if board.bricks.has(cell) or not level_cells.has(cell):
+		return false
+	var rect := board.cell_rect(cell)
+	for ball in balls:
+		if rect.intersects(Rect2(ball.pos - Vector2.ONE * ball.size * 0.5, Vector2.ONE * ball.size)):
+			return false
+	return true
+
+
+## Up to `count` cells a brick can be brought back to (restorable()), nearest `cell` first by the distance
+## between cell centres; a tie goes to the lower column, then the lower row. Refresh brings these back.
+func broken_near(cell: Vector2i, count: int) -> Array[Vector2i]:
+	var centre := board.cell_rect(cell).get_center()
+	var away := func(c: Vector2i) -> float: return board.cell_rect(c).get_center().distance_squared_to(centre)
+	var cells: Array[Vector2i] = []
+	cells.assign(level_cells.keys().filter(restorable))
+	cells.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return away.call(a) < away.call(b) or (away.call(a) == away.call(b) and a < b))
+	return cells.slice(0, count)
 
 
 ## Adds a ball at `pos` moving along `dir`, turned to the minimum angles (_legal), and emits ball_added. A wide

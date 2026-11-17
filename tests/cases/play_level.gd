@@ -137,7 +137,7 @@ func _placing() -> void:
 	Main.show_hub()
 	await _open(1)
 	var setup: LevelSetupUi = level.get_node("SetupUi")
-	t.check(setup._slots.size() == 5, "a maxed save has five slots in the tray")
+	t.check(setup._slots.size() == 6, "a maxed save has six slots in the tray")
 	var start := setup.find_child("Start", true, false) as Control
 	t.check(start.get_global_rect().end.x <= LevelHud.FOOTER.end.x + 0.5, "with every slot and this run's special bricks the footer holds Start (its right edge is at %d)" % start.get_global_rect().end.x)
 	var ok_spots := {

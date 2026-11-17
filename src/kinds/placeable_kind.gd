@@ -29,3 +29,6 @@ enum Shape {
 ## from a ball, a blast or a Zap takes no HP: it counts in the tally's `hits`, emits brick_hit and calls on_hit.
 ## It cannot carry a mod, which would never go off (Layout.fits).
 @export var unbreakable := false
+## Unbreakable only: the block is drawn as a frame round this many base-colour panes, stacked, so blocks that do
+## different things look different (Growth 1, Refresh 2).
+@export var panes := 1

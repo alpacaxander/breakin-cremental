@@ -38,7 +38,7 @@ var _mouse := Vector2.ZERO
 var _slots: Array[Slot] = []
 var _tray := HBoxContainer.new()
 var _run := VBoxContainer.new()
-var _run_list := HBoxContainer.new()
+var _run_list := GridContainer.new()
 
 
 ## One placeable in the tray: its shape, its name, and a pip for each one allowed, lit while it is still to
@@ -95,7 +95,7 @@ class Slot:
 			PlaceableKind.Placement.BRICK:
 				if kind.unbreakable:  # hollow, as on the board
 					draw_rect(Rect2(c - Vector2(4, 12), Vector2(8, 24)), colour)
-					draw_rect(Rect2(c - Vector2(2, 10), Vector2(4, 20)), fill)
+					LevelArena.panes(self, Rect2(c - Vector2(2, 10), Vector2(4, 20)), kind.panes, 2.0, fill)
 				else:
 					draw_rect(Rect2(c - Vector2(3, 12), Vector2(6, 24)), colour)
 			PlaceableKind.Placement.MOD:
@@ -130,9 +130,9 @@ func _ready() -> void:
 	back.size_flags_vertical = SIZE_SHRINK_CENTER
 	back.pressed.connect(back_pressed.emit)
 	footer.add_child(back)
-	# ponytail: the tray is one row. With everything unlocked, the demo's five slots, four special bricks and
-	# Start fill the footer's 1088 px to within about 30 (tests/cases/play_level.gd checks it fits); a sixth
-	# placeable needs shorter names or a second row.
+	# ponytail: the tray is one row. With everything unlocked, the demo's six slots, four special bricks (in
+	# two rows) and Start fill the footer's 1088 px to within about 100 (tests/cases/play_level.gd checks it fits);
+	# a seventh placeable needs shorter names or a second row.
 	_tray.mouse_filter = MOUSE_FILTER_IGNORE
 	_tray.size_flags_horizontal = SIZE_EXPAND_FILL
 	_tray.add_theme_constant_override(&"separation", 4)
@@ -144,7 +144,9 @@ func _ready() -> void:
 	tag.theme_type_variation = &"Tag"
 	tag.text = "THIS RUN"
 	_run.add_child(tag)
-	_run_list.add_theme_constant_override(&"separation", 8)
+	_run_list.columns = 2  # two rows of two: the footer has no room for four in a row beside six slots
+	_run_list.add_theme_constant_override(&"h_separation", 12)
+	_run_list.add_theme_constant_override(&"v_separation", 0)
 	_run.add_child(_run_list)
 	footer.add_child(_run)
 	var start := Button.new()

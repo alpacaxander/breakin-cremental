@@ -30,8 +30,8 @@ Feel like a high-score engineer: clever setup turns a stubborn wall of bricks in
 - **Coins:** the only currency. They are calculated from the round's tally of hits, bricks broken (by type) and combos. The formula is an open question; until it is decided every hit on a brick pays 1 coin, broken or not, multiplied by the combo.
 - **Combos:** off at the start, then unlocked and upgraded through Arena upgrades. Each brick broken within the combo window extends the combo and raises its multiplier, which multiplies the coins of every brick broken in that combo. The window shrinks as the combo grows, so long combos need dense hits. If the window runs out, the combo resets. Higher ranks widen the window.
 - **Placeables:** items placed during Setup. There are three kinds: free-form items that go anywhere clear of bricks and the paddle lane (some can be rotated), placeable bricks that snap to the grid, and brick mods that go on an existing brick. Fencing the ball into the board is allowed.
-- **Upgrade web:** grows out from one seed node, paddle speed. Buying a node unlocks its neighbours. A node has one or more ranks, each more expensive than the last. The demo has 25 nodes in three categories, which are mixed across the web so every path out picks up some of each:
-  - **Placeables:** unlock the items above (Booster, Wall Segment, Splitter, Zap, and Growth, a block that never breaks and adds HP to the bricks near it), and nodes that improve them. Each rank lets you place one more.
+- **Upgrade web:** grows out from one seed node, paddle speed. Buying a node unlocks its neighbours. A node has one or more ranks, each more expensive than the last. The demo has 28 nodes in three categories, which are mixed across the web so every path out picks up some of each:
+  - **Placeables:** unlock the items above (Booster, Wall Segment, Splitter, Zap, Growth, a block that never breaks and adds HP to the bricks near it, and Refresh, a block that never breaks and brings back the broken bricks nearest it when a ball hits it), and nodes that improve them. Each rank lets you place one more.
   - **Bricks:** at level start, some standard bricks are randomly replaced by special bricks that do something when broken: explosive, gold (worth 20 bricks), hourglass (+time) and tough (3 HP). Each rank replaces one more brick, and the bricks are picked again on every attempt. Blast Size and Shockwave improve the explosion.
   - **Arena:** base stats: paddle size, paddle speed, ball speed, round time and combos.
 
@@ -96,7 +96,7 @@ The demo is the first build. It is the whole loop with its look and sound, on th
 - Levels 1–3 from `docs/design/levels.md`.
 - Setup → play → summary, with Retry and Upgrades on the summary.
 - The ball and paddle from `docs/design/physics.md`.
-- The upgrade web, with all three categories: placeables, special bricks and arena stats, including paddle speed and combos. The 25 nodes are listed in `docs/design/upgrades.md`.
+- The upgrade web, with all three categories: placeables, special bricks and arena stats, including paddle speed and combos. The 28 nodes are listed in `docs/design/upgrades.md`.
 - The three kinds of placeables, with layouts saved per level.
 - Coins only.
 - Art, effects and the CRT filter as described above and in `docs/art.md`. Sound effects and placeholder music from `docs/audio.md`.

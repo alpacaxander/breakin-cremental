@@ -40,8 +40,12 @@ const TABLE := {
 	&"ToughBrick": ["Tough Brick", Upgrade.Category.BRICKS, 3, "One more tough brick", 20, 6.0],
 	&"Growth": ["Growth", Upgrade.Category.PLACEABLES, 3, "One more Growth block", 100, 4.5],
 	&"GrowthReach": ["Growth Reach", Upgrade.Category.PLACEABLES, 2, "Growth reaches one square further", 300, 10.0],
+	&"Refresh": ["Refresh", Upgrade.Category.PLACEABLES, 3, "One more Refresh block", 150, 4.5],
+	&"RefreshSize": ["Refresh Size", Upgrade.Category.PLACEABLES, 2, "Refresh brings back 2 more bricks", 400, 10.0],
+	&"PulseRate": ["Pulse Rate", Upgrade.Category.PLACEABLES, 2, "Growth and Refresh are 1 s faster", 1000, 6.0],
 }
-## The drawn web of upgrades.md: each node and the one it hangs off, towards the seed.
+## The drawn web of upgrades.md: each node and the one it hangs off, towards the seed. A node with two links
+## (Pulse Rate) hangs off one here and has the other in CROSS.
 const PARENT := {
 	&"HourglassBrick": &"PaddleSpeed", &"HourglassTime": &"HourglassBrick", &"HourglassFreeze": &"HourglassTime",
 	&"Booster": &"PaddleSpeed", &"BoosterSpeed": &"Booster", &"Zap": &"Booster", &"ZapRange": &"Zap",
@@ -50,7 +54,9 @@ const PARENT := {
 	&"SplitterHealth": &"SplitterSplits", &"PaddleSize": &"PaddleSpeed", &"ExplosiveBrick": &"PaddleSize",
 	&"ExplosionSize": &"ExplosiveBrick", &"ExplosionDamage": &"ExplosionSize", &"Shockwave": &"ExplosiveBrick",
 	&"ToughBrick": &"GoldBrick", &"Growth": &"ToughBrick", &"GrowthReach": &"Growth",
+	&"Refresh": &"ToughBrick", &"RefreshSize": &"Refresh", &"PulseRate": &"Refresh",
 }
+const CROSS := {&"PulseRate": &"Growth"}
 const DETAIL := Rect2(904, 88, 352, 284)  ## art.md, "Upgrade screen"
 const LEVELS := Rect2(904, 388, 352, 308)
 const SPACE := 0.06  ## Sfx spaces plays of one cue 15 ms apart in real time; wait this long before counting them
@@ -544,11 +550,12 @@ func _labels(under: Node) -> Array:
 
 func _docs_neighbours(id: StringName) -> Array[StringName]:
 	var out: Array[StringName] = []
-	for k: StringName in PARENT:
-		if k == id:
-			out.append(PARENT[k])
-		elif PARENT[k] == id:
-			out.append(k)
+	for links: Dictionary in [PARENT, CROSS]:
+		for k: StringName in links:
+			if k == id:
+				out.append(links[k])
+			elif links[k] == id:
+				out.append(k)
 	return out
 
 

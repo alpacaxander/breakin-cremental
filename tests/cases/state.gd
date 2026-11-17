@@ -32,6 +32,9 @@ const TABLE := {
 	&"tough_brick": [B, 3, 20, &"tough_count", 1.0, false],
 	&"growth": [P, 3, 100, &"growth_count", 1.0, false],
 	&"growth_reach": [P, 2, 300, &"growth_reach", 1.0, false],
+	&"refresh": [P, 3, 150, &"refresh_count", 1.0, false],
+	&"refresh_size": [P, 2, 400, &"refresh_size", 2.0, false],
+	&"pulse_rate": [P, 2, 1000, &"pulse_rate", 1.0, false],
 }
 
 
@@ -50,7 +53,7 @@ func _upgrades(t: Node) -> void:
 	var ids := all.map(func(u: Upgrade) -> StringName: return u.id)
 	var sorted := TABLE.keys()
 	sorted.sort_custom(func(a: StringName, b: StringName) -> bool: return String(a) < String(b))
-	t.check(ids == sorted, "there are the web's 25 upgrades, sorted by id: %s" % [ids])
+	t.check(ids == sorted, "there are the web's 28 upgrades, sorted by id: %s" % [ids])
 	var purchases := 0
 	for u in all:
 		var row: Array = TABLE.get(u.id, [])
@@ -62,7 +65,7 @@ func _upgrades(t: Node) -> void:
 		t.check(is_equal_approx(u.amount, row[4]) and u.percent == row[5], "%s adds %s%s per rank" % [u.id, row[4], " of the base" if row[5] else ""])
 		t.check(u.cost(0) == u.first_cost, "%s's first rank costs its first cost" % u.id)
 		t.check(Progress.upgrade(u.id) == u, "Progress.upgrade finds %s" % u.id)
-	t.check(purchases == 60, "the web holds 60 purchases, not %d" % purchases)
+	t.check(purchases == 67, "the web holds 67 purchases, not %d" % purchases)
 	t.check(Progress.upgrade(&"nope") == null, "an unknown id is no upgrade")
 
 

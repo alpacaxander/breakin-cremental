@@ -166,6 +166,7 @@ static func combo_pitch(count: int) -> float:
 ##   exploded       EXPLOSION
 ##   ball_lost      BALL_LOST
 ##   grew           the cue of the block that pulsed (Growth: BOOSTER, its rising sweep)
+##   restored       the cue of the block that brought bricks back (Refresh: PLACE_ITEM, the thunk of a brick put down)
 ##   ended         CLEARED: LEVEL_CLEARED
 ## It also plays LOW_TIMER_TICK each time round.time_left crosses a whole second at or under
 ## round.stats.low_time, by watching the round from _process.
@@ -177,7 +178,8 @@ func connect_round(p_round: Round) -> void:
 	p_round.ball_added.connect(func(_ball: Ball) -> void: play(SPLITTER))
 	p_round.exploded.connect(func(_pos: Vector2, _reach: float, _cells: Array[Vector2i]) -> void: play(EXPLOSION))
 	p_round.ball_lost.connect(func(_ball: Ball) -> void: play(BALL_LOST))
-	p_round.grew.connect(_on_grew.bind(p_round.board))
+	p_round.grew.connect(_on_block.bind(p_round.board).unbind(2))
+	p_round.restored.connect(_on_block.bind(p_round.board).unbind(1))
 	p_round.ended.connect(_on_ended)
 	_round = p_round
 	_second = ceili(p_round.time_left)
@@ -189,8 +191,12 @@ func _on_ended(reason: Round.End) -> void:
 		play(LEVEL_CLEARED)
 
 
-func _on_grew(cell: Vector2i, _reach: float, _cells: Array[Vector2i], board: Board) -> void:
-	play(Kinds.of(board.brick(cell).kind).cue)
+## A placed block acted (Growth's pulse, Refresh bringing bricks back): its kind's cue. Nothing if the cell holds
+## no kind.
+func _on_block(cell: Vector2i, board: Board) -> void:
+	var kind: Kind = Kinds.of(board.brick(cell).kind) if board.brick(cell) else null
+	if kind:
+		play(kind.cue)
 
 
 func _on_ball_bounced(_ball: Ball, hit: Hit) -> void:

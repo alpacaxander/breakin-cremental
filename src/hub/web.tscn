@@ -17,7 +17,10 @@
 [ext_resource type="Resource" path="res://data/upgrades/hourglass_time.tres" id="hourglass_time"]
 [ext_resource type="Resource" path="res://data/upgrades/paddle_size.tres" id="paddle_size"]
 [ext_resource type="Resource" path="res://data/upgrades/paddle_speed.tres" id="paddle_speed"]
+[ext_resource type="Resource" path="res://data/upgrades/pulse_rate.tres" id="pulse_rate"]
 [ext_resource type="Resource" path="res://data/upgrades/rear_paddle.tres" id="rear_paddle"]
+[ext_resource type="Resource" path="res://data/upgrades/refresh_size.tres" id="refresh_size"]
+[ext_resource type="Resource" path="res://data/upgrades/refresh.tres" id="refresh"]
 [ext_resource type="Resource" path="res://data/upgrades/shockwave.tres" id="shockwave"]
 [ext_resource type="Resource" path="res://data/upgrades/splitter_health.tres" id="splitter_health"]
 [ext_resource type="Resource" path="res://data/upgrades/splitter_splits.tres" id="splitter_splits"]
@@ -159,3 +162,18 @@ links = Array[NodePath]([NodePath("../ToughBrick")])
 upgrade = ExtResource("growth_reach")
 cell = Vector2i(4, 5)
 links = Array[NodePath]([NodePath("../Growth")])
+
+[node name="Refresh" parent="." instance=ExtResource("node")]
+upgrade = ExtResource("refresh")
+cell = Vector2i(2, 6)
+links = Array[NodePath]([NodePath("../ToughBrick")])
+
+[node name="RefreshSize" parent="." instance=ExtResource("node")]
+upgrade = ExtResource("refresh_size")
+cell = Vector2i(1, 6)
+links = Array[NodePath]([NodePath("../Refresh")])
+
+[node name="PulseRate" parent="." instance=ExtResource("node")]
+upgrade = ExtResource("pulse_rate")
+cell = Vector2i(3, 6)
+links = Array[NodePath]([NodePath("../Refresh"), NodePath("../Growth")])

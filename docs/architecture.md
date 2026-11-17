@@ -61,6 +61,7 @@ There is no global event bus. A round's events are signals on the `Round` object
 | `ball_added(ball)` / `ball_lost(ball)` | A Splitter made a ball, or a ball left through the open side |
 | `exploded(pos, reach, cells)` | An explosive brick went off. `cells` are the bricks it is about to hit, still on the board |
 | `grew(cell, reach, cells)` | A placed block at `cell` pulsed (`round.grow`): `cells` are the level bricks that gained 1 HP, out to `reach` units from its edges. Not emitted when none gained |
+| `restored(cell, cells)` | Broken level bricks came back (`round.restore`): `cells` are the cells now holding a plain 1 HP level brick, in the order they were asked for; `cell` is the block that brought them (Refresh). Each raises the count of level bricks left. Not emitted when none came |
 | `combo_changed(count, multiplier)` | The combo grew or reset |
 | `time_changed(seconds_left, added)` | An hourglass brick added time |
 | `ended(reason)` | The timer ran out, the last ball was lost, or the level was cleared |
@@ -87,7 +88,7 @@ A kind is a `Resource`. `Kind` is the base, with the id, the title, the colour m
 | `on_host_broken(round, cell, brick, cause, dir, ball)` | A brick with this mod on it broke | Zap hits the rest of the row |
 | `on_step(round, cell, brick, delta)` | Every step of play, for each placed brick still on the board, in layout order, after the balls have moved and `round.clock` has advanced. Not while the ball is held | Growth calls `round.grow` each time `round.clock` crosses its period |
 
-A hook changes the round through the round's own functions (`hit_brick`, `blast`, `grow`, `add_ball`, `set_boost`, `add_time`), so chains work without special cases: an explosion that breaks an explosive brick calls that brick's hook too.
+A hook changes the round through the round's own functions (`hit_brick`, `blast`, `grow`, `restore`, `add_ball`, `set_boost`, `add_time`), so chains work without special cases: an explosion that breaks an explosive brick calls that brick's hook too.
 
 The demo's kinds. The id is the file name in `data/kinds/`, and `<id>_count` is the stat that counts it:
 
@@ -99,14 +100,15 @@ The demo's kinds. The id is the file name in `data/kinds/`, and `<id>_count` is 
 | `splitter` | PlaceableKind, BRICK | A brick cell, 1 HP | `placeable` | none (`ball_added` has its own) | |
 | `zap` | PlaceableKind, MOD | A 6 × 6 mark | `placeable` | `zap` | |
 | `growth` | PlaceableKind, BRICK, `unbreakable` | A brick cell that never breaks | `placeable` | `booster` (on `grew`) | Pulses every 5 s, less `pulse_rate`, at least `pulse_min`; reach from `growth_reach` |
+| `refresh` | PlaceableKind, BRICK, `unbreakable`, 2 panes | A brick cell that never breaks | `placeable` | `place_item` (on `restored`) | A ball's hit brings back the `refresh_size` broken level bricks nearest it (`round.broken_near`, `round.restore`), then it cools for 4 s (`cooldown`), less `pulse_rate`, at least `pulse_min`, in `Brick.ready_at` |
 | `explosive` | BrickKind | 1 HP | `explosive` | none (`exploded` has its own) | Reach comes from the `blast_size` stat |
 | `gold` | BrickKind | 1 HP, worth 20 | `coins` | `gold_brick` | |
 | `hourglass` | BrickKind | 1 HP | `time` | `hourglass_brick` | Adds 15 s |
 | `tough` | BrickKind (no script of its own) | 3 HP | none: drawn in the HP steps, like a plain brick | none (the brick sounds) | |
 
-`order` runs 1 to 6 down the placeables and 1 to 4 down the bricks; it is the tray order and the order special bricks are rolled in. A kind with no hook, such as `tough`, uses `src/kinds/brick_kind.gd` itself as its script, so it is one file. A brick kind with no colour is drawn by its HP, as a plain brick is (`Palette.brick`).
+`order` runs 1 to 7 down the placeables and 1 to 4 down the bricks; it is the tray order and the order special bricks are rolled in. A kind with no hook, such as `tough`, uses `src/kinds/brick_kind.gd` itself as its script, so it is one file. A brick kind with no colour is drawn by its HP, as a plain brick is (`Palette.brick`).
 
-A placeable brick with `unbreakable` set is a block: a ball bounces off it as off any brick, and a ball, blast or Zap hit calls its `on_hit`, counts in the tally's `hits` and emits `brick_hit`, but takes no HP. It pays nothing, does not count toward a clear and does not grow the combo, as any placed brick. A Zap cannot go on one (`Layout.fits`). Growth is the first; a block that does something on a timer does it from `on_step`, reading `round.clock` (seconds of play since the round's first step, not moved by an hourglass), and says so with a signal of its own, as Growth does with `grew`.
+A placeable brick with `unbreakable` set is a block: a ball bounces off it as off any brick, and a ball, blast or Zap hit calls its `on_hit`, counts in the tally's `hits` and emits `brick_hit`, but takes no HP. It pays nothing, does not count toward a clear and does not grow the combo, as any placed brick. A Zap cannot go on one (`Layout.fits`). Growth is the first; a block that does something on a timer does it from `on_step`, reading `round.clock` (seconds of play since the round's first step, not moved by an hourglass), and says so with a signal of its own, as Growth does with `grew`. A block that acts when hit does it from `on_hit`, and one that waits between acts keeps the time in its own `Brick` (Refresh: `ready_at`, the `round.clock` it is ready again; the arena draws it dim until then). `panes` (1 or 2) is how its centre is drawn, so blocks read apart. Bricks come back only through `round.restore(cell, cells)`, which puts a plain 1 HP level brick on each of `cells` that is in `round.level_cells` (the cells that held a level brick when the round was built), empty and clear of every ball (`round.restorable`), and returns the ones it filled; `round.broken_near(cell, count)` picks the nearest such cells.
 
 ### Stats
 
@@ -129,8 +131,10 @@ The demo's upgrades. The id is the file name in `data/upgrades/`:
 | `combo` | `combo_rank` | 1 |
 | `blast_size` | `blast_size` | 1 |
 | `shockwave` | `shockwave` | 1 |
-| `bumper`, `booster`, `wall_segment`, `splitter`, `zap`, `growth` | `<id>_count` | 1 |
+| `bumper`, `booster`, `wall_segment`, `splitter`, `zap`, `growth`, `refresh` | `<id>_count` | 1 |
 | `growth_reach` | `growth_reach` | 1 |
+| `refresh_size` | `refresh_size` | 2 |
+| `pulse_rate` | `pulse_rate` | 1 |
 | `explosive_brick`, `gold_brick`, `hourglass_brick`, `tough_brick` | `explosive_count`, `gold_count`, `hourglass_count`, `tough_count` | 1 |
 
 The web scene (`src/hub/web.tscn`) holds only layout: where each node sits, which `.tres` it shows, and which nodes it connects to. Whether a node can be reached yet is the hub's question; `Progress.buy` checks only the price and the maximum rank.
