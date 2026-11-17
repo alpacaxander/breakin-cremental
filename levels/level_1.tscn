@@ -9,4 +9,4 @@ tile_map_data = PackedByteArray("AAAwAAEAAAAAAAAAAAAwAAIAAAAAAAAAAAAwAAMAAAAAAAA
 tile_set = ExtResource("1_jirdo")
 script = ExtResource("2_bt44k")
 title = "Two Columns"
-target = 40
+target = 28

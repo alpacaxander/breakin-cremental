@@ -110,13 +110,13 @@ func _fresh() -> void:
 		level.fx.frozen = true
 		await t.tree().process_frame
 		var shown := "%.1f|%d|%s" % [round.time_left, round.coins, hud._left.text]
-		var want := "%.1f|%d|%d / %d" % [round.time_left, round.coins, Coins.points(round.tally, round.stats), 40]
+		var want := "%.1f|%d|%d / %d" % [round.time_left, round.coins, Coins.points(round.tally, round.stats), round.target]
 		if hud._time.text + "|" + str(hud._coins.amount) + "|" + hud._left.text != want:
 			bad.append("%s != %s" % [hud._time.text + "|" + str(hud._coins.amount) + "|" + hud._left.text, want])
 		level.fx.frozen = false
 		if shown == "":
 			break
-	t.check(bad.is_empty(), "the HUD's time, coins and score against level 1's target of 40 match the round every frame looked at %s" % [bad.slice(0, 3)])
+	t.check(bad.is_empty(), "the HUD's time, coins and score against level 1's target match the round every frame looked at %s" % [bad.slice(0, 3)])
 
 	# Let the ball go.
 	_mouse(Vector2(640, 110))

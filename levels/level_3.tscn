@@ -9,5 +9,5 @@ tile_map_data = PackedByteArray("AAAEAAAAAAABAAAAAAAEAAEAAAABAAAAAAAEAAIAAAABAAA
 tile_set = ExtResource("1_hldmh")
 script = ExtResource("2_gew73")
 title = "The Tunnel"
-target = 1024
+target = 8192
 rows = 18
