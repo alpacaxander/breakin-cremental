@@ -1134,11 +1134,14 @@ func _coins() -> void:
 	var paid: Array[int] = []
 	round.brick_broken.connect(func(_c: Vector2i, _b: Brick, _cause: Round.Cause, _d: Vector2, n: int) -> void: paid.append(n))
 	var log := _events(round)
+	var after: Array[int] = []
 	for cell: Vector2i in [Vector2i(10, 0), Vector2i(11, 0), Vector2i(11, 0), Vector2i(12, 0), Vector2i(20, 0), Vector2i(40, 3), Vector2i(30, 0), Vector2i(50, 6)]:
 		round.hit_brick(cell, Round.Cause.BALL, Vector2.RIGHT)
-	t.check(round.tally.broken == {&"": 3, &"gold": 1, &"hourglass": 1, &"explosive": 1} and round.tally.combos.is_empty() and round.tally.placed_broken == 1,
-			"the tally counts bricks broken by kind, and placed bricks apart")
-	t.check(paid == [1, 1, 1, worth, 0, 1, 1] and round.coins == 5 + worth and Coins.total(round.tally, stats) == 5 + worth, "a brick pays 1, a gold brick its worth and a placed brick nothing")
+		after.append(round.coins)
+	t.check(round.tally.broken == {&"": 3, &"gold": 1, &"hourglass": 1, &"explosive": 1} and round.tally.combos.is_empty() and round.tally.placed_broken == 1 and round.tally.dents == 1,
+			"the tally counts bricks broken by kind, placed bricks apart, and the hit that left the 2 HP brick standing")
+	t.check(paid == [1, 1, 1, worth, 0, 1, 1] and after.slice(0, 3) == [1, 2, 3] and round.coins == 6 + worth and Coins.total(round.tally, stats) == 6 + worth,
+			"a hit that breaks nothing scores 1 at once, a break 1 (a gold brick its worth), and a placed brick nothing: a 2 HP brick scores 2 (%s)" % [after])
 	t.check(round.time_left == stats.round_time + seconds and log.has("time %s %s" % [stats.round_time + seconds, seconds]), "an hourglass brick adds its seconds and says so")
 
 	var tally := Tally.new()
@@ -1165,6 +1168,19 @@ func _coins() -> void:
 		round.hit_brick(Vector2i(column, 6), Round.Cause.BALL, Vector2.RIGHT)
 	t.check(round.tally.broken == {&"": 5, &"gold": 1} and paid == [1, 1, 1, 1, 4 + 2 * worth, 2] and round.coins == 2 * (5 + worth),
 			"the gold brick that raises the combo to x2 pays twice its worth and the rise on the four before it, and all six are paid x2")
+
+	# A hit that breaks nothing scores 1 and does not grow the combo, but a running combo pays it at its multiplier.
+	board = _board({FAR: SOLID, Vector2i(20, 6): 1, Vector2i(21, 6): 1, Vector2i(22, 6): 1, Vector2i(23, 6): 1, Vector2i(24, 6): 1, Vector2i(30, 6): 3})
+	round = Round.new(board, null, _stats({&"combo_rank": 1}), 1)
+	round.hit_brick(Vector2i(30, 6), Round.Cause.BALL, Vector2.RIGHT)
+	t.check(round.coins == 1 and round.combo.count == 0 and round.tally.combos.is_empty(), "a hit with no combo running scores 1 and starts none")
+	for column in range(20, 24):
+		round.hit_brick(Vector2i(column, 6), Round.Cause.BALL, Vector2.RIGHT)
+	round.hit_brick(Vector2i(30, 6), Round.Cause.BALL, Vector2.RIGHT)
+	t.check(round.coins == 6 and round.combo.count == 4, "a hit during a combo scores 1 and leaves the combo's count alone")
+	round.hit_brick(Vector2i(24, 6), Round.Cause.BALL, Vector2.RIGHT)
+	t.check(round.combo.count == 5 and round.combo.multiplier == 2 and round.tally.dents == 2 and round.tally.combos[0].worth == 6 and round.coins == 1 + 6 * 2,
+			"the break that takes the combo to x2 pays its five bricks and the hit inside it x2, the hit before it x1 (%d)" % round.coins)
 
 	# The bonuses: the biggest chain, the longest rally, and how the round ended.
 	var bonus := {&"chain_bonus": 2, &"rally_bonus": 1, &"clear_bonus": 0.5, &"time_bonus": 2, &"first_clear_bonus": 2, &"kept_bonus": 3}

@@ -1,7 +1,7 @@
 class_name LevelSummary
 extends Control
 ## The Summary (docs/design/overview.md, "Level phases"): how the round ended, whether the score reached the
-## level's target, the tally by brick type, each combo's bonus, the best combo, the bonuses (Coins.bonuses), bricks
+## level's target, the tally by brick type, the hits that broke nothing, each combo's bonus, the best combo, the bonuses (Coins.bonuses), bricks
 ## per paddle touch with the efficiency bonus, the coins it paid, and Retry (Next after a clear that has a level after it) and
 ## Upgrades. There is no mockup; it is a panel over the arena in the language of the other screens, with the back button where Setup
 ## has it.
@@ -88,6 +88,9 @@ func open(round: Round, data: LevelData, unlocked: bool) -> void:
 			# rows can add up to a little less than the total. Show the points instead if so.
 			rows.append(_row(grid, Palette.of(kind.colour) if kind else Palette.hp(1), kind.title if kind else "Bricks", str(round.tally.broken[id]),
 					_price(Coins.pay(round.tally.broken[id] * Coins.worth(id), round.stats))))
+	# The hits that left a level brick standing, 1 point each, in the 2 HP colour: only a brick with HP to spare takes one.
+	if round.tally.dents:
+		rows.append(_row(grid, Palette.hp(2), "Hits", str(round.tally.dents), _price(Coins.pay(round.tally.dents, round.stats))))
 	# The placeables on the board: a heading, then one row per kind with the hits it took. They pay nothing.
 	var placed := {}
 	for item in round.layout.items:

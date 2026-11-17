@@ -709,6 +709,13 @@ func _fuzz_round(sd: int) -> void:
 		_fail(hp.has(c) and hp[c] - 1 == hp_left and hp_left > 0 and spy.board.brick(c).hp == hp_left, "a hit takes exactly 1 HP and brick_hit says what is left")
 		_fail(rec.cell == c and rec.cause == cause, "brick_hit carries the cell and cause of the hit")
 		hp[c] = hp_left
+		if not placed[c]:
+			m.base += 1
+			if m.count > 0:
+				m.run += 1
+		var total := floori(stats.coins_per_brick * (m.base + m.done + m.run * (m.mult - 1)))
+		_fail(spy.coins == total, "a hit that leaves a level brick standing scores 1, paid again by a running combo, a placed brick's nothing; `coins` has it when brick_hit is heard")
+		m.coins = total
 		m.last = "hit")
 	spy.combo_changed.connect(func(n: int, mult: int) -> void:
 		if m.ended:

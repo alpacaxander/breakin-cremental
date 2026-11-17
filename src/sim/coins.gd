@@ -1,14 +1,14 @@
 class_name Coins
 ## The coin formula: one function that turns a tally into coins. Nothing else decides what a round pays.
 ##
-## The formula is an open question (docs/design/overview.md, "Coins"). The placeholder: each brick pays its
-## worth (1, a gold brick 20), and a combo multiplies the worth of every brick broken in it by the multiplier it
-## reached. Written against the tally:
+## The formula is an open question (docs/design/overview.md, "Coins"). The placeholder: every hit on a level
+## brick scores 1 point and the hit that breaks it scores its worth instead (1, a gold brick 20), and a combo
+## multiplies every point scored while it ran by the multiplier it reached. Written against the tally:
 ##
-##     floor(stats.coins_per_brick * (sum over kind ids k of tally.broken[k] * worth(k)
+##     floor(stats.coins_per_brick * (sum over kind ids k of tally.broken[k] * worth(k) + tally.dents
 ##                                    + sum over combos c of c.worth * (c.multiplier - 1)))
 ##
-## So the bricks pay once at x1 and each combo adds its bonus on top; the Summary shows the two apart.
+## So the bricks and hits pay once at x1 and each combo adds its bonus on top; the Summary shows them apart.
 ## The bonuses (bonuses()) are added inside the same floor, in points too. The sum before the floor is the
 ## round's score (points()); a clear needs the score before the end bonuses to reach Round.target.
 
@@ -76,9 +76,9 @@ static func total(tally: Tally, stats: Balance) -> int:
 	return pay(points(tally, stats), stats)
 
 
-# The bricks' worth and the combos' bonuses.
+# The bricks' worth, the hits that broke nothing and the combos' bonuses.
 static func _bricks(tally: Tally) -> int:
-	var sum := 0
+	var sum := tally.dents
 	for id: StringName in tally.broken:
 		sum += tally.broken[id] * worth(id)
 	for run in tally.combos:

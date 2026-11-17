@@ -54,7 +54,7 @@ There is no global event bus. A round's events are signals on the `Round` object
 
 | Signal | When |
 |---|---|
-| `brick_hit(cell, hp_left, cause)` | A brick took a hit and is still there |
+| `brick_hit(cell, hp_left, cause)` | A brick took a hit and is still there. A level brick's hit has already scored its point in `coins` |
 | `brick_broken(cell, brick, cause, dir, coins)` | A brick broke. `brick` is the brick as it was (its kind, mod and `placed`), `dir` is the direction for the debris, `coins` is what this break paid |
 | `ball_bounced(ball, hit)` | A ball bounced off a wall, the paddle or a placed item. `hit` (`src/sim/hit.gd`) says which, where, and the surface normal |
 | `ball_added(ball)` / `ball_lost(ball)` | A Splitter made a ball, or a ball left through the open side |

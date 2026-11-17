@@ -51,7 +51,8 @@ extends RefCounted
 ##
 ## ONE BRICK HIT (hit_brick), in this order:
 ##   The brick loses 1 hp.
-##   If it has hp left: brick_hit is emitted.
+##   If it has hp left: a level brick (not a placed one) scores 1 point (Tally.dent: added to the running combo's
+##   worth too, if one is running; the combo does not grow) and `coins` is updated. Then brick_hit is emitted.
 ##   If not: it is erased from the board. If combos are on (stats.combo_rank >= 1) the combo grows and
 ##   combo_changed is emitted; every brick in the combo is paid at the multiplier it has now reached, so a
 ##   break that raises it pays the rise on the earlier ones too (Coins.total). The tally and `coins`
@@ -114,6 +115,7 @@ const TIME_SLOP := 1e-6
 const LAUNCH_ANGLE := 45.0
 
 ## A brick took a hit and is still there. `hp_left` is its hp after the hit; board.brick(cell) is the brick.
+## A level brick's hit has already scored its point: `coins` includes it.
 signal brick_hit(cell: Vector2i, hp_left: int, cause: Cause)
 
 ## A brick broke. It is already off the board.
@@ -317,6 +319,9 @@ func hit_brick(cell: Vector2i, cause: Cause, dir: Vector2, ball: Ball = null) ->
 		tally.hit(brick.mod)
 	brick.hp -= 1
 	if brick.hp > 0:
+		if not brick.placed:
+			tally.dent(combo)
+			coins = Coins.total(tally, stats)
 		brick_hit.emit(cell, brick.hp, cause)
 		var hit_kind := Kinds.of(brick.kind)
 		if hit_kind:

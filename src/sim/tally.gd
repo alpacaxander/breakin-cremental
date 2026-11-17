@@ -1,22 +1,27 @@
 class_name Tally
 extends RefCounted
-## What a round has broken so far. Coins are calculated from this (Coins.total), never handed out per brick,
-## and the summary screen shows it.
+## What a round has hit and broken so far. Coins are calculated from this (Coins.total), never handed out per
+## brick, and the summary screen shows it.
 ##
 ## Keys are brick kind ids: &"" is a standard brick, &"gold" a gold brick, and so on. A brick the player placed
-## is never added to `broken` or to a combo's worth: it pays nothing.
+## is never added to `broken`, `dents` or a combo's worth: it pays nothing.
+##
+## Every hit on a level brick scores 1 point, and the hit that breaks it scores its worth instead (Coins.worth: 1,
+## gold 20). So a brick with n HP and worth w scores (n - 1) + w in all: the n - 1 in `dents`, the w in `broken`.
 
-## One combo: every brick broken in it is paid again at its multiplier (Coins.total).
+## One combo: every point scored while it ran is paid again at its multiplier (Coins.total).
 class Run:
 	var count := 0  ## Bricks broken in it, placed ones too
 	var multiplier := 1  ## The multiplier it reached
-	var worth := 0  ## The worth of its level bricks (Coins.worth); placed bricks add 0
+	var worth := 0  ## Points scored while it ran: its level bricks' worth (Coins.worth) and its dents. Placed bricks add 0
 
 ## Bricks broken, by kind id.
 var broken: Dictionary[StringName, int] = {}
 ## The round's combos in order; the last is the running one while the round's combo.count > 0. Empty while
 ## combos are off.
 var combos: Array[Run] = []
+## Hits that left a level brick standing: 1 point each.
+var dents := 0
 ## Placed bricks broken. They are counted here only.
 var placed_broken := 0
 ## Hits each kind of placeable took, by its id: a ball off a free item, any hit on a placed brick or on a brick
@@ -48,6 +53,14 @@ var first_clear := false  ## A clear, and the level's first
 ## Counts one hit on a placeable of kind `id`.
 func hit(id: StringName) -> void:
 	hits[id] = hits.get(id, 0) + 1
+
+
+## Counts a hit that left a level brick standing: 1 point, added to the running combo's worth too while `combo`
+## (the round's) has one running. Only a break grows the combo.
+func dent(combo: Combo) -> void:
+	dents += 1
+	if combo.count > 0 and combos:
+		combos.back().worth += 1
 
 
 ## Counts a ball touching the paddle: the rally starts again.
