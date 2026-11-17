@@ -48,17 +48,17 @@ Feel like a high-score engineer: clever setup turns a stubborn wall of bricks in
   | Level | Stage 1 ends | Stage 2 ends |
   |---|---|---|
   | 1 | 2 | 6 |
-  | 2 | 4 | 12 |
-  | 3 | 8 | 25 |
+  | 2 | 4 | 10 |
+  | 3 | 6 | 16 |
 
-  The whole demo comes to about 40 to 60 rounds. Level 1 is the tutorial, and its stage 1 is a round or two.
+  The whole demo comes to about 30 rounds, about 35 minutes for a first-time player once setup, the Summary and the upgrade screen are counted (a round takes about a minute and a quarter in all, 15 to 20 s of it play). Level 1 is the tutorial, and its stage 1 is a round or two.
 - **Rules that come with the stages:**
   - **The first round** pays a cheap first upgrade (the seed node, Paddle Speed) even when it is played badly, and with some skill it also pays for a more useful one.
   - **The first few purchases show the core of the game.** Placement and aim make combos, and combos make the round exciting. So they include Combo and an item that visibly sends the ball into bricks.
   - **The stages overlap.** A level's stage 3 comes at about the same time as the next level's stage 1, and a failed round on the new level pays more than a round on the old one. Otherwise farming the old level beats trying the new one.
   - **"Skill" means aim or placement.** Placement is the game's hook, so good placement alone should be enough to reach a clear in stage 2.
 - **How it is measured:** the balance bot's campaign (`tests/run.sh bot campaign`) prints a stages table. Stage 1 ends on the first round its good player clears 10% of tries; stage 2 ends on the first round its clumsy player clears half. It also prints what a round pays on the new level and on the old one when the new level is reached. The goals above are `STAGE_GOALS` in `tests/balance.gd`; change them in both places. The bot's skills differ in their reaction time and aim, and its good player knows the level: it aims at the cells the level marks for it (see [levels.md](design/levels.md#rules)). The bot is a stand-in, and playing the game by hand settles it.
-- **Where it stands:** with the targets the bot set, in its average player's campaign, level 1 ends its stages within a round of the goals and level 2 its stage 2, but level 2's stage 1 ends on its 8th round (goal 4), and level 3's stages end on its 14th and 17th rounds (goals 8 and 25), since a hit grows the combo as a break does. Level 3 is a lottery: the good player clears it on its first round there, and the demo takes 17 to 29 rounds. Level 3's layout is the cause, not its target or the prices (see [upgrades.md](design/upgrades.md#the-demos-web), "What the bot measured").
+- **Where it stands:** with the targets the bot set, in its average player's campaign, level 1 ends its stages within a round of the goals, level 2 its stage 2 on its 10th round (goal 10) and level 3 its stage 2 on its 17th (goal 16), but level 2's stage 1 ends on its 8th round (goal 4) and level 3's on its 14th (goal 6). The average player finishes on round 29, the good one on 17 and the clumsy one on 26. Level 3 is a lottery: the good player clears it on its first round there, and its two stages end three rounds apart. Level 3's layout is the cause, not its target or the prices (see [upgrades.md](design/upgrades.md#the-demos-web), "What the bot measured").
 - Any unlocked level can be replayed. There is no deliberate payout curve, but later levels hold more bricks, so they happen to pay more.
 - There is one save slot. It holds the coin balance, the upgrade ranks, the highest level unlocked and each level's placed layout.
 - There is no prestige or reset layer; that is out of scope for the demo.

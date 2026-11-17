@@ -61,7 +61,7 @@ const FINAL_SEEDS := [2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
 const ROTATIONS := [0.0, 45.0, 90.0, 135.0]
 ## Where each level's stages should end (_stages), in rounds from its first: [stage 1, stage 2]. The goals in
 ## docs/design.md, "Progression"; change them there too.
-const STAGE_GOALS := {1: [2, 6], 2: [4, 12], 3: [8, 25]}
+const STAGE_GOALS := {1: [2, 6], 2: [4, 10], 3: [6, 16]}
 ## The upgrade web's scene: the bot reads which nodes connect from it, so it buys what the hub would offer.
 const WEB_SCENE := "res://src/hub/web.tscn"
 
