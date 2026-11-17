@@ -117,7 +117,10 @@ func _walk() -> void:
 	_key(KEY_SPACE)
 	t.check(level.phase == PLAY and level.round.layout.items.size() == 1, "Space starts the round with the Splitter on the board")
 	var before := Progress.coins
-	await _play_out(level, false)  # missed on purpose: a clear would offer Next, and Retry is tested below
+	# Missed on purpose, as a clear would offer Next and Retry is tested below. The round's seed is random, and a
+	# lucky one scores level 1's target before the ball is lost, so this round's target is out of reach.
+	level.round.target = 1 << 30
+	await _play_out(level, false)
 	t.check(level.phase == SUMMARY and Progress.coins == before + level.round.coins and _saved().coins == Progress.coins, "the second round is paid once and saved too")
 
 	# Retry with the keyboard: Setup again on a new round, the layout still there, and the old round let go.
