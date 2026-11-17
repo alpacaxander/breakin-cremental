@@ -379,8 +379,9 @@ func _vtrap(p_seed: int, wrong: Dictionary, seen: Dictionary) -> void:
 		return
 
 
-## What a ball centred on `point` is inside of, by more than SLACK, or "" for nothing.
-func _inside(point: Vector2, half: float, round: Round, paddle: bool) -> String:
+## What a ball centred on `point` is inside of, by more than SLACK, or "" for nothing. A brick in `grown` is not
+## counted: it grew back (Overgrowth) after the ball had passed, at the end of the step being checked.
+func _inside(point: Vector2, half: float, round: Round, paddle: bool, grown := {}) -> String:
 	var board := round.board
 	var size := board.size()
 	if point.y < half - SLACK or point.y > size.y - half + SLACK or point.x > size.x - half + SLACK:
@@ -392,7 +393,7 @@ func _inside(point: Vector2, half: float, round: Round, paddle: bool) -> String:
 	var last := board.cell_at(square.end)
 	for column in range(first.x, last.x + 1):
 		for row in range(first.y, last.y + 1):
-			if board.bricks.has(Vector2i(column, row)):
+			if board.bricks.has(Vector2i(column, row)) and not grown.has(Vector2i(column, row)):
 				return "brick %s" % Vector2i(column, row)
 	for item: Layout.Item in round.layout.items:
 		if item.kind.placement != PlaceableKind.Placement.FREE or point.distance_to(item.pos) > 90.0:
@@ -495,6 +496,7 @@ func _attack(p_seed: int, wrong: Dictionary, seen: Dictionary, cfg := {}) -> voi
 	var still := {}  # contacts in a row with no movement, per ball: a wedge exit may leave at any angle
 	var contacts := [0]
 	var inside_paddle := {}  # balls the paddle moved onto at the start of this step: they are let out, not hit
+	var grown := {}  # cells Overgrowth brought back at the end of this step (Round, ONE STEP, 4), after every contact
 	var me := self
 	var follow := func(why: String) -> void:
 		contacts[0] += 1
@@ -510,7 +512,7 @@ func _attack(p_seed: int, wrong: Dictionary, seen: Dictionary, cfg := {}) -> voi
 			var cuts := ceili(a.distance_to(ball.pos) / 1.0)
 			for i in cuts + 1:
 				var p := a.lerp(ball.pos, float(i) / maxi(cuts, 1))
-				var what: String = me._inside(p, h, round, not inside_paddle.has(ball.id))
+				var what: String = me._inside(p, h, round, not inside_paddle.has(ball.id), grown)
 				if what:
 					me._say(wrong, "a ball's path goes into a " + what.get_slice(" ", 0), "%s: ball %d at %s (%s)" % [tag, ball.id, p, what])
 					break
@@ -589,6 +591,10 @@ func _attack(p_seed: int, wrong: Dictionary, seen: Dictionary, cfg := {}) -> voi
 		seam.call(c, cause)
 		follow.call("brick broken"))
 	round.ball_added.connect(func(_b: Ball) -> void: follow.call("added"))
+	round.restored.connect(func(cell: Vector2i, cells: Array[Vector2i]) -> void:
+		if cell == Round.NOWHERE:
+			for c in cells:
+				grown[c] = true)
 	round.ball_lost.connect(func(ball: Ball) -> void:
 		if absf(ball.pos.x - (-board.lane() - h)) > 0.05:
 			me._say(wrong, "a ball is lost somewhere other than wholly past the open side", "%s: %s" % [tag, ball.pos])
@@ -649,6 +655,7 @@ func _attack(p_seed: int, wrong: Dictionary, seen: Dictionary, cfg := {}) -> voi
 		step += 1
 		lasted += dt
 		follow.call("step")
+		grown.clear()
 		seen.steps += 1
 		seen.contacts += contacts[0]
 		seen.balls = maxi(seen.balls, balls.size())

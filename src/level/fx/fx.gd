@@ -51,8 +51,9 @@ extends Node2D
 ## a lost ball and the last brick of a clear shake, and the clear flashes. Nothing else freezes the game.
 ## Reduce flashing drops the light pools, the flashes and the red bar, halves the shake, and draws the Zap's
 ## bolt and a hit brick's flash no brighter than a brick. Shockwaves, squares, pop-ups and the trail stay.
-## Left without an effect: a wall bounce (the wall is slate, and white is the ball's) and the Shockwave upgrade
-## (the ball it throws leaves with a longer trail, as any boosted ball does).
+## Left without an effect: a wall bounce (the wall is slate, and white is the ball's), the Shockwave upgrade
+## (the ball it throws leaves with a longer trail, as any boosted ball does), and bricks Overgrowth brings back
+## (they reappear in their 1 HP colour; see _on_restored).
 
 # The combo.
 const COMBO_TOP := 160  ## The combo count at which the effects are at their biggest
@@ -472,8 +473,11 @@ func _on_grew(cell: Vector2i, reach: float, cells: Array[Vector2i]) -> void:
 
 
 ## Bricks brought back (Refresh): an outline closing in on each, in the Placeables blue, as it flashes in, and the
-## block that brought them flashing too.
+## block that brought them flashing too. Overgrowth's (no block: Round.NOWHERE) have none: on level 3 hundreds
+## come back in a few seconds, and one each would push the shockwaves and the combo's ring out of their lists.
 func _on_restored(cell: Vector2i, cells: Array[Vector2i]) -> void:
+	if cell == Round.NOWHERE:
+		return
 	_pulse(_round.board.cell_rect(cell).grow(-1.0), Palette.PLACEABLE, HIT_POP, GROW_TIME)
 	for c in cells:
 		var rect := _round.board.cell_rect(c).grow(-1.0)

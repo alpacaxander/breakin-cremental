@@ -41,7 +41,10 @@ extends RefCounted
 ##   3. The combo's window counts down. If it runs out the combo resets and combo_changed(0, 1) is emitted.
 ##      Less than TIME_SLOP left has run out, as in 5.
 ##   4. `clock` goes up by delta. Then each placed brick still on the board, in layout order, gets its kind's
-##      on_step hook (Growth pulses here: see grow).
+##      on_step hook (Growth pulses here: see grow). Then, with Overgrowth (stats.overgrowth >= 1) and a level
+##      brick still standing, every broken level cell whose time has come (see ONE BRICK HIT) comes back, in the
+##      order they broke, through one restore(NOWHERE, cells) call; a cell a ball is over waits for the next
+##      step. With no level brick standing nothing comes back, so 6 ends a cleared board whatever is pending.
 ##   5. time_left counts down. It stops at 0, and less than TIME_SLOP left is 0: a step such as 1/120 s is not an
 ##      exact number, so counting down by it ends a hair off 0, and a hair above 0 would be one more whole step
 ##      at some rates and not at others. A round whose time is a whole number of steps plays exactly that many;
@@ -57,7 +60,8 @@ extends RefCounted
 ##   and so always has hp left. A placed brick's hit, or its mod's, counts in tally.hits.
 ##   If it has hp left: a level brick (not a placed one) scores 1 point (Tally.dent: added to the running combo's
 ##   worth too, if one is running; the combo does not grow) and `coins` is updated. Then brick_hit is emitted.
-##   If not: it is erased from the board. If combos are on (stats.combo_rank >= 1) the combo grows and
+##   If not: it is erased from the board. With Overgrowth, a level brick's cell is due back at clock +
+##   stats.overgrowth_delay (see ONE STEP, 4). If combos are on (stats.combo_rank >= 1) the combo grows and
 ##   combo_changed is emitted; every brick in the combo is paid at the multiplier it has now reached, so a
 ##   break that raises it pays the rise on the earlier ones too (Coins.total). The tally and `coins`
 ##   are updated. brick_broken is emitted. Then its kind's on_broken hook runs, then its mod's on_host_broken.
@@ -117,6 +121,8 @@ const WEDGED := 8
 const TIME_SLOP := 1e-6
 ## The launch leaves at most this many degrees above or below level: a 90 degree spread.
 const LAUNCH_ANGLE := 45.0
+## restored's `cell` when no block brought the bricks back (Overgrowth). It is off the board.
+const NOWHERE := Vector2i(-1, -1)
 
 ## A brick took a hit and is still there. `hp_left` is its hp after the hit; board.brick(cell) is the brick.
 ## A level brick's hit has already scored its point: `coins` includes it.
@@ -155,9 +161,11 @@ signal exploded(pos: Vector2, reach: float, cells: Array[Vector2i])
 ##   cells  every brick that gained, by column from the paddle side and then down
 signal grew(cell: Vector2i, reach: float, cells: Array[Vector2i])
 
-## Broken level bricks came back (restore: Refresh). Emitted after they are on the board, and only if one came.
-##   cell   where they were brought back from: the Refresh block's brick cell
-##   cells  every brick that came back, in the order they were asked for (Refresh: nearest first)
+## Broken level bricks came back (restore: Refresh, Overgrowth). Emitted after they are on the board, and only if
+## one came.
+##   cell   where they were brought back from: the Refresh block's brick cell, or NOWHERE for Overgrowth
+##   cells  every brick that came back, in the order they were asked for (Refresh: nearest first; Overgrowth:
+##          the order they broke in, all that came due in one step)
 signal restored(cell: Vector2i, cells: Array[Vector2i])
 
 ## The combo grew, or it reset (count 0, multiplier 1). Not emitted while combos are off.
@@ -213,6 +221,9 @@ var _left := 0
 var _next_id := 0
 # How many blast() calls are running, one inside the other: above 0 while an explosion chain goes off.
 var _blasts := 0
+# With Overgrowth: each broken level cell waiting to come back, and the clock it is due at. In the order they
+# broke, which is the order they are due in, because the delay is the same for all.
+var _due: Dictionary[Vector2i, float] = {}
 
 
 func _init(p_board: Board, p_layout: Layout, p_stats: Balance, p_seed: int) -> void:
@@ -304,6 +315,8 @@ func step(delta: float, paddle_target: float) -> void:
 			var brick := board.brick(item.cell)
 			if item.kind.placement == PlaceableKind.Placement.BRICK and brick and brick.placed:
 				item.kind.on_step(self, item.cell, brick, delta)
+		if _left > 0 and not _due.is_empty():
+			_regrow()
 		time_left -= delta
 	if time_left < TIME_SLOP:
 		time_left = 0.0
@@ -360,6 +373,8 @@ func hit_brick(cell: Vector2i, cause: Cause, dir: Vector2, ball: Ball = null) ->
 	board.bricks.erase(cell)
 	if not brick.placed:
 		_left -= 1
+		if stats.overgrowth >= 1.0:
+			_due[cell] = clock + stats.overgrowth_delay
 	if stats.combo_rank >= 1.0:
 		combo.add(stats)
 		combo_changed.emit(combo.count, combo.multiplier)
@@ -421,20 +436,33 @@ func grow(cell: Vector2i, reach: float) -> void:
 		grew.emit(cell, reach, cells)
 
 
-## Brings broken level bricks back (Refresh; Overgrowth will too). Each of `cells` that can take one
+## Brings broken level bricks back (Refresh, Overgrowth). Each of `cells` that can take one
 ## (restorable()) gets a standard 1 HP level brick: no kind, no mod, not placed, whatever was there before. It
-## scores and counts toward a clear like any level brick. Emits restored(cell, those cells) if any came back, and
-## returns them, so a caller can try a cell a ball was over again later. `cell` is where they came back from.
+## scores and counts toward a clear like any level brick, and Overgrowth no longer waits for it. Emits
+## restored(cell, those cells) if any came back, and returns them, so a caller can try a cell a ball was over
+## again later. `cell` is where they came back from: the block, or NOWHERE.
 func restore(cell: Vector2i, cells: Array[Vector2i]) -> Array[Vector2i]:
 	var back: Array[Vector2i] = []
 	for c in cells:
 		if restorable(c):
 			board.bricks[c] = Brick.new()
 			_left += 1
+			_due.erase(c)
 			back.append(c)
 	if not back.is_empty():
 		restored.emit(cell, back)
 	return back
+
+
+## Overgrowth's part of a step: every cell due by now (TIME_SLOP, as for the timer), in one restore call.
+func _regrow() -> void:
+	var due: Array[Vector2i] = []
+	for c in _due:
+		if _due[c] > clock + TIME_SLOP:
+			break
+		due.append(c)
+	if not due.is_empty():
+		restore(NOWHERE, due)
 
 
 ## True if a level brick can be brought back to `cell`: it held one once the round was built (level_cells), it

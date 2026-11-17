@@ -19,7 +19,7 @@ See also: [placeables.md](placeables.md), [physics.md](physics.md), [overview.md
 |---|---|---|
 | **Placeables** | Items you unlock and then place in the arena during the Setup phase to help yourself. The three kinds and their rules are in [placeables.md](placeables.md) | Booster, Booster Speed, Zap, Zap Range, Zap Damage, Splitter, Splitter Splits, Splitter Health, Wall Segment, Growth, Growth Reach, Refresh, Refresh Size, Pulse Rate |
 | **Bricks** | When a level starts, some standard bricks are randomly replaced by special bricks that do something when broken. Some nodes improve a special brick instead | Explosive Brick, Explosion Size, Explosion Damage, Shockwave, Gold Brick, Tough Brick, Hourglass Brick, Hourglass Time, Hourglass Freeze |
-| **Arena** | Changes the arena's base stats | Paddle Speed, Paddle Size, Combo, Combo Window, Rear Paddle |
+| **Arena** | Changes the arena's base stats and rules | Paddle Speed, Paddle Size, Combo, Combo Window, Rear Paddle, Overgrowth |
 
 ## Counts come from ranks
 
@@ -51,11 +51,11 @@ Bracket shape shows the category: `( )` Arena, `[ ]` Placeables, `{ }` Bricks. R
                            │                 │
                    [SplitterHealth]   { Tough Brick  }───[    Growth    ]───[ Growth Reach ]
                                              │                  │
-                   [ Refresh Size ]───[   Refresh    ]───[  Pulse Rate  ]
+                   [ Refresh Size ]───[   Refresh    ]───[  Pulse Rate  ]───(  Overgrowth  )
 ```
 
 - Only the drawn lines are connections. The scene `src/hub/web.tscn` is the source; this drawing follows it.
-- The web is 5 columns × 7 rows, taller than the view at zoom 1: the bottom two rows (Splitter Health, Tough Brick, Growth, Growth Reach; Refresh Size, Refresh, Pulse Rate) are reached by panning, or the view scrolls to a node when it is selected.
+- The web is 5 columns × 7 rows, taller than the view at zoom 1: the bottom two rows (Splitter Health, Tough Brick, Growth, Growth Reach; Refresh Size, Refresh, Pulse Rate, Overgrowth) are reached by panning, or the view scrolls to a node when it is selected.
 
 A price is the first price times the growth for every rank owned, rounded to a whole coin. The ranks and prices are first values, set with the balance bot against the three stages of [design.md](../design.md#progression).
 
@@ -66,6 +66,7 @@ A price is the first price times the growth for every rank owned, rounded to a w
 | Combo | Arena | Turns combos on | 1 |  | 12 |
 | Combo Window | Arena | The combo's window is 1 s longer | 2 | ×15 | 40, 600 |
 | Rear Paddle | Arena | The back wall's stretch opposite the paddle boosts a ball by 20% of base speed | 2 | ×8 | 300, 2,400 |
+| Overgrowth | Arena | Every level brick that breaks comes back 8 s of play later, a plain 1 HP brick (see below) | 1 |  | 8,000 |
 | Booster | Placeables | One Booster | 2 | ×20 | 12, 240 |
 | Booster Speed | Placeables | A Booster adds 10% of base speed more | 2 | ×6 | 500, 3,000 |
 | Zap | Placeables | One Zap | 3 | ×4 | 200, 800, 3,200 |
@@ -90,11 +91,12 @@ A price is the first price times the growth for every rank owned, rounded to a w
 | Hourglass Time | Bricks | An hourglass brick adds 5 s more | 2 | ×5 | 1,200, 6,000 |
 | Hourglass Freeze | Bricks | Breaking an hourglass brick holds the combo's window for 1 s | 2 | ×5 | 800, 4,000 |
 
-- That is 28 nodes and 67 purchases, 102,012 coins in all. The Bumper is still a kind in the code but no node unlocks it.
-- **The prices come in three bands, one per level**, because each level pays several times the one before. A round pays about 15 to 75 coins on level 1, 40 to 500 on level 2, and on level 3 either almost nothing (the ball is lost in the first seconds) or 1,500 to 5,000 and more. Up to 50 coins is what level 1 pays for: 10 ranks, the first of nearly every node next to the seed, so the first trip to the hub shows the core of the game. From 80 to 1,200 is level 2: 34 ranks. From 1,700 to 10,000 is level 3: 23 ranks. The balance bot buys the cheapest rank on offer, so the bands are the order it buys in.
+- That is 29 nodes and 68 purchases, 110,012 coins in all. The Bumper is still a kind in the code but no node unlocks it.
+- **Overgrowth** makes the arena grow back. A level brick that breaks, by a ball, a blast or a Zap, comes back 8 s of play later (`overgrowth_delay`, on the round's clock, so an hourglass does not move it) as a plain 1 HP level brick: a special brick comes back plain and a Zap on it is gone. It comes back again each time it breaks. A brick the player placed never comes back. If a ball is over the cell when it is due, it comes back on the first step the cell is clear. A brick that came back scores and counts toward the target and the clear like any level brick, but the round does not wait for one: breaking the last level brick standing still ends it. It has no effect or sound of its own (see [art.md](../art.md#effects) and [audio.md](../audio.md)); the bot has not measured it.
+- **The prices come in three bands, one per level**, because each level pays several times the one before. A round pays about 15 to 75 coins on level 1, 40 to 500 on level 2, and on level 3 either almost nothing (the ball is lost in the first seconds) or 1,500 to 5,000 and more. Up to 50 coins is what level 1 pays for: 10 ranks, the first of nearly every node next to the seed, so the first trip to the hub shows the core of the game. From 80 to 1,200 is level 2: 34 ranks. From 1,700 to 10,000 is level 3: 24 ranks. The balance bot buys the cheapest rank on offer, so the bands are the order it buys in.
 - **The growth puts a node's later ranks in a later band.** Hourglass Brick grows ×100 and Booster ×20 because their first rank belongs to level 1 and their second to level 3 or 2.
 - **The first round.** A fresh round on level 1 pays the bot's clumsy player about 14 coins and its good player about 19: the seed (5) either way, and with some skill Combo or a Booster (12) as well.
-- **What the bot measured** (`bot campaign`, average player, with the layout search, on the 52 ranks before Tough Brick, Growth, Growth Reach, Refresh, Refresh Size and Pulse Rate were added): the first trip buys Paddle Speed and a Booster, the second Combo. Level 1 is cleared on round 4, level 2 on round 13 and level 3 on round 20. In rounds from each level's first, against the goals in brackets: level 1's stage 1 ends on round 3 (2) and its stage 2 on 8 (6); level 2's on 1 (4) and 19 (12); level 3's on 1 (8) and 25 (25). On the kept layouts (`tests/layouts/found.json`, four seed sets) the demo's first finish is on rounds 18 to 27, level 2's stage 2 ends on rounds 9 to 25, and level 3's on 16 to 30, or not within the run.
+- **What the bot measured** (`bot campaign`, average player, with the layout search, on the 52 ranks before Tough Brick, Growth, Growth Reach, Refresh, Refresh Size, Pulse Rate and Overgrowth were added): the first trip buys Paddle Speed and a Booster, the second Combo. Level 1 is cleared on round 4, level 2 on round 13 and level 3 on round 20. In rounds from each level's first, against the goals in brackets: level 1's stage 1 ends on round 3 (2) and its stage 2 on 8 (6); level 2's on 1 (4) and 19 (12); level 3's on 1 (8) and 25 (25). On the kept layouts (`tests/layouts/found.json`, four seed sets) the demo's first finish is on rounds 18 to 27, level 2's stage 2 ends on rounds 9 to 25, and level 3's on 16 to 30, or not within the run.
 - **Level 3 is a lottery, and prices cannot fix that.** Its good player clears 10% of tries on arrival, so its stage 1 ends at once, and with every rank its clumsy player still loses the ball in about 7 rounds of 10. Only a paddle long enough to fill the lane (12 ranks of Paddle Size) stops the drops, and then skill no longer matters. The level's layout and target are what need changing: the wall's face is 81 units from the paddle.
 - **The base values** are in `data/balance.tres`: the paddle moves 600 units a second and is 96 long, the ball moves 500 units a second, and a round lasts 20 s. A unit is a screen pixel on a 16-row level.
 

@@ -112,6 +112,7 @@ Effects take the colour of whatever made them. Sizes below are at their peak, in
 | Zap | A blue bar along the row, 10 px thick, thinning out over 0.3 s, with a shake and a 0.035 s freeze |
 | Growth pulse | A 2 px blue outline growing out of the block to the edge of its reach over 0.5 s, and each brick that grew filled once more in its new colour for 0.5 s, swelling by 6 px. No pop-up |
 | Bricks brought back (Refresh) | The block flashes blue, swelling by 6 px, and on each brick that came back a 2 px blue outline closes in from 6 px out over 0.5 s while the brick flashes in its colour. No pop-up |
+| Bricks grown back (Overgrowth) | None: the brick just reappears in its 1 HP colour, already lit. On level 3 hundreds of bricks come back in a few seconds and a blast's worth can in one step, so an outline or a flash on each would be a constant flicker, and would push the shockwaves and the combo's ring out of their lists of 48. It is a rule of the arena, not something the player did, so it stays in the background |
 | Gold brick, hourglass brick, Splitter | A 72 px ring with a 2 px line, in gold, green or blue. The hourglass adds a green "+15s" pop-up under its brick, and at least a text height under its coins: a top-row brick's coin pop-up has no room above it and sits lower. The Splitter's ring is at the new ball |
 | Multiplier step | A gold 72 px ring at the brick and a small flash |
 | Bumper, Booster, Wall Segment | The item's own outline, growing by 18 px over 0.25 s, and 4 blue squares (more off a boosted ball) |

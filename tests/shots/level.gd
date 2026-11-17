@@ -2,8 +2,8 @@ extends RefCounted
 ## The level screen in each state that matters: Setup on a fresh save and with everything unlocked and placed,
 ## a drag that fits and one that does not, an item held over the tray, Play early, mid-combo, with tough bricks
 ## hit, with bricks grown by a Growth block, with bricks a Refresh block brought back (it cooling, beside one
-## ready) and on the zoomed level 3, and the Summary for each of the three ends and with several combos. Compare
-## them with docs/art.md ("Level screen") and the level mockup.
+## ready), with bricks Overgrowth brought back, and on the zoomed level 3, and the Summary for each of the three
+## ends and with several combos. Compare them with docs/art.md ("Level screen") and the level mockup.
 ##
 ## The mouse is pushed straight into Main's View, so a position here is a position in the 1280 x 720 frame
 ## whether the CRT curves the picture or not.
@@ -50,6 +50,7 @@ func shots() -> Array[Dictionary]:
 		{"name": "play_growth", "save": "maxed", "setup": _growth, "settle": 12},
 		{"name": "play_refresh", "save": "maxed", "setup": _refresh, "settle": 12},
 		{"name": "play_refresh_crt_off", "save": "maxed", "crt": false, "setup": _refresh, "settle": 12, "frames": 2, "every": 40},
+		{"name": "play_overgrowth", "save": "maxed", "crt": false, "setup": _overgrowth, "settle": 60},
 		{"name": "play_strip", "save": "mid", "crt": false, "setup": _play.bind(2, [], 60, 0), "settle": 0, "frames": 4, "every": 2},
 		{"name": "summary_cleared", "save": "maxed", "setup": _end.bind(Round.End.CLEARED), "settle": 110},
 		{"name": "summary_cleared_crt_off", "save": "maxed", "crt": false, "setup": _end.bind(Round.End.CLEARED), "settle": 110},
@@ -153,6 +154,24 @@ func _refresh(main: Main) -> void:
 	for cell in [Vector2i(49, 3), Vector2i(49, 2), Vector2i(49, 4), Vector2i(48, 3), Vector2i(49, 1)]:
 		round.board.bricks.erase(cell)  # gone without a blast, so nothing but the Refresh effect is on screen
 	round.hit_brick(block, Round.Cause.BALL, Vector2.RIGHT, round.balls[0])
+
+
+## Level 3 in Play with Overgrowth (the maxed save owns it): a block above the tunnel was broken 8 s of play ago
+## and has grown back, all 1 HP (its 2 HP row too), and the same block below the tunnel, broken since, is a gap.
+func _overgrowth(main: Main) -> void:
+	var level := await _play(main, 3, [], 30, 0)
+	var round: Round = level.get("round")
+	var smash := func(rows: Array) -> void:
+		for column in range(12, 20):
+			for row: int in rows:
+				while round.board.brick(Vector2i(column, row)):
+					round.hit_brick(Vector2i(column, row), Round.Cause.BLAST, Vector2.RIGHT)
+	smash.call([1, 2, 3])
+	round.clock += round.stats.overgrowth_delay  # 8 s of play skipped
+	round.launch()  # a held round waits, regrowth too
+	round.step(1.0 / 120.0, round.paddle.y)  # the step that brings the top block back
+	round.hold()  # the ball back on the paddle, so the shot does not depend on where it goes
+	smash.call([5, 6, 7])
 
 
 func _low_time(main: Main) -> void:

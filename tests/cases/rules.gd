@@ -42,6 +42,7 @@ func run(p_t: Node) -> void:
 	_placeables()
 	_growth()
 	_refresh()
+	_overgrowth()
 	_balls()
 	_specials()
 	_layouts()
@@ -1061,6 +1062,86 @@ func _refresh() -> void:
 			"a ball's bounce off the block brings bricks back, the same every time, but not (24, 3), which the ball is in (%s)" % [first])
 
 
+## Overgrowth: a broken level brick comes back overgrowth_delay s later on the round's clock, plain and 1 HP.
+func _overgrowth() -> void:
+	var gold := Vector2i(20, 3)
+	var zapped := Vector2i(40, 6)
+	var placed := Vector2i(10, 10)
+	var board := _board({FAR: SOLID, gold: 1, zapped: 1})
+	board.bricks[gold].kind = &"gold"
+	var stats := _sealed(board, {&"overgrowth": 1.0, &"overgrowth_delay": 8.0, &"splitter_count": 1, &"zap_count": 1})
+	stats.ball_speed = 0.0
+	var layout := _layout([_item(&"splitter", placed), _item(&"zap", zapped)])
+	var round := Round.new(board, layout, stats, 1)
+	var heard := []
+	round.restored.connect(func(cell: Vector2i, cells: Array[Vector2i]) -> void: heard.append([cell, cells.duplicate()]))
+	round.hit_brick(gold, Round.Cause.BLAST, Vector2.RIGHT)
+	_run(round, 4.0)
+	round.hit_brick(zapped, Round.Cause.BLAST, Vector2.RIGHT)
+	round.hit_brick(placed, Round.Cause.BLAST, Vector2.RIGHT)
+	_run(round, 4.0 - TICK)
+	t.check(heard.is_empty() and round.board.brick(gold) == null, "a broken brick stays broken until the delay is up")
+	round.step(TICK, round.paddle.y)
+	var back := round.board.brick(gold)
+	t.check(heard == [[Round.NOWHERE, [gold]]] and back != null and back.hp == 1 and back.kind == &"" and not back.placed,
+			"8 s after it broke, the gold brick comes back plain and 1 HP, from NOWHERE (%s)" % [heard])
+	_run(round, 4.0)
+	back = round.board.brick(zapped)
+	t.check(heard.size() == 2 and heard[1] == [Round.NOWHERE, [zapped]] and back.hp == 1 and back.mod == &"", "the Zap's brick comes back without its Zap")
+	_run(round, 20.0)
+	t.check(round.board.brick(placed) == null and heard.size() == 2, "a placed brick never comes back")
+
+	# Both break again in one step: they come back again, in one emission, in the order they broke.
+	round.hit_brick(zapped, Round.Cause.BLAST, Vector2.RIGHT)
+	round.hit_brick(gold, Round.Cause.BLAST, Vector2.RIGHT)
+	_run(round, 8.0)
+	t.check(heard.size() == 3 and heard[2] == [Round.NOWHERE, [zapped, gold]], "they come back again each time they break, all due in a step at once (%s)" % [heard])
+
+	# A ball over the cell holds it back until the cell is clear.
+	var ball := round.balls[0]
+	round.hit_brick(gold, Round.Cause.BLAST, Vector2.RIGHT)
+	ball.put(round.board.cell_rect(gold).get_center(), Vector2.RIGHT)
+	_run(round, 12.0)
+	t.check(round.board.brick(gold) == null and heard.size() == 3, "a ball over the cell keeps the brick from coming back")
+	ball.put(round.board.cell_rect(Vector2i(50, 12)).get_center(), Vector2.RIGHT)
+	round.step(TICK, round.paddle.y)
+	t.check(round.board.brick(gold) != null and heard.size() == 4, "and it comes back on the first step the cell is clear")
+
+	# Rank 0 brings nothing back.
+	var off := stats.copy()
+	off.put(&"overgrowth", 0.0)
+	round = Round.new(board, layout, off, 1)
+	round.hit_brick(gold, Round.Cause.BLAST, Vector2.RIGHT)
+	_run(round, 20.0)
+	t.check(round.board.brick(gold) == null, "without Overgrowth a broken brick stays broken")
+
+	# The round does not wait for a brick to grow back: the last one standing still clears it.
+	round = Round.new(_board({gold: 1, zapped: 1}), null, stats, 1)
+	round.hit_brick(gold, Round.Cause.BLAST, Vector2.RIGHT)
+	_run(round, 4.0)
+	round.hit_brick(zapped, Round.Cause.BLAST, Vector2.RIGHT)
+	round.step(TICK, round.paddle.y)
+	t.check(round.over and round.reason == Round.End.CLEARED and round.board.brick(gold) == null, "breaking the last level brick clears the round with a brick still due back")
+
+	# The same seed gives the same round, regrowth and all.
+	var bricks := {}
+	for column in range(14, 40):
+		for row in 8:
+			bricks[Vector2i(column, row)] = 1
+	var grid := _board(bricks)
+	var moving := _sealed(grid, {&"overgrowth": 1.0, &"overgrowth_delay": 8.0})
+	var play := func(p_seed: int) -> Array[String]:
+		var r := Round.new(grid, null, moving, p_seed)
+		var log := _events(r)
+		r.restored.connect(func(cell: Vector2i, cells: Array[Vector2i]) -> void: log.append("restored %s %s" % [cell, cells]))
+		_run(r, 30.0)
+		log.append("coins %d left %d" % [r.coins, r.board.remaining()])
+		return log
+	var log: Array[String] = play.call(5)
+	t.check(log.any(func(line: String) -> bool: return line.begins_with("restored")) and play.call(5) == log,
+			"the same seed gives the same round with Overgrowth, to the last brick grown back")
+
+
 # --- several balls ---------------------------------------------------------------------------------------------
 
 func _balls() -> void:
@@ -1437,12 +1518,18 @@ func _timing() -> void:
 	var layout := _layout([_item(&"bumper", Vector2(30, 100)), _item(&"bumper", Vector2(32, 480)), _item(&"bumper", Vector2(1120, 288)), _item(&"booster", Vector2(1110, 100)), _item(&"booster", Vector2(1110, 470)),
 			_item(&"wall_segment", Vector2(6, 200)), _item(&"wall_segment", Vector2(6, 376)), _item(&"splitter", Vector2i(2, 2)), _item(&"splitter", Vector2i(2, 6)), _item(&"zap", Vector2i(4, 1)), _item(&"zap", Vector2i(4, 7))])
 	var report := []
-	for sealed: bool in [false, true]:
+	for mode: String in ["paddle following", "paddle sealed", "sealed, with Overgrowth"]:
 		var s := stats.copy()
-		if sealed:
+		if mode != "paddle following":
 			s.paddle_size = board.size().y  # no ball is lost, so the round runs its whole time with every ball it makes
 		var began := Time.get_ticks_usec()
+		if mode == "sealed, with Overgrowth":
+			s.put(&"overgrowth", 1.0)
+			s.overgrowth_delay = 8.0
 		var round := Round.new(board, layout, s, 4)
+		var counts := [0, 0]  # level bricks broken, and grown back
+		round.brick_broken.connect(func(_cell: Vector2i, brick: Brick, _cause: Round.Cause, _dir: Vector2, _coins: int) -> void: counts[0] += 0 if brick.placed else 1)
+		round.restored.connect(func(_cell: Vector2i, cells: Array[Vector2i]) -> void: counts[1] += cells.size())
 		var steps := 0
 		while not round.over:
 			var target := round.paddle.y
@@ -1451,7 +1538,7 @@ func _timing() -> void:
 					target = ball.pos.y
 			round.step(TICK, target)
 			steps += 1
-		report.append("%s: %d ms for %.1f s of play (%d steps), %d bricks broken, %d balls at the end" % ["paddle sealed" if sealed else "paddle following",
-				(Time.get_ticks_usec() - began) / 1000, steps * TICK, steps, 512 - round.board.remaining(), round.balls.size()])
+		report.append("%s: %d ms for %.1f s of play (%d steps), %d bricks broken, %d grown back, %d balls at the end" % [mode,
+				(Time.get_ticks_usec() - began) / 1000, steps * TICK, steps, counts[0], counts[1], round.balls.size()])
 		t.check(round.layout.items.size() == 11, "the timing round has its eleven items")
 	print("   rules: a round on 72 x 18 with 512 bricks. ", ". ".join(report))

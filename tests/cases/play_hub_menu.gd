@@ -43,6 +43,7 @@ const TABLE := {
 	&"Refresh": ["Refresh", Upgrade.Category.PLACEABLES, 3, "One more Refresh block", 150, 4.5],
 	&"RefreshSize": ["Refresh Size", Upgrade.Category.PLACEABLES, 2, "Refresh brings back 2 more bricks", 400, 10.0],
 	&"PulseRate": ["Pulse Rate", Upgrade.Category.PLACEABLES, 2, "Growth and Refresh are 1 s faster", 1000, 6.0],
+	&"Overgrowth": ["Overgrowth", Upgrade.Category.ARENA, 1, "Broken bricks grow back", 8000, 1.0],
 }
 ## The drawn web of upgrades.md: each node and the one it hangs off, towards the seed. A node with two links
 ## (Pulse Rate) hangs off one here and has the other in CROSS.
@@ -55,6 +56,7 @@ const PARENT := {
 	&"ExplosionSize": &"ExplosiveBrick", &"ExplosionDamage": &"ExplosionSize", &"Shockwave": &"ExplosiveBrick",
 	&"ToughBrick": &"GoldBrick", &"Growth": &"ToughBrick", &"GrowthReach": &"Growth",
 	&"Refresh": &"ToughBrick", &"RefreshSize": &"Refresh", &"PulseRate": &"Refresh",
+	&"Overgrowth": &"PulseRate",
 }
 const CROSS := {&"PulseRate": &"Growth"}
 const DETAIL := Rect2(904, 88, 352, 284)  ## art.md, "Upgrade screen"

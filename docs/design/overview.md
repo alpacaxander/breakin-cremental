@@ -59,7 +59,7 @@ Nothing else about a level in progress is saved. Settings are stored separately 
 
 - **Ball loss** ends the run immediately and goes to Summary. With several balls, only losing the last one ends the run.
 - **A clear** is a round whose score reaches the level's target (set per level, in [levels.md](levels.md)), however the round ends. It unlocks the next level. The score is the coins' points (see "Coins") before the end bonuses: the hits and bricks, the combos, the biggest chain and the longest rally. Reaching the target does not end the round. The HUD shows the score against the target.
-- **Breaking every level brick** ends the round. It is not a clear by itself unless the score has reached the target. Bricks the player placed don't count.
+- **Breaking every level brick** ends the round. It is not a clear by itself unless the score has reached the target. Bricks the player placed don't count. With Overgrowth broken bricks come back after 8 s, but the round does not wait for them: breaking the last one standing still ends it.
 - **Special bricks are rolled again on every attempt**, including a retry.
 
 ## Coins

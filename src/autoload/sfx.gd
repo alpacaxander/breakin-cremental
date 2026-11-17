@@ -166,7 +166,8 @@ static func combo_pitch(count: int) -> float:
 ##   exploded       EXPLOSION
 ##   ball_lost      BALL_LOST
 ##   grew           the cue of the block that pulsed (Growth: BOOSTER, its rising sweep)
-##   restored       the cue of the block that brought bricks back (Refresh: PLACE_ITEM, the thunk of a brick put down)
+##   restored       the cue of the block that brought bricks back (Refresh: PLACE_ITEM, the thunk of a brick put down).
+##                  Overgrowth's (cell Round.NOWHERE, no block) is silent: hundreds can grow back in a few seconds
 ##   ended         CLEARED: LEVEL_CLEARED
 ## It also plays LOW_TIMER_TICK each time round.time_left crosses a whole second at or under
 ## round.stats.low_time, by watching the round from _process.
@@ -192,7 +193,7 @@ func _on_ended(reason: Round.End) -> void:
 
 
 ## A placed block acted (Growth's pulse, Refresh bringing bricks back): its kind's cue. Nothing if the cell holds
-## no kind.
+## no kind (Overgrowth's NOWHERE).
 func _on_block(cell: Vector2i, board: Board) -> void:
 	var kind: Kind = Kinds.of(board.brick(cell).kind) if board.brick(cell) else null
 	if kind:

@@ -33,6 +33,7 @@ extends Resource
 @export var growth_reach: float  ## How far a Growth block's pulse reaches out from its edges, in squares (1 square = 64 units)
 @export var pulse_rate: float  ## Seconds taken off a Growth block's pulse period and a Refresh block's cooldown, down to pulse_min
 @export var refresh_size: float  ## How many broken level bricks a Refresh block brings back
+@export var overgrowth: float  ## 0: off. 1: every level brick that breaks comes back, plain and 1 HP, overgrowth_delay s later
 ## Stats that have no property of their own, by name. The per-kind counts live here: `<kind id>_count` is how many
 ## of that kind the player may place (a placeable) or how many are rolled onto the board (a special brick). A name
 ## that is missing is 0, so the shipped file leaves this empty. An entry here is a free item before any upgrade.
@@ -55,6 +56,7 @@ extends Resource
 @export var low_time: float  ## With this many seconds left or fewer, the timer warns (danger colour, the tick cue)
 @export var max_hp: int  ## A pulse (Growth) never takes a brick above this HP
 @export var pulse_min: float  ## The shortest a pulse period or a Refresh cooldown gets, whatever pulse_rate takes off
+@export var overgrowth_delay: float  ## With Overgrowth, seconds of play (Round.clock) before a broken level brick comes back
 
 @export_group("Combo")
 # multiplier = 1 + (count - 1) / combo_breaks_per_step, in whole numbers.

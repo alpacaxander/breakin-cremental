@@ -1,7 +1,8 @@
 extends RefCounted
 ## The upgrade screen: fresh, mid and maxed saves, with and without the CRT, a node of each shown state selected
-## (and Pulse Rate, on the bottom row, with two links), a Buy the player cannot afford, a locked level in the
-## level panel, the pointer over a node, and the web zoomed fully out and fully in.
+## (and Pulse Rate, on the bottom row, with two links, and Overgrowth beside it, not bought), a Buy the player
+## cannot afford, a locked level in the level panel, the pointer over a node, and the web zoomed fully out and
+## fully in.
 
 
 func shots() -> Array[Dictionary]:
@@ -15,6 +16,7 @@ func shots() -> Array[Dictionary]:
 		{"name": "maxed", "save": "maxed", "setup": _hub},
 		{"name": "maxed_flat", "save": "maxed", "crt": false, "setup": _pick.bind(&"Combo")},
 		{"name": "mid_pulse_rate", "save": "mid", "crt": false, "setup": _pick.bind(&"PulseRate")},
+		{"name": "mid_overgrowth", "save": "mid", "crt": false, "setup": _unbought.bind(&"Overgrowth", &"overgrowth")},
 		{"name": "small", "save": "mid", "size": Vector2i(960, 540), "setup": _hub},
 		{"name": "mid_hover", "save": "mid", "crt": false, "setup": _hover.bind(&"Combo")},
 		{"name": "maxed_zoom_out", "save": "maxed", "crt": false, "setup": _zoom.bind(HubWeb.ZOOM_MIN)},
@@ -68,3 +70,9 @@ func _hover(main: Main, node: StringName) -> void:
 func _level(main: Main, n: int) -> void:
 	Main.show_hub()
 	_screen(main).get_node("Levels").pick(n)
+
+
+## Selects the web node with this name with its upgrade (`id`) not bought, so the panel offers it.
+func _unbought(main: Main, node: StringName, id: StringName) -> void:
+	Progress.ranks[id] = 0
+	_pick(main, node)

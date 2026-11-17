@@ -12,6 +12,7 @@ const WEB := {
 	&"ExplosionSize": &"ExplosiveBrick", &"ExplosionDamage": &"ExplosionSize", &"Shockwave": &"ExplosiveBrick",
 	&"ToughBrick": &"GoldBrick", &"Growth": &"ToughBrick", &"GrowthReach": &"Growth",
 	&"Refresh": &"ToughBrick", &"RefreshSize": &"Refresh", &"PulseRate": &"Refresh",
+	&"Overgrowth": &"PulseRate",
 }
 
 var _heard: Array[StringName] = []

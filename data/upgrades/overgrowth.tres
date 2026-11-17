@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="Upgrade" format=3]
+
+[ext_resource type="Script" path="res://src/content/upgrade.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+title = "Overgrowth"
+category = 0
+text = "Broken bricks grow back, plain and 1 HP, a few seconds after they break."
+first_cost = 8000
+max_rank = 1
+stat = &"overgrowth"
+amount = 1.0
