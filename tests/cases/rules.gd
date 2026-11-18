@@ -912,7 +912,6 @@ func _placeables() -> void:
 	t.check(round.balls.size() == 2 and round.balls[1].id == 1 and log.count("added 1 %s" % var_to_str(Vector2(394, 220))) == 1, "a ball that breaks a Splitter splits in two, there")
 	t.check(ball.dir == Vector2(-coming.x, coming.y) and round.balls[1].dir == coming, "off the Splitter's face one bounces back and the other carries on through")
 	t.check(round.coins == 0 and round.tally.placed_broken == 1 and round.tally.broken.is_empty(), "a Splitter pays nothing and is counted as a placed brick")
-	t.check(round.tally.hits == {&"splitter": 1}, "the tally counts the hit the Splitter took")
 	for cause: Round.Cause in [Round.Cause.BLAST, Round.Cause.ZAP]:
 		round = Round.new(board, _layout([_item(&"splitter", Vector2i(25, 3))]), stats, 1)
 		round.hit_brick(Vector2i(25, 3), cause, Vector2.RIGHT)
@@ -940,8 +939,8 @@ func _growth() -> void:
 	round.hit_brick(Vector2i(20, 3), Round.Cause.BALL, Vector2.RIGHT)  # the Zap's brick: its row runs through the block
 	t.check(log.has("hit %s 1 %d" % [block, Round.Cause.BLAST]) and log.has("hit %s 1 %d" % [block, Round.Cause.ZAP]) and round.board.brick(block).hp == 1,
 			"a blast and a Zap hit a Growth block too, and it keeps its 1 HP")
-	t.check(round.tally.hits.get(&"growth") == 3 and round.tally.dents == 0 and round.tally.placed_broken == 0 and round.coins == 2,
-			"its three hits count in the tally and pay nothing: the coins are the two level bricks'")
+	t.check(round.tally.dents == 0 and round.tally.placed_broken == 0 and round.coins == 2,
+			"its three hits pay nothing: the coins are the two level bricks'")
 	t.check(not _layout([_item(&"growth", block)]).fits(_item(&"zap", block), board, stats), "a Zap cannot go on a Growth block, where it would never go off")
 	round = Round.new(_board({Vector2i(30, 3): 1}), _layout([_item(&"growth", block)]), stats, 1)
 	round.hit_brick(Vector2i(30, 3), Round.Cause.BALL, Vector2.RIGHT)
@@ -1307,7 +1306,7 @@ func _combo() -> void:
 	break_next.call(round, 9)
 	t.check(round.combo.count == 0 and round.combo.multiplier == 1 and round.combo.window == 0.0 and not log.any(func(line: String) -> bool: return line.begins_with("combo")),
 			"at combo rank 0 there is no combo")
-	t.check(round.coins == 9 and round.tally.combos.is_empty() and round.tally.best_combo == 0 and round.tally.best_multiplier == 1, "with combos off every brick pays once")
+	t.check(round.coins == 9 and round.tally.combos.is_empty() and round.tally.best_combo == 0, "with combos off every brick pays once")
 
 	var stats := _sealed(board, {&"combo_rank": 1, &"splitter_count": 1})
 	stats.ball_speed = 1.0  # the ball stays out of this
@@ -1331,7 +1330,7 @@ func _combo() -> void:
 	log.clear()
 	_run(round, 1.5)
 	t.check(round.combo.count == 0 and round.combo.multiplier == 1 and round.combo.window == 0.0 and round.combo.time_left == 0.0 and log == ["combo 0 1"], "when the window runs out the combo resets, once")
-	t.check(round.tally.best_combo == 10 and round.tally.best_multiplier == 3, "the tally keeps the best combo and multiplier")
+	t.check(round.tally.best_combo == 10, "the tally keeps the best combo")
 	break_next.call(round, 1)
 	t.check(round.combo.count == 1 and round.combo.multiplier == 1 and round.coins == 28, "after a reset the next combo starts from 1")
 	var first: Tally.Run = round.tally.combos[0] if round.tally.combos else null
@@ -1419,49 +1418,13 @@ func _coins() -> void:
 	t.check(round.combo.count == 6 and round.tally.dents == 2 and round.tally.combos.size() == 1 and round.tally.combos[0].count == 6 and round.tally.combos[0].worth == 6 and round.coins == 6 * 2,
 			"the tally's combo has the two hits and four breaks, and pays all six points x2 (%d)" % round.coins)
 
-	# The bonuses: the biggest chain, the longest rally, and how the round ended.
-	var bonus := {&"chain_bonus": 2, &"rally_bonus": 1, &"clear_bonus": 0.5, &"time_bonus": 2, &"first_clear_bonus": 2, &"kept_bonus": 3}
-	board = _board({FAR: SOLID, Vector2i(20, 6): 1, Vector2i(21, 6): 1, Vector2i(22, 6): 1, Vector2i(40, 6): 1})
-	board.bricks[Vector2i(20, 6)].kind = &"explosive"
-	round = Round.new(board, null, _stats(bonus), 1)
-	round.hit_brick(Vector2i(20, 6), Round.Cause.BALL, Vector2.RIGHT)
-	t.check(round.tally.best_chain == 2 and round.tally.best_rally == 3, "the blast's two bricks are a chain of 2, without the explosive; all three are a rally of 3")
-	round.tally.touch()
-	round.hit_brick(Vector2i(40, 6), Round.Cause.BALL, Vector2.RIGHT)
-	t.check(round.tally.best_rally == 3 and round.tally.rally == 1 and round.coins == 4 + 2 * 2 + 3, "a paddle touch starts the rally again; the biggest chain and longest rally pay per brick (%d)" % round.coins)
-
-	round = Round.new(_board({Vector2i(20, 6): 1}), null, _stats(bonus), 1)
-	round.first_clear = true
-	round.target = 2
+	# A clear pays the bricks and nothing more: no end-of-round bonuses.
+	round = Round.new(_board({Vector2i(20, 6): 1}), null, _stats(), 1)
+	round.target = 1
 	round.hit_brick(Vector2i(20, 6), Round.Cause.BALL, Vector2.RIGHT)
 	round.step(0.01, round.paddle.y)  # short of the paddle
-	t.check(round.reason == Round.End.CLEARED and round.tally.cleared and round.tally.score == 2 and round.tally.seconds_left == 19
-			and round.coins == 1 + 1 + 1 + 2 * 19 + 4 + 3,
-			"a first clear (a score of 2, a target of 2) with every brick broken and 19 s left pays half the target, 2 a second, twice the target and the kept ball (%d)" % round.coins)
-	t.check(round.tally.paddle_touches == 0 and Coins.bonuses(round.tally, round.stats).size() == 5, "every bonus earned is listed, and only those")
-	round = Round.new(_board({Vector2i(20, 6): 1}), null, _stats(bonus), 1)
-	round.first_clear = true
-	round.target = 3
-	round.hit_brick(Vector2i(20, 6), Round.Cause.BALL, Vector2.RIGHT)
-	round.step(0.01, round.paddle.y)
-	t.check(round.reason == Round.End.CLEARED and not round.tally.cleared and round.coins == 1 + 1 + 2 * 19 + 3,
-			"every brick broken short of the target is no clear: no clear bonus, no first clear, but the time and the kept ball (%d)" % round.coins)
-	var eff := _sealed(_board({}), {&"efficiency_from": 10, &"efficiency_to": 100, &"efficiency_bonus": 0.1})
-	var shares := []
-	for count in [9, 55, 300]:
-		var made := Tally.new()
-		made.broken[&""] = count
-		made.paddle_touches = 1
-		shares.append(Coins.points(made, eff))
-		made.ended = true
-		shares.append(Coins.points(made, eff))
-	t.check(shares == [9, 9, 55, 57, 300, 330], "bricks per paddle touch add nothing until the round ends, then 0 at 10, 5%% at 55 and 10%% from 100 on (%s)" % [shares])
-	var timed := _sealed(_board({FAR: SOLID}), bonus)
-	timed.round_time = 0.25
-	round = Round.new(_board({FAR: SOLID}), null, timed, 1)
-	round.step(0.25, round.paddle.y)
-	t.check(round.reason == Round.End.TIME and round.coins == 3, "running out of time with a ball in play pays the kept ball only")
-
+	t.check(round.reason == Round.End.CLEARED and round.tally.cleared and round.tally.score == 1 and round.coins == 1,
+			"a clear with every brick broken and time left pays its one brick only (%d)" % round.coins)
 
 # --- how a round ends ------------------------------------------------------------------------------------------
 

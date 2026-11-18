@@ -58,7 +58,7 @@ Nothing else about a level in progress is saved. Settings are stored separately 
 | **Summary** | Shows the tally (bricks broken by type, hits that broke nothing, combos), the coins it pays, and whether the level was cleared. Two buttons: Retry goes back to Setup on the same level, and Upgrades returns to the hub. After a clear, Next takes Retry's place and opens the next level's Setup; the last level's clear keeps Retry. |
 
 - **Ball loss** ends the run immediately and goes to Summary. With several balls, only losing the last one ends the run.
-- **A clear** is a round whose score reaches the level's target (set per level, in [levels.md](levels.md)), however the round ends. It unlocks the next level. The score is the coins' points (see "Coins") before the end bonuses: the hits and bricks, the combos, the biggest chain and the longest rally. Reaching the target does not end the round. The HUD shows the score against the target.
+- **A clear** is a round whose score reaches the level's target (set per level, in [levels.md](levels.md)), however the round ends. It unlocks the next level. The score is the coins' points (see "Coins"): the hits and bricks and the combos. Reaching the target does not end the round. The HUD shows the score against the target.
 - **Breaking every level brick** ends the round. It is not a clear by itself unless the score has reached the target. Bricks the player placed don't count. With Overgrowth broken bricks come back after 8 s, but the round does not wait for them: breaking the last one standing still ends it.
 - **Special bricks are rolled again on every attempt**, including a retry.
 
@@ -67,16 +67,9 @@ Nothing else about a level in progress is saved. Settings are stored separately 
 - Coins are calculated from the round's tally: the hits on bricks, the number and type of bricks broken, and the combos.
 - The tally pays out however the run ends, so a ball drop or a timeout still pays for everything broken so far.
 - The HUD shows the running coin total during Play.
-- Bricks the player placed pay nothing. The Summary leaves them out. Instead it counts, for each kind of placeable on the board, how many times the ball hit one: touching a free item, hitting a placed brick, or hitting a brick that carries a mod.
-- The formula is not decided yet. Until then, every hit on a level brick scores 1 point (1 coin), whether or not it breaks it, and the hit that breaks a special brick scores its worth instead: a gold brick counts as 20. So a 1 HP brick scores 1 and a 2 HP brick 2. Every such hit grows the combo and restarts its window, as a break does; a hit on a placed brick grows it only when it breaks it, and a hit on a block that never breaks (Growth, Refresh) never does. A combo multiplies every point scored while it runs by the multiplier the combo reached, so a hit that raises the multiplier raises it for the whole combo. The bonuses below that count bricks (chain, rally, bricks per paddle touch) count breaks only.
-- Bonuses are added on top, as first values (the `_bonus` numbers in `data/balance.tres`, in brick points):
-  - **Biggest chain:** 2 per level brick in the round's biggest explosion chain, which is everything one blast set off (not counting the explosive brick that started it).
-  - **Longest rally:** 1 per level brick in the most broken between two paddle touches. The launch counts as a touch.
-  - **Clear bonus:** 10% of the level's target, for a clear.
-  - **Time left:** 2 per whole second left on the clock when every level brick is broken.
-  - **First clear:** 50% of the level's target, the first time a level is cleared.
-  - **Ball kept:** 3 when the round ends with a ball still in play (every brick broken, or a timeout).
-  - **Efficiency:** bricks per paddle touch (level bricks broken ÷ paddle touches, the launch included) multiplies the whole score, bonuses included, when the round ends: nothing up to 10 bricks per touch, rising evenly to +10% at 100 and staying there. The Summary shows the ratio on this row.
+- Bricks the player placed pay nothing. The Summary leaves them and the other placeables out: it lists only what paid.
+- The formula is not decided yet. Until then, every hit on a level brick scores 1 point (1 coin), whether or not it breaks it, and the hit that breaks a special brick scores its worth instead: a gold brick counts as 20. So a 1 HP brick scores 1 and a 2 HP brick 2. Every such hit grows the combo and restarts its window, as a break does; a hit on a placed brick grows it only when it breaks it, and a hit on a block that never breaks (Growth, Refresh) never does. A combo multiplies every point scored while it runs by the multiplier the combo reached, so a hit that raises the multiplier raises it for the whole combo.
+- There are no end-of-round bonuses: the round pays its hits, its bricks and its combos, nothing more.
 
 ## Replaying levels
 

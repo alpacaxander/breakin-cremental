@@ -138,7 +138,6 @@ func _build() -> void:
 	if not is_nan(paddle_y):
 		round.paddle.y = paddle_y
 	round.hold()
-	round.first_clear = not Progress.is_cleared(level)
 	round.target = _data.target
 	_arena.show_round(round, phase == Phase.SETUP)
 	_hud.show_round(round, _data, phase == Phase.SETUP, phase == Phase.PLAY)

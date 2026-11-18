@@ -269,7 +269,6 @@ func _play(level: int, layout: Layout, stats: Balance, skill: String, seed: int,
 	var round := Round.new(_board(level), layout, stats, seed)
 	round.hold()  # the game's launch: off the centred paddle at a random angle
 	round.launch()
-	round.first_clear = not Progress.is_cleared(level)
 	round.target = _targets[level]
 	var numbers: Dictionary = SKILLS[skill].duplicate()
 	for key: String in numbers:  # reaction=, aim=, steer= and focus= on the command line override the skill's own

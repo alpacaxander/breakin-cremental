@@ -1,10 +1,8 @@
 class_name LevelSummary
 extends Control
 ## The Summary (docs/design/overview.md, "Level phases"): how the round ended, whether the score reached the
-## level's target, the tally by brick type, the hits that broke nothing, each combo's bonus, the best combo, the bonuses (Coins.bonuses), bricks
-## per paddle touch with the efficiency bonus, the coins it paid, and Retry (Next after a clear that has a level after it) and
-## Upgrades. There is no mockup; it is a panel over the arena in the language of the other screens, with the back button where Setup
-## has it.
+## level's target, the tally by brick type, the hits that broke nothing, each combo's bonus, the coins it paid, and Retry (Next after a clear that has a level after it) and Upgrades. There is no mockup; it is a panel
+## over the arena in the language of the other screens, with the back button where Setup has it.
 ##
 ## It appears a beat after the round ends, so the last hit is seen, then lists its rows one by one and counts
 ## the coins up, with a tally tick for each. The buttons work from the moment the panel shows.
@@ -19,9 +17,6 @@ const COUNT := 0.5  ## Seconds the coins take to count up
 const TICK := 0.05  ## The least time between two tally ticks while they count
 const WIDTH := 880.0
 const COMBO_ROWS := 3  ## The most rows the combos take
-## Each bonus's row title, by its id in Coins.bonuses.
-const BONUSES := {&"chain": "Biggest chain", &"rally": "Longest rally", &"clear": "Clear bonus", &"time": "Time left",
-		&"first_clear": "First clear", &"kept": "Ball kept", &"efficiency": "Bricks per paddle touch"}
 
 var _tween: Tween
 var _coins: UiPrice
@@ -61,7 +56,7 @@ func open(round: Round, data: LevelData, unlocked: bool) -> void:
 	_text(head, &"Hint", "Level %d unlocked" % (data.number + 1) if unlocked else "Every brick broken" if cleared and round.reason == Round.End.CLEARED
 			else "Score %d of %d" % [round.tally.score, round.tally.target])
 
-	# Two columns of rows: what broke and what was placed on the left, the combos and bonuses on the right.
+	# Two columns of rows: what broke on the left, the combos on the right.
 	var columns := HBoxContainer.new()
 	columns.add_theme_constant_override(&"separation", 32)
 	box.add_child(columns)
@@ -91,15 +86,6 @@ func open(round: Round, data: LevelData, unlocked: bool) -> void:
 	# The hits that left a level brick standing, 1 point each, in the 2 HP colour: only a brick with HP to spare takes one.
 	if round.tally.dents:
 		rows.append(_row(grid, Palette.hp(2), "Hits", str(round.tally.dents), _price(Coins.pay(round.tally.dents, round.stats))))
-	# The placeables on the board: a heading, then one row per kind with the hits it took. They pay nothing.
-	var placed := {}
-	for item in round.layout.items:
-		placed[item.kind.id] = true
-	if placed:
-		rows.append(_row(grid, Palette.PLACEABLE, "Placeables", "", Control.new()))
-		for kind in Kinds.placeables():
-			if placed.has(kind.id):
-				rows.append(_row(grid, Palette.PLACEABLE, "    %s hits" % kind.title, str(round.tally.hits.get(kind.id, 0)), Control.new()))
 	# Each combo that reached a multiplier, in order, with the bricks in it and the bonus it added. Past
 	# COMBO_ROWS, the ones with the smallest bonus share one last row.
 	var runs := round.tally.combos.filter(func(r: Tally.Run) -> bool: return r.multiplier > 1)
@@ -114,25 +100,6 @@ func open(round: Round, data: LevelData, unlocked: bool) -> void:
 			rest += Coins.bonus(run)
 	if runs.size() > top.size():
 		rows.append(_row(right, Palette.COINS, "%d more combos" % (runs.size() - top.size()), "", _price(Coins.pay(rest, round.stats))))
-	if round.stats.combo_rank >= 1.0:
-		var times := Label.new()
-		times.theme_type_variation = &"SmallTag"
-		times.text = "×%d" % round.tally.best_multiplier
-		UiTheme.light(times, Palette.COINS)
-		rows.append(_row(right, Palette.COINS, "Best combo", str(round.tally.best_combo), times))
-	# The bonuses: the best chain and rally, then how the round ended.
-	var efficiency := 0
-	for b in Coins.bonuses(round.tally, round.stats):
-		if b[0] == &"efficiency":
-			efficiency = b[2]
-			continue
-		var count := str(b[1]) if b[0] in [&"chain", &"rally"] else "%ds" % b[1] if b[0] == &"time" else ""
-		rows.append(_row(right, Palette.COINS, BONUSES[b[0]], count, _price(Coins.pay(b[2], round.stats))))
-	# How far each paddle touch went, the launch counted as one, and the efficiency bonus it earned on everything
-	# above, last because it is a share of them.
-	if round.tally.broken:
-		rows.append(_row(right, Palette.PLAYER, BONUSES[&"efficiency"], "%.1f" % Coins.per_touch(round.tally),
-				_price(Coins.pay(efficiency, round.stats)) if efficiency else Control.new()))
 
 	var total := HBoxContainer.new()
 	box.add_child(total)

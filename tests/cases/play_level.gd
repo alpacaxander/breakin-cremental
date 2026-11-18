@@ -313,18 +313,12 @@ func _check_summary(title: String) -> void:
 			rows[name_text] = [int((grid.get_child(i + 2) as Label).text), (last as UiPrice).amount if last is UiPrice else (last as Label).text if last is Label else ""]
 		for price in grid.get_children():
 			if price is UiPrice:
-				sum += (price as UiPrice).amount  # the kinds, the combos and the bonuses
-	for b in Coins.bonuses(round.tally, round.stats):
-		t.check(rows.get(LevelSummary.BONUSES[b[0]], []).size() == 2 and rows[LevelSummary.BONUSES[b[0]]][1] == Coins.pay(b[2], round.stats),
-				"a %s row pays %d" % [LevelSummary.BONUSES[b[0]], Coins.pay(b[2], round.stats)])
+				sum += (price as UiPrice).amount  # the kinds, the hits and the combos
 	for id: StringName in round.tally.broken:
 		var kind := Kinds.of(id)
 		var row: Array = rows.get(kind.title if kind else "Bricks", [])
 		t.check(row.size() == 2 and row[0] == round.tally.broken[id], "a %s row counts %d" % [kind.title if kind else "Bricks", round.tally.broken[id]])
-	for item in round.layout.items:
-		var row: Array = rows.get("    %s hits" % item.kind.title, [])
-		t.check(rows.has("Placeables") and rows["Placeables"][1] == "" and row.size() == 2 and row[0] == round.tally.hits.get(item.kind.id, 0) and row[1] == "",
-				"under Placeables, a %s row counts its hits, with nothing in the coin column" % item.kind.title)
+	t.check(rows.keys().all(func(k: String) -> bool: return rows[k][1] is int), "every row pays: no row is a bare stat (%s)" % [rows.keys()])
 	var total := summary.find_children("*", "UiPrice", true, false).filter(func(p: UiPrice) -> bool: return p.style == &"HudNumber")
 	t.check(total.size() == 1 and total[0].amount == round.coins and sum == round.coins, "the rows add up to the total, which is the round's coins (%d, %d, %d)" % [sum, total[0].amount if total else -1, round.coins])
 	var first := "Next" if round.tally.cleared and level.level < Progress.level_count else "Retry"

@@ -24,35 +24,12 @@ var combos: Array[Run] = []
 var dents := 0
 ## Placed bricks broken. They are counted here only.
 var placed_broken := 0
-## Hits each kind of placeable took, by its id: a ball off a free item, any hit on a placed brick or on a brick
-## that carries a mod. Pays nothing; the Summary shows it.
-var hits: Dictionary[StringName, int] = {}
 ## The highest combo count the round reached.
 var best_combo := 0
-## The highest multiplier the round reached. 1 if combos are off.
-var best_multiplier := 1
-## Level bricks broken by the explosion chain going off now, and the most one chain broke. A chain is everything
-## one blast set off, the blasts and Zaps it led to included; the explosive brick that started it is not in it.
-var chain := 0
-var best_chain := 0
-## Level bricks broken since a ball last touched the paddle, and the most between two touches.
-var rally := 0
-var best_rally := 0
-## Times a ball touched the paddle, the launch included.
-var paddle_touches := 0
-## How the round ended, set once when it does (Round._end). Coins.bonuses pays for these.
-var ended := false
+## How the round ended, set once when it does (Round._end).
 var target := 0  ## The score the level needs (Round.target)
-var score := 0  ## The score (Coins.points) before the end bonuses
+var score := 0  ## The score (Coins.points)
 var cleared := false  ## `score` reached `target`
-var kept := false  ## A ball was still in play
-var seconds_left := 0  ## Whole seconds on the timer, if every level brick was broken
-var first_clear := false  ## A clear, and the level's first
-
-
-## Counts one hit on a placeable of kind `id`.
-func hit(id: StringName) -> void:
-	hits[id] = hits.get(id, 0) + 1
 
 
 ## Counts a hit that left a level brick standing: 1 point. `combo` is the round's combo, already grown by this hit
@@ -62,21 +39,9 @@ func dent(combo: Combo) -> void:
 	_record(combo, 1)
 
 
-## Counts a ball touching the paddle: the rally starts again.
-func touch() -> void:
-	paddle_touches += 1
-	rally = 0
-
-
 ## Counts a brick that has just broken. `combo` is the round's combo, already grown by this break (count 0 while
-## combos are off). `in_chain` is true while an explosion chain is going off.
-func add(brick: Brick, combo: Combo, in_chain := false) -> void:
-	if not brick.placed:
-		rally += 1
-		best_rally = maxi(best_rally, rally)
-		if in_chain:
-			chain += 1
-			best_chain = maxi(best_chain, chain)
+## combos are off).
+func add(brick: Brick, combo: Combo) -> void:
 	_record(combo, 0 if brick.placed else Coins.worth(brick.kind))
 	if brick.placed:
 		placed_broken += 1
@@ -84,11 +49,10 @@ func add(brick: Brick, combo: Combo, in_chain := false) -> void:
 	broken[brick.kind] = broken.get(brick.kind, 0) + 1
 
 
-# Keeps the best combo and multiplier, and brings the running combo's Run up to `combo`, which a hit scoring
+# Keeps the best combo, and brings the running combo's Run up to `combo`, which a hit scoring
 # `points` has just grown.
 func _record(combo: Combo, points: int) -> void:
 	best_combo = maxi(best_combo, combo.count)
-	best_multiplier = maxi(best_multiplier, combo.multiplier)
 	if combo.count == 0:
 		return
 	if combos.is_empty() or combo.count <= combos.back().count:  # a new combo (or one set up by hand)

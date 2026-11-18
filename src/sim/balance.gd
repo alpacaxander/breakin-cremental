@@ -70,16 +70,6 @@ extends Resource
 
 @export_group("Coins")
 @export var coins_per_brick: float  ## See Coins.total()
-# The bonuses, in points, which coins_per_brick turns into coins like the bricks' (Coins.bonuses()).
-@export var chain_bonus: float  ## Per level brick in the round's biggest explosion chain
-@export var rally_bonus: float  ## Per level brick in the round's longest rally between two paddle touches
-@export var clear_bonus: float  ## For a clear, times the level's target
-@export var time_bonus: float  ## For breaking every level brick, per whole second left
-@export var first_clear_bonus: float  ## For a level's first clear, times the level's target
-@export var kept_bonus: float  ## For ending the round with a ball still in play
-@export var efficiency_from: float  ## Bricks per paddle touch where the efficiency bonus starts
-@export var efficiency_to: float  ## Bricks per paddle touch where it reaches efficiency_bonus
-@export var efficiency_bonus: float  ## The most the efficiency bonus adds, as a share of the round's score
 
 @export_group("Setup")
 @export var rotate_step: float  ## Degrees a rotatable item turns per press of rotate_cw / rotate_ccw

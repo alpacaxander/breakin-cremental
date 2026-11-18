@@ -113,7 +113,7 @@ func _drag(main: Main, number: int, slot: int, to: Vector2) -> void:
 
 
 ## Level `number` with only levels up to `unlocked` open, played for a moment, then every brick broken. Level 1
-## has a Bumper and a Booster placed, so its Summary shows the Placeables rows.
+## has a Bumper and a Booster placed, so its Summary is the one after a round with items.
 func _clear(main: Main, number: int, unlocked: int) -> Control:
 	Progress.unlocked = unlocked
 	Progress.layouts.erase(number)

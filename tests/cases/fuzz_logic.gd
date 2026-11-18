@@ -553,7 +553,7 @@ func _combo() -> void:
 			# every brick in the combo is paid at its multiplier, so this break pays itself and the rise on the rest
 			ok = ok and round.combo.count == count and round.combo.multiplier == mult and is_equal_approx(round.combo.window, window) and paid[i] == count * mult - (count - 1) * was and events.back() == [count, mult]
 		if rank == 0.0:
-			t.check(events.is_empty() and round.coins == 30 and round.combo.count == 0 and round.tally.best_multiplier == 1, "at Combo rank 0 combos are off: no combo, every brick pays 1")
+			t.check(events.is_empty() and round.coins == 30 and round.combo.count == 0, "at Combo rank 0 combos are off: no combo, every brick pays 1")
 			continue
 		t.check(ok, "at Combo rank %d the multiplier steps every 4 breaks and the window is %.1f s shrinking by 0.9 per step (balance.tres)" % [rank, base_window])
 		# The window: the combo lives until exactly `window` seconds pass with no break.
