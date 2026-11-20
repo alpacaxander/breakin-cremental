@@ -34,6 +34,8 @@ extends Resource
 @export var pulse_rate: float  ## Seconds taken off a Growth block's pulse period and a Refresh block's cooldown, down to pulse_min
 @export var refresh_size: float  ## How many broken level bricks a Refresh block brings back
 @export var overgrowth: float  ## 0: off. 1: every level brick that breaks comes back, plain and 1 HP, overgrowth_delay s later
+@export var guide: float  ## 0: off. Above 0: a line this many units long shows where the held ball would go (Round.guide)
+@export var guide_bounces: float  ## 0: the Guide's line ends at the first thing the ball would touch. 1: it bounces on
 ## Stats that have no property of their own, by name. The per-kind counts live here: `<kind id>_count` is how many
 ## of that kind the player may place (a placeable) or how many are rolled onto the board (a special brick). A name
 ## that is missing is 0, so the shipped file leaves this empty. An entry here is a free item before any upgrade.
@@ -46,6 +48,7 @@ extends Resource
 @export var min_angle_horizontal: float  ## ...and at least this far from straight left or right. The launch is exempt
 @export var boost_cap: float  ## The highest Ball.boost: 2 is twice the base speed
 @export var shockwave_boost: float  ## A Shockwave multiplies Ball.boost by this
+@export var launch_sway: float  ## Seconds the held ball's aim takes to sway from the top to the bottom and back
 
 @export_group("Paddle")
 @export var paddle_thickness: float

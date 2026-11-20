@@ -64,6 +64,7 @@ The main menu, Settings and the Summary have no mockup. They are described below
 - **Coins** are the coins of the round on screen, so 0 in Setup. The balance is on the upgrade screen.
 - **In Setup** the centre column is SETUP in lit cyan over two hint lines in secondary text: how to place and remove once a placeable is unlocked, and how to turn once one that turns is (the Wall Segment); otherwise how to start and how to move the paddle. The time label reads "TIME", as in Play.
 - **Waiting to launch.** In Play, while the ball sits on the paddle, the combo column gives way to two hint lines: how to launch (a click or Space) and how to move the paddle. They go when the ball leaves.
+- **Guide line.** With the Guide upgrade, while the ball sits on the paddle, a dashed line runs from the ball along the way it would launch, bounces included with Guide Bounces: player cyan at half opacity, 2 units thick in dashes 6 long (`LevelArena.GUIDE_*`), drawn under the ball. It moves with the sway every frame and goes when the ball leaves.
 
 ### Setup
 

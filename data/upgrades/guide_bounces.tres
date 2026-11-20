@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="Upgrade" format=3]
+
+[ext_resource type="Script" path="res://src/content/upgrade.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+title = "Guide Bounces"
+category = 0
+text = "The guide line bounces off walls, bricks and items."
+first_cost = 250
+max_rank = 1
+stat = &"guide_bounces"
+amount = 1.0

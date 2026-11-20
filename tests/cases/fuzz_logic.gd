@@ -15,7 +15,7 @@ const NUMBERS := {
 	&"ball_size": 12.0, &"launch_gap": 48.0, &"min_angle_vertical": 20.0, &"min_angle_horizontal": 8.0, &"boost_cap": 3.0, &"shockwave_boost": 2.0,
 	&"paddle_thickness": 12.0, &"paddle_inset": 24.0, &"paddle_max_angle": 60.0, &"low_time": 5.0,
 	&"combo_window": 1.6, &"combo_window_per_rank": 0.5, &"combo_breaks_per_step": 4, &"combo_window_shrink": 0.9, &"combo_window_min": 0.5,
-	&"coins_per_brick": 1.0, &"rotate_step": 15.0,
+	&"coins_per_brick": 1.0, &"rotate_step": 15.0, &"launch_sway": 2.0,
 	&"explosion_damage": 1.0, &"zap_range": 64.0, &"zap_damage": 1.0, &"splitter_splits": 2.0,
 }
 const PLACEABLES: Array[StringName] = [&"bumper", &"booster", &"wall_segment", &"splitter", &"zap"]

@@ -123,7 +123,8 @@ const WEDGED := 8
 ## Seconds on the timer that count as none (see ONE STEP, 4). Far above what rounding leaves behind (3e-9 after
 ## two minutes at 10000 steps a second, 1e-11 in a real round) and far below any step.
 const TIME_SLOP := 1e-6
-## The launch leaves at most this many degrees above or below level: a 90 degree spread.
+## Without the Guide the launch sways at most this many degrees above or below level: a 90 degree spread. With
+## it, the sway goes as steep as the minimum angles allow (see launch_dir).
 const LAUNCH_ANGLE := 45.0
 ## restored's `cell` when no block brought the bricks back (Overgrowth). It is off the board.
 const NOWHERE := Vector2i(-1, -1)
@@ -211,6 +212,8 @@ var target := 0
 ## Every cell that held a level brick (not a placed one) once the round was built, as keys (all true). Only
 ## these can have a brick brought back (restore).
 var level_cells: Dictionary[Vector2i, bool] = {}
+## Seconds the ball has been held, from a random start: launch_dir() sways with it.
+var sway := 0.0
 
 # The FREE items as the sweep sees them (Collide.Solid), in layout order.
 # ponytail: grown for a ball of stats.ball_size. Every ball is that size; if one ever is not, grow per size.
@@ -281,19 +284,56 @@ static func launch_path(p_board: Board, p_stats: Balance) -> Rect2:
 ## the bot holds and launches at once.
 # ponytail: opt-in, so the rules tests' ball at rest (launch_gap, launch_path) still works. Once nothing
 # builds an unheld round, make it the constructor's default and drop launch_gap and launch_path.
+## The sway starts at a random point (rng), so the bot, which launches at once, still launches every way.
 func hold() -> void:
 	held = true
+	sway = rng.randf() * stats.launch_sway
 	_glue()
 
 
-## Sends the held ball off the paddle toward the board, up to LAUNCH_ANGLE above or below level, at random
-## (rng, so a seed gives the same launch), then the minimum angles. Does nothing if no ball is held.
+## Sends the held ball off the paddle along launch_dir(). Does nothing if no ball is held.
 func launch() -> void:
 	if not held or balls.is_empty():
 		return
 	held = false
-	var dir :=Vector2.RIGHT.rotated(deg_to_rad(rng.randf_range(-LAUNCH_ANGLE, LAUNCH_ANGLE)))
-	balls[0].put(balls[0].pos, _legal(dir, Vector2.RIGHT))
+	balls[0].put(balls[0].pos, launch_dir())
+
+
+## Where the held ball would leave if launched now. It sways from the highest angle to the lowest and back once
+## every stats.launch_sway seconds, slowing at each end. The highest is LAUNCH_ANGLE, or with the Guide
+## (stats.guide > 0) as steep as the minimum angles allow; then the minimum angles apply.
+func launch_dir() -> Vector2:
+	var top := 90.0 - stats.min_angle_vertical if stats.guide > 0.0 else LAUNCH_ANGLE
+	var angle := top * sin(TAU * sway / stats.launch_sway)
+	return _legal(Vector2.RIGHT.rotated(deg_to_rad(angle)), Vector2.RIGHT)
+
+
+## The Guide: the held ball's way if launched now, as the ball's centre where it starts, at each bounce and where
+## the line ends. The line is stats.guide units long, bounces included. Without stats.guide_bounces it ends at the
+## first thing the ball would touch; with it, it ends at the paddle or the open side, where the way depends on the
+## player. Empty with no Guide or no ball held.
+## It is the way with nothing else changing: no blast, Shockwave, Splitter or brick brought back is foreseen.
+func guide() -> PackedVector2Array:
+	var points := PackedVector2Array()
+	if not held or balls.is_empty() or stats.guide <= 0.0:
+		return points
+	var ghost := Ball.new()
+	ghost.size = balls[0].size
+	ghost.put(balls[0].pos, launch_dir())
+	points.append(ghost.pos)
+	var left := stats.guide
+	for i in MAX_CONTACTS:
+		var hit := Collide.sweep(self, ghost, left)
+		var go := hit.travel if hit else left
+		if ghost.dir.x < 0.0:  # the open side, as in _move
+			go = minf(go, maxf((-board.lane() - ghost.size * 0.5 - ghost.from.x) / ghost.dir.x - ghost.gone, 0.0))
+		points.append(ghost.from + ghost.dir * (ghost.gone + go))
+		left -= go
+		if hit == null or go < hit.travel or left <= 0.0 or stats.guide_bounces < 1.0 or hit.surface == Hit.Surface.PADDLE:
+			break
+		ghost.pos = hit.point
+		_turn(ghost, hit)
+	return points
 
 
 func _glue() -> void:
@@ -308,7 +348,9 @@ func step(delta: float, paddle_target: float) -> void:
 	if over:
 		return
 	move_paddle(delta, paddle_target)
-	if not held:
+	if held:
+		sway += delta
+	else:
 		for ball in balls.duplicate():  # a copy: a Splitter adds to `balls` and a lost ball leaves it
 			_move(ball, delta)
 		if combo.tick(delta):
@@ -589,6 +631,22 @@ func _cross(ball: Ball, was: Vector2) -> void:
 
 
 func _bounce(ball: Ball, hit: Hit) -> void:
+	var was := _turn(ball, hit)
+	match hit.surface:
+		Hit.Surface.BRICK:
+			hit_brick(hit.cell, Cause.BALL, was, ball)
+		Hit.Surface.ITEM:
+			hit.item.kind.on_ball_hit(self, ball, hit)
+			ball_bounced.emit(ball, hit)
+		_:
+			if hit.surface == Hit.Surface.WALL and hit.normal == Vector2.LEFT and on_rear_paddle(ball.pos.y):
+				set_boost(ball, ball.boost + stats.rear_paddle)
+			ball_bounced.emit(ball, hit)
+
+
+## A bounce's new direction (ONE BOUNCE), put on the ball; the paddle also resets its boost. Returns the
+## direction it had. The Guide turns its ghost ball with this too.
+func _turn(ball: Ball, hit: Hit) -> Vector2:
 	var was := ball.dir
 	var n := hit.normal
 	if hit.surface == Hit.Surface.PADDLE:
@@ -609,16 +667,7 @@ func _bounce(ball: Ball, hit: Hit) -> void:
 		ball.put(ball.pos, out)
 	else:
 		ball.put(ball.pos, was)
-	match hit.surface:
-		Hit.Surface.BRICK:
-			hit_brick(hit.cell, Cause.BALL, was, ball)
-		Hit.Surface.ITEM:
-			hit.item.kind.on_ball_hit(self, ball, hit)
-			ball_bounced.emit(ball, hit)
-		_:
-			if hit.surface == Hit.Surface.WALL and hit.normal == Vector2.LEFT and on_rear_paddle(ball.pos.y):
-				set_boost(ball, ball.boost + stats.rear_paddle)
-			ball_bounced.emit(ball, hit)
+	return was
 
 
 ## The minimum angles (docs/design/physics.md): `dir`, turned if it has to be so that it is at least

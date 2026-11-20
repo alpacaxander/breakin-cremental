@@ -10,7 +10,7 @@ extends Node2D
 ##                                                             and when a Refresh block's cooldown ends
 ##   ItemViews   10  the free-form placed items                with the round
 ##   PaddleView  10  the paddle; it is moved, not redrawn      with the round
-##   BallViews   20  the balls                                 every frame of Play
+##   BallViews   20  the balls; the Guide's line while held    every frame of Play
 ##   Ghost      101  the item being dragged in Setup           when it moves. Over SetupUi (100): it follows the
 ##                   cursor over the tray
 ##   Fx              the effects, last, so their children sort between these (src/level/fx/fx.gd)
@@ -34,6 +34,9 @@ const GATE_POST := 1.0 / 16.0
 const GATE_DASH := 1.0 / 12.0
 const GATE_GAP := 1.0 / 24.0
 const GATE_LINE := 2.0  ## The centre line's thickness, in units, at any length
+## The Guide's line (Round.guide): cyan dashes this thick, half see-through so it stays under the bloom.
+const GUIDE_WIDTH := 2.0
+const GUIDE_ALPHA := 0.5
 
 var round: Round
 
@@ -211,6 +214,9 @@ func _draw_paddle() -> void:
 
 
 func _draw_balls() -> void:
+	var guide := round.guide()  # empty unless the ball is held and the Guide is owned
+	for i in guide.size() - 1:
+		_balls.draw_dashed_line(guide[i], guide[i + 1], Color(Palette.PLAYER, GUIDE_ALPHA), GUIDE_WIDTH, DASH)
 	var t := _between()
 	for ball in round.balls:
 		var at: Vector2 = _was.get(ball.id, ball.pos).lerp(ball.pos, t)

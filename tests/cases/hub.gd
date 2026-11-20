@@ -13,6 +13,7 @@ const WEB := {
 	&"ToughBrick": &"GoldBrick", &"Growth": &"ToughBrick", &"GrowthReach": &"Growth",
 	&"Refresh": &"ToughBrick", &"RefreshSize": &"Refresh", &"PulseRate": &"Refresh",
 	&"Overgrowth": &"PulseRate",
+	&"Guide": &"Booster", &"GuideBounces": &"Guide",
 }
 
 var _heard: Array[StringName] = []

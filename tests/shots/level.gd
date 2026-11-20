@@ -46,6 +46,7 @@ func shots() -> Array[Dictionary]:
 		{"name": "play_maxed_1", "save": "maxed", "crt": false, "setup": _play.bind(1, PLACED, 200, 0)},
 		{"name": "play_maxed_3", "save": "maxed", "setup": _play.bind(3, [], 240, 0)},
 		{"name": "play_low_time", "save": "mid", "crt": false, "setup": _low_time},
+		{"name": "play_guide", "save": "maxed", "setup": _guide},
 		{"name": "play_tough", "save": "maxed", "crt": false, "setup": _tough},
 		{"name": "play_growth", "save": "maxed", "setup": _growth, "settle": 12},
 		{"name": "play_refresh", "save": "maxed", "setup": _refresh, "settle": 12},
@@ -222,3 +223,11 @@ func _mouse(main: Main, at: Vector2, press := false) -> void:
 	event.position = at
 	event.global_position = at
 	main.view.push_input(event, true)
+
+
+## Level 1 in Play with everything placed and the ball still on the paddle: the Guide's line (the maxed save owns
+## Guide Bounces too) from the ball, aimed steeply up, off the walls and the items.
+func _guide(main: Main) -> void:
+	var level := await _play(main, 1, PLACED, 0, 0)
+	var round: Round = level.get("round")
+	round.sway = 1.2

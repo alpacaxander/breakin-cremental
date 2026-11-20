@@ -12,6 +12,8 @@
 [ext_resource type="Resource" path="res://data/upgrades/gold_brick.tres" id="gold_brick"]
 [ext_resource type="Resource" path="res://data/upgrades/growth_reach.tres" id="growth_reach"]
 [ext_resource type="Resource" path="res://data/upgrades/growth.tres" id="growth"]
+[ext_resource type="Resource" path="res://data/upgrades/guide.tres" id="guide"]
+[ext_resource type="Resource" path="res://data/upgrades/guide_bounces.tres" id="guide_bounces"]
 [ext_resource type="Resource" path="res://data/upgrades/hourglass_brick.tres" id="hourglass_brick"]
 [ext_resource type="Resource" path="res://data/upgrades/hourglass_freeze.tres" id="hourglass_freeze"]
 [ext_resource type="Resource" path="res://data/upgrades/hourglass_time.tres" id="hourglass_time"]
@@ -183,3 +185,13 @@ links = Array[NodePath]([NodePath("../Refresh"), NodePath("../Growth")])
 upgrade = ExtResource("overgrowth")
 cell = Vector2i(4, 6)
 links = Array[NodePath]([NodePath("../PulseRate")])
+
+[node name="Guide" parent="." instance=ExtResource("node")]
+upgrade = ExtResource("guide")
+cell = Vector2i(3, 1)
+links = Array[NodePath]([NodePath("../Booster")])
+
+[node name="GuideBounces" parent="." instance=ExtResource("node")]
+upgrade = ExtResource("guide_bounces")
+cell = Vector2i(4, 1)
+links = Array[NodePath]([NodePath("../Guide")])

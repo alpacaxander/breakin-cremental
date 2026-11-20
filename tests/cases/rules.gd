@@ -15,7 +15,7 @@ const NUMBERS := {
 	&"ball_size": 12.0, &"launch_gap": 48.0, &"min_angle_vertical": 20.0, &"min_angle_horizontal": 8.0, &"boost_cap": 3.0, &"shockwave_boost": 2.0,
 	&"paddle_thickness": 12.0, &"paddle_inset": 24.0, &"paddle_max_angle": 60.0, &"low_time": 5.0,
 	&"combo_window": 1.6, &"combo_window_per_rank": 0.5, &"combo_breaks_per_step": 4, &"combo_window_shrink": 0.9, &"combo_window_min": 0.5,
-	&"coins_per_brick": 1.0, &"rotate_step": 15.0,
+	&"coins_per_brick": 1.0, &"rotate_step": 15.0, &"launch_sway": 2.0,
 	&"explosion_damage": 1.0, &"zap_range": 64.0, &"zap_damage": 1.0, &"splitter_splits": 2.0,
 }
 
@@ -54,7 +54,7 @@ func run(p_t: Node) -> void:
 
 
 ## Round.hold and Round.launch: the ball rides on the paddle and nothing else moves, then leaves within
-## LAUNCH_ANGLE of level, the same way for the same seed.
+## LAUNCH_ANGLE of level (further with the Guide), the same way for the same seed; and the Guide's line.
 func _launch() -> void:
 	var stats := _stats()
 	var round := Round.new(_board(), null, stats, 1)
@@ -79,6 +79,37 @@ func _launch() -> void:
 		r.launch()
 		dirs.append(r.balls[0].dir)
 	t.check(dirs[0] == dirs[1], "the same seed launches the same way")
+	var aim := func(guide: float, sway: float) -> float:
+		var r := Round.new(_board(), null, _stats({&"guide": guide}), 1)
+		r.hold()
+		r.sway = sway
+		return rad_to_deg(r.launch_dir().angle())
+	t.check(is_equal_approx(aim.call(0.0, 0.5), 45.0) and is_equal_approx(aim.call(0.0, 1.5), -45.0)
+			and is_equal_approx(aim.call(1.0, 0.5), 90.0 - stats.min_angle_vertical) and is_equal_approx(aim.call(0.0, 0.0), stats.min_angle_horizontal),
+			"the aim sways to 45 degrees either way, to the steepest legal angle with the Guide, and keeps the minimum angle at level")
+	round = Round.new(_board({FAR: 1}), null, stats, 1)  # a brick, so the round does not end on its first step
+	round.hold()
+	round.sway = 0.5
+	var down := round.launch_dir()
+	round.step(1.0, round.paddle.y)
+	t.check(down.y > 0.0 and round.launch_dir().y < 0.0 and round.held, "holding the ball sways its aim")
+	var length := func(points: PackedVector2Array) -> float:
+		var sum := 0.0
+		for i in points.size() - 1:
+			sum += points[i].distance_to(points[i + 1])
+		return sum
+	var guided := func(guide: float, bounces: float) -> PackedVector2Array:
+		var r := Round.new(_board(), null, _stats({&"guide": guide, &"guide_bounces": bounces}), 1)
+		r.hold()
+		r.sway = 0.4
+		return r.guide()
+	t.check(guided.call(0.0, 1.0).is_empty(), "no Guide, no line")
+	var short: PackedVector2Array = guided.call(100.0, 0.0)
+	t.check(short.size() == 2 and is_equal_approx(length.call(short), 100.0), "a short Guide is a straight line its length long")
+	var one: PackedVector2Array = guided.call(5000.0, 0.0)
+	var many: PackedVector2Array = guided.call(5000.0, 1.0)
+	t.check(one.size() == 2 and length.call(one) < 5000.0 and many.size() > 3 and many[1].is_equal_approx(one[1]) and length.call(many) <= 5000.001,
+			"without Guide Bounces the line ends at the first contact; with it, it bounces on, no longer than the Guide")
 
 
 # --- helpers ---------------------------------------------------------------------------------------------------
@@ -199,7 +230,7 @@ func _shipped() -> void:
 	t.check(s.min_angle_horizontal <= s.paddle_max_angle and s.paddle_max_angle <= 90.0 - s.min_angle_vertical, "the paddle's steepest angle is a legal angle")
 	t.check(s.boost_cap >= 1.0 and s.shockwave_boost >= 1.0, "a boost never slows a ball")
 	t.check(Board.LANE_PX - s.paddle_inset - s.paddle_thickness >= s.ball_size, "on a 16-row board a ball fits between the paddle's face and the grid, so nothing placed can wedge it there")
-	t.check(s.launch_gap >= 0.0 and s.paddle_inset >= 0.0 and s.paddle_size > 0.0 and s.ball_speed > 0.0 and s.combo_breaks_per_step >= 1, "the ball starts in front of the paddle and moves")
+	t.check(s.launch_gap >= 0.0 and s.paddle_inset >= 0.0 and s.paddle_size > 0.0 and s.ball_speed > 0.0 and s.combo_breaks_per_step >= 1 and s.launch_sway > 0.0, "the ball starts in front of the paddle and moves, and its aim sways")
 
 
 # --- the kinds -------------------------------------------------------------------------------------------------
