@@ -19,7 +19,7 @@ Every sound is synthesised by one script. Nothing is recorded or downloaded.
 | Group | Cues |
 |---|---|
 | Ball and paddle | paddle hit, wall bounce, ball lost |
-| Bricks | brick hit, brick break, explosion, gold brick, hourglass brick |
+| Bricks | brick hit, brick break, explosion, gold brick, hourglass brick. A ball brick plays splitter: both give a ball. A spare going onto the paddle is silent |
 | Placeables | bumper, booster, splitter, zap. A Growth pulse plays booster, its rising sweep; bricks a Refresh block brings back play place item, the thunk of a brick put down. Bricks Overgrowth brings back are silent: hundreds come back in a few seconds on level 3, which would bury the break and combo cues under a steady patter, and it is the arena acting, not the player |
 | Round | round start, low-timer tick, level cleared, summary tally tick |
 | UI | click, buy, can't afford, place item |

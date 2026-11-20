@@ -15,7 +15,8 @@ See also: [overview.md](overview.md), [levels.md](levels.md), [placeables.md](pl
 - **Minimum angles.** After any bounce or throw the direction is nudged so it is never within a small angle of vertical (the ball would bounce between the top and bottom walls and never come back) or of horizontal (it would go back and forth along one line). The launch follows them too.
 - **Collision.** Movement is swept, so a fast ball can't pass through a brick or the paddle. A hit on a brick resolves against exactly one of its edges. There are no corner bounces: a hit on a corner picks one edge.
 - **Damage.** Each hit takes 1 HP off the brick.
-- **Several balls.** If an item or upgrade adds balls, each one follows the same rules. The round ends when the last ball is lost.
+- **Several balls.** If an item or upgrade adds balls, each one follows the same rules. The round ends when the last ball is lost and no spare is left.
+- **Spare balls.** A round can hold balls in reserve: one per rank of Spare Ball (`spare_balls`) at the start, and one more for each Ball Brick broken. A second (`spare_delay`) after a launch, the next spare goes onto the paddle's face, where it rides and sways like the first ball while the others play on and the clock runs; a click or Space launches it. It touches nothing while it waits. When the last ball in play is lost, the next spare comes at once, so the round goes on; a player may keep a spare on the paddle as insurance rather than launch it. Only a ball in play is thrown by a Shockwave. The spares in reserve are drawn as ball squares stacked up the strip behind the paddle (see [art.md](../art.md)).
 
 ## Paddle
 

@@ -18,8 +18,8 @@ See also: [placeables.md](placeables.md), [physics.md](physics.md), [overview.md
 | Category | What it does | Nodes in the demo |
 |---|---|---|
 | **Placeables** | Items you unlock and then place in the arena during the Setup phase to help yourself. The three kinds and their rules are in [placeables.md](placeables.md) | Booster, Booster Speed, Zap, Zap Range, Zap Damage, Splitter, Splitter Splits, Splitter Health, Wall Segment, Growth, Growth Reach, Refresh, Refresh Size, Pulse Rate |
-| **Bricks** | When a level starts, some standard bricks are randomly replaced by special bricks that do something when broken. Some nodes improve a special brick instead | Explosive Brick, Explosion Size, Explosion Damage, Shockwave, Gold Brick, Tough Brick, Hourglass Brick, Hourglass Time, Hourglass Freeze |
-| **Arena** | Changes the arena's base stats and rules | Paddle Speed, Paddle Size, Combo, Combo Window, Rear Paddle, Overgrowth, Guide, Guide Bounces |
+| **Bricks** | When a level starts, some standard bricks are randomly replaced by special bricks that do something when broken. Some nodes improve a special brick instead | Explosive Brick, Explosion Size, Explosion Damage, Shockwave, Gold Brick, Tough Brick, Hourglass Brick, Hourglass Time, Hourglass Freeze, Ball Brick |
+| **Arena** | Changes the arena's base stats and rules | Paddle Speed, Paddle Size, Combo, Combo Window, Rear Paddle, Overgrowth, Guide, Guide Bounces, Spare Ball |
 
 ## Counts come from ranks
 
@@ -47,7 +47,7 @@ Bracket shape shows the category: `( )` Arena, `[ ]` Placeables, `{ }` Bricks. R
         │                                    │                                     │
 {  Shockwave   }   [   Splitter   ]───(    Combo     )───( Combo Window )   {Hourglass Frz.}
                            │                 │
-                   [SplitterSplits]   {  Gold Brick  }───[ Wall Segment ]
+{  Ball Brick  }───[SplitterSplits]   {  Gold Brick  }───[ Wall Segment ]───(  Spare Ball  )
                            │                 │
                    [SplitterHealth]   { Tough Brick  }───[    Growth    ]───[ Growth Reach ]
                                              │                  │
@@ -69,6 +69,7 @@ A price is the first price times the growth for every rank owned, rounded to a w
 | Overgrowth | Arena | Every level brick that breaks comes back 8 s of play later, a plain 1 HP brick (see below) | 1 |  | 8,000 |
 | Guide | Arena | +250 units of guide line, and the launch sways to the steepest legal angle (see below) | 4 | ×4 | 30, 120, 480, 1,920 |
 | Guide Bounces | Arena | The guide line bounces | 1 |  | 250 |
+| Spare Ball | Arena | One more ball in reserve, launched with a click while another plays (see below) | 3 | ×5 | 300, 1,500, 7,500 |
 | Booster | Placeables | One Booster | 2 | ×20 | 12, 240 |
 | Booster Speed | Placeables | A Booster adds 20% of base speed more | 2 | ×6 | 500, 3,000 |
 | Zap | Placeables | One Zap | 3 | ×4 | 200, 800, 3,200 |
@@ -92,8 +93,10 @@ A price is the first price times the growth for every rank owned, rounded to a w
 | Hourglass Brick | Bricks | One hourglass brick | 2 | ×100 | 25, 2,500 |
 | Hourglass Time | Bricks | An hourglass brick adds 5 s more | 2 | ×5 | 1,200, 6,000 |
 | Hourglass Freeze | Bricks | Breaking an hourglass brick holds the combo's window for 1 s | 2 | ×5 | 800, 4,000 |
+| Ball Brick | Bricks | One ball brick | 2 | ×4 | 1,800, 7,200 |
 
-- That is 31 nodes and 73 purchases, 112,812 coins in all. The Bumper is still a kind in the code but no node unlocks it.
+- That is 33 nodes and 78 purchases, 131,112 coins in all. The Bumper is still a kind in the code but no node unlocks it.
+- **Spare Ball** puts a ball in reserve for every round, and a **Ball Brick** adds one when it breaks (see [physics.md](physics.md#ball)). A spare goes onto the paddle a second after the last launch, to be launched with a click while the others play, or kept there: when the last ball in play is lost the next spare comes at once and the round goes on. It hangs off the Wall Segment and its first rank belongs to level 2's band; the Ball Brick hangs off Splitter Splits, in level 3's. The bot keeps a spare on the paddle until no other ball is left (`spares=hold`), or launches it at once (`spares=launch`). Measured on `tests/layouts/found.json` (not the layout search, so not comparable with the campaigns below), against the same campaigns without the two nodes: with every rank, level 3 loses its last ball in 10 to 35% of rounds instead of 85 to 90%, and a round pays 90,000 to 140,000 instead of 14,000 to 38,000; level 2 hardly moves, or clears every round with `spares=launch`. In the campaigns the first Spare Ball is bought on level 3 (rounds 27 to 55) and the clears move little: level 3 on round 72, 42 and 40 (clumsy, average, good) against 71, 48 and 40. So it ends level 3's lottery once owned, which is what the level needed, and makes a maxed level 3 a farm; the prices and level 3's target have not been retuned for it.
 - **Guide** shows, while the ball waits on the paddle, a dashed cyan line along the way it would go if launched now (see [physics.md](physics.md#ball) for the sway). Each rank makes the line 250 units longer (`guide` in the stats), counted along the whole way. Without **Guide Bounces** the line stops at the first thing the ball would touch; with it, it bounces off walls, bricks and placed items as the ball would, until its length runs out or it reaches the paddle or the open side, where the way depends on the player. It does not foresee blasts, Shockwaves, Splitters or bricks brought back. Owning a rank of Guide also widens the launch's sway from 45° to the steepest legal angle (70°), since the player can now see where a steep launch goes. It hangs off the Booster, which the first trip buys, so it is on offer from the second; Guide Bounces belongs to level 2's band. The bot does not use it: it launches at once.
 - **Overgrowth** makes the arena grow back. A level brick that breaks, by a ball, a blast or a Zap, comes back 8 s of play later (`overgrowth_delay`, on the round's clock, so an hourglass does not move it) as a plain 1 HP level brick: a special brick comes back plain and a Zap on it is gone. It comes back again each time it breaks. A brick the player placed never comes back. If a ball is over the cell when it is due, it comes back on the first step the cell is clear. A brick that came back scores and counts toward the target and the clear like any level brick, but the round does not wait for one: breaking the last level brick standing still ends it. It has no effect or sound of its own (see [art.md](../art.md#effects) and [audio.md](../audio.md)). It means levels 1 and 2 are seldom wiped any more: with every rank the contract round on level 2 runs to time, 356 bricks broken and 5,149 coins, where it used to break all 128 for about 2,000. A clear comes from the target, so this costs nothing but the sight of an empty board. Of the bot's campaigns only the good player's reaches it, after its last clear (see "What the bot measured").
 - **The prices come in three bands, one per level**, because each level pays several times the one before. A round pays about 10 to 80 coins on level 1, 5 to 1,700 on level 2 (most under 150, a clear 500 to 1,700), and on level 3 either almost nothing (the ball is lost in the first seconds) or a few hundred on arrival and 2,500 to 7,000 later, with a clear paying 14,000 to 33,000 (80,000 with every rank). Up to 50 coins is what level 1 pays for: 11 ranks, the first of nearly every node next to the seed and the Guide, so the first trips to the hub show the core of the game. From 80 to 1,200 is level 2: 37 ranks. From 1,700 to 10,000 is level 3: 25 ranks. The balance bot buys the cheapest rank on offer, so the bands are the order it buys in.
@@ -116,6 +119,7 @@ A special brick has 1 HP, a tough brick 3, whatever the brick it replaced had. W
 | **Gold** | It counts as 20 bricks in the round's tally |
 | **Hourglass** | It adds 15 s to the timer, plus Hourglass Time. With Hourglass Freeze it holds a running combo's window |
 | **Tough** | Nothing more. It takes 3 hits, and each scores a point (see [overview.md](overview.md#coins)). It looks like any 3 HP brick, its colour stepping down the HP colours as it is hit |
+| **Ball** | It puts one more ball in reserve, however it broke (a ball, a blast or a Zap). It looks like a plain 1 HP brick with a slate square the size of a ball in its middle |
 
 **Shockwave** changes the explosion: every ball inside the blast is thrown straight away from the blast's centre, with its speed raised by a quarter as a boost (see [physics.md](physics.md#ball)).
 

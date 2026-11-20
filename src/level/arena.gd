@@ -10,7 +10,8 @@ extends Node2D
 ##                                                             and when a Refresh block's cooldown ends
 ##   ItemViews   10  the free-form placed items                with the round
 ##   PaddleView  10  the paddle; it is moved, not redrawn      with the round
-##   BallViews   20  the balls; the Guide's line while held    every frame of Play
+##   BallViews   20  the balls, the spares in reserve, and     every frame of Play
+##                   the Guide's line while a ball waits
 ##   Ghost      101  the item being dragged in Setup           when it moves. Over SetupUi (100): it follows the
 ##                   cursor over the tray
 ##   Fx              the effects, last, so their children sort between these (src/level/fx/fx.gd)
@@ -37,6 +38,8 @@ const GATE_LINE := 2.0  ## The centre line's thickness, in units, at any length
 ## The Guide's line (Round.guide): cyan dashes this thick, half see-through so it stays under the bloom.
 const GUIDE_WIDTH := 2.0
 const GUIDE_ALPHA := 0.5
+## The spares in reserve are stacked this many ball sizes apart.
+const SPARE_PITCH := 1.5
 
 var round: Round
 
@@ -156,6 +159,11 @@ func _draw_bricks() -> void:
 		_bricks.draw_rect(rect.grow(-1.0), Palette.dim(kind.colour) if cooling else Palette.lit_brick(brick))
 		if kind and kind.unbreakable:
 			panes(_bricks, rect.grow(-1.0 - BLOCK_EDGE), kind.panes, BLOCK_EDGE, Palette.BASE)
+		var special := Kinds.of(brick.kind) as BrickKind
+		if special and special.mark:  # the ball a Ball Brick holds: slate, not white, which is for balls in play
+			var ball := Rect2(rect.get_center() - Vector2.ONE * round.stats.ball_size * 0.5, Vector2.ONE * round.stats.ball_size)
+			_bricks.draw_rect(ball.grow(MARK_RIM), Palette.BASE)
+			_bricks.draw_rect(ball, Palette.PADDLE)
 		var mod := Kinds.of(brick.mod) as PlaceableKind
 		if mod:
 			var mark := Rect2(rect.get_center() - mod.size * 0.5, mod.size)
@@ -214,9 +222,16 @@ func _draw_paddle() -> void:
 
 
 func _draw_balls() -> void:
-	var guide := round.guide()  # empty unless the ball is held and the Guide is owned
+	var guide := round.guide()  # empty unless a ball waits on the paddle and the Guide is owned
 	for i in guide.size() - 1:
 		_balls.draw_dashed_line(guide[i], guide[i + 1], Color(Palette.PLAYER, GUIDE_ALPHA), GUIDE_WIDTH, DASH)
+	# The spares in reserve: ball squares up the strip behind the paddle, from the bottom wall, without the
+	# ball's halo, so they never pass for one in play.
+	# ponytail: one column, so about 25 fit on a 16-row board; count them in a number if a round ever has more.
+	var s := round.stats.ball_size
+	for i in round.spares:
+		_balls.draw_rect(Rect2(-round.board.lane() + (round.stats.paddle_inset - s) * 0.5, round.board.size().y - (i + 1) * s * SPARE_PITCH,
+				s, s), Palette.lit(Palette.BALL))
 	var t := _between()
 	for ball in round.balls:
 		var at: Vector2 = _was.get(ball.id, ball.pos).lerp(ball.pos, t)

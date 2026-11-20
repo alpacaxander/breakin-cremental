@@ -20,6 +20,7 @@ extends Node
 ##   base    added to every seed a batch or a campaign plays with (default 0), to measure on other seeds
 ##   reaction, aim, steer, focus   override the skill's own numbers (see THE PLAYER); focus=0 ignores the aims
 ##   probe   seeds per skill for the campaign's stage probes (default 10; 0 skips them, see _stages)
+##   spares  hold (default): a spare ball waits on the paddle until no other ball is in play; launch: it goes at once
 ##
 ## tests/layouts/found.json is what the search found, kept: on levels 1 and 2 the Splitters and Zaps only (wherever
 ## the search puts a Bumper, a Booster or a Wall Segment there, this player does no better, and often worse: it does
@@ -66,7 +67,7 @@ const STAGE_GOALS := {1: [2, 6], 2: [4, 10], 3: [6, 16]}
 const WEB_SCENE := "res://src/hub/web.tscn"
 
 var _args := {"mode": "report", "level": "all", "ranks": "fresh", "skill": "average", "seeds": "20",
-		"layout": "auto", "rounds": "400", "base": "0"}
+		"layout": "auto", "rounds": "400", "base": "0", "spares": "hold"}
 var _boards := {}  # level -> Board, read once
 var _targets := {0: 1 << 30}  # level -> its LevelData.target, read with its board; the test board is never cleared
 var _aims := {0: [] as Array[Vector2]}  # level -> its LevelData.aims as cell centres, for Player
@@ -98,6 +99,8 @@ class Player:
 	func target(round: Round) -> float:
 		var now := []
 		for ball in round.balls:
+			if ball == round.waiting:  # a spare on the paddle: nothing to chase
+				continue
 			now.append([ball.id, ball.pos, ball.dir, round.speed_of(ball)])
 		_seen.append(now)
 		if _seen.size() > reaction_steps + 1:
@@ -296,6 +299,9 @@ func _play(level: int, layout: Layout, stats: Balance, skill: String, seed: int,
 		for ball in round.balls:
 			if turned.get(ball.id, [null])[0] != ball.from:
 				turned[ball.id] = [ball.from, steps[0], round.paddle.y]
+		# A spare on the paddle goes at once with `spares=launch`, else only when no other ball is left to play.
+		if round.waiting and (_args.spares == "launch" or round.balls.size() == 1):
+			round.launch()
 		var target := player.target(round)
 		if trace and steps[0] % 12 == 0:
 			print("%6.2f   paddle %.0f, going to %.0f" % [steps[0] * STEP, round.paddle.y, target])

@@ -14,6 +14,7 @@ const WEB := {
 	&"Refresh": &"ToughBrick", &"RefreshSize": &"Refresh", &"PulseRate": &"Refresh",
 	&"Overgrowth": &"PulseRate",
 	&"Guide": &"Booster", &"GuideBounces": &"Guide",
+	&"SpareBall": &"WallSegment", &"BallBrick": &"SplitterSplits",
 }
 
 var _heard: Array[StringName] = []

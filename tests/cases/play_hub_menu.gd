@@ -46,6 +46,8 @@ const TABLE := {
 	&"Overgrowth": ["Overgrowth", Upgrade.Category.ARENA, 1, "Broken bricks grow back", 8000, 1.0],
 	&"Guide": ["Guide", Upgrade.Category.ARENA, 4, "+250 guide length", 30, 4.0],
 	&"GuideBounces": ["Guide Bounces", Upgrade.Category.ARENA, 1, "The guide line bounces", 250, 1.0],
+	&"SpareBall": ["Spare Ball", Upgrade.Category.ARENA, 3, "+1 spare ball", 300, 5.0],
+	&"BallBrick": ["Ball Brick", Upgrade.Category.BRICKS, 2, "One more ball brick", 1800, 4.0],
 }
 ## The drawn web of upgrades.md: each node and the one it hangs off, towards the seed. A node with two links
 ## (Pulse Rate) hangs off one here and has the other in CROSS.
@@ -60,6 +62,7 @@ const PARENT := {
 	&"Refresh": &"ToughBrick", &"RefreshSize": &"Refresh", &"PulseRate": &"Refresh",
 	&"Overgrowth": &"PulseRate",
 	&"Guide": &"Booster", &"GuideBounces": &"Guide",
+	&"SpareBall": &"WallSegment", &"BallBrick": &"SplitterSplits",
 }
 const CROSS := {&"PulseRate": &"Growth"}
 const DETAIL := Rect2(904, 88, 352, 284)  ## art.md, "Upgrade screen"

@@ -7,3 +7,5 @@ extends Kind
 @export var hp := 1
 ## How many bricks it counts as when coins are calculated (gold: 20). See Coins.
 @export var worth := 1
+## Drawn with a ball-sized slate square in its middle: the ball it holds (the Ball Brick).
+@export var mark := false

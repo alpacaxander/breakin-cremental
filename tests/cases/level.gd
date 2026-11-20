@@ -64,7 +64,7 @@ func _seam() -> void:
 	t.check(arena.get_child_count() < 10 and round.board.bricks.size() == 512, "512 bricks are drawn by one node, not by 512")
 	for part: String in ["Hud", "SetupUi", "Summary"]:
 		t.check((level.get_node(part) as Control).z_index == 100, "%s is at z 100" % part)
-	t.check(_specials(round).size() == 4, "Setup shows this attempt's special bricks")
+	t.check(_specials(round).size() == 5, "Setup shows this attempt's special bricks")
 	# Called by hand, here and for the freeze below: the real effects set shake and frozen themselves every frame.
 	level.fx.shake = Vector2(3, -2)
 	arena._process(0.0)
@@ -261,6 +261,7 @@ func _ends() -> void:
 		if round.board.brick(Vector2i(54, row)).kind == &"":
 			round.hit_brick(Vector2i(54, row), Round.Cause.BALL, Vector2.RIGHT)
 			break
+	round.spares = 0  # Spare Ball is owned: with one in reserve the ball lost would not be the last
 	round.balls[0].put(Vector2(-20.0, 20.0 if round.paddle.y > 224.0 else 428.0), Vector2.LEFT)
 	await _until_summary()
 	t.check(level.phase == SUMMARY and round.reason == Round.End.BALL_LOST, "losing the last ball ends the round in the Summary")

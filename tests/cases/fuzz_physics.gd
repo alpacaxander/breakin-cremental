@@ -491,6 +491,9 @@ func _attack(p_seed: int, wrong: Dictionary, seen: Dictionary, cfg := {}) -> voi
 	var follow := func(why: String) -> void:
 		contacts[0] += 1
 		for ball: Ball in balls:
+			if ball == round.waiting:  # a spare riding the paddle: checked from its launch, as a new ball
+				at.erase(ball.id)
+				continue
 			if not at.has(ball.id):
 				at[ball.id] = ball.pos
 				used[ball.id] = 0.0
@@ -631,6 +634,8 @@ func _attack(p_seed: int, wrong: Dictionary, seen: Dictionary, cfg := {}) -> voi
 			used[id] = 0.0
 		skip.clear()
 		contacts[0] = 0
+		if round.waiting and rng.randf() < 0.05:  # spares go after a while, as a player sends them
+			round.launch()
 		var target := _target(rng, round, step, style)
 		# Which balls will the paddle be on after it moves: replay its move here.
 		var half := minf(round.paddle.length, board.size().y) * 0.5
@@ -651,6 +656,8 @@ func _attack(p_seed: int, wrong: Dictionary, seen: Dictionary, cfg := {}) -> voi
 		if _bad_number(round.paddle.y) or _bad_number(round.time_left):
 			_say(wrong, "the paddle or the timer is NaN", tag)
 		for ball in balls:
+			if ball == round.waiting:
+				continue
 			if not skip.has(ball.id) and absf(used[ball.id] - dt) * round.speed_of(ball) > 0.02 and still.get(ball.id, 0) < Round.WEDGED - 1:
 				_say(wrong, "a ball does not cover speed x time in a step", "%s: ball %d ran %f s, not %f (%d contacts, boost %f)" % [tag, ball.id, used[ball.id], dt, contacts[0], ball.boost])
 			if not is_equal_approx(round.speed_of(ball), stats.ball_speed * ball.boost):

@@ -27,7 +27,7 @@ extends RefCounted
 ##      item is an obstacle. `layout` holds the fitted layout afterwards.
 ##   4. The paddle is centred (paddle.y = board.size().y / 2). One ball is at rest: its centre is at
 ##      x = paddle.x + stats.launch_gap + stats.ball_size / 2, y = paddle.y, its dir is LEFT, its boost is 1.
-##      time_left is stats.round_time.
+##      time_left is stats.round_time. `spares` is stats.spare_balls.
 ## Nothing moves until step() is called. The first step sends the ball straight left into the paddle. Nothing
 ## placed is in its way: Layout.fits keeps every item out of launch_path().
 ## A round counts its bricks as it is built: after that, change the board only through hit_brick and restore
@@ -37,7 +37,9 @@ extends RefCounted
 ##   1. The paddle moves toward paddle_target at stats.paddle_speed.
 ##   2. Each ball, in `balls` order, moves speed_of(ball) * delta along its dir. Movement is swept, so nothing is
 ##      passed through. Every contact is resolved where it happens and its signals are emitted then. A ball made
-##      during this step (a Splitter) starts moving on the next one.
+##      during this step (a Splitter) starts moving on the next one. The `waiting` ball rides the paddle instead.
+##      Then the spares (see SPARES): with no ball waiting, the spare countdown goes down by delta, and if a spare
+##      is left and the countdown is done or no ball is left in `balls`, one spare goes onto the paddle.
 ##   3. The combo's window counts down. If it runs out the combo resets and combo_changed(0, 1) is emitted.
 ##      Less than TIME_SLOP left has run out, as in 5.
 ##   4. `clock` goes up by delta. Then each placed brick still on the board, in layout order, gets its kind's
@@ -49,9 +51,16 @@ extends RefCounted
 ##      exact number, so counting down by it ends a hair off 0, and a hair above 0 would be one more whole step
 ##      at some rates and not at others. A round whose time is a whole number of steps plays exactly that many;
 ##      any other plays to the end of the step its time runs out in.
-##   6. The round ends if every level brick is broken (CLEARED), else if no ball is left (BALL_LOST), else if
+##   6. The round ends if every level brick is broken (CLEARED), else if no ball is left (BALL_LOST; a spare left
+##      would already be waiting on the paddle, so this is no ball in play, none waiting and none in reserve), else if
 ##      time_left is 0 (TIME). However it ended, the level is cleared if the score has reached `target`. The
 ##      tally notes the score and whether it cleared, then `ended` is emitted, once; after it step() does nothing. A board with no level bricks ends on its first step.
+##
+## SPARES. Balls in reserve (docs/design/physics.md, "Spare balls"). Each launch() starts a countdown of
+## stats.spare_delay; once it is done and no ball waits, a spare goes onto the paddle's face as `waiting`, where it
+## rides and sways like the first ball until launch() sends it off. Meanwhile the balls in play keep moving, the
+## clock runs, and the waiting ball touches nothing. If the last ball in play is lost, a spare comes at once. A
+## spare is not announced (no ball_added): read `waiting` and `spares`. add_spare() adds one (the Ball Brick).
 ##
 ## ONE BRICK HIT (hit_brick), in this order:
 ##   The brick loses 1 hp, unless its kind is unbreakable (PlaceableKind.unbreakable: Growth), which keeps its hp
@@ -147,8 +156,8 @@ signal brick_broken(cell: Vector2i, brick: Brick, cause: Cause, dir: Vector2, co
 ## or brick_broken. ball.dir is the new direction. For an ITEM, the item's on_ball_hit hook has already run.
 signal ball_bounced(ball: Ball, hit: Hit)
 
-## A ball was made during play (a Splitter). It is already in `balls`. The ball a round starts with is not
-## announced; read `balls` after building the round.
+## A ball was made during play (a Splitter). It is already in `balls`. The ball a round starts with and the
+## spares put on the paddle are not announced; read `balls` and `waiting`.
 signal ball_added(ball: Ball)
 
 ## A ball left through the open side. It is already out of `balls`; ball.pos is where it left.
@@ -187,8 +196,13 @@ var board: Board
 var layout: Layout
 var stats: Balance
 var rng := RandomNumberGenerator.new()
-## Every ball in play. Empty once the last ball is lost.
+## Every ball in play, and the one `waiting` on the paddle. Empty once the last ball is lost and no spare is left.
 var balls: Array[Ball] = []
+## The ball riding the paddle until launch(): the first one while `held`, then each spare. Null for none. It is
+## in `balls`, but it does not move on its own, bounce or get thrown.
+var waiting: Ball
+## Balls in reserve, not yet on the paddle (see SPARES).
+var spares := 0
 var paddle := Paddle.new()
 var combo := Combo.new()
 var tally := Tally.new()
@@ -204,7 +218,7 @@ var coins := 0
 var over := false
 ## Why it ended. Only meaningful when `over` is true.
 var reason: End
-## True while the first ball sits on the paddle waiting for launch() (see hold()).
+## True while the first ball sits on the paddle waiting for launch() (see hold()): play has not started.
 var held := false
 ## The score (Coins.points) a clear needs: LevelData.target. The level screen and the
 ## bot set it. At 0, the default, every round is a clear.
@@ -212,8 +226,10 @@ var target := 0
 ## Every cell that held a level brick (not a placed one) once the round was built, as keys (all true). Only
 ## these can have a brick brought back (restore).
 var level_cells: Dictionary[Vector2i, bool] = {}
-## Seconds the ball has been held, from a random start: launch_dir() sways with it.
+## Seconds a ball has waited on the paddle, from a random start: launch_dir() sways with it.
 var sway := 0.0
+# Seconds until the next spare may go onto the paddle (see SPARES).
+var _spare_wait := 0.0
 
 # The FREE items as the sweep sees them (Collide.Solid), in layout order.
 # ponytail: grown for a ball of stats.ball_size. Every ball is that size; if one ever is not, grow per size.
@@ -260,6 +276,8 @@ func _init(p_board: Board, p_layout: Layout, p_stats: Balance, p_seed: int) -> v
 	paddle.x = paddle_face(board, stats)
 	paddle.y = board.size().y * 0.5
 	_spawn(ball_start(board, stats), Vector2.LEFT, 1.0)
+	spares = int(stats.spare_balls)
+	_spare_wait = stats.spare_delay
 
 
 ## The x of the paddle's face on a board. Round and Layout.fits both place things from it.
@@ -286,20 +304,31 @@ static func launch_path(p_board: Board, p_stats: Balance) -> Rect2:
 # builds an unheld round, make it the constructor's default and drop launch_gap and launch_path.
 ## The sway starts at a random point (rng), so the bot, which launches at once, still launches every way.
 func hold() -> void:
+	if balls.is_empty():
+		return
 	held = true
+	waiting = balls[0]
 	sway = rng.randf() * stats.launch_sway
 	_glue()
 
 
-## Sends the held ball off the paddle along launch_dir(). Does nothing if no ball is held.
+## Sends the waiting ball (the held one or a spare) off the paddle along launch_dir() and starts the spare
+## countdown. Does nothing if no ball waits.
 func launch() -> void:
-	if not held or balls.is_empty():
+	if waiting == null:
 		return
 	held = false
-	balls[0].put(balls[0].pos, launch_dir())
+	waiting.put(waiting.pos, launch_dir())
+	waiting = null
+	_spare_wait = stats.spare_delay
 
 
-## Where the held ball would leave if launched now. It sways from the highest angle to the lowest and back once
+## Puts one more ball in reserve (the Ball Brick).
+func add_spare() -> void:
+	spares += 1
+
+
+## Where the waiting ball would leave if launched now. It sways from the highest angle to the lowest and back once
 ## every stats.launch_sway seconds, slowing at each end. The highest is LAUNCH_ANGLE, or with the Guide
 ## (stats.guide > 0) as steep as the minimum angles allow; then the minimum angles apply.
 func launch_dir() -> Vector2:
@@ -308,18 +337,18 @@ func launch_dir() -> Vector2:
 	return _legal(Vector2.RIGHT.rotated(deg_to_rad(angle)), Vector2.RIGHT)
 
 
-## The Guide: the held ball's way if launched now, as the ball's centre where it starts, at each bounce and where
-## the line ends. The line is stats.guide units long, bounces included. Without stats.guide_bounces it ends at the
-## first thing the ball would touch; with it, it ends at the paddle or the open side, where the way depends on the
-## player. Empty with no Guide or no ball held.
+## The Guide: the waiting ball's way if launched now, as the ball's centre where it starts, at each bounce and
+## where the line ends. The line is stats.guide units long, bounces included. Without stats.guide_bounces it ends
+## at the first thing the ball would touch; with it, it ends at the paddle or the open side, where the way depends
+## on the player. Empty with no Guide or no ball waiting.
 ## It is the way with nothing else changing: no blast, Shockwave, Splitter or brick brought back is foreseen.
 func guide() -> PackedVector2Array:
 	var points := PackedVector2Array()
-	if not held or balls.is_empty() or stats.guide <= 0.0:
+	if waiting == null or stats.guide <= 0.0:
 		return points
 	var ghost := Ball.new()
-	ghost.size = balls[0].size
-	ghost.put(balls[0].pos, launch_dir())
+	ghost.size = waiting.size
+	ghost.put(waiting.pos, launch_dir())
 	points.append(ghost.pos)
 	var left := stats.guide
 	for i in MAX_CONTACTS:
@@ -337,8 +366,8 @@ func guide() -> PackedVector2Array:
 
 
 func _glue() -> void:
-	if held and not balls.is_empty():
-		balls[0].put(Vector2(paddle.x + balls[0].size * 0.5, paddle.y), Vector2.RIGHT)
+	if waiting:
+		waiting.put(Vector2(paddle.x + waiting.size * 0.5, paddle.y), Vector2.RIGHT)
 
 
 ## Advances the round by `delta` seconds. The level screen calls this from _physics_process; to freeze the game
@@ -348,11 +377,18 @@ func step(delta: float, paddle_target: float) -> void:
 	if over:
 		return
 	move_paddle(delta, paddle_target)
-	if held:
+	if waiting:
 		sway += delta
-	else:
+	if not held:
 		for ball in balls.duplicate():  # a copy: a Splitter adds to `balls` and a lost ball leaves it
-			_move(ball, delta)
+			if ball != waiting:
+				_move(ball, delta)
+		if waiting == null:
+			_spare_wait -= delta
+			if spares > 0 and (_spare_wait < TIME_SLOP or balls.is_empty()):
+				spares -= 1
+				waiting = _spawn(Vector2.ZERO, Vector2.RIGHT, 1.0)
+				_glue()
 		if combo.tick(delta):
 			combo_changed.emit(0, 1)
 		clock += delta
@@ -453,7 +489,7 @@ func blast(cell: Vector2i, reach: float) -> void:
 			hit_brick(c, Cause.BLAST, away.normalized() if away else Vector2.RIGHT)
 	if stats.shockwave >= 1.0:
 		for ball in balls:
-			if area.has_point(ball.pos):
+			if ball != waiting and area.has_point(ball.pos):
 				if ball.pos != centre:
 					ball.put(ball.pos, _legal((ball.pos - centre).normalized()))
 				set_boost(ball, ball.boost * stats.shockwave_boost)

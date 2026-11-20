@@ -16,6 +16,7 @@ const NUMBERS := {
 	&"paddle_thickness": 12.0, &"paddle_inset": 24.0, &"paddle_max_angle": 60.0, &"low_time": 5.0,
 	&"combo_window": 1.6, &"combo_window_per_rank": 0.5, &"combo_breaks_per_step": 4, &"combo_window_shrink": 0.9, &"combo_window_min": 0.5,
 	&"coins_per_brick": 1.0, &"rotate_step": 15.0, &"launch_sway": 2.0,
+	&"spare_delay": 1.0,
 	&"explosion_damage": 1.0, &"zap_range": 64.0, &"zap_damage": 1.0, &"splitter_splits": 2.0,
 }
 
@@ -51,6 +52,7 @@ func run(p_t: Node) -> void:
 	_ends()
 	_timing()
 	_launch()
+	_spares()
 
 
 ## Round.hold and Round.launch: the ball rides on the paddle and nothing else moves, then leaves within
@@ -110,6 +112,42 @@ func _launch() -> void:
 	var many: PackedVector2Array = guided.call(5000.0, 1.0)
 	t.check(one.size() == 2 and length.call(one) < 5000.0 and many.size() > 3 and many[1].is_equal_approx(one[1]) and length.call(many) <= 5000.001,
 			"without Guide Bounces the line ends at the first contact; with it, it bounces on, no longer than the Guide")
+
+
+## Spare balls: one goes onto the paddle spare_delay after a launch, or at once when the last ball in play goes;
+## it waits there while play goes on; the round ends on BALL_LOST only with none left. And the Ball Brick.
+func _spares() -> void:
+	var stats := _stats({&"spare_balls": 2.0})
+	var round := Round.new(_board({FAR: SOLID}), null, stats, 1)
+	var log := _events(round)
+	round.hold()
+	round.launch()
+	t.check(round.spares == 2 and round.waiting == null, "a round starts with stats.spare_balls in reserve")
+	_run(round, 0.9)
+	t.check(round.spares == 2 and round.waiting == null and round.balls.size() == 1, "no spare comes before spare_delay")
+	_run(round, 0.2)
+	var spare := round.waiting
+	t.check(round.spares == 1 and spare != null and round.balls.size() == 2 and spare.pos == Vector2(round.paddle.x + stats.ball_size * 0.5, round.paddle.y)
+			and not log.any(func(e: String) -> bool: return e.begins_with("added")), "after spare_delay a spare waits on the paddle's face, unannounced")
+	var left := round.time_left
+	round.balls[0].put(Vector2(0, 100), Vector2(-0.8, 0.6))
+	_run(round, 0.3)
+	t.check(spare.pos == Vector2(round.paddle.x + stats.ball_size * 0.5, round.paddle.y) and round.time_left < left and not round.over,
+			"the waiting spare rides the paddle while the clock runs, and does not count as the last ball going")
+	round.launch()
+	t.check(round.waiting == null and spare.dir.x > 0.0, "launch() sends the spare off")
+	spare.put(Vector2(-50, 100), Vector2(-0.8, 0.6))
+	round.step(0.1, round.paddle.y)
+	t.check(round.waiting != null and round.spares == 0 and not round.over, "losing the last ball in play brings the next spare at once, not after spare_delay")
+	round.launch()
+	round.balls[0].put(Vector2(-50, 100), Vector2(-0.8, 0.6))
+	round.step(0.1, round.paddle.y)
+	t.check(round.over and round.reason == Round.End.BALL_LOST, "with no spare left, losing the last ball ends the round")
+	var board := _board({FAR: SOLID, Vector2i(20, 3): 1})
+	round = Round.new(board, null, _stats(), 1)
+	round.board.brick(Vector2i(20, 3)).kind = &"ball"
+	round.hit_brick(Vector2i(20, 3), Round.Cause.BLAST, Vector2.RIGHT)
+	t.check(round.spares == 1, "breaking a Ball Brick, however, adds a spare")
 
 
 # --- helpers ---------------------------------------------------------------------------------------------------
@@ -238,7 +276,7 @@ func _shipped() -> void:
 func _kinds() -> void:
 	var ids := func(kinds: Array) -> Array: return kinds.map(func(k: Kind) -> StringName: return k.id)
 	t.check(ids.call(Kinds.placeables()) == [&"bumper", &"booster", &"wall_segment", &"splitter", &"zap", &"growth", &"refresh"], "the placeables are the seven of the kinds table, in tray order")
-	t.check(ids.call(Kinds.bricks()) == [&"explosive", &"gold", &"hourglass", &"tough"], "the special bricks are the four of the kinds table, in roll order")
+	t.check(ids.call(Kinds.bricks()) == [&"explosive", &"gold", &"hourglass", &"tough", &"ball"], "the special bricks are the five of the kinds table, in roll order")
 	# id: [placement, size, turn, rotatable, gate, cue]
 	var placeables := {
 		&"bumper": [PlaceableKind.Placement.FREE, Vector2(30, 30), 45.0, false, false, Sfx.BUMPER],
@@ -254,13 +292,14 @@ func _kinds() -> void:
 		var want: Array = placeables[id]
 		t.check(k != null and [k.placement, k.size, k.turn, k.rotatable, k.gate, k.cue] == want and k.colour == &"placeable" and k.hp == 1 and k.title != "",
 				"the %s is as the kinds table has it" % id)
-	# id: [colour, cue, worth, hp]. The tough brick has no colour: it is drawn in the HP steps.
-	var bricks := {&"explosive": [&"explosive", &"", 1, 1], &"gold": [&"coins", Sfx.GOLD_BRICK, 20, 1], &"hourglass": [&"time", Sfx.HOURGLASS_BRICK, 1, 1], &"tough": [&"", &"", 1, 3]}
+	# id: [colour, cue, worth, hp, mark]. The tough and ball bricks have no colour: they are drawn in the HP steps.
+	var bricks := {&"explosive": [&"explosive", &"", 1, 1, false], &"gold": [&"coins", Sfx.GOLD_BRICK, 20, 1, false], &"hourglass": [&"time", Sfx.HOURGLASS_BRICK, 1, 1, false],
+			&"tough": [&"", &"", 1, 3, false], &"ball": [&"", Sfx.SPLITTER, 1, 1, true]}
 	for id: StringName in bricks:
 		var k := Kinds.of(id) as BrickKind
-		t.check(k != null and [k.colour, k.cue, k.worth, k.hp] == bricks[id] and k.title != "", "the %s brick is as the kinds table has it" % id)
+		t.check(k != null and [k.colour, k.cue, k.worth, k.hp, k.mark] == bricks[id] and k.title != "", "the %s brick is as the kinds table has it" % id)
 	for k in Kinds.all():
-		t.check(Palette.MEANINGS.has(k.colour) or k.id == &"tough", "%s's colour is a Palette meaning" % k.id)
+		t.check(Palette.MEANINGS.has(k.colour) or (k is BrickKind and k.colour == &""), "%s's colour is a Palette meaning" % k.id)
 	# The three amounts are pinned here and nowhere else: the other checks read them from the kinds.
 	t.check(Kinds.of(&"booster").get("boost") == 0.2 and Kinds.of(&"hourglass").get("seconds") == 15.0, "the Booster adds 0.2 and the hourglass 15 s, from their files")
 

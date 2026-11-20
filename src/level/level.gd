@@ -14,7 +14,8 @@ extends Control
 ## bricks are already where Play will have them. Every edit saves the layout and builds that round again.
 ## The keys (not the mouse, which places items) move its paddle, and the ball rides on it (Round.hold).
 ## PLAY builds it once more and steps it, with the ball still on the paddle until a click or Space launches it
-## (Round.launch); until then only the paddle moves and the timer waits. There is no way out. The paddle goes where the last thing the player
+## (Round.launch); until then only the paddle moves and the timer waits. Each spare ball that comes onto the
+## paddle later is launched the same way (Round, SPARES). There is no way out. The paddle goes where the last thing the player
 ## used says: a held key (W/S, the arrows) moves it, the mouse's height draws it, both at paddle speed. A key
 ## takes over at once, and the mouse takes it back only by moving, so a key player's paddle stays where it was
 ## left and a resting mouse never pulls it away.
@@ -102,7 +103,7 @@ func _input(event: InputEvent) -> void:
 			_by_mouse = true
 	# Here, not in _unhandled_input: the screen's Controls take clicks before that sees them.
 	var b := event as InputEventMouseButton
-	if b and b.pressed and b.button_index == MOUSE_BUTTON_LEFT and phase == Phase.PLAY and round.held:
+	if b and b.pressed and b.button_index == MOUSE_BUTTON_LEFT and phase == Phase.PLAY and round.waiting:
 		get_viewport().set_input_as_handled()
 		round.launch()
 
@@ -113,7 +114,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed(&"ui_accept") and phase == Phase.SETUP:
 		get_viewport().set_input_as_handled()
 		start()
-	elif event.is_action_pressed(&"ui_accept") and phase == Phase.PLAY and round.held:
+	elif event.is_action_pressed(&"ui_accept") and phase == Phase.PLAY and round.waiting:
 		get_viewport().set_input_as_handled()
 		round.launch()
 

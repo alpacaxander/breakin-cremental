@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" path="res://src/hub/web.gd" id="web"]
 [ext_resource type="PackedScene" path="res://src/hub/upgrade_node.tscn" id="node"]
+[ext_resource type="Resource" path="res://data/upgrades/ball_brick.tres" id="ball_brick"]
 [ext_resource type="Resource" path="res://data/upgrades/blast_size.tres" id="blast_size"]
 [ext_resource type="Resource" path="res://data/upgrades/booster_speed.tres" id="booster_speed"]
 [ext_resource type="Resource" path="res://data/upgrades/booster.tres" id="booster"]
@@ -25,6 +26,7 @@
 [ext_resource type="Resource" path="res://data/upgrades/refresh_size.tres" id="refresh_size"]
 [ext_resource type="Resource" path="res://data/upgrades/refresh.tres" id="refresh"]
 [ext_resource type="Resource" path="res://data/upgrades/shockwave.tres" id="shockwave"]
+[ext_resource type="Resource" path="res://data/upgrades/spare_ball.tres" id="spare_ball"]
 [ext_resource type="Resource" path="res://data/upgrades/splitter_health.tres" id="splitter_health"]
 [ext_resource type="Resource" path="res://data/upgrades/splitter_splits.tres" id="splitter_splits"]
 [ext_resource type="Resource" path="res://data/upgrades/splitter.tres" id="splitter"]
@@ -195,3 +197,13 @@ links = Array[NodePath]([NodePath("../Booster")])
 upgrade = ExtResource("guide_bounces")
 cell = Vector2i(4, 1)
 links = Array[NodePath]([NodePath("../Guide")])
+
+[node name="SpareBall" parent="." instance=ExtResource("node")]
+upgrade = ExtResource("spare_ball")
+cell = Vector2i(4, 4)
+links = Array[NodePath]([NodePath("../WallSegment")])
+
+[node name="BallBrick" parent="." instance=ExtResource("node")]
+upgrade = ExtResource("ball_brick")
+cell = Vector2i(0, 4)
+links = Array[NodePath]([NodePath("../SplitterSplits")])

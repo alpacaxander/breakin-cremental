@@ -32,7 +32,7 @@ Source: [Endesga 64](https://lospec.com/palette-list/endesga-64) by ENDESGA. The
 
 | Meaning | Lit | Dim | Used for |
 |---|---|---|---|
-| Ball | `ffffff` | | The ball and nothing else |
+| Ball | `ffffff` | | The ball and nothing else, the balls in reserve included. The ball brick's square is slate, not white |
 | Player (cyan) | `0cf1ff` | `134c4c` | Paddle stripe, cursor, selection, buttons, Arena upgrade nodes |
 | Placeables (blue) | `0098dc` | `00396d` | Bumpers, boosters, wall segments, splitters, Growth and Refresh blocks (a cooling Refresh block in the dim value), Zap marks, the placement tray, Placeables upgrade nodes |
 | Coins (gold) | `ffc825` | `8a4836` | Coin counter, coin pop-ups, combo counter, gold bricks, prices |

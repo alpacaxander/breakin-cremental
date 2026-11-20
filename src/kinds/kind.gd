@@ -9,7 +9,7 @@ extends Resource
 ## Its count comes from the stat `<id>_count`, which its upgrade raises.
 ##
 ## A kind is fixed data. It holds no state of a round (a placed brick's own Brick can), and a hook changes the
-## round only through the round's functions (hit_brick, blast, grow, restore, add_ball, set_boost, add_time), so chains
+## round only through the round's functions (hit_brick, blast, grow, restore, add_ball, add_spare, set_boost, add_time), so chains
 ## work without special cases.
 
 ## The file name: data/kinds/<id>.tres gives &"<id>". Saves, Brick.kind, Brick.mod and the count stat all use
