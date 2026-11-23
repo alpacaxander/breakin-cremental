@@ -262,6 +262,9 @@ func _ends() -> void:
 			round.hit_brick(Vector2i(54, row), Round.Cause.BALL, Vector2.RIGHT)
 			break
 	round.spares = 0  # Spare Ball is owned: with one in reserve the ball lost would not be the last
+	if round.waiting:  # with no spare_delay, one is already on the paddle: it came unannounced, so it goes the same way
+		round.balls.erase(round.waiting)
+		round.waiting = null
 	round.balls[0].put(Vector2(-20.0, 20.0 if round.paddle.y > 224.0 else 428.0), Vector2.LEFT)
 	await _until_summary()
 	t.check(level.phase == SUMMARY and round.reason == Round.End.BALL_LOST, "losing the last ball ends the round in the Summary")

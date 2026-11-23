@@ -87,8 +87,9 @@ func _launch() -> void:
 		r.sway = sway
 		return rad_to_deg(r.launch_dir().angle())
 	t.check(is_equal_approx(aim.call(0.0, 0.5), 45.0) and is_equal_approx(aim.call(0.0, 1.5), -45.0)
-			and is_equal_approx(aim.call(1.0, 0.5), 90.0 - stats.min_angle_vertical) and is_equal_approx(aim.call(0.0, 0.0), stats.min_angle_horizontal),
-			"the aim sways to 45 degrees either way, to the steepest legal angle with the Guide, and keeps the minimum angle at level")
+			and is_equal_approx(aim.call(1.0, 0.5), 90.0 - stats.min_angle_vertical) and is_equal_approx(aim.call(0.0, 0.0), stats.min_angle_horizontal)
+			and is_zero_approx(aim.call(1.0, 0.0)) and is_equal_approx(aim.call(1.0, 0.05), 70.0 * sin(TAU * 0.025)),
+			"the aim sways to 45 degrees either way, to the steepest legal angle with the Guide, and skips the minimum angle at level only without it")
 	round = Round.new(_board({FAR: 1}), null, stats, 1)  # a brick, so the round does not end on its first step
 	round.hold()
 	round.sway = 0.5

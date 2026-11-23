@@ -46,11 +46,13 @@ extends Resource
 @export var ball_size: float  ## The side of the ball's square
 @export var launch_gap: float  ## At rest, the gap between the paddle's face and the ball's near edge
 @export var min_angle_vertical: float  ## After a bounce or a throw, the direction is at least this far from straight up or down
-@export var min_angle_horizontal: float  ## ...and at least this far from straight left or right. The launch is exempt
+@export var min_angle_horizontal: float  ## ...and at least this far from straight left or right. A launch with the Guide is exempt
 @export var boost_cap: float  ## The highest Ball.boost: 2 is twice the base speed
 @export var shockwave_boost: float  ## A Shockwave multiplies Ball.boost by this
 @export var launch_sway: float  ## Seconds the held ball's aim takes to sway from the top to the bottom and back
 @export var spare_delay: float  ## Seconds after a launch before the next spare goes onto the paddle (Round, SPARES)
+# ponytail: 0 for now (data/balance.tres), so spares fire back to back. We may add a delay with an upgrade that
+# removes it in the future; until then the delay is 0.
 
 @export_group("Paddle")
 @export var paddle_thickness: float

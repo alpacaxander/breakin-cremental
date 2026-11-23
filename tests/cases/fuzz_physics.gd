@@ -482,6 +482,7 @@ func _attack(p_seed: int, wrong: Dictionary, seen: Dictionary, cfg := {}) -> voi
 	var used := {}
 	var boost := {}
 	var dirs := {}
+	var launched := {}  # ball id -> the dir it was launched along: with the Guide that may be flat, until it touches something
 	var skip := {}
 	var still := {}  # contacts in a row with no movement, per ball: a wedge exit may leave at any angle
 	var contacts := [0]
@@ -523,7 +524,7 @@ func _attack(p_seed: int, wrong: Dictionary, seen: Dictionary, cfg := {}) -> voi
 			if ball.boost < 1.0 or ball.boost > cap:
 				me._say(wrong, "a ball's boost leaves 1 to the cap", "%s: %f" % [tag, ball.boost])
 			var ang: float = me._angle(ball.dir)
-			if (ang < stats.min_angle_horizontal - LOW_SLACK or ang > 90.0 - stats.min_angle_vertical + LOW_SLACK) and ball.dir != Vector2.LEFT and still[ball.id] < Round.WEDGED - 1:
+			if (ang < stats.min_angle_horizontal - LOW_SLACK or ang > 90.0 - stats.min_angle_vertical + LOW_SLACK) and ball.dir != Vector2.LEFT and ball.dir != launched.get(ball.id) and still[ball.id] < Round.WEDGED - 1:
 				me._say(wrong, "a ball leaves a contact at an illegal angle", "%s: ball %d at %.3f degrees, at %s, after %s" % [tag, ball.id, ang, ball.pos, why])
 	round.ball_bounced.connect(func(ball: Ball, hit: Hit) -> void:
 		var prev: float = boost.get(ball.id, ball.boost)
@@ -635,7 +636,9 @@ func _attack(p_seed: int, wrong: Dictionary, seen: Dictionary, cfg := {}) -> voi
 		skip.clear()
 		contacts[0] = 0
 		if round.waiting and rng.randf() < 0.05:  # spares go after a while, as a player sends them
+			var sent := round.waiting
 			round.launch()
+			launched[sent.id] = sent.dir
 		var target := _target(rng, round, step, style)
 		# Which balls will the paddle be on after it moves: replay its move here.
 		var half := minf(round.paddle.length, board.size().y) * 0.5

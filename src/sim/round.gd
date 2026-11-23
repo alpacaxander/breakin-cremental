@@ -330,11 +330,12 @@ func add_spare() -> void:
 
 ## Where the waiting ball would leave if launched now. It sways from the highest angle to the lowest and back once
 ## every stats.launch_sway seconds, slowing at each end. The highest is LAUNCH_ANGLE, or with the Guide
-## (stats.guide > 0) as steep as the minimum angles allow; then the minimum angles apply.
+## (stats.guide > 0) as steep as the minimum angles allow. Without the Guide the minimum angles then apply, so the
+## aim skips the few degrees around level; with it the line shows a flat launch, so every angle between is allowed.
 func launch_dir() -> Vector2:
 	var top := 90.0 - stats.min_angle_vertical if stats.guide > 0.0 else LAUNCH_ANGLE
-	var angle := top * sin(TAU * sway / stats.launch_sway)
-	return _legal(Vector2.RIGHT.rotated(deg_to_rad(angle)), Vector2.RIGHT)
+	var dir := Vector2.RIGHT.rotated(deg_to_rad(top * sin(TAU * sway / stats.launch_sway)))
+	return dir if stats.guide > 0.0 else _legal(dir, Vector2.RIGHT)
 
 
 ## The Guide: the waiting ball's way if launched now, as the ball's centre where it starts, at each bounce and
