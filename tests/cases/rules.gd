@@ -17,7 +17,7 @@ const NUMBERS := {
 	&"combo_window": 1.6, &"combo_window_per_rank": 0.5, &"combo_breaks_per_step": 4, &"combo_window_shrink": 0.9, &"combo_window_min": 0.5,
 	&"coins_per_brick": 1.0, &"rotate_step": 15.0, &"launch_sway": 2.0,
 	&"spare_delay": 1.0,
-	&"explosion_damage": 1.0, &"zap_range": 64.0, &"zap_damage": 1.0, &"splitter_splits": 2.0,
+	&"explosion_damage": 1.0, &"zap_range": 64.0, &"zap_damage": 1.0, &"splitter_respawn": 0.0,
 }
 
 var t: Node
@@ -987,6 +987,38 @@ func _placeables() -> void:
 		round = Round.new(board, _layout([_item(&"splitter", Vector2i(25, 3))]), stats, 1)
 		round.hit_brick(Vector2i(25, 3), cause, Vector2.RIGHT)
 		t.check(round.board.brick(Vector2i(25, 3)) == null and round.balls.size() == 1, "a Splitter broken by a blast or a Zap just breaks")
+	# One that still stands sends the new ball out of its far side, or mirrored on the near side if a brick is there.
+	var tough := stats.copy()
+	tough.put(&"splitter_health", 1.0)
+	for behind: bool in [false, true]:
+		round = Round.new(_board({FAR: SOLID, Vector2i(26, 3): 1}) if behind else board, _layout([_item(&"splitter", Vector2i(25, 3))]), tough, 1)
+		ball = round.balls[0]
+		ball.put(Vector2(394, 220) - coming * 20.0, coming)
+		_run(round, 0.05)
+		var split := round.balls[1] if round.balls.size() == 2 else null
+		var bounced := Vector2(-coming.x, coming.y)
+		t.check(round.board.brick(Vector2i(25, 3)).hp == 1 and split != null and ball.dir == bounced, "a ball that hits a 2 HP Splitter bounces and splits it")
+		if behind:
+			t.check(split.dir.is_equal_approx(Vector2(bounced.x, -bounced.y)) and split.pos.x < 400.0, "with a brick behind it, the new ball leaves the near side mirrored (%s)" % [split.dir])
+		else:
+			t.check(split.dir.is_equal_approx(coming) and split.pos.x > 416.0, "the new ball goes on the way the ball came, out of the far side (%s %s)" % [split.pos, split.dir])
+	# Splitter Respawn: a broken Splitter comes back `respawn` s later, `respawn_per_rank` s sooner each rank.
+	var kind: PlaceableKind = Kinds.of(&"splitter")
+	for rank in [0.0, 1.0, 3.0]:
+		var respawning := stats.copy()
+		respawning.put(&"splitter_respawn", rank)
+		round = Round.new(board, _layout([_item(&"splitter", Vector2i(25, 3))]), respawning, 1)
+		round.balls[0].put(Vector2(100, 100), Vector2.DOWN)
+		round.hit_brick(Vector2i(25, 3), Round.Cause.BLAST, Vector2.RIGHT)
+		var wait: float = kind.get("respawn") - kind.get("respawn_per_rank") * (rank - 1.0)
+		_run(round, wait - TICK)
+		var early := round.board.brick(Vector2i(25, 3))
+		_run(round, TICK * 2.0)
+		var back := round.board.brick(Vector2i(25, 3))
+		if rank == 0.0:
+			t.check(back == null, "without Splitter Respawn a broken Splitter stays broken")
+		else:
+			t.check(early == null and back != null and back.placed and back.kind == &"splitter", "at rank %d a broken Splitter comes back after %.1f s" % [int(rank), wait])
 	# A Zap on a Splitter works like on any brick.
 	round = Round.new(_board({FAR: SOLID, Vector2i(40, 3): 2}), _layout([_item(&"splitter", Vector2i(25, 3)), _item(&"zap", Vector2i(25, 3))]), stats, 1)
 	round.hit_brick(Vector2i(25, 3), Round.Cause.BALL, Vector2.RIGHT)

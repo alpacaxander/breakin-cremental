@@ -61,7 +61,7 @@ There is no global event bus. A round's events are signals on the `Round` object
 | `ball_added(ball)` / `ball_lost(ball)` | A Splitter made a ball, or a ball left through the open side |
 | `exploded(pos, reach, cells)` | An explosive brick went off. `cells` are the bricks it is about to hit, still on the board |
 | `grew(cell, reach, cells)` | A placed block at `cell` pulsed (`round.grow`): `cells` are the level bricks that gained 1 HP, out to `reach` units from its edges. Not emitted when none gained |
-| `restored(cell, cells)` | Broken level bricks came back (`round.restore`): `cells` are the cells now holding a plain 1 HP level brick, in the order they were asked for; `cell` is the block that brought them (Refresh), or `Round.NOWHERE` (Overgrowth: every cell that came due in that step, in the order they broke, at once). Each raises the count of level bricks left. Not emitted when none came. Fx and Sfx ignore Overgrowth's |
+| `restored(cell, cells)` | Broken level bricks came back (`round.restore`): `cells` are the cells now holding a plain 1 HP level brick, in the order they were asked for; `cell` is the block that brought them (Refresh), or `Round.NOWHERE` (Overgrowth: every cell that came due in that step, in the order they broke, at once). Each raises the count of level bricks left. Not emitted when none came. Fx and Sfx ignore Overgrowth's. A broken Splitter rebuilt by Splitter Respawn (`round.rebuild`) emits it too, with `cell` and `cells` both its own cell; it adds no level brick |
 | `combo_changed(count, multiplier)` | The combo grew or reset |
 | `time_changed(seconds_left, added)` | An hourglass brick added time |
 | `ended(reason)` | The timer ran out, the last ball was lost, or the level was cleared |
@@ -84,7 +84,7 @@ A kind is a `Resource`. `Kind` is the base, with the id, the title, the colour m
 |---|---|---|
 | `on_ball_hit(round, ball, hit)` | A ball has bounced off a placed item, or crossed a gate's middle line (`gate`: no bounce; `Round._cross`) | The Booster adds a boost |
 | `on_hit(round, cell, brick, cause, dir, ball)` | The brick took a hit and still stands | The Splitter splits a ball that hits it (with more than 1 HP) |
-| `on_broken(round, cell, brick, cause, dir, ball)` | The brick broke | The explosive brick calls `round.blast`; the Splitter adds a ball |
+| `on_broken(round, cell, brick, cause, dir, ball)` | The brick broke | The explosive brick calls `round.blast`; the Splitter adds a ball and, with Splitter Respawn, calls `round.rebuild` |
 | `on_host_broken(round, cell, brick, cause, dir, ball)` | A brick with this mod on it broke | Zap hits the rest of the row |
 | `on_step(round, cell, brick, delta)` | Every step of play, for each placed brick still on the board, in layout order, after the balls have moved and `round.clock` has advanced. Not while the ball is held | Growth calls `round.grow` each time `round.clock` crosses its period |
 
@@ -97,7 +97,7 @@ The demo's kinds. The id is the file name in `data/kinds/`, and `<id>_count` is 
 | `bumper` | PlaceableKind, FREE | RECT 30 × 30, turn 45 | `placeable` | `bumper` | |
 | `booster` | PlaceableKind, FREE, `gate` | RECT 16 × 96, rotatable, passed through | `placeable` | `booster` | Adds 0.2 to the ball's boost |
 | `wall_segment` | PlaceableKind, FREE, rotatable | RECT 10 × 112 | `placeable` | `wall_bounce` | |
-| `splitter` | PlaceableKind, BRICK | A brick cell, 1 HP | `placeable` | none (`ball_added` has its own) | |
+| `splitter` | PlaceableKind, BRICK | A brick cell, 1 HP | `placeable` | none (`ball_added` has its own) | `respawn` 6 s, `respawn_per_rank` 2 s (Splitter Respawn) |
 | `zap` | PlaceableKind, MOD | A 6 × 6 mark | `placeable` | `zap` | |
 | `growth` | PlaceableKind, BRICK, `unbreakable` | A brick cell that never breaks | `placeable` | `booster` (on `grew`) | Pulses every 5 s, less `pulse_rate`, at least `pulse_min`; reach from `growth_reach` |
 | `refresh` | PlaceableKind, BRICK, `unbreakable`, 2 panes | A brick cell that never breaks | `placeable` | `place_item` (on `restored`) | A ball's hit brings back the `refresh_size` broken level bricks nearest it (`round.broken_near`, `round.restore`), then it cools for 4 s (`cooldown`), less `pulse_rate`, at least `pulse_min`, in `Brick.ready_at` |

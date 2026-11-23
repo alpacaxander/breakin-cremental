@@ -26,7 +26,7 @@ const TABLE := {
 	&"ZapRange": ["Zap Range", Upgrade.Category.PLACEABLES, 2, "A Zap reaches 2 more bricks each way", 400, 5.0],
 	&"ZapDamage": ["Zap Damage", Upgrade.Category.PLACEABLES, 2, "A Zap hits each brick once more", 800, 5.0],
 	&"Splitter": ["Splitter", Upgrade.Category.PLACEABLES, 5, "One more Splitter", 80, 3.0],
-	&"SplitterSplits": ["Splitter Splits", Upgrade.Category.PLACEABLES, 2, "A Splitter splits a ball into one more", 2000, 5.0],
+	&"SplitterRespawn": ["Splitter Respawn", Upgrade.Category.PLACEABLES, 3, "A broken Splitter comes back", 2000, 2.5],
 	&"SplitterHealth": ["Splitter Health", Upgrade.Category.PLACEABLES, 2, "A Splitter takes one more hit", 500, 6.0],
 	&"WallSegment": ["Wall Segment", Upgrade.Category.PLACEABLES, 2, "One more Wall Segment", 40, 10.0],
 	&"ExplosiveBrick": ["Explosive Brick", Upgrade.Category.BRICKS, 4, "One more explosive brick", 40, 3.5],
@@ -55,14 +55,14 @@ const PARENT := {
 	&"HourglassBrick": &"PaddleSpeed", &"HourglassTime": &"HourglassBrick", &"HourglassFreeze": &"HourglassTime",
 	&"Booster": &"PaddleSpeed", &"BoosterSpeed": &"Booster", &"Zap": &"Booster", &"ZapRange": &"Zap",
 	&"ZapDamage": &"ZapRange", &"RearPaddle": &"Zap", &"Combo": &"PaddleSpeed", &"ComboWindow": &"Combo",
-	&"GoldBrick": &"Combo", &"WallSegment": &"GoldBrick", &"Splitter": &"Combo", &"SplitterSplits": &"Splitter",
-	&"SplitterHealth": &"SplitterSplits", &"PaddleSize": &"PaddleSpeed", &"ExplosiveBrick": &"PaddleSize",
+	&"GoldBrick": &"Combo", &"WallSegment": &"GoldBrick", &"Splitter": &"Combo", &"SplitterRespawn": &"Splitter",
+	&"SplitterHealth": &"SplitterRespawn", &"PaddleSize": &"PaddleSpeed", &"ExplosiveBrick": &"PaddleSize",
 	&"ExplosionSize": &"ExplosiveBrick", &"ExplosionDamage": &"ExplosionSize", &"Shockwave": &"ExplosiveBrick",
 	&"ToughBrick": &"GoldBrick", &"Growth": &"ToughBrick", &"GrowthReach": &"Growth",
 	&"Refresh": &"ToughBrick", &"RefreshSize": &"Refresh", &"PulseRate": &"Refresh",
 	&"Overgrowth": &"PulseRate",
 	&"Guide": &"Booster", &"GuideBounces": &"Guide",
-	&"SpareBall": &"WallSegment", &"BallBrick": &"SplitterSplits",
+	&"SpareBall": &"WallSegment", &"BallBrick": &"SplitterRespawn",
 }
 const CROSS := {&"PulseRate": &"Growth"}
 const DETAIL := Rect2(904, 88, 352, 284)  ## art.md, "Upgrade screen"

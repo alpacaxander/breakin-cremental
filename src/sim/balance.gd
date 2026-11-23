@@ -28,7 +28,7 @@ extends Resource
 @export var zap_damage: float  ## Hits a Zap gives each brick it reaches
 @export var booster_speed: float  ## Added to every Booster's boost
 @export var splitter_health: float  ## HP a placed Splitter has on top of its kind's own
-@export var splitter_splits: float  ## Balls a Splitter splits a ball into, the ball itself included
+@export var splitter_respawn: float  ## 0: off. 1 or more: a broken Splitter comes back, sooner each rank (see the kind)
 @export var rear_paddle: float  ## 0: off. Above 0: a paddle on the back wall adds this to Ball.boost on a hit
 @export var growth_reach: float  ## How far a Growth block's pulse reaches out from its edges, in squares (1 square = 64 units)
 @export var pulse_rate: float  ## Seconds taken off a Growth block's pulse period and a Refresh block's cooldown, down to pulse_min

@@ -373,7 +373,7 @@ func _vtrap(p_seed: int, wrong: Dictionary, seen: Dictionary) -> void:
 
 
 ## What a ball centred on `point` is inside of, by more than SLACK, or "" for nothing. A brick in `grown` is not
-## counted: it grew back (Overgrowth) after the ball had passed, at the end of the step being checked.
+## counted: it grew back (Overgrowth, a Splitter rebuilt) after the ball had passed, at the end of the step being checked.
 func _inside(point: Vector2, half: float, round: Round, paddle: bool, grown := {}) -> String:
 	var board := round.board
 	var size := board.size()
@@ -487,7 +487,7 @@ func _attack(p_seed: int, wrong: Dictionary, seen: Dictionary, cfg := {}) -> voi
 	var still := {}  # contacts in a row with no movement, per ball: a wedge exit may leave at any angle
 	var contacts := [0]
 	var inside_paddle := {}  # balls the paddle moved onto at the start of this step: they are let out, not hit
-	var grown := {}  # cells Overgrowth brought back at the end of this step (Round, ONE STEP, 4), after every contact
+	var grown := {}  # cells Overgrowth or a rebuilt Splitter brought back at the end of this step (Round, ONE STEP, 4), after every contact
 	var me := self
 	var follow := func(why: String) -> void:
 		contacts[0] += 1
@@ -585,7 +585,7 @@ func _attack(p_seed: int, wrong: Dictionary, seen: Dictionary, cfg := {}) -> voi
 		follow.call("brick broken"))
 	round.ball_added.connect(func(_b: Ball) -> void: follow.call("added"))
 	round.restored.connect(func(cell: Vector2i, cells: Array[Vector2i]) -> void:
-		if cell == Round.NOWHERE:
+		if cell == Round.NOWHERE or cells.has(cell):  # Overgrowth, or a Splitter rebuilt: both in step 4
 			for c in cells:
 				grown[c] = true)
 	round.ball_lost.connect(func(ball: Ball) -> void:

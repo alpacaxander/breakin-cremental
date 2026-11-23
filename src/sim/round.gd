@@ -43,7 +43,8 @@ extends RefCounted
 ##   3. The combo's window counts down. If it runs out the combo resets and combo_changed(0, 1) is emitted.
 ##      Less than TIME_SLOP left has run out, as in 5.
 ##   4. `clock` goes up by delta. Then each placed brick still on the board, in layout order, gets its kind's
-##      on_step hook (Growth pulses here: see grow). Then, with Overgrowth (stats.overgrowth >= 1) and a level
+##      on_step hook (Growth pulses here: see grow), and each broken one whose rebuild() is due comes back
+##      unless a ball is over it. Then, with Overgrowth (stats.overgrowth >= 1) and a level
 ##      brick still standing, every broken level cell whose time has come (see ONE BRICK HIT) comes back, in the
 ##      order they broke, through one restore(NOWHERE, cells) call; a cell a ball is over waits for the next
 ##      step. With no level brick standing nothing comes back, so 6 ends a cleared board whatever is pending.
@@ -175,11 +176,12 @@ signal exploded(pos: Vector2, reach: float, cells: Array[Vector2i])
 ##   cells  every brick that gained, by column from the paddle side and then down
 signal grew(cell: Vector2i, reach: float, cells: Array[Vector2i])
 
-## Broken level bricks came back (restore: Refresh, Overgrowth). Emitted after they are on the board, and only if
-## one came.
-##   cell   where they were brought back from: the Refresh block's brick cell, or NOWHERE for Overgrowth
+## Broken bricks came back (restore: Refresh, Overgrowth; rebuild: a placed Splitter). Emitted after they are on
+## the board, and only if one came.
+##   cell   where they were brought back from: the Refresh block's brick cell, NOWHERE for Overgrowth, or the
+##          rebuilt Splitter's own cell
 ##   cells  every brick that came back, in the order they were asked for (Refresh: nearest first; Overgrowth:
-##          the order they broke in, all that came due in one step)
+##          the order they broke in, all that came due in one step; a Splitter: its cell)
 signal restored(cell: Vector2i, cells: Array[Vector2i])
 
 ## The combo grew, or it reset (count 0, multiplier 1). Not emitted while combos are off.
@@ -244,6 +246,8 @@ var _next_id := 0
 # With Overgrowth: each broken level cell waiting to come back, and the clock it is due at. In the order they
 # broke, which is the order they are due in, because the delay is the same for all.
 var _due: Dictionary[Vector2i, float] = {}
+# Broken placed bricks that come back (rebuild: Splitter Respawn), and the clock each is due at.
+var _rebuild: Dictionary[Vector2i, float] = {}
 
 
 func _init(p_board: Board, p_layout: Layout, p_stats: Balance, p_seed: int) -> void:
@@ -256,10 +260,7 @@ func _init(p_board: Board, p_layout: Layout, p_stats: Balance, p_seed: int) -> v
 	for item in layout.items:
 		match item.kind.placement:
 			PlaceableKind.Placement.BRICK:
-				# ponytail: only the Splitter has a health stat; `<id>_health` reads 0 for the rest.
-				var brick := Brick.new(item.kind.hp + int(stats.base(StringName(String(item.kind.id) + "_health"))), item.kind.id)
-				brick.placed = true
-				board.bricks[item.cell] = brick
+				board.bricks[item.cell] = _placed(item.kind)
 			PlaceableKind.Placement.MOD:
 				board.brick(item.cell).mod = item.kind.id
 			_:
@@ -397,6 +398,10 @@ func step(delta: float, paddle_target: float) -> void:
 			var brick := board.brick(item.cell)
 			if item.kind.placement == PlaceableKind.Placement.BRICK and brick and brick.placed:
 				item.kind.on_step(self, item.cell, brick, delta)
+			elif brick == null and _rebuild.get(item.cell, INF) <= clock + TIME_SLOP and not _ball_over(board.cell_rect(item.cell)):
+				_rebuild.erase(item.cell)
+				board.bricks[item.cell] = _placed(item.kind)
+				restored.emit(item.cell, [item.cell] as Array[Vector2i])
 		if _left > 0 and not _due.is_empty():
 			_regrow()
 		time_left -= delta
@@ -544,11 +549,30 @@ func _regrow() -> void:
 func restorable(cell: Vector2i) -> bool:
 	if board.bricks.has(cell) or not level_cells.has(cell):
 		return false
-	var rect := board.cell_rect(cell)
+	return not _ball_over(board.cell_rect(cell))
+
+
+## Schedules the placed brick broken at `cell` to come back `delay` s of play later (Splitter Respawn), as it was
+## built: its kind's hp plus its health stat. It waits while a ball is over the cell, and emits restored(cell,
+## [cell]) when it is back.
+func rebuild(cell: Vector2i, delay: float) -> void:
+	_rebuild[cell] = clock + delay
+
+
+# A placed brick of `kind` as the round builds it.
+func _placed(kind: PlaceableKind) -> Brick:
+	# ponytail: only the Splitter has a health stat; `<id>_health` reads 0 for the rest.
+	var brick := Brick.new(kind.hp + int(stats.base(StringName(String(kind.id) + "_health"))), kind.id)
+	brick.placed = true
+	return brick
+
+
+# True if a ball overlaps `rect` (touching does not count).
+func _ball_over(rect: Rect2) -> bool:
 	for ball in balls:
 		if rect.intersects(Rect2(ball.pos - Vector2.ONE * ball.size * 0.5, Vector2.ONE * ball.size)):
-			return false
-	return true
+			return true
+	return false
 
 
 ## Up to `count` cells a brick can be brought back to (restorable()), nearest `cell` first by the distance

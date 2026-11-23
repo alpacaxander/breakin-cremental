@@ -9,3 +9,5 @@ colour = &"placeable"
 order = 4
 placement = 1
 hp = 1
+respawn = 6.0
+respawn_per_rank = 2.0

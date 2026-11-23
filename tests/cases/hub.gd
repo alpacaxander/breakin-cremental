@@ -7,14 +7,14 @@ const WEB := {
 	&"HourglassBrick": &"PaddleSpeed", &"HourglassTime": &"HourglassBrick", &"HourglassFreeze": &"HourglassTime",
 	&"Booster": &"PaddleSpeed", &"BoosterSpeed": &"Booster", &"Zap": &"Booster", &"ZapRange": &"Zap",
 	&"ZapDamage": &"ZapRange", &"RearPaddle": &"Zap", &"Combo": &"PaddleSpeed", &"ComboWindow": &"Combo",
-	&"GoldBrick": &"Combo", &"WallSegment": &"GoldBrick", &"Splitter": &"Combo", &"SplitterSplits": &"Splitter",
-	&"SplitterHealth": &"SplitterSplits", &"PaddleSize": &"PaddleSpeed", &"ExplosiveBrick": &"PaddleSize",
+	&"GoldBrick": &"Combo", &"WallSegment": &"GoldBrick", &"Splitter": &"Combo", &"SplitterRespawn": &"Splitter",
+	&"SplitterHealth": &"SplitterRespawn", &"PaddleSize": &"PaddleSpeed", &"ExplosiveBrick": &"PaddleSize",
 	&"ExplosionSize": &"ExplosiveBrick", &"ExplosionDamage": &"ExplosionSize", &"Shockwave": &"ExplosiveBrick",
 	&"ToughBrick": &"GoldBrick", &"Growth": &"ToughBrick", &"GrowthReach": &"Growth",
 	&"Refresh": &"ToughBrick", &"RefreshSize": &"Refresh", &"PulseRate": &"Refresh",
 	&"Overgrowth": &"PulseRate",
 	&"Guide": &"Booster", &"GuideBounces": &"Guide",
-	&"SpareBall": &"WallSegment", &"BallBrick": &"SplitterSplits",
+	&"SpareBall": &"WallSegment", &"BallBrick": &"SplitterRespawn",
 }
 
 var _heard: Array[StringName] = []
@@ -46,7 +46,7 @@ func run(t: Node) -> void:
 	for u in Progress.upgrades():
 		Progress.ranks[u.id] = 1
 	Progress.rank_changed.emit(web.seed_node().upgrade)
-	for pair: Array in [[&"Splitter", KEY_UP, &"PaddleSize"], [&"HourglassBrick", KEY_DOWN, &"ComboWindow"], [&"Splitter", KEY_DOWN, &"SplitterSplits"],
+	for pair: Array in [[&"Splitter", KEY_UP, &"PaddleSize"], [&"HourglassBrick", KEY_DOWN, &"ComboWindow"], [&"Splitter", KEY_DOWN, &"SplitterRespawn"],
 			[&"Combo", KEY_RIGHT, &"ComboWindow"], [&"Booster", KEY_UP, &"Zap"]]:
 		(at.call(pair[0]) as Control).grab_focus()
 		_key(t, pair[1])

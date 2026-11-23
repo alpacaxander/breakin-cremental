@@ -4,11 +4,11 @@
 
 [resource]
 script = ExtResource("1")
-title = "Splitter Splits"
+title = "Splitter Respawn"
 category = 1
-text = "A Splitter splits a ball into one more."
+text = "A broken Splitter comes back after 6 s; each rank after the first takes 2 s off."
 first_cost = 2000
-growth = 5
-max_rank = 2
-stat = &"splitter_splits"
+growth = 2.5
+max_rank = 3
+stat = &"splitter_respawn"
 amount = 1.0

@@ -18,7 +18,7 @@ const TABLE := {
 	&"zap_range": [P, 2, 400, &"zap_range", 2.0, false],
 	&"zap_damage": [P, 2, 800, &"zap_damage", 1.0, false],
 	&"splitter": [P, 5, 80, &"splitter_count", 1.0, false],
-	&"splitter_splits": [P, 2, 2000, &"splitter_splits", 1.0, false],
+	&"splitter_respawn": [P, 3, 2000, &"splitter_respawn", 1.0, false],
 	&"splitter_health": [P, 2, 500, &"splitter_health", 1.0, false],
 	&"wall_segment": [P, 2, 40, &"wall_segment_count", 1.0, false],
 	&"explosive_brick": [B, 4, 40, &"explosive_count", 1.0, false],
@@ -70,7 +70,7 @@ func _upgrades(t: Node) -> void:
 		t.check(is_equal_approx(u.amount, row[4]) and u.percent == row[5], "%s adds %s%s per rank" % [u.id, row[4], " of the base" if row[5] else ""])
 		t.check(u.cost(0) == u.first_cost, "%s's first rank costs its first cost" % u.id)
 		t.check(Progress.upgrade(u.id) == u, "Progress.upgrade finds %s" % u.id)
-	t.check(purchases == 78, "the web holds 78 purchases, not %d" % purchases)
+	t.check(purchases == 79, "the web holds 79 purchases, not %d" % purchases)
 	t.check(Progress.upgrade(&"nope") == null, "an unknown id is no upgrade")
 
 

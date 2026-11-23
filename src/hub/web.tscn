@@ -28,7 +28,7 @@
 [ext_resource type="Resource" path="res://data/upgrades/shockwave.tres" id="shockwave"]
 [ext_resource type="Resource" path="res://data/upgrades/spare_ball.tres" id="spare_ball"]
 [ext_resource type="Resource" path="res://data/upgrades/splitter_health.tres" id="splitter_health"]
-[ext_resource type="Resource" path="res://data/upgrades/splitter_splits.tres" id="splitter_splits"]
+[ext_resource type="Resource" path="res://data/upgrades/splitter_respawn.tres" id="splitter_respawn"]
 [ext_resource type="Resource" path="res://data/upgrades/splitter.tres" id="splitter"]
 [ext_resource type="Resource" path="res://data/upgrades/tough_brick.tres" id="tough_brick"]
 [ext_resource type="Resource" path="res://data/upgrades/wall_segment.tres" id="wall_segment"]
@@ -118,15 +118,15 @@ upgrade = ExtResource("splitter")
 cell = Vector2i(1, 3)
 links = Array[NodePath]([NodePath("../Combo")])
 
-[node name="SplitterSplits" parent="." instance=ExtResource("node")]
-upgrade = ExtResource("splitter_splits")
+[node name="SplitterRespawn" parent="." instance=ExtResource("node")]
+upgrade = ExtResource("splitter_respawn")
 cell = Vector2i(1, 4)
 links = Array[NodePath]([NodePath("../Splitter")])
 
 [node name="SplitterHealth" parent="." instance=ExtResource("node")]
 upgrade = ExtResource("splitter_health")
 cell = Vector2i(1, 5)
-links = Array[NodePath]([NodePath("../SplitterSplits")])
+links = Array[NodePath]([NodePath("../SplitterRespawn")])
 
 [node name="PaddleSize" parent="." instance=ExtResource("node")]
 upgrade = ExtResource("paddle_size")
@@ -206,4 +206,4 @@ links = Array[NodePath]([NodePath("../WallSegment")])
 [node name="BallBrick" parent="." instance=ExtResource("node")]
 upgrade = ExtResource("ball_brick")
 cell = Vector2i(0, 4)
-links = Array[NodePath]([NodePath("../SplitterSplits")])
+links = Array[NodePath]([NodePath("../SplitterRespawn")])
