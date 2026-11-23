@@ -88,6 +88,10 @@ A panel 880 px wide, centred over the arena, which stays as the round left it. I
 
 The back button sits where Setup has it and does what Upgrades does.
 
+### Pause
+
+During Play, Esc or the window losing focus pauses the round. The arena and its effects hold still under a panel 480 px wide, centred over the arena: PAUSED in the title style, then Resume, Retry and Upgrades as a selection that starts on Resume. Esc resumes too. Retry and Upgrades drop the round and pay nothing. There is no mockup.
+
 ## Arena zoom
 
 Levels have different grid sizes (see [levels.md](design/levels.md#arena-size)). The sizes in the table above are for a 16-row level.

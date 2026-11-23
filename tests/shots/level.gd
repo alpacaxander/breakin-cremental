@@ -2,7 +2,7 @@ extends RefCounted
 ## The level screen in each state that matters: Setup on a fresh save and with everything unlocked and placed,
 ## a drag that fits and one that does not, an item held over the tray, Play early, mid-combo, with tough bricks
 ## hit, with bricks grown by a Growth block, with bricks a Refresh block brought back (it cooling, beside one
-## ready), with bricks Overgrowth brought back, and on the zoomed level 3, and the Summary for each of the three
+## ready), with bricks Overgrowth brought back, on the zoomed level 3, and paused, and the Summary for each of the three
 ## ends and with several combos. Compare them with docs/art.md ("Level screen") and the level mockup.
 ##
 ## The mouse is pushed straight into Main's View, so a position here is a position in the 1280 x 720 frame
@@ -45,6 +45,7 @@ func shots() -> Array[Dictionary]:
 		{"name": "play_mid_2_crt_off", "save": "mid", "crt": false, "setup": _play.bind(2, [], 150, 9)},
 		{"name": "play_maxed_1", "save": "maxed", "crt": false, "setup": _play.bind(1, PLACED, 200, 0)},
 		{"name": "play_maxed_3", "save": "maxed", "setup": _play.bind(3, [], 240, 0)},
+		{"name": "play_paused", "save": "mid", "setup": _paused},
 		{"name": "play_low_time", "save": "mid", "crt": false, "setup": _low_time},
 		{"name": "play_guide", "save": "maxed", "setup": _guide},
 		{"name": "play_tough", "save": "maxed", "crt": false, "setup": _tough},
@@ -178,6 +179,12 @@ func _overgrowth(main: Main) -> void:
 func _low_time(main: Main) -> void:
 	var level := await _play(main, 2, [], 60, 5)
 	(level.get("round") as Round).time_left = 3.4
+
+
+## Level 2 in Play, paused: the pause panel over the arena, Resume selected.
+func _paused(main: Main) -> void:
+	var level := await _play(main, 2, [], 150, 9)
+	level.call("pause", true)
 
 
 ## Plays level 1 for a moment and ends the round the given way.

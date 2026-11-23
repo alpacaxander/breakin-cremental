@@ -28,7 +28,7 @@ See also: [levels.md](levels.md), [physics.md](physics.md), [placeables.md](plac
 - **Play scene:** you switch between two modes:
   - **Upgrades:** spend coins in the upgrade web, then choose an unlocked level to play.
   - **Level:** a single run, made up of the three phases below. From the Summary you either retry the level or return to Upgrades.
-- **Going back:** a back button, or Esc, goes one step back: from Settings to the main menu, from Upgrades to the main menu, and from a level's Setup or Summary to Upgrades. During Play there is no way out; the round is short. Nothing is lost by leaving, because purchases and layouts are saved as they happen.
+- **Going back:** a back button, or Esc, goes one step back: from Settings to the main menu, from Upgrades to the main menu, and from a level's Setup or Summary to Upgrades. During Play, Esc pauses instead, as does the window losing focus: a panel offers Resume, Retry and Upgrades, and a round left that way pays nothing. Nothing is lost by leaving, because purchases and layouts are saved as they happen.
 
 ## Save data
 

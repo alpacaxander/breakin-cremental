@@ -240,8 +240,20 @@ func _paddle() -> void:
 
 	_key(KEY_ESCAPE)
 	await _steps(2)
-	t.check(is_instance_valid(level) and level.phase == PLAY and not (main.screen.get_child(0) as Play)._hub.visible, "Esc does nothing during Play")
+	t.check(is_instance_valid(level) and level.phase == PLAY and level.paused and level.get_node("Pause").visible
+			and not (main.screen.get_child(0) as Play)._hub.visible, "Esc during Play pauses it, and goes no further")
 	round.launch()
+	var held := round.time_left
+	level._physics_process(1.0 / 120.0)
+	t.check(round.time_left == held and level.get_node("Arena").process_mode == Node.PROCESS_MODE_DISABLED, "a paused round does not step, and the arena holds still")
+	_key(KEY_ESCAPE)
+	await t.tree().process_frame
+	t.check(not level.paused and not level.get_node("Pause").visible, "Esc again resumes")
+	level.propagate_notification(Node.NOTIFICATION_APPLICATION_FOCUS_OUT)
+	t.check(level.paused, "the window losing focus pauses Play")
+	(level.find_child("Resume", true, false) as Button).pressed.emit()
+	await t.tree().process_frame
+	t.check(not level.paused and level.phase == PLAY, "Resume resumes")
 	var left := round.time_left
 	level.fx.frozen = true
 	level._physics_process(1.0 / 120.0)
@@ -302,6 +314,17 @@ func _ends() -> void:
 	(level.get_node("Summary").find_child("Retry", true, false) as Button).pressed.emit()
 	_key(KEY_SPACE)
 	t.check(level.phase == PLAY, "Space starts the round in Setup")
+	# The pause panel's Retry: Setup again, with the round dropped unpaid.
+	round = level.round
+	coins = Progress.coins
+	paid[0] = 0
+	round.hit_brick(round.board.bricks.keys()[0], Round.Cause.BALL, Vector2.RIGHT)
+	level.pause(true)
+	(level.find_child("Retry", true, false) as Button).pressed.emit()
+	await _steps(12)
+	t.check(level.phase == SETUP and not level.paused and level.round != round and paid[0] == 0 and Progress.coins == coins,
+			"the pause panel's Retry goes back to Setup and pays nothing")
+	_key(KEY_SPACE)
 
 	# Every brick broken.
 	round = level.round
@@ -340,6 +363,16 @@ func _ends() -> void:
 	level = play._level
 	t.check(level != null and level.level == 2 and level.phase == SETUP and not is_instance_valid(was), "Next opens level 2 in Setup and frees level 1")
 	t.check(is_equal_approx(main.env.glow_intensity, Main.GLOW), "Next puts the bloom back to rest")
+
+	# The pause panel's Upgrades: the hub, with the round dropped unpaid.
+	_key(KEY_SPACE)
+	coins = Progress.coins
+	paid[0] = 0
+	was = level
+	level.pause(true)
+	(level.find_child("Upgrades", true, false) as Button).pressed.emit()
+	await t.tree().process_frame
+	t.check(play._hub.visible and not is_instance_valid(was) and paid[0] == 0 and Progress.coins == coins, "the pause panel's Upgrades goes to the hub and pays nothing")
 
 
 func _open(number: int) -> void:

@@ -12,7 +12,7 @@ extends Node
 ## navigates: Main.show_hub() wakes the Hub while the same event is still being handed out, so without that call
 ## one Esc in a level goes on through the Hub to the main menu.
 ##     Settings -> Main.show_menu()        the Hub -> Main.show_menu()
-##     a Level in Setup or in the Summary -> Main.show_hub()        a Level in Play: nothing, a round runs out
+##     a Level in Setup or in the Summary -> Main.show_hub()        a Level in Play: pauses it (level.gd)
 ## Leaving loses nothing: a purchase and a layout change are saved when they happen.
 ##
 ## THE RENDER CHAIN (measured in the render spike, see docs/architecture.md "Rendering"):

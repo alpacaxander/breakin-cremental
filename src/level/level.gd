@@ -15,7 +15,8 @@ extends Control
 ## The keys (not the mouse, which places items) move its paddle, and the ball rides on it (Round.hold).
 ## PLAY builds it once more and steps it, with the ball still on the paddle until a click or Space launches it
 ## (Round.launch); until then only the paddle moves and the timer waits. Each spare ball that comes onto the
-## paddle later is launched the same way (Round, SPARES). There is no way out. The paddle goes where the last thing the player
+## paddle later is launched the same way (Round, SPARES). Esc, or the window losing focus, pauses it (pause()):
+## Resume, Retry or Upgrades, and leaving that way pays nothing. The paddle goes where the last thing the player
 ## used says: a held key (W/S, the arrows) moves it, the mouse's height draws it, both at paddle speed. A key
 ## takes over at once, and the mouse takes it back only by moving, so a key player's paddle stays where it was
 ## left and a resting mouse never pulls it away.
@@ -32,6 +33,8 @@ var level := 1
 var round: Round
 var fx: Fx
 var phase := Phase.SETUP
+## True while Play is paused: the round does not step and the arena holds still under the pause panel.
+var paused := false
 
 var _data: LevelData
 var _stats: Balance
@@ -42,6 +45,7 @@ var _by_mouse := false
 var _mouse_y := 0.0
 ## The mouse's height when the keys last had the paddle.
 var _mouse_rest := 0.0
+var _pause_panel: Control
 
 @onready var _arena: LevelArena = $Arena
 @onready var _hud: LevelHud = $Hud
@@ -61,6 +65,7 @@ func _ready() -> void:
 	_summary.retry_pressed.connect(_setup)
 	_summary.next_pressed.connect(_next)
 	_summary.back_pressed.connect(_leave)
+	_build_pause()
 	_setup()
 
 
@@ -84,7 +89,7 @@ func start(with_seed := -1) -> void:
 
 func _physics_process(delta: float) -> void:
 	_arena.remember()
-	if phase == Phase.PLAY and not fx.frozen:
+	if phase == Phase.PLAY and not fx.frozen and not paused:
 		round.step(delta, _paddle_target())
 	elif phase == Phase.SETUP:
 		# Keys only: in Setup the mouse places items, and it would drag the paddle to Start's height on a click.
@@ -103,20 +108,88 @@ func _input(event: InputEvent) -> void:
 			_by_mouse = true
 	# Here, not in _unhandled_input: the screen's Controls take clicks before that sees them.
 	var b := event as InputEventMouseButton
-	if b and b.pressed and b.button_index == MOUSE_BUTTON_LEFT and phase == Phase.PLAY and round.waiting:
+	if b and b.pressed and b.button_index == MOUSE_BUTTON_LEFT and phase == Phase.PLAY and round.waiting and not paused:
 		get_viewport().set_input_as_handled()
 		round.launch()
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed(&"ui_cancel"):
+	if event.is_action_pressed(&"ui_cancel") and phase == Phase.PLAY:
+		get_viewport().set_input_as_handled()
+		pause(not paused)
+	elif event.is_action_pressed(&"ui_cancel"):
 		_leave()
 	elif event.is_action_pressed(&"ui_accept") and phase == Phase.SETUP:
 		get_viewport().set_input_as_handled()
 		start()
-	elif event.is_action_pressed(&"ui_accept") and phase == Phase.PLAY and round.waiting:
+	elif event.is_action_pressed(&"ui_accept") and phase == Phase.PLAY and round.waiting and not paused:
 		get_viewport().set_input_as_handled()
 		round.launch()
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT:
+		pause(true)
+
+
+## Pauses Play, or resumes it. Paused, the round does not step, the arena and its effects (Fx is in it) hold
+## still, and a panel over the arena offers Resume, Retry and Upgrades. Retry and Upgrades drop the round
+## unpaid. Pausing does nothing outside Play.
+func pause(on: bool) -> void:
+	if on == paused or (on and phase != Phase.PLAY):
+		return
+	paused = on
+	_arena.process_mode = PROCESS_MODE_DISABLED if on else PROCESS_MODE_INHERIT
+	_pause_panel.visible = on
+	if on:
+		(_pause_panel.find_child("Resume", true, false) as Button).grab_focus()  # so Enter or Space resumes
+	else:
+		_by_mouse = false  # the paddle waits for the mouse to move, not for where it went to click Resume
+		_mouse_rest = _mouse_y
+
+
+## The pause panel, hidden. Built once: pause() can come from a notification the tree is still handing out,
+## and a node can take no new children then.
+func _build_pause() -> void:
+	_pause_panel = CenterContainer.new()
+	_pause_panel.name = "Pause"
+	_pause_panel.visible = false
+	_pause_panel.z_index = 100
+	_pause_panel.position = LevelArena.FRAME.position
+	_pause_panel.size = LevelArena.FRAME.size
+	add_child(_pause_panel)
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size.x = 480
+	_pause_panel.add_child(panel)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override(&"separation", 10)
+	panel.add_child(box)
+	var title := Label.new()
+	title.theme_type_variation = &"Title"
+	title.text = "PAUSED"
+	box.add_child(title)
+	var buttons := HBoxContainer.new()
+	buttons.add_theme_constant_override(&"separation", 12)
+	box.add_child(buttons)
+	for b: Array in [["Resume", pause.bind(false)], ["Retry", _retry], ["Upgrades", _quit]]:
+		var button := Button.new()
+		button.name = b[0]
+		button.text = (b[0] as String).to_upper()
+		button.size_flags_horizontal = SIZE_EXPAND_FILL
+		button.pressed.connect(b[1])
+		buttons.add_child(button)
+	UiTheme.selection(buttons.get_children())
+
+
+func _retry() -> void:
+	pause(false)
+	_setup()
+
+
+func _quit() -> void:
+	pause(false)
+	phase = Phase.SETUP  # the round is dropped, not ended: nothing is paid
+	_leave()
 
 
 ## Setup: a new attempt, with the special bricks rolled again.
@@ -160,7 +233,7 @@ func _on_ended(_reason: Round.End) -> void:
 	_summary.open(round, _data, Progress.unlocked > before and level < Progress.level_count)
 
 
-## Back to the hub, from Setup or the Summary. During Play there is no way out.
+## Back to the hub, from Setup or the Summary. During Play the way out is the pause panel's Upgrades.
 func _leave() -> void:
 	if phase == Phase.PLAY:
 		return
