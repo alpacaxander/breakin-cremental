@@ -163,7 +163,7 @@ func _overgrowth(main: Main) -> void:
 	var level := await _play(main, 3, [], 30, 0)
 	var round: Round = level.get("round")
 	var smash := func(rows: Array) -> void:
-		for column in range(12, 20):
+		for column in range(40, 48):
 			for row: int in rows:
 				while round.board.brick(Vector2i(column, row)):
 					round.hit_brick(Vector2i(column, row), Round.Cause.BLAST, Vector2.RIGHT)

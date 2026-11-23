@@ -3,11 +3,11 @@ extends RefCounted
 ## Cells are brick cells, Vector2i(column, brick row); levels.md's "rows 8-9" is brick row 4.
 
 ## The cells each level marks for the balance bot to aim at (LevelData.aims): level 3's tunnel mouth.
-const AIMS := {1: [], 2: [], 3: [Vector2i(4, 4)]}
+const AIMS := {1: [], 2: [], 3: [Vector2i(32, 4)]}
 const LEVELS := {
 	1: {"title": "Two Columns", "rows": 14, "bricks": 28, "top": 1, "at_top": 28, "hits": 28},
 	2: {"title": "Checkerboard", "rows": 16, "bricks": 128, "top": 1, "at_top": 128, "hits": 128},
-	3: {"title": "The Tunnel", "rows": 18, "bricks": 512, "top": 2, "at_top": 134, "hits": 646},
+	3: {"title": "The Tunnel", "rows": 18, "bricks": 256, "top": 2, "at_top": 70, "hits": 326},
 }
 ## HP at a cell, 0 for empty: grid corners, the first and last brick columns, and the pattern's edges.
 const CELLS := {
@@ -24,10 +24,10 @@ const CELLS := {
 		Vector2i(24, 7): 0, Vector2i(32, 7): 1, Vector2i(48, 7): 1, Vector2i(55, 7): 1,
 	},
 	3: {
-		Vector2i(0, 0): 0, Vector2i(71, 0): 0, Vector2i(0, 8): 0, Vector2i(71, 8): 0, Vector2i(3, 0): 0, Vector2i(68, 8): 0,
-		Vector2i(4, 0): 2, Vector2i(4, 8): 2, Vector2i(5, 0): 1, Vector2i(67, 0): 1, Vector2i(67, 8): 1, Vector2i(30, 2): 1,
-		Vector2i(4, 3): 2, Vector2i(30, 3): 2, Vector2i(67, 3): 2, Vector2i(5, 5): 2, Vector2i(67, 5): 2, Vector2i(30, 6): 1,
-		Vector2i(4, 4): 0, Vector2i(30, 4): 0, Vector2i(67, 4): 0,
+		Vector2i(0, 0): 0, Vector2i(71, 0): 0, Vector2i(0, 8): 0, Vector2i(71, 8): 0, Vector2i(31, 0): 0, Vector2i(64, 8): 0,
+		Vector2i(32, 0): 2, Vector2i(32, 8): 2, Vector2i(33, 0): 1, Vector2i(63, 0): 1, Vector2i(63, 8): 1, Vector2i(48, 2): 1,
+		Vector2i(32, 3): 2, Vector2i(48, 3): 2, Vector2i(63, 3): 2, Vector2i(33, 5): 2, Vector2i(63, 5): 2, Vector2i(48, 6): 1,
+		Vector2i(32, 4): 0, Vector2i(48, 4): 0, Vector2i(63, 4): 0,
 	},
 }
 

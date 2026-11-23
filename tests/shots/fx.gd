@@ -189,10 +189,10 @@ func _cleared(main: Main) -> void:
 			round.hit_brick(cells[i], Round.Cause.BALL, Vector2.RIGHT)
 
 
-## A Zap set off on brick row `row` of level 3: row 3 is 2 HP (63 hits that hold), row 1 is 1 HP (63 breaks).
+## A Zap set off on brick row `row` of level 3: row 3 is 2 HP (31 hits that hold), row 1 is 1 HP (31 breaks).
 func _zap(main: Main, row: int) -> void:
 	var round := await _start(main, 3, 12)
-	var cell := Vector2i(30, row)
+	var cell := Vector2i(48, row)
 	var brick := round.board.brick(cell)
 	brick.mod = &"zap"
 	brick.kind = &""
@@ -212,13 +212,13 @@ static func worst(round: Round) -> void:
 		var brick := round.board.brick(cell)
 		brick.hp = 1
 		brick.kind = &""
-	for column: int in [14, 34, 54]:
+	for column: int in [36, 46, 56]:
 		round.board.brick(Vector2i(column, 2)).kind = &"explosive"
-	round.board.brick(Vector2i(6, 2)).mod = &"zap"
-	round.board.brick(Vector2i(30, 6)).mod = &"zap"
+	round.board.brick(Vector2i(34, 2)).mod = &"zap"
+	round.board.brick(Vector2i(40, 6)).mod = &"zap"
 	round.stats.zap_range = maxf(round.stats.zap_range, round.board.cols)  # a whole-row Zap: past any rank, for the worst case
-	round.hit_brick(Vector2i(6, 2), Round.Cause.BALL, Vector2.RIGHT)
-	round.hit_brick(Vector2i(30, 6), Round.Cause.BALL, Vector2.RIGHT)
+	round.hit_brick(Vector2i(34, 2), Round.Cause.BALL, Vector2.RIGHT)
+	round.hit_brick(Vector2i(40, 6), Round.Cause.BALL, Vector2.RIGHT)
 
 
 ## Starts level `number` and lets a paddle that follows the nearest incoming ball play it for `ticks` physics

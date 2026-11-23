@@ -61,7 +61,7 @@ func _seam() -> void:
 			t.check(child.z_index > (level.get_node("SetupUi") as Control).z_index, "the ghost draws over SetupUi, so a held item shows over the tray")
 		else:
 			t.check(child == level.fx or child.z_index in [0, 10, 20], "%s is at z 0, 10 or 20" % child.name)
-	t.check(arena.get_child_count() < 10 and round.board.bricks.size() == 512, "512 bricks are drawn by one node, not by 512")
+	t.check(arena.get_child_count() < 10 and round.board.bricks.size() == 256, "256 bricks are drawn by one node, not by 256")
 	for part: String in ["Hud", "SetupUi", "Summary"]:
 		t.check((level.get_node(part) as Control).z_index == 100, "%s is at z 100" % part)
 	t.check(_specials(round).size() == 5, "Setup shows this attempt's special bricks")

@@ -281,7 +281,7 @@ func _bursts() -> void:
 	fx._process(1.0)
 	var bricks := round.board.bricks.size()
 	(load("res://tests/shots/fx.gd") as GDScript).worst(round)
-	t.check(bricks - round.board.bricks.size() > 250, "the worst burst breaks more than 250 bricks in one step (%d)" % (bricks - round.board.bricks.size()))
+	t.check(bricks - round.board.bricks.size() > 150, "the worst burst breaks more than 150 bricks in one step (%d)" % (bricks - round.board.bricks.size()))
 	fx._process(1.0 / 60.0)
 	# What one frame may add: DEBRIS shared by the breaks, and each blast's own squares, fewer for each one after.
 	var most := Fx.DEBRIS + 1.0

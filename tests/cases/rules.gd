@@ -1545,24 +1545,24 @@ func _ends() -> void:
 
 # --- how long a round takes ------------------------------------------------------------------------------------
 
-## Level 3 as docs/design/levels.md draws it: 72 x 18, a solid wall with a tunnel, 512 bricks.
+## Level 3 as docs/design/levels.md draws it: 72 x 18, a solid wall with a tunnel, 256 bricks.
 func _tunnel_board() -> Board:
 	var board := Board.new(18)
-	for column in range(4, 68):
+	for column in range(32, 64):
 		for row in 9:
 			if row != 4:
-				board.bricks[Vector2i(column, row)] = Brick.new(4 if column == 4 or row == 3 or row == 5 else 1)
+				board.bricks[Vector2i(column, row)] = Brick.new(4 if column == 32 or row == 3 or row == 5 else 1)
 	return board
 
 
 func _timing() -> void:
 	var board := _tunnel_board()
-	t.check(board.bricks.size() == 512 and board.cols == 72, "the timing board is level 3's: 512 bricks on 72 x 18")
+	t.check(board.bricks.size() == 256 and board.cols == 72, "the timing board is level 3's: 256 bricks on 72 x 18")
 	# Mid-game stats, the paddle following the ball, 120 steps a second for the full 20 seconds.
 	var stats := _stats({&"paddle_speed": 720.0, &"ball_speed": 980.0, &"paddle_size": 139.0, &"combo_rank": 3, &"explosive_count": 3, &"gold_count": 3, &"hourglass_count": 2,
 			&"blast_size": 2.0, &"shockwave": 1, &"bumper_count": 3, &"booster_count": 2, &"wall_segment_count": 2, &"splitter_count": 2, &"zap_count": 2})
 	var layout := _layout([_item(&"bumper", Vector2(30, 100)), _item(&"bumper", Vector2(32, 480)), _item(&"bumper", Vector2(1120, 288)), _item(&"booster", Vector2(1110, 100)), _item(&"booster", Vector2(1110, 470)),
-			_item(&"wall_segment", Vector2(6, 200)), _item(&"wall_segment", Vector2(6, 376)), _item(&"splitter", Vector2i(2, 2)), _item(&"splitter", Vector2i(2, 6)), _item(&"zap", Vector2i(4, 1)), _item(&"zap", Vector2i(4, 7))])
+			_item(&"wall_segment", Vector2(6, 200)), _item(&"wall_segment", Vector2(6, 376)), _item(&"splitter", Vector2i(2, 2)), _item(&"splitter", Vector2i(2, 6)), _item(&"zap", Vector2i(32, 1)), _item(&"zap", Vector2i(32, 7))])
 	var report := []
 	for mode: String in ["paddle following", "paddle sealed", "sealed, with Overgrowth"]:
 		var s := stats.copy()
@@ -1587,4 +1587,4 @@ func _timing() -> void:
 		report.append("%s: %d ms for %.1f s of play (%d steps), %d bricks broken, %d grown back, %d balls at the end" % [mode,
 				(Time.get_ticks_usec() - began) / 1000, steps * TICK, steps, counts[0], counts[1], round.balls.size()])
 		t.check(round.layout.items.size() == 11, "the timing round has its eleven items")
-	print("   rules: a round on 72 x 18 with 512 bricks. ", ". ".join(report))
+	print("   rules: a round on 72 x 18 with 256 bricks. ", ". ".join(report))

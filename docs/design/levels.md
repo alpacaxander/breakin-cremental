@@ -102,36 +102,36 @@ The first column walls off the back one: the ball reaches the back column only t
 
 ## Level 3: solid wall with a tunnel
 
-- 72 × 18, one brick taller than the base size, so the tunnel sits exactly in the middle.
-- Columns 0–3 (paddle side) and 68–71 (back wall) are empty.
-- Columns 4–67 are solid bricks.
+- 72 × 18, one brick taller than the base size, so the tunnel sits exactly in the middle. In squares (4 columns × 2 rows, a 64 × 64 square on screen like level 2's) that is 18 × 9.
+- Columns 0–31 (8 squares on the paddle side) and 64–71 (2 squares at the back wall) are empty.
+- Columns 32–63 (8 squares) are solid bricks.
 - A tunnel 1 brick tall (rows 8–9, the fifth of nine brick rows) runs straight through the wall.
-- Column 4, the face of the wall toward the paddle, is 2 HP.
+- Column 32, the face of the wall toward the paddle, is 2 HP.
 - The brick rows on both sides of the tunnel (rows 6–7 and 10–11) are 2 HP.
 - Every other brick is 1 HP.
-- The tunnel mouth is left open. Its first cell (column 4, rows 8–9) is an aim mark: a good player gets the ball into the tunnel, where it bounces between the 2 HP rows and wears them down. The ball's shallowest angle, 8°, takes it to a tunnel wall within about 370 units, so a ball never flies the tunnel clean.
-- 512 bricks, 134 of them 2 HP. That is 646 hits to clear, and 646 points before combos and special bricks, since every hit scores 1 (see [overview.md](overview.md#coins)). A round with every upgrade breaks most of the board in its first 10 s, with blasts and Zaps, and spends the rest on what they leave: the 2 HP bricks along the tunnel (not the Tough Brick special, which is 3 HP), one ball at a time. So their HP sets how long the level takes: at 3 HP the balance bot's average player clears it in 3 rounds of 10 with everything bought, and only a longer round raises that (4 of 10 at 82 s); at 2 HP it is 4 of 10 in 55 s.
-- The wall's face is 81 units from the paddle's, so a ball that misses the tunnel mouth is back in a fifth of a second. What makes that playable is in the numbers, not the layout: the paddle's steepest angle is 45°, and Paddle Size grows the paddle to half the lane.
+- The tunnel mouth is left open. Its first cell (column 32, rows 8–9) is an aim mark: a good player gets the ball into the tunnel, where it bounces between the 2 HP rows and wears them down. The ball's shallowest angle, 8°, takes it to a tunnel wall within about 370 units, so a ball never flies the tunnel clean.
+- 256 bricks, 70 of them 2 HP. That is 326 hits to clear, and 326 points before combos and special bricks, since every hit scores 1 (see [overview.md](overview.md#coins)). The wall was 64 columns (512 bricks, 646 hits) until the front 7 squares and the back square were emptied; the measurements in this doc and in [upgrades.md](upgrades.md) were made on that wall and have not been rerun. On it, a round with every upgrade broke most of the board in its first 10 s, with blasts and Zaps, and spent the rest on what they left: the 2 HP bricks along the tunnel (not the Tough Brick special, which is 3 HP), one ball at a time. So their HP set how long the level took: at 3 HP the balance bot's average player cleared it in 3 rounds of 10 with everything bought, and only a longer round raised that (4 of 10 at 82 s); at 2 HP it was 4 of 10 in 55 s.
+- The wall's face is 529 units from the paddle's (it was 81), so a ball that misses the tunnel mouth takes about 2 s there and back at the base speed instead of a fraction of one. The paddle's steepest angle is 45°, and Paddle Size grows the paddle to half the lane.
 
 ```
    +------------------------------------------------------------------------+
-   |....▓███████████████████████████████████████████████████████████████....|
-   |....▓███████████████████████████████████████████████████████████████....|
-   |....▓███████████████████████████████████████████████████████████████....|
-   |....▓███████████████████████████████████████████████████████████████....|
-   |....▓███████████████████████████████████████████████████████████████....|
-   |....▓███████████████████████████████████████████████████████████████....|
-   |....▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓....|
-|  |....▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓....|
+   |................................▓███████████████████████████████........|
+   |................................▓███████████████████████████████........|
+   |................................▓███████████████████████████████........|
+   |................................▓███████████████████████████████........|
+   |................................▓███████████████████████████████........|
+   |................................▓███████████████████████████████........|
+   |................................▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓........|
+|  |................................▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓........|
 |  |........................................................................|
 |  |........................................................................|
-|  |....▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓....|
-   |....▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓....|
-   |....▓███████████████████████████████████████████████████████████████....|
-   |....▓███████████████████████████████████████████████████████████████....|
-   |....▓███████████████████████████████████████████████████████████████....|
-   |....▓███████████████████████████████████████████████████████████████....|
-   |....▓███████████████████████████████████████████████████████████████....|
-   |....▓███████████████████████████████████████████████████████████████....|
+|  |................................▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓........|
+   |................................▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓........|
+   |................................▓███████████████████████████████........|
+   |................................▓███████████████████████████████........|
+   |................................▓███████████████████████████████........|
+   |................................▓███████████████████████████████........|
+   |................................▓███████████████████████████████........|
+   |................................▓███████████████████████████████........|
    +------------------------------------------------------------------------+
 ```
