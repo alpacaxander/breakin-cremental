@@ -140,6 +140,7 @@ func _placing() -> void:
 	t.check(setup._slots.size() == 6, "a maxed save has six slots in the tray")
 	var start := setup.find_child("Start", true, false) as Control
 	t.check(start.get_global_rect().end.x <= LevelHud.FOOTER.end.x + 0.5, "with every slot and this run's special bricks the footer holds Start (its right edge is at %d)" % start.get_global_rect().end.x)
+	await _scrolling(setup)
 	var ok_spots := {
 		BOOSTER: [Vector2(400, 200)],
 		WALL: [Vector2(600, 200)],
@@ -218,6 +219,43 @@ func _placing() -> void:
 	await _open(2)
 	t.check(level.round.layout.items.is_empty(), "level 2 has a layout of its own")
 	await _open(1)
+
+
+## Six more slots than the web has: the tray scrolls inside the footer, a slot at a time, with the arrows or
+## the wheel, and a slot out of view cannot be picked. Then the extra slots go.
+func _scrolling(setup: LevelSetupUi) -> void:
+	var start := setup.find_child("Start", true, false) as Control
+	var arrows := setup._next.visible  # whether six slots fit depends on this run's special bricks beside them
+	var extra: Array[Node] = []
+	for i in 6:
+		var slot := LevelSetupUi.Slot.new(setup._slots[i].kind, 1)
+		setup._tray.add_child(slot)
+		setup._slots.append(slot)
+		extra.append(slot)
+	await t.tree().process_frame
+	await t.tree().process_frame
+	t.check(setup._prev.visible and setup._next.visible, "twelve slots overflow: the arrows show")
+	t.check(setup._prev.disabled and not setup._next.disabled, "at the start only the right arrow works")
+	t.check(start.get_global_rect().end.x <= LevelHud.FOOTER.end.x + 0.5, "the tray scrolls instead of pushing Start out of the footer")
+	var last := setup._slots[-1] as Control
+	setup._mouse = last.get_global_rect().get_center()
+	t.check(setup._slot_at() == null, "a slot out of view cannot be picked")
+	for i in setup._slots.size():
+		if setup._next.disabled:
+			break
+		await _click(setup._next)
+	t.check(setup._next.disabled and not setup._prev.disabled, "the right arrow steps to the end")
+	t.check(last.get_global_rect().end.x <= setup._scroll.get_global_rect().end.x + 0.5, "at the end the last slot is in view")
+	var was := setup._scroll.scroll_horizontal
+	_mouse(setup._scroll.get_global_rect().get_center(), MOUSE_BUTTON_WHEEL_UP, true)
+	await t.tree().process_frame
+	t.check(setup._scroll.scroll_horizontal < was, "the wheel over the tray scrolls it")
+	for slot in extra:
+		setup._slots.erase(slot)
+		slot.free()
+	await t.tree().process_frame
+	await t.tree().process_frame
+	t.check(setup._next.visible == arrows and setup._scroll.scroll_horizontal == 0, "back to six slots, the tray is as it was")
 
 
 ## Level 1 maxed, everything placed: a real start, some real play, then every brick broken. The Summary, the

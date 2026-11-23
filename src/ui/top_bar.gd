@@ -6,6 +6,9 @@ extends HBoxContainer
 ## EXPAND to push the rest to the right edge (the hub's spacer before its coin counter).
 
 const RECT := Rect2(24, 0, 1232, 84)
+## Where the bar puts its back button. The level screen, which has no bar, puts its own there too, so going
+## back is the same spot on every screen that has a way back.
+const BACK := Vector2(24, (84 - UiTheme.HIT) / 2.0)
 
 @export var title := "":
 	set(v):

@@ -2,7 +2,7 @@ class_name LevelSummary
 extends Control
 ## The Summary (docs/design/overview.md, "Level phases"): how the round ended, whether the score reached the
 ## level's target, the tally by brick type, the hits that broke nothing, each combo's bonus, the coins it paid, and Retry (Next after a clear that has a level after it) and Upgrades. There is no mockup; it is a panel
-## over the arena in the language of the other screens, with the back button where Setup has it.
+## over the arena in the language of the other screens, with the back button where Setup and the top bar have it.
 ##
 ## It appears a beat after the round ends, so the last hit is seen, then lists its rows one by one and counts
 ## the coins up, with a tally tick for each. The buttons work from the moment the panel shows.
@@ -29,7 +29,7 @@ func open(round: Round, data: LevelData, unlocked: bool) -> void:
 	show()
 	var back := UiBackButton.new()
 	back.name = "Back"
-	back.position = LevelHud.FOOTER.position + Vector2(0, (LevelHud.FOOTER.size.y - UiTheme.HIT) * 0.5)
+	back.position = UiTopBar.BACK
 	back.pressed.connect(back_pressed.emit)
 	add_child(back)
 	var centre := CenterContainer.new()

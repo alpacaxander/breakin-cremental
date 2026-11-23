@@ -1,8 +1,8 @@
 class_name LevelSetupUi
 extends Control
-## Setup's footer (docs/art.md, "Level screen": a back button, the placeable tray, this run's special bricks,
-## Start) and the placing itself (docs/design/placeables.md). It covers the screen while Setup is open, so every
-## press on the tray or the board comes here.
+## Setup's back button, where the top bar has one (UiTopBar.BACK), its footer (docs/art.md, "Level screen": the
+## placeable tray, this run's special bricks, Start) and the placing itself (docs/design/placeables.md). It
+## covers the screen while Setup is open, so every press on the tray or the board comes here.
 ##
 ## PLACING. Press on a tray slot or on a placed item and drag: the item leaves the layout and follows the cursor
 ## as the Arena's ghost, from the press on and over the tray too. In the arena it is blue where it fits and red
@@ -13,6 +13,11 @@ extends Control
 ##   outside the arena             a new item goes back to the tray, a moved one is removed
 ## A right click removes the item under the cursor, or drops the drag as if refused. The wheel, Q and E turn a
 ## rotatable item, the held one or else the one under the cursor.
+##
+## THE TRAY SCROLLS. When its slots are wider than the room the footer leaves it, arrows at both ends step it a
+## slot at a time, and so does the wheel over the tray while nothing is held. Only the part of a slot in view
+## can be picked.
+##
 ## This script edits the Layout it was given and says so with `edited`; the level screen saves it and builds
 ## the round again.
 
@@ -21,6 +26,10 @@ extends Control
 signal edited(save: bool)
 signal start_pressed
 signal back_pressed
+
+## Between the footer's pieces.
+const FOOTER_GAP := 8
+const WHEEL: Array[MouseButton] = [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN, MOUSE_BUTTON_WHEEL_LEFT, MOUSE_BUTTON_WHEEL_RIGHT]
 
 var _layout: Layout
 var _board: Board
@@ -37,6 +46,9 @@ var _mouse := Vector2.ZERO
 
 var _slots: Array[Slot] = []
 var _tray := HBoxContainer.new()
+var _scroll := ScrollContainer.new()
+var _prev := Button.new()
+var _next := Button.new()
 var _run := VBoxContainer.new()
 var _run_list := GridContainer.new()
 
@@ -124,20 +136,37 @@ func _ready() -> void:
 	footer.position = LevelHud.FOOTER.position
 	footer.size = LevelHud.FOOTER.size
 	footer.mouse_filter = MOUSE_FILTER_IGNORE
-	footer.add_theme_constant_override(&"separation", 8)
+	footer.add_theme_constant_override(&"separation", FOOTER_GAP)
 	add_child(footer)
 	var back := UiBackButton.new()
 	back.name = "Back"
-	back.size_flags_vertical = SIZE_SHRINK_CENTER
+	back.position = UiTopBar.BACK
 	back.pressed.connect(back_pressed.emit)
-	footer.add_child(back)
-	# ponytail: the tray is one row. With everything unlocked, the demo's six slots, four special bricks (in
-	# two rows) and Start fill the footer's 1088 px to within about 100 (tests/cases/play_level.gd checks it fits);
-	# a seventh placeable needs shorter names or a second row.
+	add_child(back)
+	for arrow: Button in [_prev, _next]:
+		arrow.focus_mode = FOCUS_NONE  # as the back button: no focus to walk off with a key
+		arrow.theme_type_variation = &"IconButton"
+		arrow.size_flags_vertical = SIZE_SHRINK_CENTER
+		arrow.visible = false
+	_prev.icon = UiTheme.icon(UiGlyph.Shape.PREV)
+	_prev.accessibility_name = "Scroll the tray left"
+	_prev.pressed.connect(_step.bind(-1))
+	_next.icon = UiTheme.icon(UiGlyph.Shape.NEXT)
+	_next.accessibility_name = "Scroll the tray right"
+	_next.pressed.connect(_step.bind(1))
+	_scroll.mouse_filter = MOUSE_FILTER_IGNORE  # the wheel comes through _gui_input
+	_scroll.size_flags_horizontal = SIZE_EXPAND_FILL
+	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
+	_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	var bar := _scroll.get_h_scroll_bar()
+	bar.changed.connect(_fit_arrows)
+	bar.value_changed.connect(_fit_arrows.unbind(1))
 	_tray.mouse_filter = MOUSE_FILTER_IGNORE
-	_tray.size_flags_horizontal = SIZE_EXPAND_FILL
 	_tray.add_theme_constant_override(&"separation", 4)
-	footer.add_child(_tray)
+	_scroll.add_child(_tray)
+	footer.add_child(_prev)
+	footer.add_child(_scroll)
+	footer.add_child(_next)
 	_run.mouse_filter = MOUSE_FILTER_IGNORE
 	_run.alignment = BoxContainer.ALIGNMENT_CENTER
 	_run.add_theme_constant_override(&"separation", 2)
@@ -145,7 +174,6 @@ func _ready() -> void:
 	tag.theme_type_variation = &"Tag"
 	tag.text = "THIS RUN"
 	_run.add_child(tag)
-	_run_list.columns = 2  # two rows of two: the footer has no room for four in a row beside six slots
 	_run_list.add_theme_constant_override(&"h_separation", 12)
 	_run_list.add_theme_constant_override(&"v_separation", 0)
 	_run.add_child(_run_list)
@@ -193,6 +221,7 @@ func refresh(round: Round) -> void:
 			label.text = "%d %s" % [counts[kind.id], kind.title.trim_suffix(" Brick")]
 			entry.add_child(label)
 			_run_list.add_child(entry)
+	_run_list.columns = maxi(1, ceili(counts.size() / 2.0))  # two rows at most: the footer is 56 px tall
 	_run.visible = not counts.is_empty()
 
 
@@ -208,8 +237,9 @@ func _gui_input(event: InputEvent) -> void:
 	_mouse = mouse.position
 	var button := event as InputEventMouseButton
 	if button == null:
+		var under := _slot_at()
 		for slot in _slots:
-			slot.hot = _held == null and slot.get_global_rect().has_point(_mouse)
+			slot.hot = _held == null and slot == under
 		_aim()
 	elif button.button_index == MOUSE_BUTTON_LEFT:
 		if button.pressed:
@@ -225,6 +255,8 @@ func _gui_input(event: InputEvent) -> void:
 			if item:
 				_layout.remove(item)
 				edited.emit(true)
+	elif _held == null and button.pressed and _scroll.get_global_rect().has_point(_mouse) and button.button_index in WHEEL:
+		_step(-1 if button.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_LEFT] else 1)
 	else:
 		_turn(event)
 
@@ -239,15 +271,14 @@ func _pick() -> void:
 	if _held:
 		return
 	var at := _arena.to_units(_mouse)
-	for slot in _slots:
-		if slot.get_global_rect().has_point(_mouse) and slot.left > 0:
-			_held = Layout.Item.new()
-			_held.kind = slot.kind
-			_home = null
-			_grab = Vector2.ZERO
-			slot.left -= 1
-			slot.hot = false
-			break
+	var slot := _slot_at()
+	if slot and slot.left > 0:
+		_held = Layout.Item.new()
+		_held.kind = slot.kind
+		_home = null
+		_grab = Vector2.ZERO
+		slot.left -= 1
+		slot.hot = false
 	if _held == null:
 		var item := _layout.item_at(at)
 		if item == null:
@@ -261,6 +292,50 @@ func _pick() -> void:
 		_held = item
 		edited.emit(false)
 	_aim()
+
+
+## The tray slot under the cursor, counting only the part of it in view.
+func _slot_at() -> Slot:
+	if not _scroll.get_global_rect().has_point(_mouse):
+		return null
+	for slot in _slots:
+		if slot.get_global_rect().has_point(_mouse):
+			return slot
+	return null
+
+
+## Scrolls the tray a slot left (-1) or right (1): the nearest slot cut off on that side comes fully into view.
+func _step(dir: int) -> void:
+	var view := float(_scroll.scroll_horizontal)
+	var to := view
+	var order := _slots.duplicate()
+	if dir < 0:
+		order.reverse()
+	for slot: Slot in order:
+		if dir > 0 and slot.position.x + slot.size.x > view + _scroll.size.x + 0.5:
+			to = slot.position.x + slot.size.x - _scroll.size.x
+			break
+		if dir < 0 and slot.position.x < view - 0.5:
+			to = slot.position.x
+			break
+	_scroll.scroll_horizontal = ceili(to)
+
+
+## Shows the arrows only while the slots overflow, each disabled at its end. The room is what the footer's
+## other pieces leave, without the arrows, so showing them cannot change the answer (the scroll's own width
+## lags a frame behind).
+func _fit_arrows() -> void:
+	var footer := _scroll.get_parent() as Control
+	var room := footer.size.x
+	for piece: Control in footer.get_children():
+		if piece.visible and piece not in [_prev, _scroll, _next]:
+			room -= piece.get_combined_minimum_size().x + FOOTER_GAP
+	var over := _tray.get_combined_minimum_size().x > room + 0.5
+	_prev.visible = over
+	_next.visible = over
+	var bar := _scroll.get_h_scroll_bar()
+	_prev.disabled = bar.value <= 0.0
+	_next.disabled = bar.value >= bar.max_value - bar.page - 0.5
 
 
 ## Moves the held item to the cursor and shows it as the ghost.

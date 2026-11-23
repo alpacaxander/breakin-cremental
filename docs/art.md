@@ -8,7 +8,7 @@ The main menu, Settings and the Summary have no mockup. They are described below
 
 **The mockups are behind the docs in these places.** Until they are redrawn, the docs are right:
 
-- Neither screen has a back button. The upgrade screen's top bar and the Setup footer each get one (see [UI pieces](#ui-pieces)).
+- Neither screen has a back button. Every screen with a way back gets one, in the same place: the top bar's, which the level screen copies in Setup and the Summary (see [UI pieces](#ui-pieces)).
 - The ball in Setup rests against the paddle. It should sit 8 bricks (128 px on level 1) to the right of it.
 - Level 3 is drawn at 64 × 16 with the tunnel below centre. It should be 72 × 18, zoomed to fit.
 - The bumper ghost snaps to a grid cell. The bumper is free-form and doesn't snap.
@@ -57,7 +57,7 @@ The main menu, Settings and the Summary have no mockup. They are described below
 | Ball brick | A brick in its HP step with a ball-sized square in its centre, in the paddle body's slate (`657392`), unlit | The square has the Zap mark's 2 px base-colour rim. Not white: white is for the ball, and a brick may not come near it (see [palette.md](palette.md)) |
 | Spare balls in reserve | Ball-sized white squares in one column up the strip behind the paddle, from the bottom wall, 1.5 ball sizes apart | Lit, without the ball's extra boost, so none passes for a ball in play. The spare on the paddle is drawn as the ball |
 | Placement ghost | Same as the item | Where it fits: fill `00396d`, a 2 px dashed blue border and no glow. For an item that snaps, the cell under it gets a cyan fill at 12% and a 1 px cyan border at 50%. Where it does not fit: fill `891e2b`, a dashed `ff0040` border, and the cell in red instead of cyan. A snapping item whose cell is off the board is drawn at the cursor. The held item is drawn from the press on and above everything else on the screen; outside the arena frame (over the tray and the footer) it is in the look of one that fits, because nothing has refused it yet |
-| Footer | x 96–1184, y 644–700 | Play: level number and name, a legend with 6 × 22 swatches of every HP step up to this board's toughest brick and of its coloured special bricks (a tough brick shows as its HP step), SCORE as "<score> / <target>". Setup: a back button (to Upgrades), the placeable tray, a count of this run's special bricks, Start (see [Setup](#setup)). Summary: only the back button |
+| Footer | x 96–1184, y 644–700 | Play: level number and name, a legend with 6 × 22 swatches of every HP step up to this board's toughest brick and of its coloured special bricks (a tough brick shows as its HP step), SCORE as "<score> / <target>". Setup: the placeable tray, a count of this run's special bricks, Start (see [Setup](#setup)). Summary: empty. The back button of both is top left, where the top bar has it |
 
 **HUD numbers:** a 12 px Silkscreen label in secondary text with 2 px letter spacing. Below it a 68 px Jersey 10 number (the combo is 84 px), and below that a 6 px bar. Each bar is lit over the dim shade of its meaning: the timer is 220 px of green over `1e6f50`, and the combo window is 160 px of gold over `8a4836`.
 
@@ -70,8 +70,8 @@ The main menu, Settings and the Summary have no mockup. They are described below
 
 ### Setup
 
-- **Tray slot:** 56 px tall, panel fill, a 2 px blue border. It shows the item's shape (24 px, lit), its name in 14 px Chakra Petch semibold, and one 8 px pip for each one allowed, lit while it is still to place. With all of them placed the border goes grey and the shape dim. Under the cursor the fill turns `00396d`. Only unlocked placeables have a slot; with none, the tray is empty.
-- **This run:** a "THIS RUN" tag over the count of each special brick rolled for this attempt, each with a 6 × 18 swatch (a tough brick's is the 3 HP step), in two columns, 12 px apart, so four take two rows and the footer holds six tray slots.
+- **Tray slot:** 56 px tall, panel fill, a 2 px blue border. It shows the item's shape (24 px, lit), its name in 14 px Chakra Petch semibold, and one 8 px pip for each one allowed, lit while it is still to place. With all of them placed the border goes grey and the shape dim. Under the cursor the fill turns `00396d`. Only unlocked placeables have a slot; with none, the tray is empty. The tray takes the room the footer's other pieces leave, and scrolls when its slots need more: back and forward icon buttons (`PREV` and `NEXT` glyphs) appear at its ends only then, each disabled at its end, and step it so the next slot cut off on that side comes fully into view. The wheel over the tray does the same while nothing is held. Slots cut off at an edge are clipped there.
+- **This run:** a "THIS RUN" tag over the count of each special brick rolled for this attempt, each with a 6 × 18 swatch (a tough brick's is the 3 HP step), in as many columns as keep it to two rows, 12 px apart.
 - **Start:** the primary button with a triangle, at the right end. Space and Enter do the same.
 - **Backdrop:** the cell lines of the table above, so a snapping item's cell can be seen.
 
@@ -86,7 +86,7 @@ A panel 880 px wide, centred over the arena, which stays as the round left it. I
 - COINS and the round's total in 68 px gold, counting up
 - Retry and Upgrades, as a selection (see "UI pieces"): the selected one is primary, the other secondary. After a clear with a level after it, Next stands in Retry's place. The selection starts on Retry or Next, so Space or Enter retries or goes on
 
-The back button sits where Setup has it and does what Upgrades does.
+The back button sits where Setup and the top bar have it and does what Upgrades does.
 
 ### Pause
 
@@ -163,7 +163,7 @@ At most 600 squares are alive at once, and one frame's breaks share 240 new ones
 | Disabled button | Fill `2a2f4e`, text `92a1b9` |
 | Can't afford | No fill, a 2 px danger outline, primary text. It can still be pressed: it plays the "can't afford" sound and buys nothing |
 | Icon button | 44 × 44 with a base fill and a 2 px border: cyan when it can be used, `424c6e` when it can't |
-| Back button | An icon button with a left-pointing arrow, for the mouse. Esc does the same, so it takes no keyboard focus. It has no tooltip |
+| Back button | An icon button with a left-pointing arrow, for the mouse. Esc does the same, so it takes no keyboard focus. It has no tooltip. It is at the same spot on every screen that has one: x 24, centred in the top 84 px (`UiTopBar.BACK`). The level screen has no top bar and puts its own there in Setup and the Summary, over the empty corner left of TIME; Play has none |
 | Top bar | 84 px tall, x 24–1256: the back button, then the screen's title in 56 px Jersey 10. The upgrade screen and Settings share it |
 | Focus cursor | On Settings, a lit cyan triangle 12 px to the left of the focused control, or of its row. It is the only sign of the selection there, since a toggle's fill means "on" |
 | Toggle | A 44 × 44 square with a 2 px cyan border: base fill when off, lit cyan fill when on. Its label sits to the right in primary text |

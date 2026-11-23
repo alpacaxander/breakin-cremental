@@ -39,6 +39,7 @@ func shots() -> Array[Dictionary]:
 		{"name": "drag_zap", "save": "maxed", "crt": false, "setup": _drag.bind(Vector2(1138, 420), &"zap")},
 		{"name": "hold_tray", "save": "maxed", "crt": false, "setup": _hold.bind(&"booster", Vector2(30, -8))},
 		{"name": "hold_tray_splitter", "save": "maxed", "crt": false, "setup": _hold.bind(&"splitter", Vector2.ZERO)},
+		{"name": "tray_scrolled", "save": "maxed", "setup": _scrolled},
 		{"name": "play_fresh", "setup": _play.bind(1, [], 45, 0)},
 		{"name": "play_fresh_crt_off", "crt": false, "setup": _play.bind(1, [], 45, 0)},
 		{"name": "play_mid_2", "save": "mid", "setup": _play.bind(2, [], 150, 9)},
@@ -95,6 +96,18 @@ func _hold(main: Main, slot: StringName, by: Vector2) -> void:
 	var from := _slot(level, slot).get_global_rect().get_center()
 	_mouse(main, from, true)
 	_mouse(main, from + by)
+
+
+## Level 3 with six more tray slots than the web has, so the tray overflows, scrolled one slot right.
+func _scrolled(main: Main) -> void:
+	var setup: LevelSetupUi = _open(main, 3, []).get_node("SetupUi")
+	for slot: LevelSetupUi.Slot in setup._slots.duplicate():
+		var extra := LevelSetupUi.Slot.new(slot.kind, 2)
+		setup._tray.add_child(extra)
+		setup._slots.append(extra)
+	await main.get_tree().process_frame
+	await main.get_tree().process_frame
+	setup._step(1)
 
 
 ## The tray slot of kind `id`. By kind, not by index: which slots the tray has follows the upgrade web.

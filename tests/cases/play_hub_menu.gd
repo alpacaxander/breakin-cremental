@@ -353,7 +353,8 @@ func _esc_and_back() -> void:
 	_key(KEY_ESCAPE)
 	await _frames(2)
 	t.check(_screen().scene_file_path == Main.MENU, "two Esc in the Summary go hub, then menu")
-	# Back buttons, each clicked twice where it is.
+	# Back buttons, each double-clicked where it is. They share a spot on every screen, so the second press would
+	# land on the next screen's back button if main.gd did not drop it; two separate clicks go back twice.
 	for where: String in ["settings", "hub", "setup", "summary"]:
 		var back: Control
 		var to := Main.MENU
@@ -381,12 +382,12 @@ func _esc_and_back() -> void:
 				await _summary_ready(level)
 				back = level.get_node("Summary/Back")
 				to = Main.PLAY
+		t.check(back.get_global_rect().position.is_equal_approx(UiTopBar.BACK), "the back button in %s is where every screen has it (%s)" % [where, back.get_global_rect().position])
 		var at := back.get_global_rect().get_center()
 		await _quiet()
-		await _click_at(at)
-		await _click_at(at)
+		await _double_click_at(at)
 		await _heard_settle()
-		t.check(_screen().scene_file_path == to and (to == Main.MENU or _hub().is_visible_in_tree()), "the back button in %s, clicked twice, goes one step back" % where)
+		t.check(_screen().scene_file_path == to and (to == Main.MENU or _hub().is_visible_in_tree()), "the back button in %s, double-clicked, goes one step back" % where)
 		t.check(heard.count(Sfx.CLICK) == 1, "the back button in %s clicks once (heard %s)" % [where, heard])
 		Main.show_menu()
 		await _frames(1)
