@@ -54,6 +54,7 @@ func run(p_t: Node) -> void:
 	_timing()
 	_launch()
 	_charges()
+	_multiball()
 
 
 ## Round.hold and Round.launch: the ball rides on the paddle and nothing else moves, then leaves within
@@ -168,6 +169,50 @@ func _charges() -> void:
 		round.step(TICK, round.paddle.y)
 	t.check(round.over and round.reason == Round.End.BALL_LOST and round.drops.is_empty() and seen.size() == 3 and miss.pos.x < -board.lane(),
 			"a drop that misses the paddle leaves past the open side with no signal; with nothing left, the round ends on BALL_LOST")
+
+
+## Multiball: the first launch is followed by int(stats.multiball) more balls, multiball_gap s apart, each from
+## where the first left and the same way, announced by ball_added.
+func _multiball() -> void:
+	var board := _board({FAR: SOLID})
+	var stats := _sealed(board, {&"multiball": 2.0, &"guide": 100.0})  # the Guide: a launch may be flat
+	var round := Round.new(board, null, stats, 3)
+	round.hold()
+	var from := round.waiting.pos
+	var dir := round.launch_dir()
+	round.launch()
+	var added := []
+	var steps := [0]
+	round.ball_added.connect(func(b: Ball) -> void: added.append([steps[0], b.pos, b.dir, b.boost, b.charge]))
+	for i in 60:
+		steps[0] += 1
+		round.step(TICK, round.paddle.y)
+	t.check(added == [[18, from, dir, 1.0, &""], [36, from, dir, 1.0, &""]] and round.balls.size() == 3,
+			"two more balls follow the first, 0.15 s apart, from where it left and the same way (%s)" % [added])
+	var first := round.balls[0]
+	var third := round.balls[2]
+	t.check(third.pos.is_equal_approx(from + dir * stats.ball_speed * 24 * TICK) and first.dir == dir, "each starts moving on the next step, on the first ball's line")
+	round.add_charge()
+	round.step(TICK, round.paddle.y)
+	round.launch()
+	_run(round, 1.0)
+	t.check(added.size() == 2, "a charge's launch starts no volley")
+
+	# The round stays alive while a volley ball is still to come.
+	stats = _stats({&"multiball": 1.0, &"multiball_gap": 0.5})
+	round = Round.new(board, null, stats, 1)
+	round.hold()
+	round.launch()
+	round.balls[0].put(Vector2(-50, 100), Vector2(-0.8, 0.6))
+	round.step(0.1, round.paddle.y)
+	t.check(round.balls.is_empty() and not round.over, "with every ball lost and one still to come, the round goes on")
+	_run(round, 0.4)
+	t.check(round.balls.size() == 1 and not round.over, "and the last one comes")
+	round = Round.new(board, null, _stats(), 1)
+	round.hold()
+	round.launch()
+	round.step(TICK, round.paddle.y)
+	t.check(round.balls.size() == 1, "with no Multiball the first ball goes alone")
 
 
 # --- helpers ---------------------------------------------------------------------------------------------------

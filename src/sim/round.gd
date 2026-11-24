@@ -40,8 +40,9 @@ extends RefCounted
 ##      passed through. Every contact is resolved where it happens and its signals are emitted then. A ball made
 ##      during this step (a Splitter) starts moving on the next one. The `waiting` ball rides the paddle instead.
 ##      Then the drops (see CHARGES): each moves stats.drop_speed * delta LEFT; one that overlaps the paddle is
-##      caught (charges + 1, then caught is emitted), one wholly past the open side is removed. Then, with no ball
-##      waiting and a charge held, one charge goes onto the paddle.
+##      caught (charges + 1, then caught is emitted), one wholly past the open side is removed. Then, while the
+##      opening volley has balls to come (launch), its countdown runs and a ball that is due is made at the launch
+##      point and ball_added is emitted. Then, with no ball waiting and a charge held, one charge goes onto the paddle.
 ##   3. The combo's window counts down. If it runs out the combo resets and combo_changed(0, 1) is emitted.
 ##      Less than TIME_SLOP left has run out, as in 5.
 ##   4. `clock` goes up by delta. Then each placed brick still on the board and each AREA item, in layout order,
@@ -270,6 +271,11 @@ var _gates: Array[Layout.Item] = []
 var _left := 0
 var _next_id := 0
 var _next_drop := 0
+# The opening volley (launch): balls still to come, seconds to the next, and the line they all start on.
+var _volley := 0
+var _volley_wait := 0.0
+var _volley_from: Vector2
+var _volley_dir: Vector2
 # With Overgrowth: each broken level cell waiting to come back, and the clock it is due at. In the order they
 # broke, which is the order they are due in, because the delay is the same for all.
 var _due: Dictionary[Vector2i, float] = {}
@@ -343,11 +349,18 @@ func hold() -> void:
 
 
 ## Sends the waiting ball (the held one or a charge) off the paddle along launch_dir(). A charge leaves carrying
-## the selected ability (Ball.charge = `ability`; see ABILITIES). Does nothing if no ball waits.
+## the selected ability (Ball.charge = `ability`; see ABILITIES). The held ball starts the opening volley:
+## int(stats.multiball) more balls, the first stats.multiball_gap s later and then one every multiball_gap s,
+## each from where it left and the same way, announced by ball_added (ONE STEP, 2). Does nothing if no ball waits.
 func launch() -> void:
 	if waiting == null:
 		return
-	if not held:
+	if held:
+		_volley = int(stats.multiball)
+		_volley_wait = stats.multiball_gap
+		_volley_from = waiting.pos
+		_volley_dir = launch_dir()
+	else:
 		waiting.charge = ability
 	held = false
 	waiting.put(waiting.pos, launch_dir())
@@ -444,6 +457,13 @@ func step(delta: float, paddle_target: float) -> void:
 			if ball != waiting:
 				_move(ball, delta)
 		_move_drops(delta)
+		if _volley > 0:
+			_volley_wait -= delta
+			if _volley_wait < TIME_SLOP:
+				_volley -= 1
+				_volley_wait += stats.multiball_gap
+				# ponytail: not add_ball, whose _legal would bend a flat Guide launch; the first ball was not bent.
+				ball_added.emit(_spawn(_volley_from, _volley_dir, 1.0))
 		if waiting == null and charges > 0:
 			charges -= 1
 			waiting = _spawn(Vector2.ZERO, Vector2.RIGHT, 1.0)
@@ -468,7 +488,7 @@ func step(delta: float, paddle_target: float) -> void:
 		time_left = 0.0
 	if _left == 0:
 		_end(End.CLEARED)
-	elif balls.is_empty() and drops.is_empty():
+	elif balls.is_empty() and drops.is_empty() and _volley == 0:
 		_end(End.BALL_LOST)
 	elif time_left == 0.0:
 		_end(End.TIME)
