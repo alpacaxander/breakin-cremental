@@ -30,8 +30,8 @@ extends Resource
 @export var splitter_health: float  ## HP a placed Splitter has on top of its kind's own
 @export var splitter_respawn: float  ## 0: off. 1 or more: a broken Splitter comes back, sooner each rank (see the kind)
 @export var rear_paddle: float  ## 0: off. Above 0: a paddle on the back wall adds this to Ball.boost on a hit
-@export var growth_reach: float  ## How far a Growth block's pulse reaches out from its edges, in squares (1 square = 64 units)
-@export var pulse_rate: float  ## Seconds taken off a Growth block's pulse period and a Refresh block's cooldown, down to pulse_min
+@export var growth_reach: float  ## How far a Growth area reaches out from its brick cell's edges, in squares (1 square = 64 units)
+@export var growth_pulses: float  ## How many times a Growth area pulses, one after the other, at the start of a round
 @export var refresh_size: float  ## How many broken level bricks a Refresh block brings back
 @export var overgrowth: float  ## 0: off. 1: every level brick that breaks comes back, plain and 1 HP, overgrowth_delay s later
 @export var guide: float  ## 0: off. Above 0: a line this many units long shows where the held ball would go (Round.guide)
@@ -62,7 +62,6 @@ extends Resource
 @export_group("Round")
 @export var low_time: float  ## With this many seconds left or fewer, the timer warns (danger colour, the tick cue)
 @export var max_hp: int  ## A pulse (Growth) never takes a brick above this HP
-@export var pulse_min: float  ## The shortest a pulse period or a Refresh cooldown gets, whatever pulse_rate takes off
 @export var overgrowth_delay: float  ## With Overgrowth, seconds of play (Round.clock) before a broken level brick comes back
 
 @export_group("Combo")

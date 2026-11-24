@@ -1,8 +1,8 @@
 extends RefCounted
 ## The level screen in each state that matters: Setup on a fresh save and with everything unlocked and placed,
 ## a drag that fits and one that does not, an item held over the tray, Play early, mid-combo, with tough bricks
-## hit, with bricks grown by a Growth block, with bricks a Refresh block brought back (it cooling, beside one
-## ready), with bricks Overgrowth brought back, on the zoomed level 3, and paused, and the Summary for each of the three
+## hit, with bricks grown by a Growth area, with bricks
+## Overgrowth brought back, on the zoomed level 3, and paused, and the Summary for each of the three
 ## ends and with several combos. Compare them with docs/art.md ("Level screen") and the level mockup.
 ##
 ## The mouse is pushed straight into Main's View, so a position here is a position in the 1280 x 720 frame
@@ -20,8 +20,6 @@ const PLACED := [
 	{"kind": "zap", "col": 62, "row": 1},
 	{"kind": "zap", "col": 40, "row": 5},
 	{"kind": "growth", "col": 47, "row": 3},
-	{"kind": "refresh", "col": 50, "row": 3},
-	{"kind": "refresh", "col": 20, "row": 6},
 ]
 
 
@@ -51,8 +49,6 @@ func shots() -> Array[Dictionary]:
 		{"name": "play_guide", "save": "maxed", "setup": _guide},
 		{"name": "play_tough", "save": "maxed", "crt": false, "setup": _tough},
 		{"name": "play_growth", "save": "maxed", "setup": _growth, "settle": 12},
-		{"name": "play_refresh", "save": "maxed", "setup": _refresh, "settle": 12},
-		{"name": "play_refresh_crt_off", "save": "maxed", "crt": false, "setup": _refresh, "settle": 12, "frames": 2, "every": 40},
 		{"name": "play_overgrowth", "save": "maxed", "crt": false, "setup": _overgrowth, "settle": 60},
 		{"name": "play_strip", "save": "mid", "crt": false, "setup": _play.bind(2, [], 60, 0), "settle": 0, "frames": 4, "every": 2},
 		{"name": "summary_cleared", "save": "maxed", "setup": _end.bind(Round.End.CLEARED), "settle": 110},
@@ -149,26 +145,13 @@ func _tough(main: Main) -> void:
 			round.hit_brick(tough[i], Round.Cause.BLAST, Vector2.RIGHT)
 
 
-## Level 1 in Play with everything placed, after the Growth block has pulsed twice: the bricks beside it have
+## Level 1 in Play with everything placed, after the Growth area has pulsed twice: the bricks in it have
 ## grown, and the second pulse's effect is still on screen.
 func _growth(main: Main) -> void:
 	var level := await _play(main, 1, PLACED, 0, 0)
 	var round: Round = level.get("round")
 	for i in 2:
 		round.grow(Vector2i(47, 3), round.stats.growth_reach * Board.BRICK.y)
-
-
-## Level 1 in Play with everything placed, after a ball hit the Refresh block beside the bricks: the five level
-## bricks nearest it were gone and are back (a maxed one brings seven), its effect is on screen, and it is dim
-## (cooling) while the other Refresh block, out in the open, is lit (ready). The flat one adds a frame after the
-## effect is gone.
-func _refresh(main: Main) -> void:
-	var level := await _play(main, 1, PLACED, 0, 0)
-	var round: Round = level.get("round")
-	var block := Vector2i(50, 3)
-	for cell in [Vector2i(49, 3), Vector2i(49, 2), Vector2i(49, 4), Vector2i(48, 3), Vector2i(49, 1)]:
-		round.board.bricks.erase(cell)  # gone without a blast, so nothing but the Refresh effect is on screen
-	round.hit_brick(block, Round.Cause.BALL, Vector2.RIGHT, round.balls[0])
 
 
 ## Level 3 in Play with Overgrowth (the maxed save owns it): a block above the tunnel was broken 8 s of play ago

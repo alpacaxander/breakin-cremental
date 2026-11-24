@@ -86,7 +86,7 @@ A kind is a `Resource`. `Kind` is the base, with the id, the title, the colour m
 | `on_hit(round, cell, brick, cause, dir, ball)` | The brick took a hit and still stands | The Splitter splits a ball that hits it (with more than 1 HP) |
 | `on_broken(round, cell, brick, cause, dir, ball)` | The brick broke | The explosive brick calls `round.blast`; the Splitter adds a ball and, with Splitter Respawn, calls `round.rebuild` |
 | `on_host_broken(round, cell, brick, cause, dir, ball)` | A brick with this mod on it broke | Zap hits the rest of the row |
-| `on_step(round, cell, brick, delta)` | Every step of play, for each placed brick still on the board, in layout order, after the balls have moved and `round.clock` has advanced. Not while the ball is held | Growth calls `round.grow` each time `round.clock` crosses its period |
+| `on_step(round, cell, brick, delta)` | Every step of play, for each placed brick still on the board and each AREA item (`brick` null), in layout order, after the balls have moved and `round.clock` has advanced. Not while the ball is held | Growth calls `round.grow` each time `round.clock` crosses one of its pulse times |
 
 A hook changes the round through the round's own functions (`hit_brick`, `blast`, `grow`, `restore`, `add_ball`, `set_boost`, `add_time`), so chains work without special cases: an explosion that breaks an explosive brick calls that brick's hook too.
 
@@ -99,8 +99,8 @@ The demo's kinds. The id is the file name in `data/kinds/`, and `<id>_count` is 
 | `wall_segment` | PlaceableKind, FREE, rotatable | RECT 10 × 112 | `placeable` | `wall_bounce` | |
 | `splitter` | PlaceableKind, BRICK | A brick cell, 1 HP | `placeable` | none (`ball_added` has its own) | `respawn` 6 s, `respawn_per_rank` 2 s (Splitter Respawn) |
 | `zap` | PlaceableKind, MOD | A 6 × 6 mark | `placeable` | `zap` | |
-| `growth` | PlaceableKind, BRICK, `unbreakable` | A brick cell that never breaks | `placeable` | `booster` (on `grew`) | Pulses every 5 s, less `pulse_rate`, at least `pulse_min`; reach from `growth_reach` |
-| `refresh` | PlaceableKind, BRICK, `unbreakable`, 2 panes | A brick cell that never breaks | `placeable` | `place_item` (on `restored`) | A ball's hit brings back the `refresh_size` broken level bricks nearest it (`round.broken_near`, `round.restore`), then it cools for 4 s (`cooldown`), less `pulse_rate`, at least `pulse_min`, in `Brick.ready_at` |
+| `growth` | PlaceableKind, AREA | Its brick cell grown by `growth_reach` squares (`area()`), not solid | `placeable` | none (Sfx plays `booster` on `grew`) | `growth_pulses` pulses, the first at `delay` 0.5 s of play, then one every `gap` 0.5 s |
+| `refresh` | PlaceableKind, BRICK, `unbreakable`, 2 panes | A brick cell that never breaks | `placeable` | `place_item` (on `restored`) | A ball's hit brings back the `refresh_size` broken level bricks nearest it (`round.broken_near`, `round.restore`), then it cools for 4 s (`cooldown`), in `Brick.ready_at` |
 | `explosive` | BrickKind | 1 HP | `explosive` | none (`exploded` has its own) | Reach comes from the `blast_size` stat |
 | `gold` | BrickKind | 1 HP, worth 20 | `coins` | `gold_brick` | |
 | `hourglass` | BrickKind | 1 HP | `time` | `hourglass_brick` | Adds 15 s |
@@ -132,10 +132,9 @@ The demo's upgrades. The id is the file name in `data/upgrades/`:
 | `combo` | `combo_rank` | 1 |
 | `blast_size` | `blast_size` | 1 |
 | `shockwave` | `shockwave` | 1 |
-| `bumper`, `booster`, `wall_segment`, `splitter`, `zap`, `growth`, `refresh` | `<id>_count` | 1 |
+| `booster`, `wall_segment`, `splitter`, `zap`, `growth` | `<id>_count` | 1 |
 | `growth_reach` | `growth_reach` | 1 |
-| `refresh_size` | `refresh_size` | 2 |
-| `pulse_rate` | `pulse_rate` | 1 |
+| `pulse_rate` (Growth Pulses) | `growth_pulses` | 1 |
 | `overgrowth` | `overgrowth` | 1 (on) |
 | `spare_ball` | `spare_balls` | 1 |
 | `explosive_brick`, `gold_brick`, `hourglass_brick`, `tough_brick`, `ball_brick` | `explosive_count`, `gold_count`, `hourglass_count`, `tough_count`, `ball_count` | 1 |
@@ -144,7 +143,7 @@ The web scene (`src/hub/web.tscn`) holds only layout: where each node sits, whic
 
 ### Other numbers
 
-- `data/balance.tres` also holds the numbers that are not stats: ball and paddle sizes, the launch gap, the minimum angles, the paddle's steepest angle, the boost cap, the combo numbers, the low-timer mark, coins per brick, the rotation step, the most HP a brick can grow to (`max_hp`), the shortest pulse period (`pulse_min`) and how long Overgrowth takes to bring a brick back (`overgrowth_delay`). The defaults in `balance.gd` are 0, so a number can only come from the file. A kind's own amounts are in its `.tres`.
+- `data/balance.tres` also holds the numbers that are not stats: ball and paddle sizes, the launch gap, the minimum angles, the paddle's steepest angle, the boost cap, the combo numbers, the low-timer mark, coins per brick, the rotation step, the most HP a brick can grow to (`max_hp`) and how long Overgrowth takes to bring a brick back (`overgrowth_delay`). The defaults in `balance.gd` are 0, so a number can only come from the file. A kind's own amounts are in its `.tres`.
 - The coin formula is one function, `Coins.total(tally, stats)` in `src/sim/coins.gd`. It turns a tally into coins.
 - Colours are constants in `src/ui/palette.gd`, copied from [palette.md](palette.md). No other file contains a colour value, scenes and resources included: a script assigns the colour.
 

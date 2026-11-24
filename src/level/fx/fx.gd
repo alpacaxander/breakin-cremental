@@ -33,7 +33,7 @@ extends Node2D
 ## WHAT IS IN HERE. One script and four layers, each drawn from a plain list. There is no scene per effect.
 ##   squares   every particle, in fixed arrays of PARTICLES that are written round and round, so there are
 ##             never more. What a frame's breaks ask for is thinned evenly to DEBRIS (see _process).
-##   shapes    a rectangle that grows and fades: a shockwave, an item's pulse, a Growth block's reach, the outline
+##   shapes    a rectangle that grows and fades: a shockwave, an item's pulse, a Growth area's reach, the outline
 ##             closing on a brick a Refresh brought back, the Zap's bolt, the red bar where a ball left
 ##   marks     the same, but small and many: the flash of a brick a ball hit or a Growth pulse grew or a
 ##             Refresh brought back, and the combo's ring. Kept apart, so a run of them never pushes a shockwave out
@@ -463,7 +463,7 @@ func _on_exploded(pos: Vector2, reach: float, cells: Array[Vector2i]) -> void:
 	_blasts += 1
 
 
-## A Growth block pulsed: a blue outline grows from the block out to the edge of its reach, and every brick that
+## A Growth area pulsed: a blue outline grows from its cell out to the edge of its reach, and every brick that
 ## gained HP flashes in its new colour. No shake and no freeze: it is not a hit.
 func _on_grew(cell: Vector2i, reach: float, cells: Array[Vector2i]) -> void:
 	var rect := _round.board.cell_rect(cell).grow(-1.0)

@@ -7,6 +7,7 @@ enum Placement {
 	FREE,  ## Anywhere in the grid area, not snapped. A rectangle the ball bounces off, or passes through (`gate`). Uses size, turn
 	BRICK,  ## Snaps to an empty brick cell and becomes a brick of this kind there, with `hp`
 	MOD,  ## Goes on a brick that is already there and sets Brick.mod. Drawn as a mark of `size` at the brick's centre
+	AREA,  ## Snaps to any brick cell, a brick on it or not. Not solid: nothing touches it. Its kind's on_step acts
 }
 
 @export var placement: Placement
@@ -21,10 +22,16 @@ enum Placement {
 @export var gate := false
 ## BRICK only: the placed brick's HP.
 @export var hp := 1
-## BRICK only: true for a block that never breaks (Growth). The ball bounces off it as off a brick, and a hit
+## BRICK only: true for a block that never breaks (Refresh). The ball bounces off it as off a brick, and a hit
 ## from a ball, a blast or a Zap takes no HP: it counts in the tally's `hits`, emits brick_hit and calls on_hit.
 ## It cannot carry a mod, which would never go off (Layout.fits).
 @export var unbreakable := false
 ## Unbreakable only: the block is drawn as a frame round this many base-colour panes, stacked, so blocks that do
-## different things look different (Growth 1, Refresh 2).
+## different things look different (Refresh 2).
 @export var panes := 1
+
+
+## AREA only: the rectangle, in round units, that the area on `cell` covers. The cell itself unless a kind
+## reaches further (Growth).
+func area(board: Board, cell: Vector2i, _stats: Balance) -> Rect2:
+	return board.cell_rect(cell)

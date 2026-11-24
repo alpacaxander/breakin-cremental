@@ -285,7 +285,7 @@ func _kinds() -> void:
 		&"wall_segment": [PlaceableKind.Placement.FREE, Vector2(10, 112), 0.0, true, false, Sfx.WALL_BOUNCE],
 		&"splitter": [PlaceableKind.Placement.BRICK, Vector2.ZERO, 0.0, false, false, &""],  # no cue: Sfx plays SPLITTER from ball_added
 		&"zap": [PlaceableKind.Placement.MOD, Vector2(6, 6), 0.0, false, false, Sfx.ZAP],
-		&"growth": [PlaceableKind.Placement.BRICK, Vector2.ZERO, 0.0, false, false, Sfx.BOOSTER],  # the cue of its pulse
+		&"growth": [PlaceableKind.Placement.AREA, Vector2.ZERO, 0.0, false, false, &""],  # no cue: Sfx plays BOOSTER from grew
 		&"refresh": [PlaceableKind.Placement.BRICK, Vector2.ZERO, 0.0, false, false, Sfx.PLACE_ITEM],  # the cue of the bricks it brings back
 	}
 	for id: StringName in placeables:
@@ -1025,58 +1025,61 @@ func _placeables() -> void:
 	t.check(round.board.brick(Vector2i(40, 3)).hp == 1, "a Zap can sit on a Splitter")
 
 
-## Growth: a placed block that never breaks, and its pulse.
+## Growth: an area that is not solid, and its pulses at the start of a round.
 func _growth() -> void:
-	var block := Vector2i(25, 3)
-	var board := _board({FAR: SOLID, Vector2i(20, 3): 1, Vector2i(24, 4): 1})
-	board.bricks[Vector2i(24, 4)].kind = &"explosive"
-	var stats := _sealed(board, {&"growth_count": 1, &"zap_count": 1})
-	var round := Round.new(board, _layout([_item(&"growth", block), _item(&"zap", Vector2i(20, 3))]), stats, 1)
+	var cell := Vector2i(25, 3)
+	var board := _board({FAR: SOLID, Vector2i(30, 3): 1})
+	var stats := _sealed(board, {&"growth_count": 2, &"zap_count": 1, &"bumper_count": 1, &"splitter_count": 1})
+	var round := Round.new(board, _layout([_item(&"growth", cell)]), stats, 1)
 	var log := _events(round)
 	var coming := Vector2.from_angle(deg_to_rad(10.0))
 	var ball := round.balls[0]
 	ball.put(Vector2(394, 220) - coming * 20.0, coming)
 	_run(round, 0.05)
-	t.check(ball.dir == Vector2(-coming.x, coming.y) and log.has("hit %s 1 %d" % [block, Round.Cause.BALL]), "a ball bounces off a Growth block as off a brick, and the hit takes no HP")
-	round.hit_brick(Vector2i(24, 4), Round.Cause.BALL, Vector2.RIGHT)  # an explosive brick: its blast reaches the block
-	round.hit_brick(Vector2i(20, 3), Round.Cause.BALL, Vector2.RIGHT)  # the Zap's brick: its row runs through the block
-	t.check(log.has("hit %s 1 %d" % [block, Round.Cause.BLAST]) and log.has("hit %s 1 %d" % [block, Round.Cause.ZAP]) and round.board.brick(block).hp == 1,
-			"a blast and a Zap hit a Growth block too, and it keeps its 1 HP")
-	t.check(round.tally.dents == 0 and round.tally.placed_broken == 0 and round.coins == 2,
-			"its three hits pay nothing: the coins are the two level bricks'")
-	t.check(not _layout([_item(&"growth", block)]).fits(_item(&"zap", block), board, stats), "a Zap cannot go on a Growth block, where it would never go off")
-	round = Round.new(_board({Vector2i(30, 3): 1}), _layout([_item(&"growth", block)]), stats, 1)
-	round.hit_brick(Vector2i(30, 3), Round.Cause.BALL, Vector2.RIGHT)
-	round.step(TICK, round.paddle.y)
-	t.check(round.over and round.reason == Round.End.CLEARED, "a Growth block left standing does not keep a level from being cleared")
+	t.check(ball.dir == coming and log.is_empty() and ball.pos.x > 400.0, "a ball goes through a Growth area as if it were not there")
+	# Where it fits: any cell, a level brick on it or not, but not on another area's cell. Nothing else minds it.
+	board = _board({Vector2i(30, 3): 1})
+	var layout := _layout([_item(&"growth", cell)])
+	t.check(layout.fits(_item(&"growth", Vector2i(30, 3)), board, stats) and layout.fits(_item(&"growth", Vector2i(26, 3)), board, stats)
+			and not layout.fits(_item(&"growth", cell), board, stats) and not layout.fits(_item(&"growth", Vector2i(99, 3)), board, stats),
+			"a Growth area goes on any brick cell of the board, a brick on it or not, but not on another area's")
+	layout = _layout([_item(&"growth", Vector2i(30, 3))])
+	t.check(layout.fits(_item(&"zap", Vector2i(30, 3)), board, stats) and layout.fits(_item(&"splitter", Vector2i(30, 4)), board, stats)
+			and _layout([_item(&"growth", cell)]).fits(_item(&"splitter", cell), board, stats)
+			and _layout([_item(&"growth", cell)]).fits(_item(&"bumper", board.cell_rect(cell).get_center()), board, stats),
+			"a Zap, a Splitter and a Bumper go on or over an area")
+	layout.add(_item(&"zap", Vector2i(30, 3)))
+	var at := board.cell_rect(Vector2i(30, 3)).get_center()
+	t.check(layout.item_at(at).kind.id == &"zap" and layout.items.size() == 2, "on a shared cell the Zap is picked up before the area")
+	layout.remove(layout.item_at(at))
+	t.check(layout.item_at(at).kind.id == &"growth", "and then the area")
 
-	# The pulse: every 5 s, 1 HP to each level brick within a square of the block's edges, up to max_hp. In reach:
+	# The pulses: growth_pulses of them, the first 0.5 s of play in and then one every 0.5 s. Each gives 1 HP to
+	# each level brick within a square of the cell's edges, up to max_hp. In reach: (25, 3) under the area,
 	# (21, 3) at the edge of it, (24, 3), and (25, 2) already at 4; (25, 4) is a Splitter. Out: (20, 3), (25, 5).
-	board = _board({FAR: SOLID, Vector2i(21, 3): 3, Vector2i(24, 3): 1, Vector2i(25, 2): 4, Vector2i(20, 3): 1, Vector2i(25, 5): 1})
-	var layout := _layout([_item(&"growth", block), _item(&"splitter", Vector2i(25, 4))])
-	# Returns [[step, cells] for each pulse, the round], played with the ball at a standstill.
-	var pulses := func(rate: float, seconds: float) -> Array:
-		var s := _sealed(board, {&"growth_count": 1, &"splitter_count": 1, &"growth_reach": 1.0, &"pulse_min": 1.0, &"pulse_rate": rate})
+	board = _board({FAR: SOLID, cell: 1, Vector2i(21, 3): 3, Vector2i(24, 3): 1, Vector2i(25, 2): 4, Vector2i(20, 3): 1, Vector2i(25, 5): 1})
+	layout = _layout([_item(&"growth", cell), _item(&"splitter", Vector2i(25, 4))])
+	# Returns [[step, cells] for each pulse, the round], played with the ball at a standstill for 10 s.
+	var pulses := func(count: float) -> Array:
+		var s := _sealed(board, {&"growth_count": 1, &"splitter_count": 1, &"growth_reach": 1.0, &"growth_pulses": count})
 		s.max_hp = 4
 		s.ball_speed = 0.0
 		var r := Round.new(board, layout, s, 1)
 		var seen := []
 		var steps := [0]
-		r.grew.connect(func(cell: Vector2i, reach: float, cells: Array[Vector2i]) -> void: seen.append([steps[0], cells.duplicate()] if cell == block and reach == 64.0 else null))
-		for i in roundi(seconds / TICK):
+		r.grew.connect(func(c: Vector2i, reach: float, cells: Array[Vector2i]) -> void: seen.append([steps[0], cells.duplicate()] if c == cell and reach == 64.0 else null))
+		for i in roundi(10.0 / TICK):
 			steps[0] = i + 1
 			r.step(TICK, r.paddle.y)
 		return [seen, r]
-	var got: Array = pulses.call(0.0, 10.0)
+	var got: Array = pulses.call(1.0)
+	t.check(got[0] == [[60, [Vector2i(21, 3), Vector2i(24, 3), cell]]],
+			"one pulse, 0.5 s of play in, gives 1 HP to the level bricks in reach under the ceiling, the one under the area too (%s)" % [got[0]])
+	got = pulses.call(3.0)
 	var hp := func(c: Vector2i) -> int: return (got[1] as Round).board.brick(c).hp
-	t.check(got[0] == [[600, [Vector2i(21, 3), Vector2i(24, 3)]], [1200, [Vector2i(24, 3)]]],
-			"a Growth block pulses at 5 s and 10 s of play, giving 1 HP to the level bricks in reach under the ceiling (%s)" % [got[0]])
-	t.check([hp.call(Vector2i(21, 3)), hp.call(Vector2i(24, 3)), hp.call(Vector2i(25, 2)), hp.call(Vector2i(25, 4)), hp.call(Vector2i(20, 3)), hp.call(Vector2i(25, 5))] == [4, 3, 4, 1, 1, 1],
+	t.check((got[0] as Array).map(func(p: Array) -> int: return p[0]) == [60, 120, 180], "growth_pulses 3: three, 0.5 s apart, and none after (%s)" % [got[0]])
+	t.check([hp.call(cell), hp.call(Vector2i(21, 3)), hp.call(Vector2i(24, 3)), hp.call(Vector2i(25, 2)), hp.call(Vector2i(25, 4)), hp.call(Vector2i(20, 3)), hp.call(Vector2i(25, 5))] == [4, 4, 4, 4, 1, 1, 1],
 			"no brick goes over max_hp, a placed brick gains nothing, and nothing out of reach does")
-	t.check((got[0] as Array).map(func(p: Array) -> int: return p[0]) == [600, 1200] and (pulses.call(2.0, 6.0)[0] as Array).map(func(p: Array) -> int: return p[0]) == [360, 720],
-			"pulse_rate takes seconds off the period: 3 s at a rate of 2")
-	t.check((pulses.call(10.0, 3.0)[0] as Array).map(func(p: Array) -> int: return p[0]) == [120, 240, 360], "and the period never goes under pulse_min, 1 s")
-
 
 func _refresh() -> void:
 	# Around the block at (25, 3): (24, 3) a gold brick and (26, 3) a Zap's 2 HP brick, both 256 away (squared,
@@ -1085,7 +1088,7 @@ func _refresh() -> void:
 	var block := Vector2i(25, 3)
 	var board := _board({FAR: SOLID, Vector2i(24, 3): 1, Vector2i(26, 3): 2, Vector2i(25, 2): 1, Vector2i(25, 1): 1, Vector2i(20, 3): 1, Vector2i(30, 3): 1})
 	board.bricks[Vector2i(24, 3)].kind = &"gold"
-	var stats := _sealed(board, {&"refresh_count": 1, &"splitter_count": 1, &"zap_count": 1, &"refresh_size": 3.0, &"pulse_min": 1.0})
+	var stats := _sealed(board, {&"refresh_count": 1, &"splitter_count": 1, &"zap_count": 1, &"refresh_size": 3.0})
 	stats.ball_speed = 0.0
 	var layout := _layout([_item(&"refresh", block), _item(&"splitter", Vector2i(25, 4)), _item(&"zap", Vector2i(26, 3))])
 	var round := Round.new(board, layout, stats, 1)
@@ -1105,7 +1108,7 @@ func _refresh() -> void:
 	ball.put(round.board.cell_rect(Vector2i(24, 3)).get_center() + Vector2(-14, 0), Vector2.LEFT)
 	t.check(round.restorable(Vector2i(24, 3)), "a ball that only touches the cell does not keep it")
 
-	# Only a ball's hit, and only when ready: then the cooldown, 4 s less pulse_rate and never under pulse_min.
+	# Only a ball's hit, and only when ready: then the cooldown, 4 s.
 	var log := _events(round)
 	var heard := []
 	round.restored.connect(func(cell: Vector2i, cells: Array[Vector2i]) -> void: heard.append([cell, cells.duplicate()]))
@@ -1117,10 +1120,8 @@ func _refresh() -> void:
 			"a ball's hit brings back the nearest three, and the gold brick comes back plain (%s)" % [heard])
 	t.check(round.board.brick(block).ready_at == 4.0, "then it waits 4 s")
 	# Returns the steps at which a ball's hit, one every step, brought bricks back; each time they break again.
-	var refreshes := func(rate: float, seconds: float) -> Array:
-		var s := stats.duplicate() as Balance
-		s.put(&"pulse_rate", rate)
-		var r := Round.new(board, layout, s, 1)
+	var refreshes := func(seconds: float) -> Array:
+		var r := Round.new(board, layout, stats, 1)
 		for cell: Vector2i in [Vector2i(26, 3), Vector2i(26, 3)]:
 			r.hit_brick(cell, Round.Cause.BLAST, Vector2.RIGHT)
 		var at := []
@@ -1132,9 +1133,7 @@ func _refresh() -> void:
 					at.append(i + 1)
 					r.hit_brick(cell, Round.Cause.BLAST, Vector2.RIGHT)
 		return at.reduce(func(seen: Array, step: int) -> Array: return seen if seen.has(step) else seen + [step], [])
-	t.check(refreshes.call(0.0, 10.0) == [1, 481, 961], "every 4 s while it is hit all the time")
-	t.check(refreshes.call(2.0, 6.0) == [1, 241, 481], "pulse_rate takes seconds off the cooldown: 2 s at a rate of 2")
-	t.check(refreshes.call(10.0, 3.0) == [1, 121, 241], "and it never goes under pulse_min, 1 s")
+	t.check(refreshes.call(10.0) == [1, 481, 961], "every 4 s while it is hit all the time")
 
 	# A brick brought back scores and counts toward a clear.
 	round = Round.new(_board({Vector2i(20, 3): 1}), _layout([_item(&"refresh", block)]), stats, 1)
@@ -1502,10 +1501,10 @@ func _coins() -> void:
 	var block := Vector2i(34, 6)
 	board = _board({FAR: SOLID, Vector2i(20, 6): 1, Vector2i(21, 6): 1, Vector2i(22, 6): 1, Vector2i(23, 6): 1, Vector2i(30, 6): 3, placed: 3})
 	board.bricks[placed].placed = true
-	round = Round.new(board, _layout([_item(&"growth", block)]), _stats({&"combo_rank": 1, &"growth_count": 1}), 1)
+	round = Round.new(board, _layout([_item(&"refresh", block)]), _stats({&"combo_rank": 1, &"refresh_count": 1}), 1)
 	round.hit_brick(placed, Round.Cause.BALL, Vector2.RIGHT)
 	round.hit_brick(block, Round.Cause.BALL, Vector2.RIGHT)
-	t.check(round.coins == 0 and round.combo.count == 0 and round.tally.combos.is_empty(), "a hit that leaves a placed brick or a Growth block standing scores nothing and starts no combo")
+	t.check(round.coins == 0 and round.combo.count == 0 and round.tally.combos.is_empty(), "a hit that leaves a placed brick or a Refresh block (with nothing to bring back) standing scores nothing and starts no combo")
 	round.hit_brick(Vector2i(30, 6), Round.Cause.BALL, Vector2.RIGHT)
 	t.check(round.coins == 1 and round.combo.count == 1 and round.combo.time_left == round.stats.combo_window and round.tally.combos.size() == 1,
 			"a hit with no combo running scores 1 and starts one with the full window")

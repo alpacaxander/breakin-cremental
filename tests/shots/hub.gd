@@ -1,6 +1,6 @@
 extends RefCounted
 ## The upgrade screen: fresh, mid and maxed saves, with and without the CRT, a node of each shown state selected
-## (and Pulse Rate, on the bottom row, with two links, and Overgrowth beside it, not bought), a Buy the player
+## (and Growth Pulses, on the bottom row, and Overgrowth beside it, not bought), a Buy the player
 ## cannot afford, a locked level in the level panel, the pointer over a node, and the web zoomed fully out and
 ## fully in.
 

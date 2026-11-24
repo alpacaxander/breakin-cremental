@@ -6,7 +6,7 @@
 script = ExtResource("1")
 title = "Growth Reach"
 category = 1
-text = "Growth reaches one square further."
+text = "Growth areas reach one square further."
 first_cost = 300
 growth = 10
 max_rank = 2

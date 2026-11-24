@@ -6,9 +6,9 @@
 script = ExtResource("1")
 title = "Growth"
 category = 1
-text = "One more Growth block. Placed, it never breaks, and grows the bricks near it."
+text = "One more Growth area. At the start of a round it gives the bricks under it 1 HP."
 first_cost = 100
 growth = 4.5
-max_rank = 3
+max_rank = 2
 stat = &"growth_count"
 amount = 1.0

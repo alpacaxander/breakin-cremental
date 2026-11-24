@@ -165,7 +165,7 @@ static func combo_pitch(count: int) -> float:
 ##                  no cue and the sound follows the signal (the launch ball is not added, so it is silent)
 ##   exploded       EXPLOSION
 ##   ball_lost      BALL_LOST
-##   grew           the cue of the block that pulsed (Growth: BOOSTER, its rising sweep)
+##   grew           BOOSTER, its rising sweep: a Growth area pulsed (the kind has no cue, as it has no block)
 ##   restored       the cue of the block that brought bricks back (Refresh: PLACE_ITEM, the thunk of a brick put down).
 ##                  Overgrowth's (cell Round.NOWHERE, no block) is silent: hundreds can grow back in a few seconds
 ##   ended         CLEARED: LEVEL_CLEARED
@@ -179,7 +179,7 @@ func connect_round(p_round: Round) -> void:
 	p_round.ball_added.connect(func(_ball: Ball) -> void: play(SPLITTER))
 	p_round.exploded.connect(func(_pos: Vector2, _reach: float, _cells: Array[Vector2i]) -> void: play(EXPLOSION))
 	p_round.ball_lost.connect(func(_ball: Ball) -> void: play(BALL_LOST))
-	p_round.grew.connect(_on_block.bind(p_round.board).unbind(2))
+	p_round.grew.connect(func(_cell: Vector2i, _reach: float, _cells: Array[Vector2i]) -> void: play(BOOSTER))
 	p_round.restored.connect(_on_block.bind(p_round.board).unbind(1))
 	p_round.ended.connect(_on_ended)
 	_round = p_round
@@ -192,7 +192,7 @@ func _on_ended(reason: Round.End) -> void:
 		play(LEVEL_CLEARED)
 
 
-## A placed block acted (Growth's pulse, Refresh bringing bricks back): its kind's cue. Nothing if the cell holds
+## A placed block acted (Refresh bringing bricks back): its kind's cue. Nothing if the cell holds
 ## no kind (Overgrowth's NOWHERE).
 func _on_block(cell: Vector2i, board: Board) -> void:
 	var kind: Kind = Kinds.of(board.brick(cell).kind) if board.brick(cell) else null

@@ -8,7 +8,8 @@ extends Node2D
 ##   Backdrop     0  the backdrop grid and the walls           when the round or the phase changes
 ##   BoardView   10  every brick, in one draw                  when a brick is hit, broken, grown or brought back,
 ##                                                             and when a Refresh block's cooldown ends
-##   ItemViews   10  the free-form placed items                with the round
+##   ItemViews   10  the free-form placed items, and in Setup  with the round
+##                   the areas (Growth) over the bricks
 ##   PaddleView  10  the paddle; it is moved, not redrawn      with the round
 ##   BallViews   20  the balls, the spares in reserve, and     every frame of Play
 ##                   the Guide's line while a ball waits
@@ -26,9 +27,10 @@ const FRAME := Rect2(96, 104, 1088, 524)
 const WALL := 6.0  ## The walls' thickness, in screen pixels at every level size
 const STRIPE := 4.0  ## The paddle's cyan stripe, in units
 const MARK_RIM := 2.0  ## The dark rim around a Zap mark, in units, so it reads on a brick of any colour
-const BLOCK_EDGE := 3.0  ## A block that never breaks (Growth) is a frame this thick round base-colour panes, in units
+const BLOCK_EDGE := 3.0  ## A block that never breaks (Refresh) is a frame this thick round base-colour panes, in units
 const DASH := 6.0  ## The ghost's border: dashes this long, 2 units thick
 const GHOST_EDGE := 2.0
+const AREA_ALPHA := 0.15  ## An area's fill in Setup, see-through so the bricks under it show
 ## A gate's look, as shares of its length so the tray's icon is the same picture smaller. At the 96 units of the
 ## Booster: caps 6 long, a centre line 2 thick in dashes 8 long that stops 4 short of each cap.
 const GATE_POST := 1.0 / 16.0
@@ -202,6 +204,12 @@ static func gate(on: CanvasItem, at: Vector2, size: Vector2, angle: float, lit: 
 
 func _draw_items() -> void:
 	for item in round.layout.items:
+		if item.kind.placement == PlaceableKind.Placement.AREA and _setup:
+			# ponytail: Setup only. In Play its pulses show it (Fx); draw it there too if players lose track of it.
+			var r := _area(item)
+			_items.draw_rect(r, Color(Palette.PLACEABLE, AREA_ALPHA))
+			_items.draw_rect(r.grow(-1.0), Palette.PLACEABLE, false, 2.0)
+			_items.draw_rect(round.board.cell_rect(item.cell).grow(-2.0), Palette.lit(Palette.PLACEABLE), false, 2.0)
 		if item.kind.placement != PlaceableKind.Placement.FREE:
 			continue
 		if item.kind.gate:
@@ -255,7 +263,11 @@ func _draw_ghost() -> void:
 		_ghost_view.draw_rect(cell.grow(-0.5), Color(under, 0.5), false, 1.0)
 	else:
 		cell.position = _ghost.pos - cell.size * 0.5
-	if kind.placement == PlaceableKind.Placement.BRICK:
+	if kind.placement == PlaceableKind.Placement.AREA:
+		var r := _area(_ghost) if round.board.has_cell(_ghost.cell) else cell
+		_ghost_view.draw_rect(r, Color(fill, 0.5))
+		_dashed(Collide.box(r.grow(-GHOST_EDGE * 0.5)), edge)
+	elif kind.placement == PlaceableKind.Placement.BRICK:
 		var body := cell.grow(-1.0 - GHOST_EDGE * 0.5)
 		_ghost_view.draw_rect(body, fill)
 		_dashed(Collide.box(body), edge)
@@ -263,6 +275,11 @@ func _draw_ghost() -> void:
 		var mark := Rect2(cell.get_center() - kind.size * 0.5, kind.size)
 		_ghost_view.draw_rect(mark.grow(MARK_RIM), Palette.BASE)
 		_ghost_view.draw_rect(mark, edge)
+
+
+# What an AREA item covers, cut to the board.
+func _area(item: Layout.Item) -> Rect2:
+	return item.kind.area(round.board, item.cell, round.stats).intersection(Rect2(Vector2.ZERO, round.board.size()))
 
 
 # A free-form item's shape, filled.

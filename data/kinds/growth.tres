@@ -6,9 +6,7 @@
 script = ExtResource("1")
 title = "Growth"
 colour = &"placeable"
-cue = &"booster"
 order = 6
-placement = 1
-hp = 1
-unbreakable = true
-pulse = 5.0
+placement = 3
+delay = 0.5
+gap = 0.5

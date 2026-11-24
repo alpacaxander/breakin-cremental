@@ -38,11 +38,9 @@ const TABLE := {
 	&"HourglassTime": ["Hourglass Time", Upgrade.Category.BRICKS, 2, "An hourglass brick adds 5 s more", 1200, 5.0],
 	&"HourglassFreeze": ["Hourglass Freeze", Upgrade.Category.BRICKS, 2, "Breaking an hourglass brick holds the combo", 800, 5.0],
 	&"ToughBrick": ["Tough Brick", Upgrade.Category.BRICKS, 3, "One more tough brick", 20, 6.0],
-	&"Growth": ["Growth", Upgrade.Category.PLACEABLES, 3, "One more Growth block", 100, 4.5],
-	&"GrowthReach": ["Growth Reach", Upgrade.Category.PLACEABLES, 2, "Growth reaches one square further", 300, 10.0],
-	&"Refresh": ["Refresh", Upgrade.Category.PLACEABLES, 3, "One more Refresh block", 150, 4.5],
-	&"RefreshSize": ["Refresh Size", Upgrade.Category.PLACEABLES, 2, "Refresh brings back 2 more bricks", 400, 10.0],
-	&"PulseRate": ["Pulse Rate", Upgrade.Category.PLACEABLES, 2, "Growth and Refresh are 1 s faster", 1000, 6.0],
+	&"Growth": ["Growth", Upgrade.Category.PLACEABLES, 2, "One more Growth area", 100, 4.5],
+	&"GrowthReach": ["Growth Reach", Upgrade.Category.PLACEABLES, 2, "Growth areas reach one square further", 300, 10.0],
+	&"PulseRate": ["Growth Pulses", Upgrade.Category.PLACEABLES, 2, "Growth pulses once more", 1000, 6.0],
 	&"Overgrowth": ["Overgrowth", Upgrade.Category.ARENA, 1, "Broken bricks grow back", 8000, 1.0],
 	&"Guide": ["Guide", Upgrade.Category.ARENA, 4, "+250 guide length", 30, 4.0],
 	&"GuideBounces": ["Guide Bounces", Upgrade.Category.ARENA, 1, "The guide line bounces", 250, 1.0],
@@ -50,7 +48,7 @@ const TABLE := {
 	&"BallBrick": ["Ball Brick", Upgrade.Category.BRICKS, 2, "One more ball brick", 1800, 4.0],
 }
 ## The drawn web of upgrades.md: each node and the one it hangs off, towards the seed. A node with two links
-## (Pulse Rate) hangs off one here and has the other in CROSS.
+## would hang off one here and have the other in CROSS; none has now.
 const PARENT := {
 	&"HourglassBrick": &"PaddleSpeed", &"HourglassTime": &"HourglassBrick", &"HourglassFreeze": &"HourglassTime",
 	&"Booster": &"PaddleSpeed", &"BoosterSpeed": &"Booster", &"Zap": &"Booster", &"ZapRange": &"Zap",
@@ -59,12 +57,12 @@ const PARENT := {
 	&"SplitterHealth": &"SplitterRespawn", &"PaddleSize": &"PaddleSpeed", &"ExplosiveBrick": &"PaddleSize",
 	&"ExplosionSize": &"ExplosiveBrick", &"ExplosionDamage": &"ExplosionSize", &"Shockwave": &"ExplosiveBrick",
 	&"ToughBrick": &"GoldBrick", &"Growth": &"ToughBrick", &"GrowthReach": &"Growth",
-	&"Refresh": &"ToughBrick", &"RefreshSize": &"Refresh", &"PulseRate": &"Refresh",
+	&"PulseRate": &"Growth",
 	&"Overgrowth": &"PulseRate",
 	&"Guide": &"Booster", &"GuideBounces": &"Guide",
 	&"SpareBall": &"WallSegment", &"BallBrick": &"SplitterRespawn",
 }
-const CROSS := {&"PulseRate": &"Growth"}
+const CROSS := {}
 const DETAIL := Rect2(904, 88, 352, 284)  ## art.md, "Upgrade screen"
 const LEVELS := Rect2(904, 388, 352, 308)
 const SPACE := 0.06  ## Sfx spaces plays of one cue 15 ms apart in real time; wait this long before counting them

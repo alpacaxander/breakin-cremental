@@ -418,7 +418,7 @@ func _fill(level: int, start: Layout, stats: Balance) -> Layout:
 	return layout
 
 
-## Every place one more `kind` could go that the search tries. A free-form item or a placed brick: the centre of
+## Every place one more `kind` could go that the search tries. A free-form item, a placed brick or an area: the centre of
 ## each 64-unit square of the grid (a 4 x 1 block of brick cells), at each of ROTATIONS if it turns. A mod: in
 ## each brick row, the brick nearest the paddle and the nearest 1 HP brick.
 # ponytail: a raster, not every spot. A finer one costs time squared; try it if layouts look clumsy.

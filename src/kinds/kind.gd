@@ -24,7 +24,7 @@ var id: StringName:
 ## Otherwise screens draw the kind in Palette.of(colour).
 @export var colour: StringName
 ## The cue Sfx plays when this kind acts: for a free-form item when a ball bounces off it, for a brick or a mod
-## when its brick breaks, for a placed block when it acts (Growth: `grew`; Refresh: `restored`). A file name in
+## when its brick breaks, for a placed block when it acts (Refresh: `restored`). A file name in
 ## assets/audio/wav without the extension, &"" for none. Leave it empty when the effect has a round signal of its
 ## own that Sfx gives a sound (the explosive brick: `exploded`; the Splitter: `ball_added`).
 @export var cue: StringName
@@ -54,9 +54,9 @@ func on_broken(_round: Round, _cell: Vector2i, _brick: Brick, _cause: Round.Caus
 	pass
 
 
-## Every step of play, for each placed brick of this kind still on the board (BRICK placeables only), in layout
-## order, after the balls have moved and round.clock has gone up by `delta`. Not called while the ball is held.
-## Growth pulses here when round.clock passes a multiple of its period.
+## Every step of play, for each placed brick of this kind still on the board (BRICK placeables) and for each AREA
+## item of this kind (`brick` null), in layout order, after the balls have moved and round.clock has gone up by
+## `delta`. Not called while the ball is held. Growth pulses here.
 func on_step(_round: Round, _cell: Vector2i, _brick: Brick, _delta: float) -> void:
 	pass
 

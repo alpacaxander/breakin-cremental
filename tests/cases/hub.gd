@@ -11,7 +11,7 @@ const WEB := {
 	&"SplitterHealth": &"SplitterRespawn", &"PaddleSize": &"PaddleSpeed", &"ExplosiveBrick": &"PaddleSize",
 	&"ExplosionSize": &"ExplosiveBrick", &"ExplosionDamage": &"ExplosionSize", &"Shockwave": &"ExplosiveBrick",
 	&"ToughBrick": &"GoldBrick", &"Growth": &"ToughBrick", &"GrowthReach": &"Growth",
-	&"Refresh": &"ToughBrick", &"RefreshSize": &"Refresh", &"PulseRate": &"Refresh",
+	&"PulseRate": &"Growth",
 	&"Overgrowth": &"PulseRate",
 	&"Guide": &"Booster", &"GuideBounces": &"Guide",
 	&"SpareBall": &"WallSegment", &"BallBrick": &"SplitterRespawn",
@@ -90,7 +90,6 @@ func run(t: Node) -> void:
 	# The web is the documented one, and every upgrade is on it once.
 	var pairs := web.links().map(func(l: Array) -> String: return _pair(l[0].name, l[1].name))
 	var want := WEB.keys().map(func(k: StringName) -> String: return _pair(k, WEB[k]))
-	want.append(_pair(&"PulseRate", &"Growth"))  # its second link, off the tree WEB draws
 	pairs.sort()
 	want.sort()
 	t.check(pairs == want, "the web's links are upgrades.md's (have %s)" % [pairs])

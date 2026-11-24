@@ -101,12 +101,16 @@ func add(item: Item) -> void:
 ##     above and below. It may touch the right side of the ball at rest.
 ##   - BRICK: board.has_cell(cell). The cell holds no brick and no other BRICK item, no FREE item overlaps it,
 ##     and it is clear of the launch path in the same way.
+##   - AREA: board.has_cell(cell) and no other AREA item is on that cell. Bricks and other items do not matter:
+##     nothing touches an area.
 ##   - MOD: the cell holds a brick of the board or a BRICK item that can break (not PlaceableKind.unbreakable:
 ##     a mod goes off when its brick breaks), and no other MOD item is on that cell.
 ## Pass the level's board as read (Levels.read), not a round's board, which already has the layout's bricks on it.
 func fits(item: Item, board: Board, stats: Balance) -> bool:
 	if count(item.kind.id) >= stats.count(item.kind.id):
 		return false
+	if item.kind.placement == PlaceableKind.Placement.AREA:
+		return board.has_cell(item.cell) and _on(item.cell, PlaceableKind.Placement.AREA) == null
 	if item.kind.placement == PlaceableKind.Placement.MOD:
 		var host := _on(item.cell, PlaceableKind.Placement.BRICK)
 		return (board.brick(item.cell) != null or host != null and not host.kind.unbreakable) \
@@ -163,7 +167,7 @@ func remove(item: Item) -> void:
 
 ## The item whose shape contains `point` (round units), or null. The topmost is the last one added. A BRICK item
 ## is hit anywhere in its cell. A MOD item is hit anywhere in its brick's cell, and is checked before the brick
-## under it.
+## under it. An AREA item is hit anywhere in its own cell, after every other item there.
 func item_at(point: Vector2) -> Item:
 	var cell := Vector2i((point / Board.BRICK).floor())
 	var mod := _on(cell, PlaceableKind.Placement.MOD)
@@ -178,7 +182,7 @@ func item_at(point: Vector2) -> Item:
 			PlaceableKind.Placement.FREE:
 				if Geometry2D.is_point_in_polygon(point, item.outline()):
 					return item
-	return null
+	return _on(cell, PlaceableKind.Placement.AREA)
 
 
 # The item of one placement on a brick cell, or null.

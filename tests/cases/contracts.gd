@@ -253,8 +253,8 @@ func _names(t: Node) -> void:
 				"the %s upgrade's stat, \"%s\", is a Balance property or the count of a kind that exists" % [u.id, u.stat])
 		counted.append(kind_id)
 	for kind in Kinds.all():
-		# ponytail: the Bumper is off the web (its node was dropped) but kept, as the rules checks' plain item.
-		t.check(kind.id in counted or kind.id == &"bumper", "an upgrade raises %s, or nobody can ever have a %s" % [Balance.count_stat(kind.id), kind.title])
+		# ponytail: the Bumper and Refresh are off the web (their nodes were dropped) but kept in the code.
+		t.check(kind.id in counted or kind.id in [&"bumper", &"refresh"], "an upgrade raises %s, or nobody can ever have a %s" % [Balance.count_stat(kind.id), kind.title])
 
 
 ## With every upgrade owned, Progress.snapshot() hands a round each number it reads, moved off its base.
@@ -314,7 +314,8 @@ func _levels(t: Node) -> void:
 		Progress.save()
 
 
-## Steps a round to its end with a paddle that follows the ball nearest to it, a little off centre, and checks
+## Steps a round to its end with a paddle that follows the ball nearest to it, a little off centre, launching
+## each spare as it comes, and checks
 ## that it ended, that the ball reached the bricks and that the coins are the formula's. With `sound`, Sfx is
 ## wired to it as the level screen will wire it, and must be heard.
 func _play(t: Node, what: String, round: Round, sound: bool) -> void:
@@ -337,6 +338,8 @@ func _play(t: Node, what: String, round: Round, sound: bool) -> void:
 			if ball.pos.x < nearest:
 				nearest = ball.pos.x
 				target = ball.pos.y + round.paddle.length * 0.3
+		if round.waiting:  # a spare on the paddle: launched at once, as a player would
+			round.launch()
 		round.step(1.0 / 120.0, target)
 		steps += 1
 	t.check(round.over, "%s: the round ends" % what)

@@ -1,16 +1,22 @@
 extends PlaceableKind
-## Growth: a placed block that never breaks (unbreakable). Every `pulse` seconds of play, less stats.pulse_rate
-## and never under stats.pulse_min, it gives each level brick within stats.growth_reach squares of its edges 1 HP,
-## up to stats.max_hp (Round.grow). The first pulse is one period after the round's first step of play.
+## Growth: an area (Placement.AREA) on a brick cell, reaching stats.growth_reach squares out from the cell's
+## edges. It pulses stats.growth_pulses times at the start of a round: the first `delay` seconds of play in, then
+## one every `gap`. Each pulse gives every level brick in the area 1 HP, up to stats.max_hp (Round.grow).
 
-## Seconds between pulses, before stats.pulse_rate.
-@export var pulse := 0.0
+## Seconds of play (Round.clock) before the first pulse.
+@export var delay := 0.0
+## Seconds between pulses.
+@export var gap := 0.0
 
 
-## A pulse for every multiple of the period that round.clock passed in this step. Less than Round.TIME_SLOP short
-## of one counts as on it, as the timer does.
+func area(board: Board, cell: Vector2i, stats: Balance) -> Rect2:
+	return board.cell_rect(cell).grow(stats.growth_reach * Board.BRICK.y)
+
+
+## A pulse for each one whose time round.clock passed in this step. Less than Round.TIME_SLOP short of one counts
+## as on it, as the timer does.
 func on_step(round: Round, cell: Vector2i, _brick: Brick, delta: float) -> void:
-	var period := maxf(pulse - round.stats.pulse_rate, round.stats.pulse_min)
-	var due := floori((round.clock + Round.TIME_SLOP) / period) - floori((round.clock - delta + Round.TIME_SLOP) / period)
-	for i in due:
-		round.grow(cell, round.stats.growth_reach * Board.BRICK.y)
+	for i in int(round.stats.growth_pulses):
+		var at := delay + gap * i - Round.TIME_SLOP
+		if round.clock - delta < at and at <= round.clock:
+			round.grow(cell, round.stats.growth_reach * Board.BRICK.y)

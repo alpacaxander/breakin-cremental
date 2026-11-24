@@ -4,11 +4,11 @@
 
 [resource]
 script = ExtResource("1")
-title = "Pulse Rate"
+title = "Growth Pulses"
 category = 1
-text = "Growth and Refresh are 1 s faster."
+text = "Growth pulses once more."
 first_cost = 1000
 growth = 6
 max_rank = 2
-stat = &"pulse_rate"
+stat = &"growth_pulses"
 amount = 1.0

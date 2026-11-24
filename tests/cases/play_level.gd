@@ -137,7 +137,7 @@ func _placing() -> void:
 	Main.show_hub()
 	await _open(1)
 	var setup: LevelSetupUi = level.get_node("SetupUi")
-	t.check(setup._slots.size() == 6, "a maxed save has six slots in the tray")
+	t.check(setup._slots.size() == 5, "a maxed save has five slots in the tray")
 	var start := setup.find_child("Start", true, false) as Control
 	t.check(start.get_global_rect().end.x <= LevelHud.FOOTER.end.x + 0.5, "with every slot and this run's special bricks the footer holds Start (its right edge is at %d)" % start.get_global_rect().end.x)
 	await _scrolling(setup)
@@ -225,7 +225,7 @@ func _placing() -> void:
 ## the wheel, and a slot out of view cannot be picked. Then the extra slots go.
 func _scrolling(setup: LevelSetupUi) -> void:
 	var start := setup.find_child("Start", true, false) as Control
-	var arrows := setup._next.visible  # whether six slots fit depends on this run's special bricks beside them
+	var arrows := setup._next.visible  # whether five slots fit depends on this run's special bricks beside them
 	var extra: Array[Node] = []
 	for i in 6:
 		var slot := LevelSetupUi.Slot.new(setup._slots[i].kind, 1)
@@ -255,7 +255,7 @@ func _scrolling(setup: LevelSetupUi) -> void:
 		slot.free()
 	await t.tree().process_frame
 	await t.tree().process_frame
-	t.check(setup._next.visible == arrows and setup._scroll.scroll_horizontal == 0, "back to six slots, the tray is as it was")
+	t.check(setup._next.visible == arrows and setup._scroll.scroll_horizontal == 0, "back to five slots, the tray is as it was")
 
 
 ## Level 1 maxed, everything placed: a real start, some real play, then every brick broken. The Summary, the

@@ -42,8 +42,8 @@ extends RefCounted
 ##      is left and the countdown is done or no ball is left in `balls`, one spare goes onto the paddle.
 ##   3. The combo's window counts down. If it runs out the combo resets and combo_changed(0, 1) is emitted.
 ##      Less than TIME_SLOP left has run out, as in 5.
-##   4. `clock` goes up by delta. Then each placed brick still on the board, in layout order, gets its kind's
-##      on_step hook (Growth pulses here: see grow), and each broken one whose rebuild() is due comes back
+##   4. `clock` goes up by delta. Then each placed brick still on the board and each AREA item, in layout order,
+##      gets its kind's on_step hook (Growth pulses here: see grow), and each broken one whose rebuild() is due comes back
 ##      unless a ball is over it. Then, with Overgrowth (stats.overgrowth >= 1) and a level
 ##      brick still standing, every broken level cell whose time has come (see ONE BRICK HIT) comes back, in the
 ##      order they broke, through one restore(NOWHERE, cells) call; a cell a ball is over waits for the next
@@ -170,9 +170,9 @@ signal ball_lost(ball: Ball)
 ##   cells  every brick cell the blast is about to hit, by column from the paddle side and then down
 signal exploded(pos: Vector2, reach: float, cells: Array[Vector2i])
 
-## A placed block's pulse (Growth) gave bricks 1 HP each. Emitted after they gained it, and only if one did.
-##   cell   the block's brick cell
-##   reach  how far the pulse reaches out from the block's edges, in units
+## A Growth area's pulse gave bricks 1 HP each. Emitted after they gained it, and only if one did.
+##   cell   the area's brick cell
+##   reach  how far the pulse reaches out from that cell's edges, in units
 ##   cells  every brick that gained, by column from the paddle side and then down
 signal grew(cell: Vector2i, reach: float, cells: Array[Vector2i])
 
@@ -263,6 +263,8 @@ func _init(p_board: Board, p_layout: Layout, p_stats: Balance, p_seed: int) -> v
 				board.bricks[item.cell] = _placed(item.kind)
 			PlaceableKind.Placement.MOD:
 				board.brick(item.cell).mod = item.kind.id
+			PlaceableKind.Placement.AREA:
+				pass  # nothing in play: its on_step acts
 			_:
 				if item.kind.gate:
 					_gates.append(item)
@@ -396,7 +398,9 @@ func step(delta: float, paddle_target: float) -> void:
 		clock += delta
 		for item in layout.items:
 			var brick := board.brick(item.cell)
-			if item.kind.placement == PlaceableKind.Placement.BRICK and brick and brick.placed:
+			if item.kind.placement == PlaceableKind.Placement.AREA:
+				item.kind.on_step(self, item.cell, null, delta)
+			elif item.kind.placement == PlaceableKind.Placement.BRICK and brick and brick.placed:
 				item.kind.on_step(self, item.cell, brick, delta)
 			elif brick == null and _rebuild.get(item.cell, INF) <= clock + TIME_SLOP and not _ball_over(board.cell_rect(item.cell)):
 				_rebuild.erase(item.cell)
@@ -501,7 +505,7 @@ func blast(cell: Vector2i, reach: float) -> void:
 				set_boost(ball, ball.boost * stats.shockwave_boost)
 
 
-## A pulse from the placed block at `cell` (Growth), reaching `reach` units out from its edges by the blast's rule
+## A pulse from the Growth area on `cell`, reaching `reach` units out from the cell's edges by the blast's rule
 ## (Board.bricks_in). Every level brick there (not a placed one) under stats.max_hp gains 1 hp. That is no hit:
 ## it scores nothing and the tally does not see it. Emits grew if any brick gained.
 func grow(cell: Vector2i, reach: float) -> void:
