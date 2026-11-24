@@ -79,12 +79,12 @@ static func sweep(round: Round, ball: Ball, distance: float) -> Hit:
 	var p := a + d * gone
 	var q := a + d * far
 
-	var pad := round.paddle.rect().grow(h)
+	var pad := round.paddle.rect(round.board.size().y).grow(h)
 	var e := _slab(pad.position.x, pad.position.y, pad.end.x, pad.end.y, a, d, gone)
 	if e == INF and d.x < 0.0 and pad.grow(-SKIN).has_point(p):
 		e = gone  # the paddle moved onto a ball that is heading out
 		_plane = NAN
-		_normal = Vector2.RIGHT if p.x >= round.paddle.x else (Vector2.UP if p.y < round.paddle.y else Vector2.DOWN)
+		_normal = Vector2.RIGHT if p.x >= round.paddle.x else (Vector2.UP if p.y < pad.get_center().y else Vector2.DOWN)
 	if e < t:
 		t = e
 		normal = _normal

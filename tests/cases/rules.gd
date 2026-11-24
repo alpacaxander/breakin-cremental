@@ -420,7 +420,7 @@ func _paddle() -> void:
 	t.check(is_equal_approx(round.paddle.y, 256.0 + stats.paddle_speed * 0.1 - 1.0), "the paddle stops on a target it can reach")
 	round = Round.new(board, null, stats, 1)
 	round.step(10.0, -INF)
-	t.check(round.paddle.y == 48.0, "the paddle stops at the top wall")
+	t.check(round.paddle.y == 0.0, "the paddle stops with its centre at the top wall")
 
 
 # --- minimum angles --------------------------------------------------------------------------------------------
@@ -605,9 +605,9 @@ func _fuzz_round(p_seed: int, wrong: Array[String], seen: Dictionary) -> void:
 		for id: int in length:
 			length[id] = 0.0
 		skip.clear()
-		var target := round.paddle.y
+		var target := round.paddle.y  # a sealed paddle stays put: one that moved would open a gap past its end
 		for ball in balls:
-			if ball.dir.x < 0.0:
+			if ball.dir.x < 0.0 and not sealed:
 				target = ball.pos.y + sin(i * 0.3) * 40.0
 		round.step(dt, target)
 		follow.call()

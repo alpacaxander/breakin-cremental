@@ -20,7 +20,7 @@ See also: [overview.md](overview.md), [levels.md](levels.md), [placeables.md](pl
 
 ## Paddle
 
-- The paddle sits on the left edge, moves only up and down, and stays inside the arena.
+- The paddle sits on the left edge, moves only up and down, and its centre stays inside the arena: half of it can go past the top or bottom wall, so the ends of the board are as easy to aim at as the middle. The part past a wall is hidden.
 - **Slow at first.** Paddle Speed upgrades raise its speed.
 - **Keys** (W/S or the up/down arrows) move it at paddle speed.
 - **Mouse:** the paddle chases the cursor's vertical position at paddle speed. It doesn't jump to the cursor, so Paddle Speed matters with either control.

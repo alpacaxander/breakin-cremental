@@ -10,7 +10,7 @@ extends Node2D
 ##                                                             and when a Refresh block's cooldown ends
 ##   ItemViews   10  the free-form placed items, and in Setup  with the round
 ##                   the areas (Growth) over the bricks
-##   PaddleView  10  the paddle; it is moved, not redrawn      with the round
+##   PaddleView  10  the paddle, cut off at the walls          every frame
 ##   BallViews   20  the balls, the spares in reserve, and     every frame of Play
 ##                   the Guide's line while a ball waits
 ##   Ghost      101  the item being dragged in Setup           when it moves. Over SetupUi (100): it follows the
@@ -114,6 +114,7 @@ func _process(_delta: float) -> void:
 		return
 	var p := round.paddle
 	_paddle.position = Vector2(p.x - p.thickness, lerpf(_was_paddle, p.y, _between()) - p.length * 0.5)
+	_paddle.queue_redraw()  # half of it can be past a wall, and the part past it is cut off
 	if not _setup:
 		_balls.queue_redraw()
 		var cooling := 0  # a block's cooldown ends with no signal: redraw when the number cooling changes
@@ -221,12 +222,14 @@ func _draw_items() -> void:
 
 func _draw_paddle() -> void:
 	var p := round.paddle
-	_paddle.draw_rect(Rect2(0, 0, p.thickness, p.length), Palette.PADDLE)
-	_paddle.draw_rect(Rect2(p.thickness - STRIPE, 0, STRIPE, p.length), Palette.lit(Palette.PLAYER))
+	var top := maxf(0.0, -_paddle.position.y)  # the part between the walls, in the paddle's own units
+	var span := minf(p.length, round.board.size().y - _paddle.position.y) - top
+	_paddle.draw_rect(Rect2(0, top, p.thickness, span), Palette.PADDLE)
+	_paddle.draw_rect(Rect2(p.thickness - STRIPE, top, STRIPE, span), Palette.lit(Palette.PLAYER))
 	if round.stats.rear_paddle > 0.0:  # Round.on_rear_paddle: the back wall's stretch facing this paddle
 		var rear := round.board.size().x - p.x
-		_paddle.draw_rect(Rect2(rear, 0, p.thickness, p.length), Palette.PADDLE)
-		_paddle.draw_rect(Rect2(rear, 0, STRIPE, p.length), Palette.lit(Palette.PLAYER))
+		_paddle.draw_rect(Rect2(rear, top, p.thickness, span), Palette.PADDLE)
+		_paddle.draw_rect(Rect2(rear, top, STRIPE, span), Palette.lit(Palette.PLAYER))
 
 
 func _draw_balls() -> void:

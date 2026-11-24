@@ -47,6 +47,7 @@ func shots() -> Array[Dictionary]:
 		{"name": "play_paused", "save": "mid", "setup": _paused},
 		{"name": "play_low_time", "save": "mid", "crt": false, "setup": _low_time},
 		{"name": "play_guide", "save": "maxed", "setup": _guide},
+		{"name": "play_paddle_top", "crt": false, "setup": _paddle_top},
 		{"name": "play_tough", "save": "maxed", "crt": false, "setup": _tough},
 		{"name": "play_growth", "save": "maxed", "setup": _growth, "settle": 12},
 		{"name": "play_overgrowth", "save": "maxed", "crt": false, "setup": _overgrowth, "settle": 60},
@@ -234,3 +235,12 @@ func _guide(main: Main) -> void:
 	var level := await _play(main, 1, PLACED, 0, 0)
 	var round: Round = level.get("round")
 	round.sway = 1.2
+
+
+## Level 1 in Play with the ball still on the paddle and the paddle at the top wall: its centre stops on the wall,
+## the half past it is cut off at the wall, and the ball waits just clear of the wall.
+func _paddle_top(main: Main) -> void:
+	var level := await _play(main, 1, [], 0, 0)
+	var round: Round = level.get("round")
+	round.move_paddle(10.0, -INF)
+	level.get_node("Arena").call("remember")  # the drawing lags a step: bring it to the wall too

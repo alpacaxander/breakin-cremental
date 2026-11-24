@@ -371,7 +371,8 @@ func guide() -> PackedVector2Array:
 
 func _glue() -> void:
 	if waiting:
-		waiting.put(Vector2(paddle.x + waiting.size * 0.5, paddle.y), Vector2.RIGHT)
+		var half := waiting.size * 0.5  # the paddle's centre can reach a wall; the ball stays clear of it
+		waiting.put(Vector2(paddle.x + half, clampf(paddle.y, half, board.size().y - half)), Vector2.RIGHT)
 
 
 ## Advances the round by `delta` seconds. The level screen calls this from _physics_process; to freeze the game
@@ -422,8 +423,8 @@ func step(delta: float, paddle_target: float) -> void:
 ## Step 1 of step() alone: the paddle moves toward `paddle_target` at stats.paddle_speed and nothing else does.
 ## Setup calls it, so the paddle can be placed before the launch while the ball stays at rest.
 func move_paddle(delta: float, paddle_target: float) -> void:
-	var half := minf(paddle.length, board.size().y) * 0.5
-	paddle.y = clampf(move_toward(paddle.y, paddle_target, stats.paddle_speed * delta), half, board.size().y - half)
+	# Only the centre stays on the board: half the paddle can go past a wall, so the edges are easy to aim at.
+	paddle.y = clampf(move_toward(paddle.y, paddle_target, stats.paddle_speed * delta), 0.0, board.size().y)
 	_glue()
 
 

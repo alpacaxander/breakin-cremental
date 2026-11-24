@@ -69,8 +69,8 @@ func _fresh() -> void:
 	await _steps(10)
 	t.check(is_equal_approx(round.paddle.y - y, speed * 10.0 / 120.0), "and steadily: paddle speed every step (moved %.2f, wanted %.2f)" % [round.paddle.y - y, speed * 10.0 / 120.0])
 	await _steps(120)
-	var bottom := round.board.size().y - round.paddle.length * 0.5
-	t.check(is_equal_approx(round.paddle.y, bottom), "held down, it stops at the bottom wall")
+	var bottom := round.board.size().y
+	t.check(is_equal_approx(round.paddle.y, bottom), "held down, its centre stops at the bottom wall")
 	_hold(KEY_S, false)
 	await t.tree().process_frame
 	var view: Node2D = level.get_node("Arena/PaddleView")
@@ -81,8 +81,8 @@ func _fresh() -> void:
 	_hold(KEY_W, false)
 	await _steps(4)
 	t.check(round.paddle.y == y, "let go, it stops at once")
-	t.check(round.held and round.balls[0].pos.y == round.paddle.y and round.time_left == round.stats.round_time and hud._hint.visible,
-			"until the launch the ball rides on the paddle, the clock waits and the hint says how to launch")
+	t.check(round.held and round.balls[0].pos.y == minf(round.paddle.y, bottom - round.stats.ball_size * 0.5) and round.time_left == round.stats.round_time and hud._hint.visible,
+			"until the launch the ball rides on the paddle (kept off the wall), the clock waits and the hint says how to launch")
 	_key(KEY_SPACE)
 	hud._process(0.0)
 	t.check(not round.held and round.balls[0].dir.x > 0.0 and not hud._hint.visible, "Space launches the ball toward the board, and the hint goes")

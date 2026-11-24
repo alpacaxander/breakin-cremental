@@ -380,7 +380,7 @@ func _inside(point: Vector2, half: float, round: Round, paddle: bool, grown := {
 	if point.y < half - SLACK or point.y > size.y - half + SLACK or point.x > size.x - half + SLACK:
 		return "wall"
 	var square := Rect2(point, Vector2.ZERO).grow(half - SLACK)
-	if paddle and square.intersects(round.paddle.rect()):
+	if paddle and square.intersects(round.paddle.rect(size.y)):
 		return "paddle"
 	var first := board.cell_at(square.position)
 	var last := board.cell_at(square.end)
@@ -639,11 +639,14 @@ func _attack(p_seed: int, wrong: Dictionary, seen: Dictionary, cfg := {}) -> voi
 			var sent := round.waiting
 			round.launch()
 			launched[sent.id] = sent.dir
+			dirs[sent.id] = sent.dir  # off a paddle at a wall, its first bounce can come before follow has seen it
 		var target := _target(rng, round, step, style)
 		# Which balls will the paddle be on after it moves: replay its move here.
-		var half := minf(round.paddle.length, board.size().y) * 0.5
-		var py := clampf(move_toward(round.paddle.y, target, stats.paddle_speed * dt), half, board.size().y - half)
-		var pr := Rect2(round.paddle.x - round.paddle.thickness, py - round.paddle.length * 0.5, round.paddle.thickness, round.paddle.length)
+		var py := clampf(move_toward(round.paddle.y, target, stats.paddle_speed * dt), 0.0, board.size().y)
+		var was_y := round.paddle.y
+		round.paddle.y = py
+		var pr := round.paddle.rect(board.size().y)
+		round.paddle.y = was_y
 		inside_paddle.clear()
 		for ball in balls:
 			if Rect2(ball.pos, Vector2.ZERO).grow(h - SLACK).intersects(pr):

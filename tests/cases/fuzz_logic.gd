@@ -849,7 +849,7 @@ func _fuzz_round(sd: int) -> void:
 	var targets := []
 	var time := spy.time_left
 	var steps := 0
-	while not spy.over and steps < 40.0 / dt:
+	while not spy.over and steps < 120.0 / dt:  # long: hourglasses add time, and a good paddle loses no ball
 		var target := spy.paddle.y if rng.randf() < 0.9 else rng.randf_range(-100, 700)
 		var best := INF
 		for ball in spy.balls:
@@ -862,8 +862,7 @@ func _fuzz_round(sd: int) -> void:
 		var was_y := spy.paddle.y
 		spy.step(dt, target)
 		steps += 1
-		var half := minf(spy.paddle.length, spy.board.size().y) * 0.5
-		var paddle_y := clampf(move_toward(was_y, target, stats.paddle_speed * dt), half, spy.board.size().y - half)
+		var paddle_y := clampf(move_toward(was_y, target, stats.paddle_speed * dt), 0.0, spy.board.size().y)
 		_fail(is_equal_approx(spy.paddle.y, paddle_y), "the paddle moves toward its target at paddle speed (Round.step 1)")
 		for pair: Array in m.new:
 			_fail(pair[0].pos == pair[1], "a ball made during a step starts moving on the next one (Round.step 2)")
