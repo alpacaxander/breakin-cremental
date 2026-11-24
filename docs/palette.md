@@ -32,12 +32,12 @@ Source: [Endesga 64](https://lospec.com/palette-list/endesga-64) by ENDESGA. The
 
 | Meaning | Lit | Dim | Used for |
 |---|---|---|---|
-| Ball | `ffffff` | | The ball and nothing else, the balls in reserve included. The ball brick's square is slate, not white |
+| Ball | `ffffff` | | The ball and nothing else, the charges in reserve included. A charged ball's rim is orange, not white |
 | Player (cyan) | `0cf1ff` | `134c4c` | Paddle stripe, cursor, selection, buttons, Arena upgrade nodes |
-| Placeables (blue) | `0098dc` | `00396d` | Bumpers, boosters, wall segments, splitters, Growth areas, Refresh blocks (a cooling Refresh block in the dim value), Zap marks, the placement tray, Placeables upgrade nodes |
+| Placeables (blue) | `0098dc` | `00396d` | Bumpers, boosters, wall segments, splitters, Growth areas, Refresh blocks (a cooling Refresh block in the dim value), the placement tray, Placeables upgrade nodes |
 | Coins (gold) | `ffc825` | `8a4836` | Coin counter, coin pop-ups, combo counter, gold bricks, prices |
 | Time (green) | `99e65f` | `1e6f50` | Timer, hourglass bricks |
-| Explosive (orange) | `ff5000` | `c64524` | Explosive bricks and their blasts |
+| Abilities (orange) | `ff5000` | `c64524` | Power Bricks, drops, the rim on a charged ball, the HUD's ability readout, blasts, the Zap's bolt, the catch effect, Abilities upgrade nodes. It was the explosive bricks' colour until they were removed |
 | Danger (red) | `ff0040` | `891e2b` | Low-timer warning, the flash when the ball is lost, "can't afford", a placement that does not fit. Not for numbers |
 | Bricks (magenta to violet glass) | see below | `622461` | Plain bricks and tough bricks, Bricks upgrade nodes |
 

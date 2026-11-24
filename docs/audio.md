@@ -19,8 +19,9 @@ Every sound is synthesised by one script. Nothing is recorded or downloaded.
 | Group | Cues |
 |---|---|
 | Ball and paddle | paddle hit, wall bounce, ball lost |
-| Bricks | brick hit, brick break, explosion, gold brick, hourglass brick. A ball brick plays splitter: both give a ball. A spare going onto the paddle is silent |
-| Placeables | bumper, booster, splitter, zap. A Growth pulse plays booster, its rising sweep; bricks a Refresh block brings back play place item, the thunk of a brick put down. Bricks Overgrowth brings back are silent: hundreds come back in a few seconds on level 3, which would bury the break and combo cues under a steady patter, and it is the arena acting, not the player |
+| Bricks | brick hit, brick break, gold brick, hourglass brick |
+| Abilities | catch, when the paddle catches a drop; zap, when a Zap goes off; explosion, when a Blast goes off. A Power Brick breaking plays splitter: both lead to a new ball. A drop that is missed and a charge going onto the paddle are silent |
+| Placeables | bumper, booster, splitter. A Growth pulse plays booster, its rising sweep; bricks a Refresh block brings back play place item, the thunk of a brick put down. Bricks Overgrowth brings back are silent: hundreds come back in a few seconds on level 3, which would bury the break and combo cues under a steady patter, and it is the arena acting, not the player |
 | Round | round start, low-timer tick, level cleared, summary tally tick |
 | UI | click, buy, can't afford, place item |
 
@@ -28,7 +29,7 @@ Every sound is synthesised by one script. Nothing is recorded or downloaded.
 
 - **Combo pitch climb.** There is one brick break sample. Each combo step plays it one note higher on a pentatonic scale, up to two octaves above the start, so any run of hits sounds musical.
 - **Punch.** Big cues (explosion, level cleared, ball lost) layer a low sine thump and a noise burst under the square wave. The master bus has a limiter.
-- **Voice cap.** Many bricks can break in one frame, for example 64 from a Zap on level 3. Stagger those sounds by a few milliseconds and cap the voices per cue so the mix doesn't clip. `Sfx` gives each cue 4 voices and starts them 15 ms apart; a play beyond that in one burst is dropped.
+- **Voice cap.** Many bricks can break in one frame, for example the dozens a big blast hits. Stagger those sounds by a few milliseconds and cap the voices per cue so the mix doesn't clip. `Sfx` gives each cue 4 voices and starts them 15 ms apart; a play beyond that in one burst is dropped.
 - **Low timer.** `Sfx` ticks once for each whole second the timer crosses from the low-timer mark down to 1.
 - **Volumes.** `Sfx` never sets a volume. Settings owns the two bus volumes, and the balance between music and sounds is in the files.
 - **Effects follow the cause.** A sound is played because of a game event, such as a brick breaking. Game rules never depend on a sound.

@@ -14,7 +14,8 @@ The main menu, Settings and the Summary have no mockup. They are described below
 - The bumper ghost snaps to a grid cell. The bumper is free-form and doesn't snap.
 - Special bricks are a share of the level's bricks, and the web has "Explosive Chance" and "Bumper Count" nodes. Counts now come from the unlock node's ranks (see [upgrades.md](design/upgrades.md#counts-come-from-ranks)).
 - The web is grouped by category, with a label over each group and a junction square under the seed. The demo's web mixes the categories around a seed in the centre (see [upgrades.md](design/upgrades.md#the-demos-web)).
-- The Booster, the Splitter, the Zap mark, the Growth area and the Refresh block are not drawn.
+- The Booster, the Splitter, the Growth area and the Refresh block are not drawn.
+- The ability system is not drawn: the Power Brick, a drop, the charges in reserve, a charged ball's orange rim, the HUD's ability readout and the catch effect. The upgrade screen has three categories; it now has four, Abilities in orange (see [Upgrade screen](#upgrade-screen)). The explosive bricks the mockups show are gone.
 - The web shows locked nodes in grey. Locked nodes, and their lines, are now hidden until a neighbour is owned (see [Upgrade screen](#upgrade-screen)).
 - Nodes and the detail panel show a pip for every rank, and the panel reads "RANK 2/4". They now show only the ranks owned and the next, and never the max rank (see [Upgrade screen](#upgrade-screen)).
 - A tray slot reads "1 OF 2 LEFT", and locked placeables are in the tray. A slot now shows pips, and only unlocked placeables are listed (see [Setup](#setup)).
@@ -32,8 +33,8 @@ The main menu, Settings and the Summary have no mockup. They are described below
 - **Arena sizes are for a 16-row level.** Things inside the arena shrink or grow with the level's size (see [Arena zoom](#arena-zoom)).
 - **Draw shapes, don't paint them.** Bricks, the paddle, the ball, placeables, bars, panels and upgrade nodes are flat rectangles drawn in the engine (`ColorRect`, `Polygon2D` or `draw_rect`). They have no textures, outlines, bevels, gradients or rounded corners. If something does need a texture, make it white and tint it with a palette colour, so every colour is defined only in `palette.md`.
 - **Bake no glow.** Halos, shadows and flashes all come from bloom. Lit colours bloom and slate never does: set the bloom threshold above the slate neutrals and push lit colours over it (in Godot: WorldEnvironment glow with HDR 2D on).
-- **Squares, never circles.** The ball, particles and the coin glyph are squares. The coin glyph and the bumper are squares turned 45°. The light pool under an explosion is round too, because it is light and not an object: as a square it showed edges and diagonal creases.
-- **Snap to the grid.** Bricks sit on the level's grid from [levels.md](design/levels.md). Placeable bricks and brick mods snap to it too. Free-form placeables, such as the bumper and the wall segment, don't snap (see [placeables.md](design/placeables.md)).
+- **Squares, never circles.** The ball, particles and the coin glyph are squares. The coin glyph and the bumper are squares turned 45°. The light pool under a blast is round too, because it is light and not an object: as a square it showed edges and diagonal creases.
+- **Snap to the grid.** Bricks sit on the level's grid from [levels.md](design/levels.md). Placeable bricks and areas snap to it too. Free-form placeables, such as the bumper and the wall segment, don't snap (see [placeables.md](design/placeables.md)).
 - **Bloom target.** The mockups fake bloom with CSS shadows: a tight halo of about 6 px and a soft one of about 15 px around bricks, with a stronger one around the ball. Tune bloom to that at ×1 and let the combo push it higher.
 
 ## Level screen
@@ -53,9 +54,10 @@ The main menu, Settings and the Summary have no mockup. They are described below
 | Placeable brick (Splitter) | A brick cell, drawn like a brick | Blue, so it can't be mistaken for a brick that pays |
 | Area (Growth) | In Setup only: its whole reach, cut to the grid, filled blue at 15% with a 2 px blue rim, and its own brick cell as a 2 px lit blue frame. In Play it is not drawn: its pulses show it | Blue, and see-through so the bricks under it show. Its tray icon is a 22 × 22 frame round a 4 × 12 bar |
 | Block that never breaks, acting when hit (Refresh) | A brick cell, drawn as a 3 px blue rim round two base-colour panes stacked 3 px apart | Hollow so it can't be mistaken for a Splitter. While it cools it is drawn in dim blue (`00396d`) instead of lit. Its tray icon has the two panes too |
-| Zap mark | A 6 × 6 square in the centre of the tagged brick | Blue, with a 2 px base-colour rim so it shows on a brick of any colour, a blue Splitter included. The brick keeps its own colour |
-| Ball brick | A brick in its HP step with a ball-sized square in its centre, in the paddle body's slate (`657392`), unlit | The square has the Zap mark's 2 px base-colour rim. Not white: white is for the ball, and a brick may not come near it (see [palette.md](palette.md)) |
-| Spare balls in reserve | Ball-sized white squares in one column up the strip behind the paddle, from the bottom wall, 1.5 ball sizes apart | Lit, without the ball's extra boost, so none passes for a ball in play. The spare on the paddle is drawn as the ball |
+| Power Brick | A brick cell, drawn like a brick | Orange, the Abilities colour, as every special brick but the tough one is drawn in its kind's colour |
+| Drop | A 16 × 16 square, moving toward the paddle side | Lit orange. Drawn over the bricks and items it passes through and under the balls |
+| Charges in reserve | Ball-sized white squares in one column up the strip behind the paddle, from the bottom wall, 1.5 ball sizes apart | Lit, without the ball's extra boost, so none passes for a ball in play. The charge on the paddle is drawn as the ball |
+| Charged ball | The ball, with a 2 px rim round it | The ball stays white and the rim is lit orange. A fired ball has it until its charge is spent; the charge waiting on the paddle has it once an ability is selected, and a plain ball (no ability unlocked) has none |
 | Placement ghost | Same as the item | Where it fits: fill `00396d`, a 2 px dashed blue border and no glow. For an item that snaps, the cell under it gets a cyan fill at 12% and a 1 px cyan border at 50%. Where it does not fit: fill `891e2b`, a dashed `ff0040` border, and the cell in red instead of cyan. A snapping item whose cell is off the board is drawn at the cursor. The held item is drawn from the press on and above everything else on the screen; outside the arena frame (over the tray and the footer) it is in the look of one that fits, because nothing has refused it yet |
 | Footer | x 96–1184, y 644–700 | Play: level number and name, a legend with 6 × 22 swatches of every HP step up to this board's toughest brick and of its coloured special bricks (a tough brick shows as its HP step), SCORE as "<score> / <target>". Setup: the placeable tray, a count of this run's special bricks, Start (see [Setup](#setup)). Summary: empty. The back button of both is top left, where the top bar has it |
 
@@ -66,7 +68,8 @@ The main menu, Settings and the Summary have no mockup. They are described below
 - **Coins** are the coins of the round on screen, so 0 in Setup. The balance is on the upgrade screen.
 - **In Setup** the centre column is SETUP in lit cyan over two hint lines in secondary text: how to place and remove once a placeable is unlocked, and how to turn once one that turns is (the Wall Segment); otherwise how to start and how to move the paddle. The time label reads "TIME", as in Play.
 - **Waiting to launch.** In Play, while the ball sits on the paddle, the combo column gives way to two hint lines: how to launch (a click or Space) and how to move the paddle. They go when the ball leaves.
-- **Guide line.** With the Guide upgrade, while the ball sits on the paddle, a dashed line runs from the ball along the way it would launch, bounces included with Guide Bounces: player cyan at half opacity, 2 units thick in dashes 6 long (`LevelArena.GUIDE_*`), drawn under the ball. It moves with the sway every frame and goes when the ball leaves.
+- **Guide line.** With the Guide upgrade, while the ball sits on the paddle, a dashed line runs from the ball along the way it would launch, bounces included with Guide Bounces: player cyan at half opacity, 2 units thick in dashes 6 long (`LevelArena.GUIDE_*`), drawn under the ball. It moves with the sway every frame and goes when the ball leaves. A charge waiting on the paddle has it too.
+- **Ability.** In Play, a readout of the selected ability and the charges held, such as "ZAP ×2", in lit orange. It shows only once an ability is unlocked or a charge is held; with charges and no ability it gives the count alone. Its place in the HUD is not set yet.
 
 ### Setup
 
@@ -115,8 +118,9 @@ Effects take the colour of whatever made them. Sizes below are at their peak, in
 | Brick break | 8 squares of 3–5 px in the brick's colour, each with a 1 px base-colour rim so it shows over bricks of its own colour. A ball's break throws them back the way the ball came, into the open; a blast's fly away from the blast and a Zap's along the row. A special or placed brick throws twice as many. A brick a ball broke is also filled once more for 0.08 s, swelling by 8 px |
 | Combo break | In a combo, a ball's break adds a gold ring and gold squares: a 40 px ring with a 2 px line as the combo starts, 120 px with a 5 px line at the top, and up to 10 squares thrown 1.6 times as far as the brick's own |
 | Brick hit that holds | By a ball: the brick is filled once more for 0.15 s, swelling by 6 px, and 6 chips fly 14–60 px off the face that was hit. By a blast or a Zap: 3 chips, every way |
-| Explosion | Two square shockwaves: 96 px with a lit 3 px `ff5000` border, and 160 px with an unlit 2 px `c64524` border at 40%. Under them, an orange light pool 360 px wide, round: 24% at the centre, fading to nothing at 68% of the radius. 24 squares of 3–6 px spread 24–120 px out, fading with distance; two thirds are orange and a third take the colour of the bricks it hit. All of it grows with the blast's reach. Blasts that set each other off start 0.07 s apart, so a chain reads as a chain. An explosion also shakes the screen, freezes the game for 0.05 s and flashes |
-| Zap | A blue bar along the row, 10 px thick, thinning out over 0.3 s, with a shake and a 0.035 s freeze |
+| Explosion (a Blast going off) | Two square shockwaves: 96 px with a lit 3 px `ff5000` border, and 160 px with an unlit 2 px `c64524` border at 40%. Under them, an orange light pool 360 px wide, round: 24% at the centre, fading to nothing at 68% of the radius. 24 squares of 3–6 px spread 24–120 px out, fading with distance; two thirds are orange and a third take the colour of the bricks it hit. All of it grows with the blast's reach. An explosion also shakes the screen, freezes the game for 0.05 s and flashes |
+| Zap going off | An orange bolt along the stretch of row the Zap reaches, 10 px thick, thinning out over 0.3 s, with a shake and a 0.035 s freeze |
+| Catch | Where the paddle caught a drop: a small orange ring and a few orange squares. No pop-up. A missed drop has no effect |
 | Growth pulse | A 2 px blue outline growing out of the area's cell to the edge of its reach over 0.5 s, and each brick that grew filled once more in its new colour for 0.5 s, swelling by 6 px. No pop-up |
 | Bricks brought back (Refresh) | The block flashes blue, swelling by 6 px, and on each brick that came back a 2 px blue outline closes in from 6 px out over 0.5 s while the brick flashes in its colour. No pop-up |
 | Bricks grown back (Overgrowth) | None: the brick just reappears in its 1 HP colour, already lit. On level 3 hundreds of bricks come back in a few seconds and a blast's worth can in one step, so an outline or a flash on each would be a constant flicker, and would push the shockwaves and the combo's ring out of their lists of 48. It is a rule of the arena, not something the player did, so it stays in the background |
@@ -132,7 +136,7 @@ Effects take the colour of whatever made them. Sizes below are at their peak, in
 | Shake | Up to 8 px, in whole pixels. Strengths add up and the offset goes with the square of the total, so one break isn't felt and a chain is |
 | Freeze | Only an explosion and a Zap freeze the game, and never twice within 0.4 s |
 | Flash | A kick on top of the bloom that dies away at once. It has no colour of its own |
-| Reduce flashing | Drops the light pool, every flash and the lost ball's red bar, caps bloom and halves the shake. The Zap's bar is unlit, and a hit brick's flash is no brighter than the brick. Shockwaves, squares, pop-ups and the trail stay |
+| Reduce flashing | Drops the light pool, every flash and the lost ball's red bar, caps bloom and halves the shake. The Zap's bolt is unlit, and a hit brick's flash is no brighter than the brick. Shockwaves, squares, pop-ups and the trail stay |
 
 No effect yet: a wall bounce, and the Shockwave upgrade (the ball it throws leaves with a longer trail). The HUD's numbers swell for a moment when they go up, and an upgrade node swells when it is bought.
 
@@ -185,7 +189,7 @@ At most 600 squares are alive at once, and one frame's breaks share 240 new ones
 - **Node:** 148 × 60 px (the seed node is 168 × 72), with 8 × 10 px padding. The name is top left. Rank pips (8 px squares, 4 px apart) are bottom left, and the price or MAX is bottom right. There is a pip for each rank owned and one for the next rank, so the web never shows how many ranks a node has; a maxed node has a pip per rank. Five pips and a five-digit price are about 10 px wider than the padding leaves, so on those nodes (Splitter, Paddle Size and Round Time before their last rank) the row runs to 4 px from each border.
 - **Connections:** 3 px lines that run straight across or straight down through node centres. A line is lit in its outer node's category colour once either end is owned; otherwise it's `424c6e`. A line to a locked node is not drawn.
 - **Locked nodes are hidden.** A node shows once it can be bought with coins alone, that is once a node it connects to is owned; until then it, its ranks and its lines are not drawn. A fresh save shows only the seed.
-- **Categories:** a node's colour is the only thing that shows its category. The web mixes the categories, so there are no group labels.
+- **Categories:** a node's colour is the only thing that shows its category. The web mixes the categories, so there are no group labels. There are four: Arena in cyan, Placeables in blue, Bricks in magenta (the 1 HP brick's `ca52c9`) and Abilities in orange (see [palette.md](palette.md#meanings)).
 
 | Node state | Fill | Border | Text | Pips |
 |---|---|---|---|---|
