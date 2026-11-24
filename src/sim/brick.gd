@@ -4,7 +4,7 @@ extends RefCounted
 
 ## Hits left. A hit takes 1. At 0 the brick is broken and erased from the board.
 var hp := 1
-## &"" for a standard brick. Otherwise the id of its kind: a special brick (a BrickKind, such as &"explosive") or
+## &"" for a standard brick. Otherwise the id of its kind: a special brick (a BrickKind, such as &"gold") or
 ## a placed brick (a PlaceableKind whose placement is BRICK, such as &"splitter"). Look it up with Kinds.of().
 var kind: StringName = &""
 ## &"" for none. Otherwise the id of the brick mod on it (a PlaceableKind whose placement is MOD, such as &"zap").

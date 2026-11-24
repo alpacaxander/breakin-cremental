@@ -240,7 +240,7 @@ func _draw_balls() -> void:
 	# ball's halo, so they never pass for one in play.
 	# ponytail: one column, so about 25 fit on a 16-row board; count them in a number if a round ever has more.
 	var s := round.stats.ball_size
-	for i in round.spares:
+	for i in round.charges:
 		_balls.draw_rect(Rect2(-round.board.lane() + (round.stats.paddle_inset - s) * 0.5, round.board.size().y - (i + 1) * s * SPARE_PITCH,
 				s, s), Palette.lit(Palette.BALL))
 	var t := _between()

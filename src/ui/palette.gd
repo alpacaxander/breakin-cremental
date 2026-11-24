@@ -26,8 +26,8 @@ const COINS := Color("ffc825")  ## Gold: coin counter, pop-ups, combo counter, g
 const COINS_DIM := Color("8a4836")
 const TIME := Color("99e65f")  ## Green: timer, hourglass bricks
 const TIME_DIM := Color("1e6f50")
-const EXPLOSIVE := Color("ff5000")  ## Orange: explosive bricks and their blasts
-const EXPLOSIVE_DIM := Color("c64524")
+const ABILITY := Color("ff5000")  ## Orange: abilities (Zap, Blast) and their effects, Power Bricks, drops, Abilities upgrade nodes
+const ABILITY_DIM := Color("c64524")
 const DANGER := Color("ff0040")  ## Red: low-timer warning, ball-lost flash, "can't afford". Never for numbers
 const DANGER_DIM := Color("891e2b")
 const BRICKS := Color("ca52c9")  ## Magenta: Bricks upgrade nodes. Same value as a 1 HP brick
@@ -45,7 +45,7 @@ const MEANINGS: Dictionary = {
 	&"placeable": [PLACEABLE, PLACEABLE_DIM],
 	&"coins": [COINS, COINS_DIM],
 	&"time": [TIME, TIME_DIM],
-	&"explosive": [EXPLOSIVE, EXPLOSIVE_DIM],
+	&"ability": [ABILITY, ABILITY_DIM],
 	&"danger": [DANGER, DANGER_DIM],
 	&"bricks": [BRICKS, BRICKS_DIM],
 }

@@ -29,7 +29,7 @@ func _chart(main: Main) -> void:
 		child.free()
 	var chart := Control.new()
 	main.screen.add_child(chart)
-	var lit: Array[Color] = [Palette.PLAYER, Palette.PLACEABLE, Palette.COINS, Palette.TIME, Palette.EXPLOSIVE, Palette.DANGER]
+	var lit: Array[Color] = [Palette.PLAYER, Palette.PLACEABLE, Palette.COINS, Palette.TIME, Palette.ABILITY, Palette.DANGER]
 	lit.append_array(Palette.HP)
 	for i in lit.size():
 		_rect(chart, Vector2(120 + i * 104, 120), Vector2(14, 62), Palette.lit(lit[i]))

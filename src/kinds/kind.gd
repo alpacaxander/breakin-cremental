@@ -9,7 +9,7 @@ extends Resource
 ## Its count comes from the stat `<id>_count`, which its upgrade raises.
 ##
 ## A kind is fixed data. It holds no state of a round (a placed brick's own Brick can), and a hook changes the
-## round only through the round's functions (hit_brick, blast, grow, restore, add_ball, add_spare, set_boost, add_time), so chains
+## round only through the round's functions (hit_brick, blast, grow, restore, add_ball, add_charge, drop, set_boost, add_time), so chains
 ## work without special cases.
 
 ## The file name: data/kinds/<id>.tres gives &"<id>". Saves, Brick.kind, Brick.mod and the count stat all use
@@ -19,7 +19,7 @@ var id: StringName:
 		return id if id else StringName(resource_path.get_file().get_basename())
 ## The name shown to the player: "Wall Segment".
 @export var title: String
-## A Palette meaning (Palette.MEANINGS): &"placeable" for every placeable, &"explosive", &"coins", &"time". &"" for
+## A Palette meaning (Palette.MEANINGS): &"placeable" for every placeable, &"ability", &"coins", &"time". &"" for
 ## a brick kind drawn in the HP steps like a plain brick (the tough brick); Palette.brick and Palette.kind see to it.
 ## Otherwise screens draw the kind in Palette.of(colour).
 @export var colour: StringName

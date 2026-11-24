@@ -36,7 +36,7 @@ const TABLE := {
 	&"overgrowth": [A, 1, 8000, &"overgrowth", 1.0, false],
 	&"guide": [A, 4, 30, &"guide", 250.0, false],
 	&"guide_bounces": [A, 1, 250, &"guide_bounces", 1.0, false],
-	&"spare_ball": [A, 3, 300, &"spare_balls", 1.0, false],
+	&"spare_ball": [A, 3, 300, &"multiball", 1.0, false],
 	&"ball_brick": [B, 2, 1800, &"ball_count", 1.0, false],
 }
 

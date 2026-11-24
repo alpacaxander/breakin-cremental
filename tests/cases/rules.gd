@@ -16,7 +16,7 @@ const NUMBERS := {
 	&"paddle_thickness": 12.0, &"paddle_inset": 24.0, &"paddle_max_angle": 60.0, &"low_time": 5.0,
 	&"combo_window": 1.6, &"combo_window_per_rank": 0.5, &"combo_breaks_per_step": 4, &"combo_window_shrink": 0.9, &"combo_window_min": 0.5,
 	&"coins_per_brick": 1.0, &"rotate_step": 15.0, &"launch_sway": 2.0,
-	&"spare_delay": 1.0,
+	&"multiball_gap": 0.15, &"drop_speed": 250.0, &"drop_size": 16.0,
 	&"explosion_damage": 1.0, &"zap_range": 64.0, &"zap_damage": 1.0, &"splitter_respawn": 0.0,
 }
 
@@ -52,7 +52,7 @@ func run(p_t: Node) -> void:
 	_ends()
 	_timing()
 	_launch()
-	_spares()
+	_charges()
 
 
 ## Round.hold and Round.launch: the ball rides on the paddle and nothing else moves, then leaves within
@@ -115,40 +115,58 @@ func _launch() -> void:
 			"without Guide Bounces the line ends at the first contact; with it, it bounces on, no longer than the Guide")
 
 
-## Spare balls: one goes onto the paddle spare_delay after a launch, or at once when the last ball in play goes;
-## it waits there while play goes on; the round ends on BALL_LOST only with none left. And the Ball Brick.
-func _spares() -> void:
-	var stats := _stats({&"spare_balls": 2.0})
-	var round := Round.new(_board({FAR: SOLID}), null, stats, 1)
-	var log := _events(round)
+## Charges: a Power Brick that breaks leaves a drop that moves left; the paddle catches it as a charge, which goes
+## onto the paddle at once when no ball waits there; a drop that passes the open side is gone. The round ends on
+## BALL_LOST only with no ball, no charge and no drop left.
+func _charges() -> void:
+	var stats := _stats()
+	var board := _board({FAR: SOLID, Vector2i(2, 3): 1, Vector2i(2, 0): 1})
+	board.brick(Vector2i(2, 3)).kind = &"power"
+	board.brick(Vector2i(2, 0)).kind = &"power"
+	var round := Round.new(board, null, stats, 1)
 	round.hold()
 	round.launch()
-	t.check(round.spares == 2 and round.waiting == null, "a round starts with stats.spare_balls in reserve")
-	_run(round, 0.9)
-	t.check(round.spares == 2 and round.waiting == null and round.balls.size() == 1, "no spare comes before spare_delay")
-	_run(round, 0.2)
-	var spare := round.waiting
-	t.check(round.spares == 1 and spare != null and round.balls.size() == 2 and spare.pos == Vector2(round.paddle.x + stats.ball_size * 0.5, round.paddle.y)
-			and not log.any(func(e: String) -> bool: return e.begins_with("added")), "after spare_delay a spare waits on the paddle's face, unannounced")
-	var left := round.time_left
-	round.balls[0].put(Vector2(0, 100), Vector2(-0.8, 0.6))
-	_run(round, 0.3)
-	t.check(spare.pos == Vector2(round.paddle.x + stats.ball_size * 0.5, round.paddle.y) and round.time_left < left and not round.over,
-			"the waiting spare rides the paddle while the clock runs, and does not count as the last ball going")
-	round.launch()
-	t.check(round.waiting == null and spare.dir.x > 0.0, "launch() sends the spare off")
-	spare.put(Vector2(-50, 100), Vector2(-0.8, 0.6))
+	var log := _events(round)
+	var seen := []
+	round.dropped.connect(func(d: Drop) -> void: seen.append(["dropped", d.id, round.drops.has(d)]))
+	round.caught.connect(func(d: Drop) -> void: seen.append(["caught", d.id, round.drops.has(d), round.charges]))
+	t.check(round.charges == 0 and round.drops.is_empty(), "a round starts with no charge and no drop")
+	round.hit_brick(Vector2i(2, 3), Round.Cause.BLAST, Vector2.RIGHT)
+	var d := round.drops[0] if round.drops.size() == 1 else null
+	t.check(d != null and d.id == 0 and d.pos == board.cell_rect(Vector2i(2, 3)).get_center() and d.size == stats.drop_size
+			and d.rect() == Rect2(d.pos - Vector2.ONE * stats.drop_size * 0.5, Vector2.ONE * stats.drop_size) and seen == [["dropped", 0, true]],
+			"a Power Brick that breaks, however, leaves a drop at its centre, already in drops when dropped is emitted")
+	if d == null:
+		return
+	var from := d.pos
 	round.step(0.1, round.paddle.y)
-	t.check(round.waiting != null and round.spares == 0 and not round.over, "losing the last ball in play brings the next spare at once, not after spare_delay")
+	t.check(is_equal_approx(d.pos.x, from.x - stats.drop_speed * 0.1) and d.pos.y == from.y, "a drop moves straight left at drop_speed")
+	round.balls[0].put(Vector2(500, 100), Vector2(0.6, 0.8))  # far from the paddle until the catch
+	for i in 60:
+		round.step(TICK, round.paddle.y)
+	var charge := round.waiting
+	t.check(round.drops.is_empty() and seen.size() == 2 and seen[1] == ["caught", 0, false, 1] and charge != null and round.charges == 0
+			and round.balls.size() == 2 and charge.pos == Vector2(round.paddle.x + stats.ball_size * 0.5, round.paddle.y)
+			and not log.any(func(e: String) -> bool: return e.begins_with("added")),
+			"the paddle catches a drop it overlaps: caught comes with the drop gone and the charge counted, and the charge goes onto the paddle at once, unannounced")
+	round.add_charge()
+	t.check(round.charges == 1 and round.waiting == charge, "add_charge() adds one in reserve; one waiting on the paddle at a time")
 	round.launch()
-	round.balls[0].put(Vector2(-50, 100), Vector2(-0.8, 0.6))
+	round.step(TICK, round.paddle.y)
+	t.check(charge.dir.x > 0.0 and round.waiting != null and round.waiting != charge and round.charges == 0, "launch() fires the charge, and the next one comes at once")
+	round.hit_brick(Vector2i(2, 0), Round.Cause.BLAST, Vector2.RIGHT)
+	var miss := round.drops[0]
+	for ball in round.balls.duplicate():
+		if ball != round.waiting:
+			ball.put(Vector2(-50, 300), Vector2(-0.8, 0.6))
+	round.launch()
+	round.balls[-1].put(Vector2(-50, 300), Vector2(-0.8, 0.6))
 	round.step(0.1, round.paddle.y)
-	t.check(round.over and round.reason == Round.End.BALL_LOST, "with no spare left, losing the last ball ends the round")
-	var board := _board({FAR: SOLID, Vector2i(20, 3): 1})
-	round = Round.new(board, null, _stats(), 1)
-	round.board.brick(Vector2i(20, 3)).kind = &"ball"
-	round.hit_brick(Vector2i(20, 3), Round.Cause.BLAST, Vector2.RIGHT)
-	t.check(round.spares == 1, "breaking a Ball Brick, however, adds a spare")
+	t.check(round.balls.is_empty() and round.drops.size() == 1 and not round.over, "with no ball left, a drop still falling keeps the round going")
+	for i in 120:
+		round.step(TICK, round.paddle.y)
+	t.check(round.over and round.reason == Round.End.BALL_LOST and round.drops.is_empty() and seen.size() == 3 and miss.pos.x < -board.lane(),
+			"a drop that misses the paddle leaves past the open side with no signal; with nothing left, the round ends on BALL_LOST")
 
 
 # --- helpers ---------------------------------------------------------------------------------------------------
@@ -277,7 +295,7 @@ func _shipped() -> void:
 func _kinds() -> void:
 	var ids := func(kinds: Array) -> Array: return kinds.map(func(k: Kind) -> StringName: return k.id)
 	t.check(ids.call(Kinds.placeables()) == [&"bumper", &"booster", &"wall_segment", &"splitter", &"zap", &"growth", &"refresh"], "the placeables are the seven of the kinds table, in tray order")
-	t.check(ids.call(Kinds.bricks()) == [&"explosive", &"gold", &"hourglass", &"tough", &"ball"], "the special bricks are the five of the kinds table, in roll order")
+	t.check(ids.call(Kinds.bricks()) == [&"explosive", &"power", &"gold", &"hourglass", &"tough", &"ball"], "the special bricks are the six of the kinds table, in roll order")
 	# id: [placement, size, turn, rotatable, gate, cue]
 	var placeables := {
 		&"bumper": [PlaceableKind.Placement.FREE, Vector2(30, 30), 45.0, false, false, Sfx.BUMPER],
@@ -294,7 +312,7 @@ func _kinds() -> void:
 		t.check(k != null and [k.placement, k.size, k.turn, k.rotatable, k.gate, k.cue] == want and k.colour == &"placeable" and k.hp == 1 and k.title != "",
 				"the %s is as the kinds table has it" % id)
 	# id: [colour, cue, worth, hp, mark]. The tough and ball bricks have no colour: they are drawn in the HP steps.
-	var bricks := {&"explosive": [&"explosive", &"", 1, 1, false], &"gold": [&"coins", Sfx.GOLD_BRICK, 20, 1, false], &"hourglass": [&"time", Sfx.HOURGLASS_BRICK, 1, 1, false],
+	var bricks := {&"explosive": [&"ability", &"", 1, 1, false], &"power": [&"ability", Sfx.SPLITTER, 1, 1, false], &"gold": [&"coins", Sfx.GOLD_BRICK, 20, 1, false], &"hourglass": [&"time", Sfx.HOURGLASS_BRICK, 1, 1, false],
 			&"tough": [&"", &"", 1, 3, false], &"ball": [&"", Sfx.SPLITTER, 1, 1, true]}
 	for id: StringName in bricks:
 		var k := Kinds.of(id) as BrickKind

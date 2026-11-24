@@ -84,8 +84,8 @@ func _seam_and_clear() -> void:
 	t.check(main._bloom > 0.0, "and the bloom is up")
 	t.check(fx._shapes.any(func(s: Fx.Shape) -> bool: return s.boost == Fx.BLAST_OUTER) and fx._shapes.any(func(s: Fx.Shape) -> bool: return s.boost == Fx.RING_BOOST),
 			"the inner shockwave is lit and the outer one is an unlit echo of it")
-	var dim := Fx._lit(Palette.EXPLOSIVE, 0.4)
-	t.check(is_equal_approx(dim.a, 0.4) and is_equal_approx(dim.r, Palette.EXPLOSIVE.r) and Fx._lit(Palette.EXPLOSIVE, 2.0).a == 1.0 and Fx._lit(Palette.EXPLOSIVE, 2.0).r < Fx._lit(Palette.EXPLOSIVE, 8.0).r,
+	var dim := Fx._lit(Palette.ABILITY, 0.4)
+	t.check(is_equal_approx(dim.a, 0.4) and is_equal_approx(dim.r, Palette.ABILITY.r) and Fx._lit(Palette.ABILITY, 2.0).a == 1.0 and Fx._lit(Palette.ABILITY, 2.0).r < Fx._lit(Palette.ABILITY, 8.0).r,
 			"a fade lowers a lit colour's brightness first and its alpha only under a strength of 1")
 	t.check(fx._pops[0].coins == round.coins and fx._pops[0].text == "+%d" % round.coins, "one pop-up carries everything a frame paid (%s for %d)" % [fx._pops[0].text, round.coins])
 	t.check(fx._paths.size() == round.balls.size() and fx._paths[round.balls[0].id].size() <= Fx.TRAIL_SAMPLES, "every ball has a path for its trail, of TRAIL_SAMPLES at most")

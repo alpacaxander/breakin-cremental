@@ -36,7 +36,7 @@ extends Resource
 @export var overgrowth: float  ## 0: off. 1: every level brick that breaks comes back, plain and 1 HP, overgrowth_delay s later
 @export var guide: float  ## 0: off. Above 0: a line this many units long shows where the held ball would go (Round.guide)
 @export var guide_bounces: float  ## 0: the Guide's line ends at the first thing the ball would touch. 1: it bounces on
-@export var spare_balls: float  ## Balls in reserve at the start of a round (Round.spares)
+@export var multiball: float  ## Balls that follow the first one off the paddle at launch, multiball_gap s apart (Round.launch)
 ## Stats that have no property of their own, by name. The per-kind counts live here: `<kind id>_count` is how many
 ## of that kind the player may place (a placeable) or how many are rolled onto the board (a special brick). A name
 ## that is missing is 0, so the shipped file leaves this empty. An entry here is a free item before any upgrade.
@@ -50,9 +50,11 @@ extends Resource
 @export var boost_cap: float  ## The highest Ball.boost: 2 is twice the base speed
 @export var shockwave_boost: float  ## A Shockwave multiplies Ball.boost by this
 @export var launch_sway: float  ## Seconds the held ball's aim takes to sway from the top to the bottom and back
-@export var spare_delay: float  ## Seconds after a launch before the next spare goes onto the paddle (Round, SPARES)
-# ponytail: 0 for now (data/balance.tres), so spares fire back to back. We may add a delay with an upgrade that
-# removes it in the future; until then the delay is 0.
+@export var multiball_gap: float  ## Seconds between the balls of the opening volley (stats.multiball)
+
+@export_group("Drops")
+@export var drop_speed: float  ## Units per second a drop moves left (Round, CHARGES)
+@export var drop_size: float  ## The side of a drop's square
 
 @export_group("Paddle")
 @export var paddle_thickness: float

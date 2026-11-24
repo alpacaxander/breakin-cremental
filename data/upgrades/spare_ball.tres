@@ -10,5 +10,5 @@ text = "+1 spare ball. Click to launch it while another plays, or keep it in cas
 first_cost = 300
 growth = 5
 max_rank = 3
-stat = &"spare_balls"
+stat = &"multiball"
 amount = 1.0

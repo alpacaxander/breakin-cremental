@@ -27,7 +27,7 @@ extends RefCounted
 ##      item is an obstacle. `layout` holds the fitted layout afterwards.
 ##   4. The paddle is centred (paddle.y = board.size().y / 2). One ball is at rest: its centre is at
 ##      x = paddle.x + stats.launch_gap + stats.ball_size / 2, y = paddle.y, its dir is LEFT, its boost is 1.
-##      time_left is stats.round_time. `spares` is stats.spare_balls.
+##      time_left is stats.round_time. `charges` is 0: charges come only from caught drops.
 ## Nothing moves until step() is called. The first step sends the ball straight left into the paddle. Nothing
 ## placed is in its way: Layout.fits keeps every item out of launch_path().
 ## A round counts its bricks as it is built: after that, change the board only through hit_brick and restore
@@ -38,8 +38,9 @@ extends RefCounted
 ##   2. Each ball, in `balls` order, moves speed_of(ball) * delta along its dir. Movement is swept, so nothing is
 ##      passed through. Every contact is resolved where it happens and its signals are emitted then. A ball made
 ##      during this step (a Splitter) starts moving on the next one. The `waiting` ball rides the paddle instead.
-##      Then the spares (see SPARES): with no ball waiting, the spare countdown goes down by delta, and if a spare
-##      is left and the countdown is done or no ball is left in `balls`, one spare goes onto the paddle.
+##      Then the drops (see CHARGES): each moves stats.drop_speed * delta LEFT; one that overlaps the paddle is
+##      caught (charges + 1, then caught is emitted), one wholly past the open side is removed. Then, with no ball
+##      waiting and a charge held, one charge goes onto the paddle.
 ##   3. The combo's window counts down. If it runs out the combo resets and combo_changed(0, 1) is emitted.
 ##      Less than TIME_SLOP left has run out, as in 5.
 ##   4. `clock` goes up by delta. Then each placed brick still on the board and each AREA item, in layout order,
@@ -52,16 +53,21 @@ extends RefCounted
 ##      exact number, so counting down by it ends a hair off 0, and a hair above 0 would be one more whole step
 ##      at some rates and not at others. A round whose time is a whole number of steps plays exactly that many;
 ##      any other plays to the end of the step its time runs out in.
-##   6. The round ends if every level brick is broken (CLEARED), else if no ball is left (BALL_LOST; a spare left
-##      would already be waiting on the paddle, so this is no ball in play, none waiting and none in reserve), else if
+##   6. The round ends if every level brick is broken (CLEARED), else if no ball is left, no drop is falling and no
+##      ball of the opening volley is still to come (BALL_LOST; a charge held would already be waiting on the
+##      paddle, so this is no ball in play, none waiting, none in reserve and none on its way), else if
 ##      time_left is 0 (TIME). However it ended, the level is cleared if the score has reached `target`. The
 ##      tally notes the score and whether it cleared, then `ended` is emitted, once; after it step() does nothing. A board with no level bricks ends on its first step.
 ##
-## SPARES. Balls in reserve (docs/design/physics.md, "Spare balls"). Each launch() starts a countdown of
-## stats.spare_delay; once it is done and no ball waits, a spare goes onto the paddle's face as `waiting`, where it
-## rides and sways like the first ball until launch() sends it off. Meanwhile the balls in play keep moving, the
-## clock runs, and the waiting ball touches nothing. If the last ball in play is lost, a spare comes at once. A
-## spare is not announced (no ball_added): read `waiting` and `spares`. add_spare() adds one (the Ball Brick).
+## CHARGES. Balls in reserve. A Power Brick that breaks makes a drop (drop()): a square that moves straight LEFT at
+## stats.drop_speed through bricks, items and balls. One that overlaps the solid part of the paddle (paddle.rect)
+## is caught and the paddle gets a charge; one wholly past the open side is gone, with no signal.
+## # ponytail: a per-step overlap test, not swept. A drop moves about 2 units a step against a 12-unit paddle;
+## # sweep it if drops ever get fast or steps long.
+## With no ball waiting, the next charge goes onto the paddle's face at once as `waiting`, where it rides and sways
+## like the first ball until launch() fires it. Meanwhile the balls in play keep moving, the clock runs, and the
+## waiting ball touches nothing. A charge is not announced (no ball_added): read `waiting` and `charges`.
+## add_charge() adds one.
 ##
 ## ONE BRICK HIT (hit_brick), in this order:
 ##   The brick loses 1 hp, unless its kind is unbreakable (PlaceableKind.unbreakable: Growth), which keeps its hp
@@ -158,8 +164,14 @@ signal brick_broken(cell: Vector2i, brick: Brick, cause: Cause, dir: Vector2, co
 signal ball_bounced(ball: Ball, hit: Hit)
 
 ## A ball was made during play (a Splitter). It is already in `balls`. The ball a round starts with and the
-## spares put on the paddle are not announced; read `balls` and `waiting`.
+## charges put on the paddle are not announced; read `balls` and `waiting`.
 signal ball_added(ball: Ball)
+
+## A Power Brick made a drop (drop()). It is already in `drops`.
+signal dropped(drop: Drop)
+
+## The paddle caught a drop. It is already out of `drops`, and `charges` already counts it.
+signal caught(drop: Drop)
 
 ## A ball left through the open side. It is already out of `balls`; ball.pos is where it left.
 signal ball_lost(ball: Ball)
@@ -198,13 +210,15 @@ var board: Board
 var layout: Layout
 var stats: Balance
 var rng := RandomNumberGenerator.new()
-## Every ball in play, and the one `waiting` on the paddle. Empty once the last ball is lost and no spare is left.
+## Every ball in play, and the one `waiting` on the paddle. Empty once the last ball is lost and no charge is held.
 var balls: Array[Ball] = []
-## The ball riding the paddle until launch(): the first one while `held`, then each spare. Null for none. It is
+## The ball riding the paddle until launch(): the first one while `held`, then each charge. Null for none. It is
 ## in `balls`, but it does not move on its own, bounce or get thrown.
 var waiting: Ball
-## Balls in reserve, not yet on the paddle (see SPARES).
-var spares := 0
+## Charges in reserve, not yet on the paddle (see CHARGES).
+var charges := 0
+## Every drop in flight (see CHARGES), oldest first.
+var drops: Array[Drop] = []
 var paddle := Paddle.new()
 var combo := Combo.new()
 var tally := Tally.new()
@@ -230,8 +244,6 @@ var target := 0
 var level_cells: Dictionary[Vector2i, bool] = {}
 ## Seconds a ball has waited on the paddle, from a random start: launch_dir() sways with it.
 var sway := 0.0
-# Seconds until the next spare may go onto the paddle (see SPARES).
-var _spare_wait := 0.0
 
 # The FREE items as the sweep sees them (Collide.Solid), in layout order.
 # ponytail: grown for a ball of stats.ball_size. Every ball is that size; if one ever is not, grow per size.
@@ -243,6 +255,7 @@ var _gates: Array[Layout.Item] = []
 # ponytail: so a brick put on or taken off round.board by hand is not seen. Count again there if that is needed.
 var _left := 0
 var _next_id := 0
+var _next_drop := 0
 # With Overgrowth: each broken level cell waiting to come back, and the clock it is due at. In the order they
 # broke, which is the order they are due in, because the delay is the same for all.
 var _due: Dictionary[Vector2i, float] = {}
@@ -279,8 +292,6 @@ func _init(p_board: Board, p_layout: Layout, p_stats: Balance, p_seed: int) -> v
 	paddle.x = paddle_face(board, stats)
 	paddle.y = board.size().y * 0.5
 	_spawn(ball_start(board, stats), Vector2.LEFT, 1.0)
-	spares = int(stats.spare_balls)
-	_spare_wait = stats.spare_delay
 
 
 ## The x of the paddle's face on a board. Round and Layout.fits both place things from it.
@@ -315,20 +326,32 @@ func hold() -> void:
 	_glue()
 
 
-## Sends the waiting ball (the held one or a spare) off the paddle along launch_dir() and starts the spare
-## countdown. Does nothing if no ball waits.
+## Sends the waiting ball (the held one or a charge) off the paddle along launch_dir(). Does nothing if no ball
+## waits.
 func launch() -> void:
 	if waiting == null:
 		return
 	held = false
 	waiting.put(waiting.pos, launch_dir())
 	waiting = null
-	_spare_wait = stats.spare_delay
 
 
-## Puts one more ball in reserve (the Ball Brick).
-func add_spare() -> void:
-	spares += 1
+## Puts one more charge in reserve.
+func add_charge() -> void:
+	charges += 1
+
+
+## Makes a drop at the centre of brick cell `cell`, adds it to `drops` and emits dropped. A Power Brick calls this
+## as it breaks.
+func drop(cell: Vector2i) -> Drop:
+	var d := Drop.new()
+	d.id = _next_drop
+	_next_drop += 1
+	d.size = stats.drop_size
+	d.pos = board.cell_rect(cell).get_center()
+	drops.append(d)
+	dropped.emit(d)
+	return d
 
 
 ## Where the waiting ball would leave if launched now. It sways from the highest angle to the lowest and back once
@@ -388,12 +411,11 @@ func step(delta: float, paddle_target: float) -> void:
 		for ball in balls.duplicate():  # a copy: a Splitter adds to `balls` and a lost ball leaves it
 			if ball != waiting:
 				_move(ball, delta)
-		if waiting == null:
-			_spare_wait -= delta
-			if spares > 0 and (_spare_wait < TIME_SLOP or balls.is_empty()):
-				spares -= 1
-				waiting = _spawn(Vector2.ZERO, Vector2.RIGHT, 1.0)
-				_glue()
+		_move_drops(delta)
+		if waiting == null and charges > 0:
+			charges -= 1
+			waiting = _spawn(Vector2.ZERO, Vector2.RIGHT, 1.0)
+			_glue()
 		if combo.tick(delta):
 			combo_changed.emit(0, 1)
 		clock += delta
@@ -414,10 +436,23 @@ func step(delta: float, paddle_target: float) -> void:
 		time_left = 0.0
 	if _left == 0:
 		_end(End.CLEARED)
-	elif balls.is_empty():
+	elif balls.is_empty() and drops.is_empty():
 		_end(End.BALL_LOST)
 	elif time_left == 0.0:
 		_end(End.TIME)
+
+
+# The drops' part of a step (see CHARGES).
+func _move_drops(delta: float) -> void:
+	var catcher := paddle.rect(board.size().y)
+	for d in drops.duplicate():  # a copy: a drop caught or gone leaves `drops`
+		d.pos.x -= stats.drop_speed * delta
+		if d.rect().intersects(catcher):
+			drops.erase(d)
+			charges += 1
+			caught.emit(d)
+		elif d.pos.x + d.size * 0.5 <= -board.lane():
+			drops.erase(d)
 
 
 ## Step 1 of step() alone: the paddle moves toward `paddle_target` at stats.paddle_speed and nothing else does.

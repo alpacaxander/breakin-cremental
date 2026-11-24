@@ -273,7 +273,7 @@ func _ends() -> void:
 		if round.board.brick(Vector2i(54, row)).kind == &"":
 			round.hit_brick(Vector2i(54, row), Round.Cause.BALL, Vector2.RIGHT)
 			break
-	round.spares = 0  # Spare Ball is owned: with one in reserve the ball lost would not be the last
+	round.charges = 0  # Spare Ball is owned: with one in reserve the ball lost would not be the last
 	if round.waiting:  # with no spare_delay, one is already on the paddle: it came unannounced, so it goes the same way
 		round.balls.erase(round.waiting)
 		round.waiting = null
