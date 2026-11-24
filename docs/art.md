@@ -140,7 +140,7 @@ Effects take the colour of whatever made them. Sizes below are at their peak, in
 
 No effect yet: a wall bounce, and the Shockwave upgrade (the ball it throws leaves with a longer trail). The HUD's numbers swell for a moment when they go up, and an upgrade node swells when it is bought.
 
-At most 600 squares are alive at once, and one frame's breaks share 240 new ones evenly, so a Zap row sparkles along its whole length.
+At most 600 squares are alive at once, and one frame's breaks share 240 new ones evenly, so a Zap sparkles along its whole stretch of row.
 
 ## Type
 
