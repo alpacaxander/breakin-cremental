@@ -38,6 +38,13 @@ static func placeables() -> Array[PlaceableKind]:
 	return out
 
 
+## The abilities, in the order Round.cycle steps through them.
+static func abilities() -> Array[AbilityKind]:
+	var out: Array[AbilityKind] = []
+	out.assign(all().filter(func(k: Kind) -> bool: return k is AbilityKind))
+	return out
+
+
 ## Adds a kind that has no file, or replaces one. For tests. It lasts until reset().
 static func add(kind: Kind) -> void:
 	_load()

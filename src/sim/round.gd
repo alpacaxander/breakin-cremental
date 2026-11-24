@@ -27,7 +27,8 @@ extends RefCounted
 ##      item is an obstacle. `layout` holds the fitted layout afterwards.
 ##   4. The paddle is centred (paddle.y = board.size().y / 2). One ball is at rest: its centre is at
 ##      x = paddle.x + stats.launch_gap + stats.ball_size / 2, y = paddle.y, its dir is LEFT, its boost is 1.
-##      time_left is stats.round_time. `charges` is 0: charges come only from caught drops.
+##      time_left is stats.round_time. `charges` is 0: charges come only from caught drops. `ability` is the
+##      first of abilities(), or &"" when none is unlocked.
 ## Nothing moves until step() is called. The first step sends the ball straight left into the paddle. Nothing
 ## placed is in its way: Layout.fits keeps every item out of launch_path().
 ## A round counts its bricks as it is built: after that, change the board only through hit_brick and restore
@@ -68,6 +69,12 @@ extends RefCounted
 ## like the first ball until launch() fires it. Meanwhile the balls in play keep moving, the clock runs, and the
 ## waiting ball touches nothing. A charge is not announced (no ball_added): read `waiting` and `charges`.
 ## add_charge() adds one.
+##
+## ABILITIES. An ability (an AbilityKind) is unlocked when stats.count(id) is 1 or more; abilities() lists the
+## unlocked ones in Kinds order. `ability` is the selected one, and cycle() moves the selection. launch() fires a
+## charge with Ball.charge = `ability` (a plain ball when none is unlocked). The charged ball's first hit on a
+## level brick (not a placed one) lands as usual (ONE BRICK HIT), then the charge is spent (Ball.charge = &"")
+## and the ability's fire() runs at that brick's cell: Zap calls zap(), Blast calls blast().
 ##
 ## ONE BRICK HIT (hit_brick), in this order:
 ##   The brick loses 1 hp, unless its kind is unbreakable (PlaceableKind.unbreakable: Growth), which keeps its hp
@@ -119,7 +126,7 @@ extends RefCounted
 enum Cause {
 	BALL,
 	BLAST,  ## An explosion
-	ZAP,  ## A brick mod's effect
+	ZAP,  ## A Zap (zap())
 }
 
 ## Why the round ended.
@@ -153,7 +160,7 @@ signal brick_hit(cell: Vector2i, hp_left: int, cause: Cause)
 ##   brick  the brick that broke, with hp 0. Its kind, mod and placed flag are as they were, so
 ##          Palette.brick(brick) is the colour it had (a plain brick always breaks from its 1 HP colour).
 ##   dir    a unit vector for the debris: the ball's direction of travel as it hit (BALL), away from the
-##          blast's centre (BLAST), or along the row away from the tagged brick, LEFT or RIGHT (ZAP).
+##          blast's centre (BLAST), or along the row away from the zapped brick, LEFT or RIGHT (ZAP).
 ##   coins  what this break added to `coins`. 0 for a placed brick.
 ## combo.count and combo.multiplier already include this break. For a BALL the ball has already bounced: it
 ## is on the brick's face (ball.pos) with its new dir.
@@ -181,6 +188,11 @@ signal ball_lost(ball: Ball)
 ##   reach  how far the blast reaches out from that brick's edges, in units
 ##   cells  every brick cell the blast is about to hit, by column from the paddle side and then down
 signal exploded(pos: Vector2, reach: float, cells: Array[Vector2i])
+
+## A Zap went off (zap()). Emitted before its hits land, so every brick in `cells` is still on the board.
+##   cell   the brick the charged ball hit
+##   cells  every brick the Zap is about to hit, from the paddle side to the back wall
+signal zapped(cell: Vector2i, cells: Array[Vector2i])
 
 ## A Growth area's pulse gave bricks 1 HP each. Emitted after they gained it, and only if one did.
 ##   cell   the area's brick cell
@@ -219,6 +231,8 @@ var waiting: Ball
 var charges := 0
 ## Every drop in flight (see CHARGES), oldest first.
 var drops: Array[Drop] = []
+## The selected ability's id, which the next charge fired carries; &"" when none is unlocked (see ABILITIES).
+var ability: StringName = &""
 var paddle := Paddle.new()
 var combo := Combo.new()
 var tally := Tally.new()
@@ -292,6 +306,8 @@ func _init(p_board: Board, p_layout: Layout, p_stats: Balance, p_seed: int) -> v
 	paddle.x = paddle_face(board, stats)
 	paddle.y = board.size().y * 0.5
 	_spawn(ball_start(board, stats), Vector2.LEFT, 1.0)
+	var unlocked := abilities()
+	ability = unlocked[0].id if unlocked else &""
 
 
 ## The x of the paddle's face on a board. Round and Layout.fits both place things from it.
@@ -326,14 +342,30 @@ func hold() -> void:
 	_glue()
 
 
-## Sends the waiting ball (the held one or a charge) off the paddle along launch_dir(). Does nothing if no ball
-## waits.
+## Sends the waiting ball (the held one or a charge) off the paddle along launch_dir(). A charge leaves carrying
+## the selected ability (Ball.charge = `ability`; see ABILITIES). Does nothing if no ball waits.
 func launch() -> void:
 	if waiting == null:
 		return
+	if not held:
+		waiting.charge = ability
 	held = false
 	waiting.put(waiting.pos, launch_dir())
 	waiting = null
+
+
+## The unlocked abilities (stats.count(id) >= 1), in Kinds order.
+func abilities() -> Array[AbilityKind]:
+	var out: Array[AbilityKind] = []
+	out.assign(Kinds.abilities().filter(func(k: AbilityKind) -> bool: return stats.count(k.id) >= 1))
+	return out
+
+
+## Moves the selected ability `steps` places along abilities(), wrapping. Does nothing when none is unlocked.
+func cycle(steps: int) -> void:
+	var ids := abilities().map(func(k: AbilityKind) -> StringName: return k.id)
+	if not ids.is_empty():
+		ability = ids[posmod(ids.find(ability) + steps, ids.size())]
 
 
 ## Puts one more charge in reserve.
@@ -518,7 +550,7 @@ func hit_brick(cell: Vector2i, cause: Cause, dir: Vector2, ball: Ball = null) ->
 ## that rectangle; touching edges do not count. At a reach of 64 that is 4 columns to each side and 1 brick row
 ## above and below; every 32 more adds 2 columns, and brick rows are added whole as soon as the blast enters them.
 ## Emits `exploded`, then hits each of those bricks stats.explosion_damage times with Cause.BLAST. `cell` itself may be empty (the
-## explosive brick that calls this is already gone). A brick this blast breaks may set off a blast of its own
+## brick a charged ball hit may be gone); if it still stands, it is in the blast too. A brick this blast breaks may set off a blast of its own
 ## before the next brick of this one is hit.
 ## If stats.shockwave is 1 or more, every ball whose centre is inside the blast is thrown: its dir points
 ## straight away from the blast's centre (then the minimum angles apply) and its boost is multiplied by
@@ -539,6 +571,22 @@ func blast(cell: Vector2i, reach: float) -> void:
 				if ball.pos != centre:
 					ball.put(ball.pos, _legal((ball.pos - centre).normalized()))
 				set_boost(ball, ball.boost * stats.shockwave_boost)
+
+
+## A Zap from the brick cell `cell` (the brick a charged ball hit): every other brick in its brick row within
+## stats.zap_range columns takes stats.zap_damage hits with Cause.ZAP, from the paddle side to the back wall, each
+## one's hits landing before the next brick's. Emits `zapped` first, with those cells.
+func zap(cell: Vector2i) -> void:
+	var reach := int(stats.zap_range)
+	var cells: Array[Vector2i] = []
+	for column in range(maxi(cell.x - reach, 0), mini(cell.x + reach + 1, board.cols)):
+		var c := Vector2i(column, cell.y)
+		if column != cell.x and board.brick(c):
+			cells.append(c)
+	zapped.emit(cell, cells)
+	for c in cells:
+		for i in int(stats.zap_damage):
+			hit_brick(c, Cause.ZAP, Vector2.LEFT if c.x < cell.x else Vector2.RIGHT)
 
 
 ## A pulse from the Growth area on `cell`, reaching `reach` units out from the cell's edges by the blast's rule
@@ -735,7 +783,13 @@ func _bounce(ball: Ball, hit: Hit) -> void:
 	var was := _turn(ball, hit)
 	match hit.surface:
 		Hit.Surface.BRICK:
+			var charged := ball.charge != &"" and not board.brick(hit.cell).placed  # a level brick (ABILITIES)
 			hit_brick(hit.cell, Cause.BALL, was, ball)
+			if charged:
+				var kind := Kinds.of(ball.charge) as AbilityKind
+				ball.charge = &""
+				if kind:
+					kind.fire(self, hit.cell, was, ball)
 		Hit.Surface.ITEM:
 			hit.item.kind.on_ball_hit(self, ball, hit)
 			ball_bounced.emit(ball, hit)
