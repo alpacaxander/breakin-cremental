@@ -12,7 +12,7 @@ extends PlaceableKind
 
 ## The ball that hit it has already bounced off it. If the Splitter broke, the new ball starts where the ball is
 ## and goes through the gap it leaves. If it still stands, the new ball starts on the far side, as if it had
-## passed through, unless that is in a brick or past a wall: then it leaves on the near side, mirrored to the
+## passed through, unless that is in a brick, in a solid placed item or past a wall: then it leaves on the near side, mirrored to the
 ## bounced ball along the face, so the two still go opposite ways.
 func on_hit(round: Round, cell: Vector2i, brick: Brick, _cause: Round.Cause, dir: Vector2, ball: Ball) -> void:
 	if ball == null:
@@ -25,7 +25,11 @@ func on_hit(round: Round, cell: Vector2i, brick: Brick, _cause: Round.Cause, dir
 		var centre := round.board.cell_rect(cell).get_center()
 		pos = ball.pos - 2.0 * axis * (ball.pos - centre).dot(axis)
 		var box := Rect2(pos - Vector2.ONE * ball.size * 0.5, Vector2.ONE * ball.size).grow(-Collide.SKIN)
-		if not Rect2(Vector2.ZERO, round.board.size()).encloses(box) or not round.board.bricks_in(box).is_empty():
+		var blocked := not Rect2(Vector2.ZERO, round.board.size()).encloses(box) or not round.board.bricks_in(box).is_empty()
+		for item in round.layout.items:
+			if not blocked and item.kind.placement == PlaceableKind.Placement.FREE and not item.kind.gate:
+				blocked = Collide.overlap(Collide.box(box), item.outline())
+		if blocked:
 			pos = ball.pos
 			way = ball.dir * (axis * 2.0 - Vector2.ONE)  # the bounced way, flipped along the face
 	round.add_ball(pos, way, ball.boost).kept = ball.kept
