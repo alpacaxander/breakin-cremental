@@ -4,11 +4,11 @@
 
 [resource]
 script = ExtResource("1")
-title = "Ball Brick"
-category = 2
-text = "One more ball brick each round. Breaking it adds a spare ball."
-first_cost = 1800
-growth = 4
-max_rank = 2
-stat = &"ball_count"
+title = "Multiball"
+category = 0
+text = "One more ball follows the first launch of a round, along the same line."
+first_cost = 300
+growth = 5
+max_rank = 3
+stat = &"multiball"
 amount = 1.0

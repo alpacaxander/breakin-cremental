@@ -4,11 +4,10 @@
 
 [resource]
 script = ExtResource("1")
-title = "Spare Ball"
-category = 0
-text = "+1 spare ball. Click to launch it while another plays, or keep it in case."
-first_cost = 300
-growth = 5
-max_rank = 3
-stat = &"multiball"
+title = "Blast"
+category = 3
+text = "Unlocks Blast: a charge that hits a brick explodes, hitting the bricks around it."
+first_cost = 150
+max_rank = 1
+stat = &"blast_count"
 amount = 1.0

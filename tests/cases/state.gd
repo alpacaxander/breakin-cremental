@@ -4,6 +4,7 @@ extends RefCounted
 const A := Upgrade.Category.ARENA
 const P := Upgrade.Category.PLACEABLES
 const B := Upgrade.Category.BRICKS
+const AB := Upgrade.Category.ABILITIES
 ## The sketched web (docs/design/upgrades.md): id -> [category, ranks, first cost, stat, amount, percent]. Every
 ## node's ranks and prices are first values, set with the balance bot.
 const TABLE := {
@@ -14,17 +15,18 @@ const TABLE := {
 	&"rear_paddle": [A, 2, 300, &"rear_paddle", 0.2, false],
 	&"booster": [P, 2, 12, &"booster_count", 1.0, false],
 	&"booster_speed": [P, 2, 500, &"booster_speed", 0.2, false],
-	&"zap": [P, 3, 200, &"zap_count", 1.0, false],
-	&"zap_range": [P, 2, 400, &"zap_range", 2.0, false],
-	&"zap_damage": [P, 2, 800, &"zap_damage", 1.0, false],
+	&"zap": [AB, 1, 200, &"zap_count", 1.0, false],
+	&"zap_range": [AB, 2, 400, &"zap_range", 2.0, false],
+	&"zap_damage": [AB, 2, 800, &"zap_damage", 1.0, false],
 	&"splitter": [P, 5, 80, &"splitter_count", 1.0, false],
 	&"splitter_respawn": [P, 3, 2000, &"splitter_respawn", 1.0, false],
 	&"splitter_health": [P, 2, 500, &"splitter_health", 1.0, false],
 	&"wall_segment": [P, 2, 40, &"wall_segment_count", 1.0, false],
-	&"explosive_brick": [B, 4, 40, &"explosive_count", 1.0, false],
-	&"blast_size": [B, 2, 150, &"blast_size", 1.0, false],
-	&"explosion_damage": [B, 2, 300, &"explosion_damage", 1.0, false],
-	&"shockwave": [B, 1, 600, &"shockwave", 1.0, false],
+	&"power_brick": [AB, 4, 40, &"power_count", 1.0, false],
+	&"blast": [AB, 1, 150, &"blast_count", 1.0, false],
+	&"blast_size": [AB, 2, 150, &"blast_size", 1.0, false],
+	&"explosion_damage": [AB, 2, 300, &"explosion_damage", 1.0, false],
+	&"shockwave": [AB, 1, 600, &"shockwave", 1.0, false],
 	&"gold_brick": [B, 3, 30, &"gold_count", 1.0, false],
 	&"hourglass_brick": [B, 2, 25, &"hourglass_count", 1.0, false],
 	&"hourglass_time": [B, 2, 1200, &"hourglass_time", 5.0, false],
@@ -36,8 +38,7 @@ const TABLE := {
 	&"overgrowth": [A, 1, 8000, &"overgrowth", 1.0, false],
 	&"guide": [A, 4, 30, &"guide", 250.0, false],
 	&"guide_bounces": [A, 1, 250, &"guide_bounces", 1.0, false],
-	&"spare_ball": [A, 3, 300, &"multiball", 1.0, false],
-	&"ball_brick": [B, 2, 1800, &"ball_count", 1.0, false],
+	&"multiball": [A, 3, 300, &"multiball", 1.0, false],
 }
 
 
@@ -68,7 +69,7 @@ func _upgrades(t: Node) -> void:
 		t.check(is_equal_approx(u.amount, row[4]) and u.percent == row[5], "%s adds %s%s per rank" % [u.id, row[4], " of the base" if row[5] else ""])
 		t.check(u.cost(0) == u.first_cost, "%s's first rank costs its first cost" % u.id)
 		t.check(Progress.upgrade(u.id) == u, "Progress.upgrade finds %s" % u.id)
-	t.check(purchases == 73, "the web holds 73 purchases, not %d" % purchases)
+	t.check(purchases == 70, "the web holds 70 purchases, not %d" % purchases)
 	t.check(Progress.upgrade(&"nope") == null, "an unknown id is no upgrade")
 
 
@@ -79,13 +80,13 @@ func _stats(t: Node) -> void:
 	Progress.ranks[&"combo"] = 1
 	Progress.ranks[&"combo_window"] = 1
 	Progress.ranks[&"zap"] = 1
-	Progress.ranks[&"explosive_brick"] = 1
+	Progress.ranks[&"power_brick"] = 1
 	t.check(is_equal_approx(Progress.stat(&"paddle_size"), base.paddle_size * 1.4), "Paddle Size rank 1 is 140% of the base")
 	t.check(Progress.stat(&"combo_rank") == base.combo_rank + 2.0, "Combo and Combo Window both raise combo_rank")
 	var s := Progress.snapshot()
 	t.check(is_equal_approx(s.paddle_size, base.paddle_size * 1.4) and s.combo_rank == base.combo_rank + 2.0, "the snapshot carries the upgraded stats")
-	t.check(s.count(&"zap") == 1 and s.count(&"explosive") == 1 and s.count(&"gold") == 0, "the counts land in the snapshot as <kind id>_count")
-	t.check(s.extra.get(&"explosive_count") == 1.0 and not s.extra.has(&"explosive_brick_count"), "a special brick's count is named after the kind, not the upgrade")
+	t.check(s.count(&"zap") == 1 and s.count(&"power") == 1 and s.count(&"gold") == 0, "the counts land in the snapshot as <kind id>_count")
+	t.check(s.extra.get(&"power_count") == 1.0 and not s.extra.has(&"power_brick_count"), "a special brick's count is named after the kind, not the upgrade")
 	t.check(is_equal_approx(s.paddle_speed, base.paddle_speed) and s.ball_size == base.ball_size, "what no rank changes stays at its base")
 	t.check(base.paddle_size == (load(Progress.BALANCE) as Balance).paddle_size and base.extra.is_empty(), "a snapshot leaves balance.tres alone")
 	Progress.reset()
@@ -167,7 +168,7 @@ func _bad_saves(t: Node) -> void:
 			"layouts": {"2": [{"kind": "zap"}], "x": [], "4": "no"}, "future": true}))
 	Progress.use(path)
 	t.check(Progress.coins == 50 and Progress.unlocked == 2, "a save with no version and an unknown field keeps coins and level")
-	t.check(Progress.ranks == ({&"zap": 3} as Dictionary[StringName, int]), "a rank above the top is lowered, and unknown ids and bad ranks are dropped")
+	t.check(Progress.ranks == ({&"zap": 1} as Dictionary[StringName, int]), "a rank above the top is lowered, and unknown ids and bad ranks are dropped")
 	t.check(Progress.layouts.keys() == [2], "only well-formed layouts are kept")
 	t.check(not FileAccess.file_exists(bad), "a readable save is not set aside")
 

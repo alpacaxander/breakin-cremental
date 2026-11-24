@@ -4,9 +4,9 @@
 
 [resource]
 script = ExtResource("1")
-title = "Explosion Size"
-category = 2
-text = "Explosions reach one square further"
+title = "Blast Size"
+category = 3
+text = "A Blast reaches one square further."
 first_cost = 150
 growth = 20
 max_rank = 2

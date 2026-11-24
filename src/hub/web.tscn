@@ -2,14 +2,14 @@
 
 [ext_resource type="Script" path="res://src/hub/web.gd" id="web"]
 [ext_resource type="PackedScene" path="res://src/hub/upgrade_node.tscn" id="node"]
-[ext_resource type="Resource" path="res://data/upgrades/ball_brick.tres" id="ball_brick"]
+[ext_resource type="Resource" path="res://data/upgrades/blast.tres" id="blast"]
 [ext_resource type="Resource" path="res://data/upgrades/blast_size.tres" id="blast_size"]
 [ext_resource type="Resource" path="res://data/upgrades/booster_speed.tres" id="booster_speed"]
 [ext_resource type="Resource" path="res://data/upgrades/booster.tres" id="booster"]
 [ext_resource type="Resource" path="res://data/upgrades/combo.tres" id="combo"]
 [ext_resource type="Resource" path="res://data/upgrades/combo_window.tres" id="combo_window"]
 [ext_resource type="Resource" path="res://data/upgrades/explosion_damage.tres" id="explosion_damage"]
-[ext_resource type="Resource" path="res://data/upgrades/explosive_brick.tres" id="explosive_brick"]
+[ext_resource type="Resource" path="res://data/upgrades/power_brick.tres" id="power_brick"]
 [ext_resource type="Resource" path="res://data/upgrades/gold_brick.tres" id="gold_brick"]
 [ext_resource type="Resource" path="res://data/upgrades/growth_reach.tres" id="growth_reach"]
 [ext_resource type="Resource" path="res://data/upgrades/growth.tres" id="growth"]
@@ -24,7 +24,7 @@
 [ext_resource type="Resource" path="res://data/upgrades/pulse_rate.tres" id="pulse_rate"]
 [ext_resource type="Resource" path="res://data/upgrades/rear_paddle.tres" id="rear_paddle"]
 [ext_resource type="Resource" path="res://data/upgrades/shockwave.tres" id="shockwave"]
-[ext_resource type="Resource" path="res://data/upgrades/spare_ball.tres" id="spare_ball"]
+[ext_resource type="Resource" path="res://data/upgrades/multiball.tres" id="multiball"]
 [ext_resource type="Resource" path="res://data/upgrades/splitter_health.tres" id="splitter_health"]
 [ext_resource type="Resource" path="res://data/upgrades/splitter_respawn.tres" id="splitter_respawn"]
 [ext_resource type="Resource" path="res://data/upgrades/splitter.tres" id="splitter"]
@@ -73,23 +73,23 @@ links = Array[NodePath]([NodePath("../Booster")])
 
 [node name="Zap" parent="." instance=ExtResource("node")]
 upgrade = ExtResource("zap")
-cell = Vector2i(2, 0)
-links = Array[NodePath]([NodePath("../Booster")])
+cell = Vector2i(0, 1)
+links = Array[NodePath]([NodePath("../PowerBrick")])
 
 [node name="ZapRange" parent="." instance=ExtResource("node")]
 upgrade = ExtResource("zap_range")
-cell = Vector2i(3, 0)
+cell = Vector2i(0, 0)
 links = Array[NodePath]([NodePath("../Zap")])
 
 [node name="ZapDamage" parent="." instance=ExtResource("node")]
 upgrade = ExtResource("zap_damage")
-cell = Vector2i(4, 0)
+cell = Vector2i(1, 0)
 links = Array[NodePath]([NodePath("../ZapRange")])
 
 [node name="RearPaddle" parent="." instance=ExtResource("node")]
 upgrade = ExtResource("rear_paddle")
-cell = Vector2i(1, 0)
-links = Array[NodePath]([NodePath("../Zap")])
+cell = Vector2i(2, 0)
+links = Array[NodePath]([NodePath("../Booster")])
 
 [node name="Combo" parent="." instance=ExtResource("node")]
 upgrade = ExtResource("combo")
@@ -131,25 +131,25 @@ upgrade = ExtResource("paddle_size")
 cell = Vector2i(1, 2)
 links = Array[NodePath]([NodePath("../PaddleSpeed")])
 
-[node name="ExplosiveBrick" parent="." instance=ExtResource("node")]
-upgrade = ExtResource("explosive_brick")
+[node name="PowerBrick" parent="." instance=ExtResource("node")]
+upgrade = ExtResource("power_brick")
 cell = Vector2i(0, 2)
 links = Array[NodePath]([NodePath("../PaddleSize")])
 
-[node name="ExplosionSize" parent="." instance=ExtResource("node")]
+[node name="BlastSize" parent="." instance=ExtResource("node")]
 upgrade = ExtResource("blast_size")
-cell = Vector2i(0, 1)
-links = Array[NodePath]([NodePath("../ExplosiveBrick")])
+cell = Vector2i(0, 4)
+links = Array[NodePath]([NodePath("../Blast")])
 
-[node name="ExplosionDamage" parent="." instance=ExtResource("node")]
+[node name="BlastDamage" parent="." instance=ExtResource("node")]
 upgrade = ExtResource("explosion_damage")
-cell = Vector2i(0, 0)
-links = Array[NodePath]([NodePath("../ExplosionSize")])
+cell = Vector2i(0, 5)
+links = Array[NodePath]([NodePath("../BlastSize")])
 
 [node name="Shockwave" parent="." instance=ExtResource("node")]
 upgrade = ExtResource("shockwave")
-cell = Vector2i(0, 3)
-links = Array[NodePath]([NodePath("../ExplosiveBrick")])
+cell = Vector2i(0, 6)
+links = Array[NodePath]([NodePath("../BlastDamage")])
 
 [node name="ToughBrick" parent="." instance=ExtResource("node")]
 upgrade = ExtResource("tough_brick")
@@ -186,12 +186,12 @@ upgrade = ExtResource("guide_bounces")
 cell = Vector2i(4, 1)
 links = Array[NodePath]([NodePath("../Guide")])
 
-[node name="SpareBall" parent="." instance=ExtResource("node")]
-upgrade = ExtResource("spare_ball")
+[node name="Multiball" parent="." instance=ExtResource("node")]
+upgrade = ExtResource("multiball")
 cell = Vector2i(4, 4)
 links = Array[NodePath]([NodePath("../WallSegment")])
 
-[node name="BallBrick" parent="." instance=ExtResource("node")]
-upgrade = ExtResource("ball_brick")
-cell = Vector2i(0, 4)
-links = Array[NodePath]([NodePath("../SplitterRespawn")])
+[node name="Blast" parent="." instance=ExtResource("node")]
+upgrade = ExtResource("blast")
+cell = Vector2i(0, 3)
+links = Array[NodePath]([NodePath("../PowerBrick")])
