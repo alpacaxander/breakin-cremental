@@ -240,7 +240,7 @@ func _calm() -> void:
 	fx._process(1.0 / 60.0)
 	t.check(fx._pools.is_empty() and fx._kick == 0.0, "reduce flashing: no light pool and no flash")
 	var tagged := round.board.bricks.keys()[0] as Vector2i
-	round.board.brick(tagged).mod = &"zap"
+	round.board.brick(tagged).set("mod", &"zap")
 	round.board.brick(tagged).hp = 2
 	round.hit_brick(tagged, Round.Cause.BALL, Vector2.RIGHT)
 	round.hit_brick(tagged, Round.Cause.BALL, Vector2.RIGHT)

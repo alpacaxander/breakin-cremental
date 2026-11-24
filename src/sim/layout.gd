@@ -4,7 +4,7 @@ extends RefCounted
 ##
 ## SAVED FORM. to_data() gives an Array of Dictionaries, one per item, holding only JSON types:
 ##     {"kind": "wall_segment", "x": 600.0, "y": 256.0, "rot": 90.0}    a FREE item
-##     {"kind": "splitter", "col": 30, "row": 3}                        a BRICK or MOD item
+##     {"kind": "splitter", "col": 30, "row": 3}                        a BRICK or AREA item
 ## "kind" is the PlaceableKind's id. x, y are the item's centre in round units; rot is in degrees. col, row are
 ## a brick cell (Board). from_data() reads the same thing and skips an entry whose kind no longer exists.
 ## The save is JSON, which hands every number back as a float, so from_data() reads "col": 30.0 as column 30.
@@ -26,7 +26,7 @@ class Item:
 	var kind: PlaceableKind
 	## FREE: the centre of the shape, in round units. Not snapped to anything.
 	var pos: Vector2
-	## BRICK and MOD: the brick cell.
+	## BRICK and AREA: the brick cell.
 	var cell: Vector2i
 	## FREE and kind.rotatable: degrees, clockwise on screen, added to kind.turn. 0 otherwise.
 	var rot := 0.0
@@ -103,18 +103,12 @@ func add(item: Item) -> void:
 ##     and it is clear of the launch path in the same way.
 ##   - AREA: board.has_cell(cell) and no other AREA item is on that cell. Bricks and other items do not matter:
 ##     nothing touches an area.
-##   - MOD: the cell holds a brick of the board or a BRICK item that can break (not PlaceableKind.unbreakable:
-##     a mod goes off when its brick breaks), and no other MOD item is on that cell.
 ## Pass the level's board as read (Levels.read), not a round's board, which already has the layout's bricks on it.
 func fits(item: Item, board: Board, stats: Balance) -> bool:
 	if count(item.kind.id) >= stats.count(item.kind.id):
 		return false
 	if item.kind.placement == PlaceableKind.Placement.AREA:
 		return board.has_cell(item.cell) and _on(item.cell, PlaceableKind.Placement.AREA) == null
-	if item.kind.placement == PlaceableKind.Placement.MOD:
-		var host := _on(item.cell, PlaceableKind.Placement.BRICK)
-		return (board.brick(item.cell) != null or host != null and not host.kind.unbreakable) \
-				and _on(item.cell, PlaceableKind.Placement.MOD) == null
 	var shape: PackedVector2Array
 	if item.kind.placement == PlaceableKind.Placement.BRICK:
 		if not board.has_cell(item.cell) or board.brick(item.cell) != null or _on(item.cell, PlaceableKind.Placement.BRICK) != null:
@@ -146,33 +140,26 @@ func fits(item: Item, board: Board, stats: Balance) -> bool:
 	return true
 
 
-## A new layout holding every item of this one that fits, tested one at a time in order, BRICK and FREE items
-## first and MOD items after them. So when a count went down the later items of that kind are the ones dropped,
-## and a Zap whose brick is gone is dropped with it. The items themselves are shared with this layout, not copied.
+## A new layout holding every item of this one that fits, tested one at a time in order. So when a count went
+## down the later items of that kind are the ones dropped. The items themselves are shared with this layout, not
+## copied.
 func fitted(board: Board, stats: Balance) -> Layout:
 	var out := Layout.new()
-	for mods: bool in [false, true]:
-		for item in items:
-			if (item.kind.placement == PlaceableKind.Placement.MOD) == mods and out.fits(item, board, stats):
-				out.add(item)
+	for item in items:
+		if out.fits(item, board, stats):
+			out.add(item)
 	return out
 
 
-## Takes an item out. Taking out a BRICK item also takes out a MOD item on its cell.
+## Takes an item out.
 func remove(item: Item) -> void:
 	items.erase(item)
-	if item.kind.placement == PlaceableKind.Placement.BRICK:
-		items.erase(_on(item.cell, PlaceableKind.Placement.MOD))
 
 
 ## The item whose shape contains `point` (round units), or null. The topmost is the last one added. A BRICK item
-## is hit anywhere in its cell. A MOD item is hit anywhere in its brick's cell, and is checked before the brick
-## under it. An AREA item is hit anywhere in its own cell, after every other item there.
+## is hit anywhere in its cell. An AREA item is hit anywhere in its own cell, after every other item there.
 func item_at(point: Vector2) -> Item:
 	var cell := Vector2i((point / Board.BRICK).floor())
-	var mod := _on(cell, PlaceableKind.Placement.MOD)
-	if mod:
-		return mod
 	for i in range(items.size() - 1, -1, -1):
 		var item := items[i]
 		match item.kind.placement:

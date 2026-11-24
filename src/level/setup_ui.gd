@@ -113,9 +113,6 @@ class Slot:
 			PlaceableKind.Placement.AREA:  # a frame round its cell, as in Setup
 				draw_rect(Rect2(c - Vector2(11, 11), Vector2(22, 22)), colour, false, 2.0)
 				draw_rect(Rect2(c - Vector2(2, 6), Vector2(4, 12)), colour)
-			PlaceableKind.Placement.MOD:
-				draw_rect(Rect2(c - Vector2(5, 12), Vector2(10, 24)), Palette.BORDER)
-				draw_rect(Rect2(c - Vector2(3, 3), Vector2(6, 6)), colour)
 			_:
 				if kind.gate:  # upright and as long as the icon, so its dashes show
 					LevelArena.gate(self, c, Vector2(6.0, ICON), 0.0, colour,

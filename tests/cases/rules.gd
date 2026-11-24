@@ -244,7 +244,7 @@ func _board(bricks := {}, rows := 16) -> Board:
 	return b
 
 
-## An item of a kind at a point (FREE) or a brick cell (BRICK, MOD).
+## An item of a kind at a point (FREE) or a brick cell (BRICK, AREA).
 func _item(kind: StringName, at: Variant, rot := 0.0) -> Layout.Item:
 	var item := Layout.Item.new()
 	item.kind = Kinds.of(kind)
@@ -341,7 +341,7 @@ func _shipped() -> void:
 func _kinds() -> void:
 	var ids := func(kinds: Array) -> Array: return kinds.map(func(k: Kind) -> StringName: return k.id)
 	t.check(ids.call(Kinds.placeables()) == [&"bumper", &"booster", &"wall_segment", &"splitter", &"growth", &"refresh"], "the placeables are the six of the kinds table, in tray order")
-	t.check(ids.call(Kinds.bricks()) == [&"explosive", &"power", &"gold", &"hourglass", &"tough", &"ball"], "the special bricks are the six of the kinds table, in roll order")
+	t.check(ids.call(Kinds.bricks()) == [&"power", &"gold", &"hourglass", &"tough"], "the special bricks are the four of the kinds table, in roll order")
 	# id: [placement, size, turn, rotatable, gate, cue]
 	var placeables := {
 		&"bumper": [PlaceableKind.Placement.FREE, Vector2(30, 30), 45.0, false, false, Sfx.BUMPER],
@@ -356,12 +356,12 @@ func _kinds() -> void:
 		var want: Array = placeables[id]
 		t.check(k != null and [k.placement, k.size, k.turn, k.rotatable, k.gate, k.cue] == want and k.colour == &"placeable" and k.hp == 1 and k.title != "",
 				"the %s is as the kinds table has it" % id)
-	# id: [colour, cue, worth, hp, mark]. The tough and ball bricks have no colour: they are drawn in the HP steps.
-	var bricks := {&"explosive": [&"ability", &"", 1, 1, false], &"power": [&"ability", Sfx.SPLITTER, 1, 1, false], &"gold": [&"coins", Sfx.GOLD_BRICK, 20, 1, false], &"hourglass": [&"time", Sfx.HOURGLASS_BRICK, 1, 1, false],
-			&"tough": [&"", &"", 1, 3, false], &"ball": [&"", Sfx.SPLITTER, 1, 1, true]}
+	# id: [colour, cue, worth, hp]. The tough brick has no colour: it is drawn in the HP steps.
+	var bricks := {&"power": [&"ability", Sfx.SPLITTER, 1, 1], &"gold": [&"coins", Sfx.GOLD_BRICK, 20, 1], &"hourglass": [&"time", Sfx.HOURGLASS_BRICK, 1, 1],
+			&"tough": [&"", &"", 1, 3]}
 	for id: StringName in bricks:
 		var k := Kinds.of(id) as BrickKind
-		t.check(k != null and [k.colour, k.cue, k.worth, k.hp, k.mark] == bricks[id] and k.title != "", "the %s brick is as the kinds table has it" % id)
+		t.check(k != null and [k.colour, k.cue, k.worth, k.hp] == bricks[id] and k.title != "", "the %s brick is as the kinds table has it" % id)
 	for k in Kinds.all():
 		t.check(Palette.MEANINGS.has(k.colour) or (k is BrickKind and k.colour == &""), "%s's colour is a Palette meaning" % k.id)
 	# The three amounts are pinned here and nowhere else: the other checks read them from the kinds.
@@ -494,11 +494,11 @@ func _angles() -> void:
 		for row in 8:
 			bricks[Vector2i(column, row)] = 1 + (column + row) % 3
 	var board := _board(bricks)
-	board.bricks[Vector2i(38, 2)].kind = &"explosive"
 	var stats := _sealed(board, {&"bumper_count": 2, &"booster_count": 1, &"wall_segment_count": 2, &"splitter_count": 1, &"shockwave": 1})
 	var layout := _layout([_item(&"bumper", Vector2(200, 120)), _item(&"bumper", Vector2(260, 400)), _item(&"booster", Vector2(450, 250)),
 			_item(&"wall_segment", Vector2(120, 300), 15.0), _item(&"wall_segment", Vector2(500, 100), 75.0), _item(&"splitter", Vector2i(30, 5))])
 	var round := Round.new(board, layout, stats, 3)
+	round.balls[0].charge = &"blast"  # its first brick throws it (shockwave)
 	var low := stats.min_angle_horizontal - 0.01
 	var high := 90.0 - stats.min_angle_vertical + 0.01
 	var bad: Array[float] = []
@@ -600,7 +600,7 @@ func _fuzz_round(p_seed: int, wrong: Array[String], seen: Dictionary) -> void:
 		for row in board.rows / 2:
 			if rng.randf() < density:
 				board.bricks[Vector2i(column, row)] = Brick.new([1, 1, 2, 3, SOLID][rng.randi() % 5])
-	var stats := _stats({&"bumper_count": 4, &"booster_count": 4, &"wall_segment_count": 4, &"splitter_count": 4, &"zap_count": 4, &"explosive_count": rng.randi() % 4,
+	var stats := _stats({&"bumper_count": 4, &"booster_count": 4, &"wall_segment_count": 4, &"splitter_count": 4, &"zap_count": 4, &"power_count": rng.randi() % 4,
 			&"hourglass_count": rng.randi() % 2, &"shockwave": rng.randi() % 2, &"combo_rank": rng.randi() % 4, &"ball_speed": rng.randf_range(300.0, 1700.0)})
 	var sealed := rng.randf() < 0.6
 	if sealed:
@@ -673,6 +673,9 @@ func _fuzz_round(p_seed: int, wrong: Array[String], seen: Dictionary) -> void:
 			if ball.dir.x < 0.0 and not sealed:
 				target = ball.pos.y + sin(i * 0.3) * 40.0
 		round.step(dt, target)
+		if round.waiting:  # a charge from a Power Brick goes at once, so no ball rides the paddle
+			skip[round.waiting.id] = true
+			round.launch()
 		follow.call()
 		seen.balls = maxi(seen.balls, balls.size())
 		for ball in balls:
@@ -728,13 +731,14 @@ func _tick_rates() -> void:
 			bricks[Vector2i(column, row)] = 1 + (column * 3 + row) % 3
 	var board := _board(bricks)
 	for cell: Vector2i in [Vector2i(31, 2), Vector2i(36, 6)]:
-		board.bricks[cell].kind = &"explosive"
+		board.bricks[cell].kind = &"power"
 		board.bricks[cell].hp = 1
 	var stats := _sealed(board, {&"bumper_count": 1, &"booster_count": 1, &"wall_segment_count": 1, &"zap_count": 1, &"combo_rank": 1, &"shockwave": 1})
 	var layout := _layout([_item(&"bumper", Vector2(200, 130)), _item(&"booster", Vector2(700, 300)), _item(&"wall_segment", Vector2(250, 400), 30.0)])
 	var logs := []
 	for rate: int in [60, 120, 240]:
 		var round := Round.new(board, layout, stats, 9)
+		round.balls[0].charge = &"blast"
 		var log := _events(round)
 		for i in rate * 600:
 			if round.over:
@@ -756,13 +760,14 @@ func _determinism() -> void:
 			if (column + row) % 4 != 0:
 				bricks[Vector2i(column, row)] = 1 + (column + row) % 2
 	var board := _board(bricks)
-	var stats := _stats({&"bumper_count": 2, &"booster_count": 1, &"wall_segment_count": 2, &"splitter_count": 2, &"explosive_count": 3,
+	var stats := _stats({&"bumper_count": 2, &"booster_count": 1, &"wall_segment_count": 2, &"splitter_count": 2, &"power_count": 3,
 			&"gold_count": 2, &"hourglass_count": 2, &"combo_rank": 2, &"shockwave": 1, &"paddle_speed": 900.0})
 	var layout := _layout([_item(&"bumper", Vector2(70, 90)), _item(&"bumper", Vector2(800, 420)), _item(&"booster", Vector2(110, 300)),
 			_item(&"wall_segment", Vector2(90, 440), 60.0), _item(&"wall_segment", Vector2(900, 150), 15.0),
 			_item(&"splitter", Vector2i(11, 2)), _item(&"splitter", Vector2i(11, 5))])
 	var play := func(p_seed: int) -> Array[String]:
 		var round := Round.new(board, layout, stats, p_seed)
+		round.balls[0].charge = &"blast"
 		var log := _events(round)
 		log.append("items %d" % round.layout.items.size())
 		for i in 6000:
@@ -882,39 +887,23 @@ func _blasts() -> void:
 		t.check(told.size() == 1 and told[0][0] == Vector2(488, 288) and told[0][1] == reach and told[0][2] == want and told[0][3],
 				"exploded gives the brick's centre, the reach in units and the bricks about to be hit, while they are still untouched")
 
-	# The explosive brick turns the blast_size stat, in squares, into units.
+	# The Blast ability turns the blast_size stat, in squares, into units.
 	for size: float in [1.0, 1.5]:
 		var board := full.copy()
-		board.bricks[Vector2i(30, 4)] = Brick.new(1, &"explosive")
 		var round := Round.new(board, null, _stats({&"blast_size": size}), 1)
 		var log := _events(round)
-		round.hit_brick(Vector2i(30, 4), Round.Cause.BALL, Vector2.RIGHT)
-		t.check(log.has("exploded (488.0, 288.0) %s %d" % [size * 64.0, 26 if size == 1.0 else 64]), "an explosive brick at Blast Size %.1f reaches %d units" % [size, size * 64.0])
+		Kinds.of(&"blast").fire(round, Vector2i(30, 4), Vector2.RIGHT, null)
+		t.check(log.has("exploded (488.0, 288.0) %s %d" % [size * 64.0, 27 if size == 1.0 else 65]), "a Blast at Blast Size %.1f reaches %d units" % [size, size * 64.0])
 
-	# Chains. A, B and C are explosive, each inside the blast of the one before; A and B are inside each other's.
-	var board := _board({FAR: SOLID, Vector2i(30, 4): 1, Vector2i(33, 4): 1, Vector2i(36, 4): 1, Vector2i(27, 4): 5, Vector2i(32, 4): 5, Vector2i(35, 4): 5, Vector2i(39, 4): 5, Vector2i(41, 4): 5})
-	for cell: Vector2i in [Vector2i(30, 4), Vector2i(33, 4), Vector2i(36, 4)]:
-		board.bricks[cell].kind = &"explosive"
+	# A brick a blast breaks is thrown away from the blast's centre, and sets nothing off.
+	var board := _board({FAR: SOLID, Vector2i(30, 4): 1, Vector2i(33, 4): 1})
+	board.bricks[Vector2i(33, 4)].kind = &"power"
 	var round := Round.new(board, null, _stats(), 1)
 	var log := _events(round)
-	round.hit_brick(Vector2i(30, 4), Round.Cause.BALL, Vector2.RIGHT)
-	t.check(log.filter(func(line: String) -> bool: return line.begins_with("exploded")).size() == 3, "an explosive brick broken by a blast explodes too, and each explodes once")
-	t.check(log.filter(func(line: String) -> bool: return line.begins_with("broke") and " 'explosive' 1 " in line).size() == 2, "the chained bricks are broken with the cause BLAST")
-	var hp := func(column: int) -> int: return round.board.brick(Vector2i(column, 4)).hp
-	t.check([hp.call(27), hp.call(32), hp.call(35), hp.call(39), hp.call(41)] == [4, 2, 3, 4, 5], "a brick takes one hit from each blast it is inside, never two from one")
+	round.blast(Vector2i(30, 4), 64.0)
 	var dirs := log.filter(func(line: String) -> bool: return line.begins_with("broke (33, 4)"))
 	t.check(dirs.size() == 1 and var_to_str(Vector2.RIGHT) in dirs[0], "a brick broken by a blast is thrown away from the blast's centre")
-
-	# A long fuse: sixty explosive bricks, each setting off the next.
-	bricks = {FAR: SOLID}
-	for column in 60:
-		bricks[Vector2i(column, 2)] = 1
-	board = _board(bricks)
-	for column in 60:
-		board.bricks[Vector2i(column, 2)].kind = &"explosive"
-	round = Round.new(board, null, _stats(), 1)
-	round.hit_brick(Vector2i(0, 2), Round.Cause.BALL, Vector2.RIGHT)
-	t.check(round.board.bricks.size() == 1 and round.tally.broken[&"explosive"] == 60, "a chain of sixty explosive bricks runs to its end and stops")
+	t.check(log.filter(func(line: String) -> bool: return line.begins_with("exploded")).size() == 1, "a blast sets off no other blast")
 
 
 # --- abilities -------------------------------------------------------------------------------------------------
@@ -1034,15 +1023,15 @@ func _shockwave() -> void:
 	round.blast(Vector2i(30, 3), 64.0)
 	t.check(ball.dir == Vector2(-0.6, 0.8) and ball.boost == 1.0, "without the Shockwave upgrade a blast leaves balls alone")
 
-	# Through a real explosive brick, hit by the ball.
+	# Through a Blast charge, carried by the ball into a brick.
 	board = _board({FAR: SOLID, Vector2i(30, 3): 1})
-	board.bricks[Vector2i(30, 3)].kind = &"explosive"
 	round = Round.new(board, null, stats, 1)
 	ball = round.balls[0]
+	ball.charge = &"blast"
 	var coming := Vector2.from_angle(deg_to_rad(30.0))
 	ball.put(Vector2(474, 214) - coming * 20.0, coming)
 	_run(round, 0.05)
-	t.check(ball.boost == stats.shockwave_boost and ball.dir.is_equal_approx((Vector2(474, 214) - centre).normalized()), "a ball that sets off an explosive brick is thrown back from it")
+	t.check(ball.boost == stats.shockwave_boost and ball.dir.is_equal_approx((Vector2(474, 214) - centre).normalized()), "a ball whose Blast goes off is thrown back from it")
 
 
 # --- what each placeable does ----------------------------------------------------------------------------------
@@ -1393,7 +1382,7 @@ func _specials() -> void:
 		for row in 4:
 			bricks[Vector2i(column, row)] = 4
 	var board := _board(bricks)
-	var stats := _stats({&"explosive_count": 2, &"gold_count": 1, &"hourglass_count": 3, &"tough_count": 1, &"bumper_count": 1, &"splitter_count": 1})
+	var stats := _stats({&"power_count": 2, &"gold_count": 1, &"hourglass_count": 3, &"tough_count": 1, &"bumper_count": 1, &"splitter_count": 1})
 	var picks := func(round: Round) -> Dictionary:
 		var out := {}
 		for cell: Vector2i in round.board.bricks:
@@ -1402,7 +1391,7 @@ func _specials() -> void:
 		return out
 	var round := Round.new(board, null, stats, 5)
 	var got: Dictionary = picks.call(round)
-	t.check(got.values().count(&"explosive") == 2 and got.values().count(&"gold") == 1 and got.values().count(&"hourglass") == 3 and got.values().count(&"tough") == 1 and got.size() == 7,
+	t.check(got.values().count(&"power") == 2 and got.values().count(&"gold") == 1 and got.values().count(&"hourglass") == 3 and got.values().count(&"tough") == 1 and got.size() == 7,
 			"rank N of a special brick replaces N standard bricks")
 	t.check(got.keys().all(func(c: Vector2i) -> bool: return round.board.brick(c).hp == (3 if got[c] == &"tough" else 1)) and round.board.bricks.values().filter(func(b: Brick) -> bool: return b.hp == 4).size() == 33,
 			"a special brick has its kind's HP (1, a tough brick 3) whatever it replaced, and the others keep theirs")
@@ -1423,9 +1412,9 @@ func _specials() -> void:
 	t.check(picks.call(Round.new(shuffled, null, stats, 5)) == got, "the pick depends on where the bricks are, not on the order they were listed in")
 
 	var small := _board({Vector2i(20, 0): 3, Vector2i(21, 0): 3})
-	round = Round.new(small, null, _stats({&"explosive_count": 1, &"gold_count": 5, &"hourglass_count": 5}), 1)
+	round = Round.new(small, null, _stats({&"power_count": 1, &"gold_count": 5, &"hourglass_count": 5}), 1)
 	got = picks.call(round)
-	t.check(got.values().count(&"explosive") == 1 and got.values().count(&"gold") == 1 and got.size() == 2, "the roll goes in kind order and stops when no standard brick is left")
+	t.check(got.values().count(&"power") == 1 and got.values().count(&"gold") == 1 and got.size() == 2, "the roll goes in kind order and stops when no standard brick is left")
 
 
 # --- the layout ------------------------------------------------------------------------------------------------
@@ -1566,7 +1555,7 @@ func _coins() -> void:
 	var board := _board({FAR: SOLID, Vector2i(10, 0): 1, Vector2i(11, 0): 2, Vector2i(12, 0): 1, Vector2i(20, 0): 1, Vector2i(30, 0): 1, Vector2i(50, 6): 1})
 	board.bricks[Vector2i(20, 0)].kind = &"gold"
 	board.bricks[Vector2i(30, 0)].kind = &"hourglass"
-	board.bricks[Vector2i(50, 6)].kind = &"explosive"
+	board.bricks[Vector2i(50, 6)].kind = &"power"
 	var stats := _stats({&"splitter_count": 1})
 	var worth: int = (Kinds.of(&"gold") as BrickKind).worth  # 20
 	var seconds: float = Kinds.of(&"hourglass").get("seconds")  # 15
@@ -1578,7 +1567,7 @@ func _coins() -> void:
 	for cell: Vector2i in [Vector2i(10, 0), Vector2i(11, 0), Vector2i(11, 0), Vector2i(12, 0), Vector2i(20, 0), Vector2i(40, 3), Vector2i(30, 0), Vector2i(50, 6)]:
 		round.hit_brick(cell, Round.Cause.BALL, Vector2.RIGHT)
 		after.append(round.coins)
-	t.check(round.tally.broken == {&"": 3, &"gold": 1, &"hourglass": 1, &"explosive": 1} and round.tally.combos.is_empty() and round.tally.placed_broken == 1 and round.tally.dents == 1,
+	t.check(round.tally.broken == {&"": 3, &"gold": 1, &"hourglass": 1, &"power": 1} and round.tally.combos.is_empty() and round.tally.placed_broken == 1 and round.tally.dents == 1,
 			"the tally counts bricks broken by kind, placed bricks apart, and the hit that left the 2 HP brick standing")
 	t.check(paid == [1, 1, 1, worth, 0, 1, 1] and after.slice(0, 3) == [1, 2, 3] and round.coins == 6 + worth and Coins.total(round.tally, stats) == 6 + worth,
 			"a hit that breaks nothing scores 1 at once, a break 1 (a gold brick its worth), and a placed brick nothing: a 2 HP brick scores 2 (%s)" % [after])
@@ -1703,7 +1692,7 @@ func _timing() -> void:
 	var board := _tunnel_board()
 	t.check(board.bricks.size() == 256 and board.cols == 72, "the timing board is level 3's: 256 bricks on 72 x 18")
 	# Mid-game stats, the paddle following the ball, 120 steps a second for the full 20 seconds.
-	var stats := _stats({&"paddle_speed": 720.0, &"ball_speed": 980.0, &"paddle_size": 139.0, &"combo_rank": 3, &"explosive_count": 3, &"gold_count": 3, &"hourglass_count": 2,
+	var stats := _stats({&"paddle_speed": 720.0, &"ball_speed": 980.0, &"paddle_size": 139.0, &"combo_rank": 3, &"power_count": 3, &"gold_count": 3, &"hourglass_count": 2,
 			&"blast_size": 2.0, &"shockwave": 1, &"bumper_count": 3, &"booster_count": 2, &"wall_segment_count": 2, &"splitter_count": 2})
 	var layout := _layout([_item(&"bumper", Vector2(30, 100)), _item(&"bumper", Vector2(32, 480)), _item(&"bumper", Vector2(1120, 288)), _item(&"booster", Vector2(1110, 100)), _item(&"booster", Vector2(1110, 470)),
 			_item(&"wall_segment", Vector2(6, 200)), _item(&"wall_segment", Vector2(6, 376)), _item(&"splitter", Vector2i(2, 2)), _item(&"splitter", Vector2i(2, 6))])

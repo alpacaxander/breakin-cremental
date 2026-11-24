@@ -419,30 +419,10 @@ func _fill(level: int, start: Layout, stats: Balance) -> Layout:
 
 
 ## Every place one more `kind` could go that the search tries. A free-form item, a placed brick or an area: the centre of
-## each 64-unit square of the grid (a 4 x 1 block of brick cells), at each of ROTATIONS if it turns. A mod: in
-## each brick row, the brick nearest the paddle and the nearest 1 HP brick.
+## each 64-unit square of the grid (a 4 x 1 block of brick cells), at each of ROTATIONS if it turns.
 # ponytail: a raster, not every spot. A finer one costs time squared; try it if layouts look clumsy.
 func _spots(board: Board, layout: Layout, kind: PlaceableKind, stats: Balance) -> Array[Layout.Item]:
 	var out: Array[Layout.Item] = []
-	if kind.placement == PlaceableKind.Placement.MOD:
-		var cells := board.bricks.keys()
-		for item in layout.items:
-			if item.kind.placement == PlaceableKind.Placement.BRICK:
-				cells.append(item.cell)
-		cells.sort()  # by column, so the first of a row is the nearest the paddle
-		var taken := {}
-		for cell: Vector2i in cells:
-			var soft := board.brick(cell) == null or board.brick(cell).hp == 1
-			for which: String in ["front", "soft"] if soft else ["front"]:
-				if taken.has([cell.y, which]):
-					continue
-				taken[[cell.y, which]] = true
-				var item := Layout.Item.new()
-				item.kind = kind
-				item.cell = cell
-				if layout.fits(item, board, stats) and not out.any(func(o: Layout.Item) -> bool: return o.cell == cell):
-					out.append(item)
-		return out
 	for x in range(32, int(board.size().x), 64):
 		for y in range(32, int(board.size().y), 64):
 			for rot: float in ROTATIONS if kind.rotatable else [0.0]:

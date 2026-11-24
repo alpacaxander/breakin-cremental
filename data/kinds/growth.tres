@@ -7,6 +7,6 @@ script = ExtResource("1")
 title = "Growth"
 colour = &"placeable"
 order = 6
-placement = 3
+placement = 2
 delay = 0.5
 gap = 0.5

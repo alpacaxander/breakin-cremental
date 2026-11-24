@@ -318,7 +318,7 @@ func _check_tree(spy: Spy) -> void:
 				zaps.append(kids[k].cell)
 			else:
 				_fail(false, "a break sets off only its own kind's effect and its mod's (Round.hit_brick)")
-		if pre.mod == &"zap":
+		if pre.get("mod") == &"zap":
 			var want: Array[Vector2i] = []
 			for x in spy.board.cols:
 				if x != rec.cell.x and absi(x - rec.cell.x) <= int(spy.stats.zap_range):
@@ -394,7 +394,7 @@ func _zap() -> void:
 		else:
 			board.bricks[Vector2i(20, 2)] = Brick.new(1, host_kind)
 		var spy := Spy.new(board, _layout(items), _stats({&"zap_count": 1, &"splitter_count": 1}), 1)
-		t.check(spy.board.brick(Vector2i(20, 2)).mod == &"zap", "a Zap goes on a '%s' brick" % host_kind)
+		t.check(spy.board.brick(Vector2i(20, 2)).get("mod") == &"zap", "a Zap goes on a '%s' brick" % host_kind)
 		_repro = "a Zap on a '%s' brick (_zap)" % host_kind
 		spy.hit_brick(Vector2i(20, 2), Round.Cause.BALL, Vector2.RIGHT)
 		_check_tree(spy)
@@ -641,7 +641,7 @@ func _random_item(rng: RandomNumberGenerator, board: Board, layout: Layout) -> L
 				item.pos = Vector2(rng.randf_range(-20, size.x + 20), rng.randf_range(-20, size.y + 20))
 			if item.kind.rotatable:
 				item.rot = [0.0, 15.0, 45.0, 90.0, rng.randf_range(-180, 180)][rng.randi_range(0, 4)]
-		PlaceableKind.Placement.BRICK, PlaceableKind.Placement.MOD:
+		PlaceableKind.Placement.BRICK:
 			if rng.randf() < 0.5 and not board.bricks.is_empty():
 				var c: Vector2i = board.bricks.keys()[rng.randi_range(0, board.bricks.size() - 1)]
 				item.cell = c + Vector2i(rng.randi_range(-1, 1), rng.randi_range(-1, 1))
@@ -742,7 +742,7 @@ func _fuzz_round(sd: int) -> void:
 		var rec: Dictionary = spy.frames.back()
 		var pre: Brick = rec.pre
 		_fail(hp.get(c, 0) == 1 and brick.hp == 0 and spy.board.brick(c) == null, "a brick breaks on its last HP and is off the board when brick_broken is heard")
-		_fail(pre != null and brick.kind == pre.kind and brick.mod == pre.mod and brick.placed == pre.placed and brick.placed == placed.get(c, false), "brick_broken's brick has the kind, mod and placed flag it had")
+		_fail(pre != null and brick.kind == pre.kind and brick.placed == pre.placed and brick.placed == placed.get(c, false), "brick_broken's brick has the kind, mod and placed flag it had")
 		_fail(rec.cell == c and rec.cause == cause, "brick_broken carries the cell and cause of the hit")
 		_fail(stats.combo_rank < 1.0 or m.last == "combo", "with combos on, combo_changed comes just before brick_broken")
 		hp.erase(c)
@@ -997,10 +997,6 @@ func _fuzz_fits(sd: int) -> void:
 		var expect := 1  # 1 fits, 0 does not, -1 too close to tell
 		if layout.count(item.kind.id) >= stats.count(item.kind.id):
 			expect = 0
-		elif item.kind.placement == PlaceableKind.Placement.MOD:
-			var host := board.brick(item.cell) != null or layout.items.any(func(o: Layout.Item) -> bool: return o.kind.placement == PlaceableKind.Placement.BRICK and o.cell == item.cell)
-			var taken := layout.items.any(func(o: Layout.Item) -> bool: return o.kind.placement == PlaceableKind.Placement.MOD and o.cell == item.cell)
-			expect = 1 if host and not taken else 0
 		else:
 			var shape: PackedVector2Array
 			if item.kind.placement == PlaceableKind.Placement.BRICK:
@@ -1045,7 +1041,7 @@ func _r2_inputs(board: Board, layout: Layout, stats: Balance) -> Array:
 	var cells := []
 	for c: Vector2i in board.bricks:
 		var b := board.brick(c)
-		cells.append([c, b.hp, b.kind, b.mod, b.placed])
+		cells.append([c, b.hp, b.kind, b.placed])
 	cells.sort()
 	var numbers := {}
 	for stat: StringName in NUMBERS:

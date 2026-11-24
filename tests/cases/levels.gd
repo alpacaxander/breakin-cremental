@@ -62,7 +62,7 @@ func run(t: Node) -> void:
 				top = b.hp
 				at_top = 0
 			at_top += 1 if b.hp == top else 0
-			legal = legal and board.has_cell(cell) and b.hp >= 1 and b.hp <= 4 and b.kind == &"" and b.mod == &"" and not b.placed
+			legal = legal and board.has_cell(cell) and b.hp >= 1 and b.hp <= 4 and b.kind == &"" and not b.placed
 		t.check(legal, "level %d's bricks are standard, 1 to 4 HP, on cells of its grid" % n)
 		t.check(board.bricks.size() == want.bricks and board.remaining() == want.bricks, "level %d has %d bricks" % [n, want.bricks])
 		t.check(top == want.top and at_top == want.at_top, "level %d's toughest bricks have %d HP, and there are %d of them" % [n, want.top, want.at_top])

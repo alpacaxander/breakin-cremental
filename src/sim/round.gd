@@ -23,8 +23,8 @@ extends RefCounted
 ##      and the seed only, never on the layout, so building again with the same seed and an edited layout gives
 ##      the same special bricks. Setup relies on this: it shows a round, and Start builds it again.
 ##   3. The layout is fitted (Layout.fitted) and applied: a BRICK item becomes a placed brick (Brick.placed,
-##      kind = the item's kind id, hp = kind.hp), a MOD item sets Brick.mod on the brick at its cell, a FREE
-##      item is an obstacle. `layout` holds the fitted layout afterwards.
+##      kind = the item's kind id, hp = kind.hp), a FREE item is an obstacle and an AREA item is nothing in play
+##      (its kind's on_step acts). `layout` holds the fitted layout afterwards.
 ##   4. The paddle is centred (paddle.y = board.size().y / 2). One ball is at rest: its centre is at
 ##      x = paddle.x + stats.launch_gap + stats.ball_size / 2, y = paddle.y, its dir is LEFT, its boost is 1.
 ##      time_left is stats.round_time. `charges` is 0: charges come only from caught drops. `ability` is the
@@ -88,10 +88,9 @@ extends RefCounted
 ##   worth too) and `coins` is updated. Then brick_hit is emitted.
 ##   If not: it is erased from the board. With Overgrowth, a level brick's cell is due back at clock +
 ##   stats.overgrowth_delay (see ONE STEP, 4). The tally and `coins` are updated. brick_broken is emitted. Then
-##   its kind's on_broken hook runs, then its mod's on_host_broken.
-##   Hits a hook asks for (a blast, a Zap) go through hit_brick too, so chains need no special case.
-##   # ponytail: a chain is a call inside a call, about three deep per link, and GDScript stops at 1024. That is
-##   # some 300 explosive bricks set off by each other in one hit; queue the hits if a level ever gets there.
+##   its kind's on_broken hook runs.
+##   Hits a blast or a Zap gives go through hit_brick too. Nothing a hit sets off hits bricks again, so there
+##   are no chains.
 ##
 ## ONE BOUNCE. The ball is put exactly on the surface and given its new direction:
 ##   wall, brick, item   mirrored in the surface (Hit.normal)
@@ -158,7 +157,7 @@ const NOWHERE := Vector2i(-1, -1)
 signal brick_hit(cell: Vector2i, hp_left: int, cause: Cause)
 
 ## A brick broke. It is already off the board.
-##   brick  the brick that broke, with hp 0. Its kind, mod and placed flag are as they were, so
+##   brick  the brick that broke, with hp 0. Its kind and placed flag are as they were, so
 ##          Palette.brick(brick) is the colour it had (a plain brick always breaks from its 1 HP colour).
 ##   dir    a unit vector for the debris: the ball's direction of travel as it hit (BALL), away from the
 ##          blast's centre (BLAST), or along the row away from the zapped brick, LEFT or RIGHT (ZAP).
@@ -185,8 +184,8 @@ signal caught(drop: Drop)
 signal ball_lost(ball: Ball)
 
 ## An explosion went off. Emitted before its hits land, so every brick in `cells` is still on the board.
-##   pos    the centre of the brick that exploded, in units
-##   reach  how far the blast reaches out from that brick's edges, in units
+##   pos    the centre of the blast's brick cell (blast()), in units
+##   reach  how far the blast reaches out from that cell's edges, in units
 ##   cells  every brick cell the blast is about to hit, by column from the paddle side and then down
 signal exploded(pos: Vector2, reach: float, cells: Array[Vector2i])
 
@@ -294,8 +293,6 @@ func _init(p_board: Board, p_layout: Layout, p_stats: Balance, p_seed: int) -> v
 		match item.kind.placement:
 			PlaceableKind.Placement.BRICK:
 				board.bricks[item.cell] = _placed(item.kind)
-			PlaceableKind.Placement.MOD:
-				board.brick(item.cell).mod = item.kind.id
 			PlaceableKind.Placement.AREA:
 				pass  # nothing in play: its on_step acts
 			_:
@@ -560,22 +557,17 @@ func hit_brick(cell: Vector2i, cause: Cause, dir: Vector2, ball: Ball = null) ->
 	var kind := Kinds.of(brick.kind)
 	if kind:
 		kind.on_broken(self, cell, brick, cause, dir, ball)
-	var mod := Kinds.of(brick.mod)
-	if mod:
-		mod.on_host_broken(self, cell, brick, cause, dir, ball)
 
 
 ## An explosion from the brick cell `cell`, reaching `reach` units out from the cell's edges on every side, so
 ## the blast is the rectangle board.cell_rect(cell).grow(reach). A brick is hit if its cell rectangle overlaps
 ## that rectangle; touching edges do not count. At a reach of 64 that is 4 columns to each side and 1 brick row
 ## above and below; every 32 more adds 2 columns, and brick rows are added whole as soon as the blast enters them.
-## Emits `exploded`, then hits each of those bricks stats.explosion_damage times with Cause.BLAST. `cell` itself may be empty (the
-## brick a charged ball hit may be gone); if it still stands, it is in the blast too. A brick this blast breaks may set off a blast of its own
-## before the next brick of this one is hit.
-## If stats.shockwave is 1 or more, every ball whose centre is inside the blast is thrown: its dir points
-## straight away from the blast's centre (then the minimum angles apply) and its boost is multiplied by
-## stats.shockwave_boost. The throw comes after the hits, so in a chain the first blast throws last and its
-## direction is the one the ball leaves with.
+## Emits `exploded`, then hits each of those bricks stats.explosion_damage times with Cause.BLAST. `cell` itself
+## may be empty (the brick a charged ball hit may be gone); if it still stands, it is in the blast too.
+## If stats.shockwave is 1 or more, every ball whose centre is inside the blast is thrown, after the hits: its dir
+## points straight away from the blast's centre (then the minimum angles apply) and its boost is multiplied by
+## stats.shockwave_boost.
 func blast(cell: Vector2i, reach: float) -> void:
 	var area := board.cell_rect(cell).grow(reach)
 	var centre := area.get_center()
@@ -624,7 +616,7 @@ func grow(cell: Vector2i, reach: float) -> void:
 
 
 ## Brings broken level bricks back (Refresh, Overgrowth). Each of `cells` that can take one
-## (restorable()) gets a standard 1 HP level brick: no kind, no mod, not placed, whatever was there before. It
+## (restorable()) gets a standard 1 HP level brick: no kind, not placed, whatever was there before. It
 ## scores and counts toward a clear like any level brick, and Overgrowth no longer waits for it. Emits
 ## restored(cell, those cells) if any came back, and returns them, so a caller can try a cell a ball was over
 ## again later. `cell` is where they came back from: the block, or NOWHERE.

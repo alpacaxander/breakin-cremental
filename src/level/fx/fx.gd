@@ -422,16 +422,6 @@ func _on_brick_broken(cell: Vector2i, brick: Brick, cause: Round.Cause, dir: Vec
 	# `exploded`, time_changed, ball_added.
 	if kind is BrickKind and (kind as BrickKind).worth > 1:
 		_ring(_last, SPECIAL_RING, 2.0, colour, SPECIAL_TIME)
-	# A brick mod went off.
-	# ponytail: every mod gets the Zap's bolt along its row, the only mod there is. A mod that does something
-	# else needs a field on its kind that says what to draw.
-	var mod := Kinds.of(brick.mod)
-	if mod:
-		var row := Vector2(_round.board.size().x, BOLT)
-		# With reduce flashing it is unlit: a lit bar the width of the board is a flash.
-		_shape(_shapes, Vector2(row.x * 0.5, _last.y), row, Vector2(row.x, 1.0), Palette.of(mod.colour), 0.0, BOLT_TIME).boost = 1.0 if Settings.reduce_flashing else Palette.LIT
-		_shake(ZAP_SHAKE)
-		_freeze(ZAP_FREEZE)
 	if coins > 0:
 		# ponytail: one pop-up for everything a frame pays, where its first brick broke, so a blast reads "+12"
 		# and not twelve "+1". Two balls that break bricks far apart in the same frame share it; give each

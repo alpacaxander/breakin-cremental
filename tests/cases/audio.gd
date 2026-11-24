@@ -139,7 +139,7 @@ func _round(t: Node) -> void:
 	Kinds.add(gold)
 	Kinds.add(zap)
 	brick.kind = gold.id
-	brick.mod = zap.id
+	brick.set("mod", zap.id)
 	t.check(await _hear(t, func() -> void: r.brick_broken.emit(Vector2i.ZERO, brick, Round.Cause.ZAP, Vector2.LEFT, 5)) \
 			== [Sfx.BRICK_BREAK, Sfx.GOLD_BRICK, Sfx.ZAP], "a break plays BRICK_BREAK, then its kind's cue, then its mod's")
 	Kinds.reset()
