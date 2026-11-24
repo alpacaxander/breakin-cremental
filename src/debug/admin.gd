@@ -9,6 +9,24 @@ extends Node
 ## The panel is rebuilt from Progress every time it opens.
 
 const KEY := KEY_QUOTELEFT
+## The ranks the balance bot's average player owns on reaching each level (and after clearing the last), with
+## `unlocked` to match: from `tests/run.sh bot campaign skill=average` on 2026-11-24 (levels cleared on rounds
+## 8, 17 and 42). Applying one replaces every rank and leaves the coins alone.
+# ponytail: copied by hand from tests/out/bot/campaign.json's purchases. Rerun the campaign and recopy after tuning.
+const PRESETS := {
+	"Level 1": {"unlocked": 1, "ranks": {}},
+	"Level 2": {"unlocked": 2, "ranks": {&"booster": 1, &"combo": 1, &"gold_brick": 1, &"hourglass_brick": 1,
+			&"paddle_speed": 1, &"tough_brick": 1}},
+	"Level 3": {"unlocked": 3, "ranks": {&"blast_size": 1, &"booster": 1, &"combo": 1, &"combo_window": 1,
+			&"explosive_brick": 2, &"gold_brick": 2, &"growth": 1, &"guide": 2, &"hourglass_brick": 1,
+			&"paddle_size": 2, &"paddle_speed": 2, &"splitter": 1, &"tough_brick": 2, &"wall_segment": 1, &"zap": 1}},
+	"Cleared": {"unlocked": 4, "ranks": {&"ball_brick": 1, &"blast_size": 2, &"booster": 2, &"booster_speed": 2,
+			&"combo": 1, &"combo_window": 2, &"explosion_damage": 2, &"explosive_brick": 4, &"gold_brick": 3,
+			&"growth": 2, &"growth_reach": 2, &"guide": 4, &"guide_bounces": 1, &"hourglass_brick": 2,
+			&"hourglass_freeze": 1, &"hourglass_time": 1, &"paddle_size": 4, &"paddle_speed": 2, &"pulse_rate": 1,
+			&"rear_paddle": 2, &"shockwave": 1, &"spare_ball": 2, &"splitter": 4, &"splitter_health": 2,
+			&"splitter_respawn": 1, &"tough_brick": 3, &"wall_segment": 2, &"zap": 2, &"zap_damage": 1, &"zap_range": 2}},
+}
 
 var _win := Window.new()
 var _coins: Label  # made by _build
@@ -72,6 +90,16 @@ func _build() -> void:
 	levels.add_child(label)
 	levels.add_child(_spin(Progress.unlocked, 1, Progress.level_count + 1, _set_unlocked))
 
+	# Presets
+	box.add_child(HSeparator.new())
+	var presets := HBoxContainer.new()
+	box.add_child(presets)
+	var preset_label := Label.new()
+	preset_label.text = "Bot at"
+	presets.add_child(preset_label)
+	for preset_name: String in PRESETS:
+		presets.add_child(_button(preset_name, func() -> void: _apply(PRESETS[preset_name])))
+
 	# Upgrades
 	box.add_child(HSeparator.new())
 	var spins: Array[SpinBox] = []
@@ -120,6 +148,15 @@ func _set_rank(r: int, u: Upgrade) -> void:
 		Progress.ranks.erase(u.id)
 	Progress.save()
 	Progress.rank_changed.emit(u)
+
+
+## Replaces every rank and `unlocked` with a preset's, then redraws the panel so its spin boxes match.
+func _apply(preset: Dictionary) -> void:
+	Progress.ranks.assign(preset.ranks)
+	for u in Progress.upgrades():
+		Progress.rank_changed.emit(u)
+	_set_unlocked(preset.unlocked)  # saves
+	_build.call_deferred()  # not now: the button pressed is one of the children _build frees
 
 
 func _button(text: String, on_press: Callable) -> Button:

@@ -255,6 +255,11 @@ func _names(t: Node) -> void:
 	for kind in Kinds.all():
 		# ponytail: the Bumper and Refresh are off the web (their nodes were dropped) but kept in the code.
 		t.check(kind.id in counted or kind.id in [&"bumper", &"refresh"], "an upgrade raises %s, or nobody can ever have a %s" % [Balance.count_stat(kind.id), kind.title])
+	for preset: String in Admin.PRESETS:
+		var ranks: Dictionary = Admin.PRESETS[preset].ranks
+		for id: StringName in ranks:
+			var u := Progress.upgrade(id)
+			t.check(u != null and ranks[id] <= u.max_rank, "the admin preset %s's %s is an upgrade, at most its max rank" % [preset, id])
 
 
 ## With every upgrade owned, Progress.snapshot() hands a round each number it reads, moved off its base.
