@@ -43,10 +43,11 @@ Because the rules have no nodes, a round runs headless. Tests check the physics 
 - **Origin.** `(0, 0)` is the top left corner of the grid; x grows toward the back wall and y grows downward. The paddle lane is at negative x: the open side is the line `x = -board.lane()`.
 - **To the screen.** The level screen's `Arena` node sits at `(154, 110)` with scale `board.zoom()` (16 ÷ rows) and its children draw in units, so `screen = (154, 110) + units × zoom`. The lane is 58 screen pixels at every level size, which is `58 ÷ zoom` units.
 - **Brick cells.** A brick always starts on an even grid row, so bricks are addressed by brick cell: `Vector2i(column, brick row)`, a 16 × 64 unit rectangle. Brick row `r` covers grid rows `2r` and `2r + 1`. Every `cell` in a signal, a hook or a saved layout is a brick cell.
-- **A row**, for a Zap, is every brick cell with the same brick row.
+- **A row**, for a Zap, is every brick cell with the same brick row. A Zap reaches `zap_range` columns of it each way from the brick it went off at.
 - **Smallest level.** The lane is 58 screen pixels at every size, but the paddle and the ball keep their size in units. With the numbers in `balance.tres` a ball fits between the paddle's face and the grid from 14 rows up (see [levels.md](design/levels.md#arena-size)); `tests/cases/contracts.gd` checks it for every level.
-- **Launch path.** `Round.launch_path(board, stats)` is the rectangle the first ball covers before it touches the paddle: its square at rest and the strip from there straight left to the paddle's face. `Layout.fits` refuses a free-form item or a placeable brick that overlaps it or comes within `Layout.CLEAR` (0.02 units) of it from above or below, and an item may still touch the right side of that square. A level must not paint a brick there, and `tests/cases/contracts.gd` checks that for every level. The game no longer launches along it. `Level` calls `Round.hold()`, which keeps the first ball on the paddle's face until `Round.launch()` sends it off along `Round.launch_dir()`: an aim that sways within ±`Round.LAUNCH_ANGLE` (45°), or to the steepest legal angle with the Guide, from a random start. `Round.guide()` traces that aim for the Guide's line with a ghost ball through `Collide.sweep`, turning it as `_bounce` would (`_turn`). The ball at rest and its path stay for the rules tests, which build rounds without `hold()` (see the `ponytail:` comment on `hold()`). The ball on the paddle is `Round.waiting`, which is also each spare ball as it comes on (`Round.spares`, `stats.spare_delay`; see SPARES in `round.gd`'s header): it stays in `balls`, and the round skips it when moving balls and in a Shockwave.
-- **A blast** reaches `blast_size × 64` units out from the edges of the brick that exploded, and hits every brick whose cell overlaps that rectangle. At the base size that is 4 columns to each side and 1 brick row above and below.
+- **Launch path.** `Round.launch_path(board, stats)` is the rectangle the first ball covers before it touches the paddle: its square at rest and the strip from there straight left to the paddle's face. `Layout.fits` refuses a free-form item or a placeable brick that overlaps it or comes within `Layout.CLEAR` (0.02 units) of it from above or below, and an item may still touch the right side of that square. A level must not paint a brick there, and `tests/cases/contracts.gd` checks that for every level. The game no longer launches along it. `Level` calls `Round.hold()`, which keeps the first ball on the paddle's face until `Round.launch()` sends it off along `Round.launch_dir()`: an aim that sways within ±`Round.LAUNCH_ANGLE` (45°), or to the steepest legal angle with the Guide, from a random start. `Round.guide()` traces that aim for the Guide's line with a ghost ball through `Collide.sweep`, turning it as `_bounce` would (`_turn`). The ball at rest and its path stay for the rules tests, which build rounds without `hold()` (see the `ponytail:` comment on `hold()`). The ball on the paddle is `Round.waiting`, which is also each charge as it comes on (`Round.charges`; see `round.gd`'s header): it stays in `balls`, and the round skips it when moving balls and in a Shockwave. `launch()` of the first ball also starts the opening volley: `int(stats.multiball)` more balls, `stats.multiball_gap` apart, from the same point and the same way, each through `add_ball`. `launch()` of a charge sets `waiting.charge` to `Round.ability` first.
+- **A blast** reaches `blast_size × 64` units out from the edges of the brick the charged ball hit, and hits every brick whose cell overlaps that rectangle. At the base size that is 4 columns to each side and 1 brick row above and below.
+- **Drops and abilities.** `Round.drop(cell)` puts a `Drop` (`src/sim/drop.gd`: `id`, `pos` its centre, `size`, `rect()`) in `Round.drops` at the cell's centre. Each step, after the balls move, every drop moves `drop_speed × delta` left; one that overlaps `paddle.rect(board.size().y)` is caught (`Round.add_charge()`), and one wholly past the open side is removed. A ball carries the ability it was fired with in `Ball.charge` (`&""` for none). On its first hit on a level brick, after the hit lands, the charge is spent and the ability kind's `fire` hook runs at that cell. `Round.ability` is the selected ability (`&""` when none is unlocked, else the first unlocked one when the round is built), `Round.abilities()` lists the unlocked ones in kind order, and `Round.cycle(steps)` moves the selection, wrapping. An ability is unlocked when `stats.count(id) >= 1`.
 - **An area of bricks.** `board.bricks_in(area)` lists the brick cells that overlap a rectangle in units, by column and then row. A blast and a Growth pulse both use it.
 
 ### Signals
@@ -56,15 +57,17 @@ There is no global event bus. A round's events are signals on the `Round` object
 | Signal | When |
 |---|---|
 | `brick_hit(cell, hp_left, cause)` | A brick took a hit and is still there. A level brick's hit has already scored its point in `coins` |
-| `brick_broken(cell, brick, cause, dir, coins)` | A brick broke. `brick` is the brick as it was (its kind, mod and `placed`), `dir` is the direction for the debris, `coins` is what this break paid |
+| `brick_broken(cell, brick, cause, dir, coins)` | A brick broke. `brick` is the brick as it was (its kind and `placed`), `dir` is the direction for the debris, `coins` is what this break paid |
 | `ball_bounced(ball, hit)` | A ball bounced off a wall, the paddle or a placed item. `hit` (`src/sim/hit.gd`) says which, where, and the surface normal |
-| `ball_added(ball)` / `ball_lost(ball)` | A Splitter made a ball, or a ball left through the open side |
-| `exploded(pos, reach, cells)` | An explosive brick went off. `cells` are the bricks it is about to hit, still on the board |
+| `ball_added(ball)` / `ball_lost(ball)` | A Splitter made a ball or a ball of the opening volley (Multiball) set off, or a ball left through the open side. A charge going onto the paddle is not announced: read `waiting` and `charges` |
+| `exploded(pos, reach, cells)` | A Blast went off (`round.blast`). `cells` are the bricks it is about to hit, still on the board |
+| `zapped(cell, cells)` | A Zap went off at `cell` (`round.zap`). `cells` are the bricks it is about to hit, still on the board, paddle side first |
+| `dropped(drop)` / `caught(drop)` | A Power Brick made a drop (already in `drops`), or the paddle caught one (already out of `drops`, `charges` already raised). A missed drop has no signal |
 | `grew(cell, reach, cells)` | A placed block at `cell` pulsed (`round.grow`): `cells` are the level bricks that gained 1 HP, out to `reach` units from its edges. Not emitted when none gained |
 | `restored(cell, cells)` | Broken level bricks came back (`round.restore`): `cells` are the cells now holding a plain 1 HP level brick, in the order they were asked for; `cell` is the block that brought them (Refresh), or `Round.NOWHERE` (Overgrowth: every cell that came due in that step, in the order they broke, at once). Each raises the count of level bricks left. Not emitted when none came. Fx and Sfx ignore Overgrowth's. A broken Splitter rebuilt by Splitter Respawn (`round.rebuild`) emits it too, with `cell` and `cells` both its own cell; it adds no level brick |
 | `combo_changed(count, multiplier)` | The combo grew or reset |
 | `time_changed(seconds_left, added)` | An hourglass brick added time |
-| `ended(reason)` | The timer ran out, the last ball was lost, or the level was cleared |
+| `ended(reason)` | The timer ran out, the last ball was lost (with no charge held, no drop falling and no volley ball to come), or the level was cleared |
 
 The cause of a hit is `Round.Cause.BALL`, `BLAST` or `ZAP`. Screens read continuous state, such as ball positions, the combo's window and the time left, straight from the round each frame.
 
@@ -74,21 +77,21 @@ The cause of a hit is `Round.Cause.BALL`, `BLAST` or `ZAP`. Screens read continu
 |---|---|---|
 | A level | The next scene in `levels/`, `level_<n>.tscn` | `Levels.read(n)` (`src/content/levels.gd`) turns the scene into a `LevelData`: number, title, target score, a `Board`, and the cells marked for the bot to aim at. The level screen, the hub's thumbnail, the tests and the bot all go through it. The scene is only how a level is written down; it is not shown in the game |
 | An upgrade | One `.tres` in `data/upgrades/`, and one node in the web scene | The file name is the upgrade's id. Game code asks for a stat value, never for a rank (see [Stats](#stats)) |
-| A placeable or a brick kind | One script in `src/kinds/` and one `.tres` in `data/kinds/` | The file name is the kind's id, and `Kinds` (`src/kinds/kinds.gd`) finds it. The round calls the kind's hooks and has no branches per kind; the views draw it from its fields; `Sfx` plays its cue |
+| A placeable, a brick kind or an ability | One script in `src/kinds/` and one `.tres` in `data/kinds/` | The file name is the kind's id, and `Kinds` (`src/kinds/kinds.gd`) finds it. The round calls the kind's hooks and has no branches per kind; the views draw it from its fields; `Sfx` plays its cue |
 
 ### Kinds
 
-A kind is a `Resource`. `Kind` is the base, with the id, the title, the colour meaning, the cue and the hooks. `BrickKind` and `PlaceableKind` extend it; each kind extends one of them, and its `.tres` holds its numbers.
+A kind is a `Resource`. `Kind` is the base, with the id, the title, the colour meaning, the cue and the hooks. `BrickKind`, `PlaceableKind` and `AbilityKind` extend it; each kind extends one of them, and its `.tres` holds its numbers.
 
 | Hook | Called when | Example |
 |---|---|---|
 | `on_ball_hit(round, ball, hit)` | A ball has bounced off a placed item, or crossed a gate's middle line (`gate`: no bounce; `Round._cross`) | The Booster adds a boost |
 | `on_hit(round, cell, brick, cause, dir, ball)` | The brick took a hit and still stands | The Splitter splits a ball that hits it (with more than 1 HP) |
-| `on_broken(round, cell, brick, cause, dir, ball)` | The brick broke | The explosive brick calls `round.blast`; the Splitter adds a ball and, with Splitter Respawn, calls `round.rebuild` |
-| `on_host_broken(round, cell, brick, cause, dir, ball)` | A brick with this mod on it broke | Zap hits the rest of the row |
+| `on_broken(round, cell, brick, cause, dir, ball)` | The brick broke | The Power Brick calls `round.drop`; the Splitter adds a ball and, with Splitter Respawn, calls `round.rebuild` |
+| `fire(round, cell, dir, ball)` | An AbilityKind's only hook: a charged `ball` has hit the level brick at `cell`, the hit has landed and the charge is spent | Zap calls `round.zap(cell)`; Blast calls `round.blast` at the cell with a reach of `blast_size` squares |
 | `on_step(round, cell, brick, delta)` | Every step of play, for each placed brick still on the board and each AREA item (`brick` null), in layout order, after the balls have moved and `round.clock` has advanced. Not while the ball is held | Growth calls `round.grow` each time `round.clock` crosses one of its pulse times |
 
-A hook changes the round through the round's own functions (`hit_brick`, `blast`, `grow`, `restore`, `add_ball`, `set_boost`, `add_time`), so chains work without special cases: an explosion that breaks an explosive brick calls that brick's hook too.
+A hook changes the round through the round's own functions (`hit_brick`, `blast`, `zap`, `drop`, `grow`, `restore`, `add_ball`, `set_boost`, `add_time`), so a hit a hook asks for, such as a blast's, calls the hooks of the bricks it hits too: a blast that breaks a Power Brick makes a drop. Nothing chains: no hook sets off another blast or Zap.
 
 The demo's kinds. The id is the file name in `data/kinds/`, and `<id>_count` is the stat that counts it:
 
@@ -98,18 +101,18 @@ The demo's kinds. The id is the file name in `data/kinds/`, and `<id>_count` is 
 | `booster` | PlaceableKind, FREE, `gate` | RECT 16 × 96, rotatable, passed through | `placeable` | `booster` | Adds 0.2 to the ball's boost |
 | `wall_segment` | PlaceableKind, FREE, rotatable | RECT 10 × 112 | `placeable` | `wall_bounce` | |
 | `splitter` | PlaceableKind, BRICK | A brick cell, 1 HP | `placeable` | none (`ball_added` has its own) | `respawn` 6 s, `respawn_per_rank` 2 s (Splitter Respawn) |
-| `zap` | PlaceableKind, MOD | A 6 × 6 mark | `placeable` | `zap` | |
 | `growth` | PlaceableKind, AREA | Its brick cell grown by `growth_reach` squares (`area()`), not solid | `placeable` | none (Sfx plays `booster` on `grew`) | `growth_pulses` pulses, the first at `delay` 0.5 s of play, then one every `gap` 0.5 s |
 | `refresh` | PlaceableKind, BRICK, `unbreakable`, 2 panes | A brick cell that never breaks | `placeable` | `place_item` (on `restored`) | A ball's hit brings back the `refresh_size` broken level bricks nearest it (`round.broken_near`, `round.restore`), then it cools for 4 s (`cooldown`), in `Brick.ready_at` |
-| `explosive` | BrickKind | 1 HP | `explosive` | none (`exploded` has its own) | Reach comes from the `blast_size` stat |
+| `power` | BrickKind | 1 HP, worth 1 | `ability` | `splitter` | `round.drop(cell)` when it breaks, by any cause |
 | `gold` | BrickKind | 1 HP, worth 20 | `coins` | `gold_brick` | |
 | `hourglass` | BrickKind | 1 HP | `time` | `hourglass_brick` | Adds 15 s |
 | `tough` | BrickKind (no script of its own) | 3 HP | none: drawn in the HP steps, like a plain brick | none (the brick sounds) | |
-| `ball` | BrickKind, `mark` | 1 HP, a ball-sized slate square in its middle | none: drawn in the HP steps | `splitter` | `round.add_spare()`: one more ball in reserve (Round, SPARES) |
+| `zap` | AbilityKind | none: it is not drawn | `ability` | none (Sfx plays `zap` on `zapped`) | Range and damage come from the `zap_range` and `zap_damage` stats |
+| `blast` | AbilityKind | none: it is not drawn | `ability` | none (Sfx plays `explosion` on `exploded`) | Reach and damage come from the `blast_size` and `explosion_damage` stats |
 
-`order` runs 1 to 7 down the placeables and 1 to 5 down the bricks; it is the tray order and the order special bricks are rolled in. A kind with no hook, such as `tough`, uses `src/kinds/brick_kind.gd` itself as its script, so it is one file. A brick kind with no colour is drawn by its HP, as a plain brick is (`Palette.brick`).
+`order` sorts the kinds within each base: it is the tray order, the order special bricks are rolled in (the Power Brick first) and the order the abilities are cycled through (Zap, then Blast). A kind with no hook, such as `tough`, uses `src/kinds/brick_kind.gd` itself as its script, so it is one file. A brick kind with no colour is drawn by its HP, as a plain brick is (`Palette.brick`).
 
-A placeable brick with `unbreakable` set is a block: a ball bounces off it as off any brick, and a ball, blast or Zap hit calls its `on_hit`, counts in the tally's `hits` and emits `brick_hit`, but takes no HP. It pays nothing, does not count toward a clear and does not grow the combo, as any placed brick. A Zap cannot go on one (`Layout.fits`). Growth is the first; a block that does something on a timer does it from `on_step`, reading `round.clock` (seconds of play since the round's first step, not moved by an hourglass), and says so with a signal of its own, as Growth does with `grew`. A block that acts when hit does it from `on_hit`, and one that waits between acts keeps the time in its own `Brick` (Refresh: `ready_at`, the `round.clock` it is ready again; the arena draws it dim until then). `panes` (1 or 2) is how its centre is drawn, so blocks read apart. Bricks come back only through `round.restore(cell, cells)`, which puts a plain 1 HP level brick on each of `cells` that is in `round.level_cells` (the cells that held a level brick when the round was built), empty and clear of every ball (`round.restorable`), and returns the ones it filled; `round.broken_near(cell, count)` picks the nearest such cells. Overgrowth is not a kind and has no hook: the round itself keeps each broken level cell's due time (`round.clock` + `overgrowth_delay`) when it breaks, and at the end of a step's part 4, after the `on_step` hooks, hands every cell now due to one `restore(Round.NOWHERE, cells)`. A cell a ball is over stays due and is tried again next step. It does nothing once no level brick stands, so the end checks still see a cleared board (the step order is in `round.gd`'s header).
+A placeable brick with `unbreakable` set is a block: a ball bounces off it as off any brick, and a ball, blast or Zap hit calls its `on_hit`, counts in the tally's `hits` and emits `brick_hit`, but takes no HP. It pays nothing, does not count toward a clear and does not grow the combo, as any placed brick. A charged ball keeps its charge when it hits one, as on any placed brick. Growth is the first; a block that does something on a timer does it from `on_step`, reading `round.clock` (seconds of play since the round's first step, not moved by an hourglass), and says so with a signal of its own, as Growth does with `grew`. A block that acts when hit does it from `on_hit`, and one that waits between acts keeps the time in its own `Brick` (Refresh: `ready_at`, the `round.clock` it is ready again; the arena draws it dim until then). `panes` (1 or 2) is how its centre is drawn, so blocks read apart. Bricks come back only through `round.restore(cell, cells)`, which puts a plain 1 HP level brick on each of `cells` that is in `round.level_cells` (the cells that held a level brick when the round was built), empty and clear of every ball (`round.restorable`), and returns the ones it filled; `round.broken_near(cell, count)` picks the nearest such cells. Overgrowth is not a kind and has no hook: the round itself keeps each broken level cell's due time (`round.clock` + `overgrowth_delay`) when it breaks, and at the end of a step's part 4, after the `on_step` hooks, hands every cell now due to one `restore(Round.NOWHERE, cells)`. A cell a ball is over stays due and is tried again next step. It does nothing once no level brick stands, so the end checks still see a cleared board (the step order is in `round.gd`'s header).
 
 ### Stats
 
@@ -130,20 +133,23 @@ The demo's upgrades. The id is the file name in `data/upgrades/`:
 | `paddle_size` | `paddle_size` | 40% |
 | `round_time` | `round_time` | 6 |
 | `combo` | `combo_rank` | 1 |
-| `blast_size` | `blast_size` | 1 |
+| `blast_size` (Blast Size) | `blast_size` | 1 |
+| `explosion_damage` (Blast Damage) | `explosion_damage` | 1 |
+| `zap_range`, `zap_damage` | `zap_range`, `zap_damage` | 2, 1 |
 | `shockwave` | `shockwave` | 1 |
-| `booster`, `wall_segment`, `splitter`, `zap`, `growth` | `<id>_count` | 1 |
+| `booster`, `wall_segment`, `splitter`, `growth` | `<id>_count` | 1 |
 | `growth_reach` | `growth_reach` | 1 |
 | `pulse_rate` (Growth Pulses) | `growth_pulses` | 1 |
 | `overgrowth` | `overgrowth` | 1 (on) |
-| `spare_ball` | `spare_balls` | 1 |
-| `explosive_brick`, `gold_brick`, `hourglass_brick`, `tough_brick`, `ball_brick` | `explosive_count`, `gold_count`, `hourglass_count`, `tough_count`, `ball_count` | 1 |
+| `multiball` | `multiball` | 1 |
+| `gold_brick`, `hourglass_brick`, `tough_brick` | `gold_count`, `hourglass_count`, `tough_count` | 1 |
+| `power_brick`, `zap`, `blast` | `power_count`, `zap_count`, `blast_count` | 1 |
 
 The web scene (`src/hub/web.tscn`) holds only layout: where each node sits, which `.tres` it shows, and which nodes it connects to. Whether a node can be reached yet is the hub's question; `Progress.buy` checks only the price and the maximum rank.
 
 ### Other numbers
 
-- `data/balance.tres` also holds the numbers that are not stats: ball and paddle sizes, the launch gap, the minimum angles, the paddle's steepest angle, the boost cap, the combo numbers, the low-timer mark, coins per brick, the rotation step, the most HP a brick can grow to (`max_hp`) and how long Overgrowth takes to bring a brick back (`overgrowth_delay`). The defaults in `balance.gd` are 0, so a number can only come from the file. A kind's own amounts are in its `.tres`.
+- `data/balance.tres` also holds the numbers that are not stats: ball and paddle sizes, the launch gap, the minimum angles, the paddle's steepest angle, the boost cap, the combo numbers, the low-timer mark, coins per brick, the rotation step, the most HP a brick can grow to (`max_hp`), how long Overgrowth takes to bring a brick back (`overgrowth_delay`), the gap between the opening volley's balls (`multiball_gap`) and a drop's speed and size (`drop_speed`, `drop_size`). The defaults in `balance.gd` are 0, so a number can only come from the file. A kind's own amounts are in its `.tres`.
 - The coin formula is one function, `Coins.total(tally, stats)` in `src/sim/coins.gd`. It turns a tally into coins.
 - Colours are constants in `src/ui/palette.gd`, copied from [palette.md](palette.md). No other file contains a colour value, scenes and resources included: a script assigns the colour.
 
@@ -167,7 +173,7 @@ Main                         never unloaded (src/main.tscn)
 │   │           │   ├─ ItemViews, PaddleView, BallViews
 │   │           │   ├─ Ghost         the item being dragged in Setup
 │   │           │   └─ Fx            particles, shockwaves, trails, pop-ups (src/level/fx/fx.gd)
-│   │           ├─ Hud               hud.gd: time, combo, coins, and Play's footer
+│   │           ├─ Hud               hud.gd: time, combo, coins, the ability readout, and Play's footer
 │   │           ├─ SetupUi           setup_ui.gd: tray, placement, Start
 │   │           └─ Summary           summary.gd: the result, Retry or Next, Upgrades
 │   └─ WorldEnvironment      bloom
@@ -199,7 +205,7 @@ The input map has four actions. Everything else is the mouse and Godot's built-i
 | `rotate_ccw` | Q, wheel up |
 | `rotate_cw` | E, wheel down |
 
-A wheel notch is pressed and released within one frame, so read the rotate actions from the event (`event.is_action_pressed`), not by polling. One press turns the item by `rotate_step` degrees: the one being dragged, or else the placed one under the cursor.
+A wheel notch is pressed and released within one frame, so read the rotate actions from the event (`event.is_action_pressed`), not by polling. In Setup one press turns the item by `rotate_step` degrees: the one being dragged, or else the placed one under the cursor. In Play it cycles the selected ability (`round.cycle(-1)` and `round.cycle(1)`); `Level` keeps the selection from one round to the next while the screen is open, and it is not saved. A left click or Space launches the ball waiting on the paddle, the first one or a charge.
 
 **The paddle** goes where the last thing the player used says. A held key (polled each tick) always has it. The mouse takes it back only by moving 4 px up or down from where it rested (`MOUSE_WAKES` in `level.gd`), so a resting mouse never pulls a key player's paddle away, and after a click on Start the paddle does not run down toward the button. The mouse's height is read in the level screen's own pixels and turned into units by `LevelArena.to_units`, not read inside `Arena`, so a screen shake does not move the target. In Setup, Space or Enter does what Start does.
 
@@ -248,9 +254,9 @@ src/
   main.tscn  main.gd      the render chain and navigation
   play.tscn  play.gd      the Hub and Level switch
   autoload/   progress.gd  settings.gd  sfx.gd
-  sim/        round.gd  board.gd  brick.gd  ball.gd  paddle.gd  hit.gd  collide.gd
+  sim/        round.gd  board.gd  brick.gd  ball.gd  drop.gd  paddle.gd  hit.gd  collide.gd
               combo.gd  tally.gd  coins.gd  layout.gd  balance.gd
-  kinds/      kind.gd  brick_kind.gd  placeable_kind.gd  kinds.gd  and one script per kind
+  kinds/      kind.gd  brick_kind.gd  placeable_kind.gd  ability_kind.gd  kinds.gd  and one script per kind
   content/    levels.gd  level_data.gd  upgrade.gd
   level/      level.tscn  level.gd  arena.gd  hud.gd  setup_ui.gd  summary.gd
               fx/fx.gd
@@ -303,7 +309,7 @@ A lane adds its own `tests/cases/<lane>.gd` and `tests/shots/<lane>.gd` and neve
 
 Four more cases and two shot lists belong to no lane. They overlap the lane cases on purpose and are kept apart from them:
 
-- `tests/cases/fuzz_logic.gd` and `tests/cases/fuzz_physics.gd` play random rounds against the rules, with the docs as the oracle: the first checks what counts and chains (hits, blasts, Zaps, the tally, coins), the second the ball and the sweep at every step. Both use fixed seeds, so a run always gives the same result. For a longer hunt, `FUZZ_N=500 FUZZ_SEED=7 tests/run.sh test fuzz_logic` and `FUZZ_ROUNDS=<n> FUZZ_FROM=<seed> tests/run.sh test fuzz_physics`.
+- `tests/cases/fuzz_logic.gd` and `tests/cases/fuzz_physics.gd` play random rounds against the rules, with the docs as the oracle: the first checks what counts (hits, blasts, Zaps, the tally, coins), the second the ball and the sweep at every step. Both use fixed seeds, so a run always gives the same result. For a longer hunt, `FUZZ_N=500 FUZZ_SEED=7 tests/run.sh test fuzz_logic` and `FUZZ_ROUNDS=<n> FUZZ_FROM=<seed> tests/run.sh test fuzz_physics`.
 - `tests/cases/play_level.gd` and `tests/cases/play_hub_menu.gd` are a first player's pass, with real input events, over the level screen on all three levels and over the hub, the menu, Settings and the joins between the screens. They hold the regressions for what the play tests found (a double click that crosses a change of screen, the panels' sizes, each node's text against [upgrades.md](design/upgrades.md)). `tests/shots/play_level.gd` and `tests/shots/play_hub_menu.gd` are their pictures.
 
 A case that connects a lambda to a round's own signal must not read that round inside the lambda, or must disconnect it when done: the round then holds itself and is never freed, and Godot reports thousands of leaked objects when the run exits.
