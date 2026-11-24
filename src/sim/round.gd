@@ -23,11 +23,12 @@ extends RefCounted
 ##      and the seed only, never on the layout, so building again with the same seed and an edited layout gives
 ##      the same special bricks. Setup relies on this: it shows a round, and Start builds it again.
 ##   3. The layout is fitted (Layout.fitted) and applied: a BRICK item becomes a placed brick (Brick.placed,
-##      kind = the item's kind id, hp = kind.hp), a MOD item sets Brick.mod on the brick at its cell, a FREE
-##      item is an obstacle. `layout` holds the fitted layout afterwards.
+##      kind = the item's kind id, hp = kind.hp), a FREE item is an obstacle and an AREA item is nothing in play
+##      (its kind's on_step acts). `layout` holds the fitted layout afterwards.
 ##   4. The paddle is centred (paddle.y = board.size().y / 2). One ball is at rest: its centre is at
 ##      x = paddle.x + stats.launch_gap + stats.ball_size / 2, y = paddle.y, its dir is LEFT, its boost is 1.
-##      time_left is stats.round_time. `spares` is stats.spare_balls.
+##      time_left is stats.round_time. `charges` is 0: charges come only from caught drops. `ability` is the
+##      first of abilities(), or &"" when none is unlocked.
 ## Nothing moves until step() is called. The first step sends the ball straight left into the paddle. Nothing
 ## placed is in its way: Layout.fits keeps every item out of launch_path().
 ## A round counts its bricks as it is built: after that, change the board only through hit_brick and restore
@@ -38,8 +39,10 @@ extends RefCounted
 ##   2. Each ball, in `balls` order, moves speed_of(ball) * delta along its dir. Movement is swept, so nothing is
 ##      passed through. Every contact is resolved where it happens and its signals are emitted then. A ball made
 ##      during this step (a Splitter) starts moving on the next one. The `waiting` ball rides the paddle instead.
-##      Then the spares (see SPARES): with no ball waiting, the spare countdown goes down by delta, and if a spare
-##      is left and the countdown is done or no ball is left in `balls`, one spare goes onto the paddle.
+##      Then the drops (see CHARGES): each moves stats.drop_speed * delta LEFT; one that overlaps the paddle is
+##      caught (charges + 1, then caught is emitted), one wholly past the open side is removed. Then, while the
+##      opening volley has balls to come (launch), its countdown runs and a ball that is due is made at the launch
+##      point and ball_added is emitted. Then, with no ball waiting and a charge held, one charge goes onto the paddle.
 ##   3. The combo's window counts down. If it runs out the combo resets and combo_changed(0, 1) is emitted.
 ##      Less than TIME_SLOP left has run out, as in 5.
 ##   4. `clock` goes up by delta. Then each placed brick still on the board and each AREA item, in layout order,
@@ -52,16 +55,27 @@ extends RefCounted
 ##      exact number, so counting down by it ends a hair off 0, and a hair above 0 would be one more whole step
 ##      at some rates and not at others. A round whose time is a whole number of steps plays exactly that many;
 ##      any other plays to the end of the step its time runs out in.
-##   6. The round ends if every level brick is broken (CLEARED), else if no ball is left (BALL_LOST; a spare left
-##      would already be waiting on the paddle, so this is no ball in play, none waiting and none in reserve), else if
+##   6. The round ends if every level brick is broken (CLEARED), else if no ball is left, no drop is falling and no
+##      ball of the opening volley is still to come (BALL_LOST; a charge held would already be waiting on the
+##      paddle, so this is no ball in play, none waiting, none in reserve and none on its way), else if
 ##      time_left is 0 (TIME). However it ended, the level is cleared if the score has reached `target`. The
 ##      tally notes the score and whether it cleared, then `ended` is emitted, once; after it step() does nothing. A board with no level bricks ends on its first step.
 ##
-## SPARES. Balls in reserve (docs/design/physics.md, "Spare balls"). Each launch() starts a countdown of
-## stats.spare_delay; once it is done and no ball waits, a spare goes onto the paddle's face as `waiting`, where it
-## rides and sways like the first ball until launch() sends it off. Meanwhile the balls in play keep moving, the
-## clock runs, and the waiting ball touches nothing. If the last ball in play is lost, a spare comes at once. A
-## spare is not announced (no ball_added): read `waiting` and `spares`. add_spare() adds one (the Ball Brick).
+## CHARGES. Balls in reserve. A Power Brick that breaks makes a drop (drop()): a square that moves straight LEFT at
+## stats.drop_speed through bricks, items and balls. One that overlaps the solid part of the paddle (paddle.rect)
+## is caught and the paddle gets a charge; one wholly past the open side is gone, with no signal.
+## # ponytail: a per-step overlap test, not swept. A drop moves about 2 units a step against a 12-unit paddle;
+## # sweep it if drops ever get fast or steps long.
+## With no ball waiting, the next charge goes onto the paddle's face at once as `waiting`, where it rides and sways
+## like the first ball until launch() fires it. Meanwhile the balls in play keep moving, the clock runs, and the
+## waiting ball touches nothing. A charge is not announced (no ball_added): read `waiting` and `charges`.
+## add_charge() adds one.
+##
+## ABILITIES. An ability (an AbilityKind) is unlocked when stats.count(id) is 1 or more; abilities() lists the
+## unlocked ones in Kinds order. `ability` is the selected one, and cycle() moves the selection. launch() fires a
+## charge with Ball.charge = `ability` (a plain ball when none is unlocked). The charged ball's first hit on a
+## level brick (not a placed one) lands as usual (ONE BRICK HIT), then the charge is spent (Ball.charge = &"")
+## and the ability's fire() runs at that brick's cell: Zap calls zap(), Blast calls blast().
 ##
 ## ONE BRICK HIT (hit_brick), in this order:
 ##   The brick loses 1 hp, unless its kind is unbreakable (PlaceableKind.unbreakable: Growth), which keeps its hp
@@ -74,10 +88,9 @@ extends RefCounted
 ##   worth too) and `coins` is updated. Then brick_hit is emitted.
 ##   If not: it is erased from the board. With Overgrowth, a level brick's cell is due back at clock +
 ##   stats.overgrowth_delay (see ONE STEP, 4). The tally and `coins` are updated. brick_broken is emitted. Then
-##   its kind's on_broken hook runs, then its mod's on_host_broken.
-##   Hits a hook asks for (a blast, a Zap) go through hit_brick too, so chains need no special case.
-##   # ponytail: a chain is a call inside a call, about three deep per link, and GDScript stops at 1024. That is
-##   # some 300 explosive bricks set off by each other in one hit; queue the hits if a level ever gets there.
+##   its kind's on_broken hook runs.
+##   Hits a blast or a Zap gives go through hit_brick too. Nothing a hit sets off hits bricks again, so there
+##   are no chains.
 ##
 ## ONE BOUNCE. The ball is put exactly on the surface and given its new direction:
 ##   wall, brick, item   mirrored in the surface (Hit.normal)
@@ -113,7 +126,7 @@ extends RefCounted
 enum Cause {
 	BALL,
 	BLAST,  ## An explosion
-	ZAP,  ## A brick mod's effect
+	ZAP,  ## A Zap (zap())
 }
 
 ## Why the round ended.
@@ -144,10 +157,10 @@ const NOWHERE := Vector2i(-1, -1)
 signal brick_hit(cell: Vector2i, hp_left: int, cause: Cause)
 
 ## A brick broke. It is already off the board.
-##   brick  the brick that broke, with hp 0. Its kind, mod and placed flag are as they were, so
+##   brick  the brick that broke, with hp 0. Its kind and placed flag are as they were, so
 ##          Palette.brick(brick) is the colour it had (a plain brick always breaks from its 1 HP colour).
 ##   dir    a unit vector for the debris: the ball's direction of travel as it hit (BALL), away from the
-##          blast's centre (BLAST), or along the row away from the tagged brick, LEFT or RIGHT (ZAP).
+##          blast's centre (BLAST), or along the row away from the zapped brick, LEFT or RIGHT (ZAP).
 ##   coins  what this break added to `coins`. 0 for a placed brick.
 ## combo.count and combo.multiplier already include this break. For a BALL the ball has already bounced: it
 ## is on the brick's face (ball.pos) with its new dir.
@@ -158,17 +171,28 @@ signal brick_broken(cell: Vector2i, brick: Brick, cause: Cause, dir: Vector2, co
 signal ball_bounced(ball: Ball, hit: Hit)
 
 ## A ball was made during play (a Splitter). It is already in `balls`. The ball a round starts with and the
-## spares put on the paddle are not announced; read `balls` and `waiting`.
+## charges put on the paddle are not announced; read `balls` and `waiting`.
 signal ball_added(ball: Ball)
+
+## A Power Brick made a drop (drop()). It is already in `drops`.
+signal dropped(drop: Drop)
+
+## The paddle caught a drop. It is already out of `drops`, and `charges` already counts it.
+signal caught(drop: Drop)
 
 ## A ball left through the open side. It is already out of `balls`; ball.pos is where it left.
 signal ball_lost(ball: Ball)
 
 ## An explosion went off. Emitted before its hits land, so every brick in `cells` is still on the board.
-##   pos    the centre of the brick that exploded, in units
-##   reach  how far the blast reaches out from that brick's edges, in units
+##   pos    the centre of the blast's brick cell (blast()), in units
+##   reach  how far the blast reaches out from that cell's edges, in units
 ##   cells  every brick cell the blast is about to hit, by column from the paddle side and then down
 signal exploded(pos: Vector2, reach: float, cells: Array[Vector2i])
+
+## A Zap went off (zap()). Emitted before its hits land, so every brick in `cells` is still on the board.
+##   cell   the brick the charged ball hit
+##   cells  every brick the Zap is about to hit, from the paddle side to the back wall
+signal zapped(cell: Vector2i, cells: Array[Vector2i])
 
 ## A Growth area's pulse gave bricks 1 HP each. Emitted after they gained it, and only if one did.
 ##   cell   the area's brick cell
@@ -198,13 +222,17 @@ var board: Board
 var layout: Layout
 var stats: Balance
 var rng := RandomNumberGenerator.new()
-## Every ball in play, and the one `waiting` on the paddle. Empty once the last ball is lost and no spare is left.
+## Every ball in play, and the one `waiting` on the paddle. Empty once the last ball is lost and no charge is held.
 var balls: Array[Ball] = []
-## The ball riding the paddle until launch(): the first one while `held`, then each spare. Null for none. It is
+## The ball riding the paddle until launch(): the first one while `held`, then each charge. Null for none. It is
 ## in `balls`, but it does not move on its own, bounce or get thrown.
 var waiting: Ball
-## Balls in reserve, not yet on the paddle (see SPARES).
-var spares := 0
+## Charges in reserve, not yet on the paddle (see CHARGES).
+var charges := 0
+## Every drop in flight (see CHARGES), oldest first.
+var drops: Array[Drop] = []
+## The selected ability's id, which the next charge fired carries; &"" when none is unlocked (see ABILITIES).
+var ability: StringName = &""
 var paddle := Paddle.new()
 var combo := Combo.new()
 var tally := Tally.new()
@@ -230,8 +258,6 @@ var target := 0
 var level_cells: Dictionary[Vector2i, bool] = {}
 ## Seconds a ball has waited on the paddle, from a random start: launch_dir() sways with it.
 var sway := 0.0
-# Seconds until the next spare may go onto the paddle (see SPARES).
-var _spare_wait := 0.0
 
 # The FREE items as the sweep sees them (Collide.Solid), in layout order.
 # ponytail: grown for a ball of stats.ball_size. Every ball is that size; if one ever is not, grow per size.
@@ -243,6 +269,12 @@ var _gates: Array[Layout.Item] = []
 # ponytail: so a brick put on or taken off round.board by hand is not seen. Count again there if that is needed.
 var _left := 0
 var _next_id := 0
+var _next_drop := 0
+# The opening volley (launch): balls still to come, seconds to the next, and the line they all start on.
+var _volley := 0
+var _volley_wait := 0.0
+var _volley_from: Vector2
+var _volley_dir: Vector2
 # With Overgrowth: each broken level cell waiting to come back, and the clock it is due at. In the order they
 # broke, which is the order they are due in, because the delay is the same for all.
 var _due: Dictionary[Vector2i, float] = {}
@@ -261,8 +293,6 @@ func _init(p_board: Board, p_layout: Layout, p_stats: Balance, p_seed: int) -> v
 		match item.kind.placement:
 			PlaceableKind.Placement.BRICK:
 				board.bricks[item.cell] = _placed(item.kind)
-			PlaceableKind.Placement.MOD:
-				board.brick(item.cell).mod = item.kind.id
 			PlaceableKind.Placement.AREA:
 				pass  # nothing in play: its on_step acts
 			_:
@@ -279,8 +309,8 @@ func _init(p_board: Board, p_layout: Layout, p_stats: Balance, p_seed: int) -> v
 	paddle.x = paddle_face(board, stats)
 	paddle.y = board.size().y * 0.5
 	_spawn(ball_start(board, stats), Vector2.LEFT, 1.0)
-	spares = int(stats.spare_balls)
-	_spare_wait = stats.spare_delay
+	var unlocked := abilities()
+	ability = unlocked[0].id if unlocked else &""
 
 
 ## The x of the paddle's face on a board. Round and Layout.fits both place things from it.
@@ -315,20 +345,55 @@ func hold() -> void:
 	_glue()
 
 
-## Sends the waiting ball (the held one or a spare) off the paddle along launch_dir() and starts the spare
-## countdown. Does nothing if no ball waits.
+## Sends the waiting ball (the held one or a charge) off the paddle along launch_dir(). A charge leaves carrying
+## the selected ability (Ball.charge = `ability`; see ABILITIES). The held ball starts the opening volley:
+## int(stats.multiball) more balls, the first stats.multiball_gap s later and then one every multiball_gap s,
+## each from where it left and the same way, announced by ball_added (ONE STEP, 2). Does nothing if no ball waits.
 func launch() -> void:
 	if waiting == null:
 		return
+	if held:
+		_volley = int(stats.multiball)
+		_volley_wait = stats.multiball_gap
+		_volley_from = waiting.pos
+		_volley_dir = launch_dir()
+	else:
+		waiting.charge = ability
 	held = false
 	waiting.put(waiting.pos, launch_dir())
 	waiting = null
-	_spare_wait = stats.spare_delay
 
 
-## Puts one more ball in reserve (the Ball Brick).
-func add_spare() -> void:
-	spares += 1
+## The unlocked abilities (stats.count(id) >= 1), in Kinds order.
+func abilities() -> Array[AbilityKind]:
+	var out: Array[AbilityKind] = []
+	out.assign(Kinds.abilities().filter(func(k: AbilityKind) -> bool: return stats.count(k.id) >= 1))
+	return out
+
+
+## Moves the selected ability `steps` places along abilities(), wrapping. Does nothing when none is unlocked.
+func cycle(steps: int) -> void:
+	var ids := abilities().map(func(k: AbilityKind) -> StringName: return k.id)
+	if not ids.is_empty():
+		ability = ids[posmod(ids.find(ability) + steps, ids.size())]
+
+
+## Puts one more charge in reserve.
+func add_charge() -> void:
+	charges += 1
+
+
+## Makes a drop at the centre of brick cell `cell`, adds it to `drops` and emits dropped. A Power Brick calls this
+## as it breaks.
+func drop(cell: Vector2i) -> Drop:
+	var d := Drop.new()
+	d.id = _next_drop
+	_next_drop += 1
+	d.size = stats.drop_size
+	d.pos = board.cell_rect(cell).get_center()
+	drops.append(d)
+	dropped.emit(d)
+	return d
 
 
 ## Where the waiting ball would leave if launched now. It sways from the highest angle to the lowest and back once
@@ -388,12 +453,18 @@ func step(delta: float, paddle_target: float) -> void:
 		for ball in balls.duplicate():  # a copy: a Splitter adds to `balls` and a lost ball leaves it
 			if ball != waiting:
 				_move(ball, delta)
-		if waiting == null:
-			_spare_wait -= delta
-			if spares > 0 and (_spare_wait < TIME_SLOP or balls.is_empty()):
-				spares -= 1
-				waiting = _spawn(Vector2.ZERO, Vector2.RIGHT, 1.0)
-				_glue()
+		_move_drops(delta)
+		if _volley > 0:
+			_volley_wait -= delta
+			if _volley_wait < TIME_SLOP:
+				_volley -= 1
+				_volley_wait += stats.multiball_gap
+				# ponytail: not add_ball, whose _legal would bend a flat Guide launch; the first ball was not bent.
+				ball_added.emit(_spawn(_volley_from, _volley_dir, 1.0))
+		if waiting == null and charges > 0:
+			charges -= 1
+			waiting = _spawn(Vector2.ZERO, Vector2.RIGHT, 1.0)
+			_glue()
 		if combo.tick(delta):
 			combo_changed.emit(0, 1)
 		clock += delta
@@ -414,10 +485,23 @@ func step(delta: float, paddle_target: float) -> void:
 		time_left = 0.0
 	if _left == 0:
 		_end(End.CLEARED)
-	elif balls.is_empty():
+	elif balls.is_empty() and drops.is_empty() and _volley == 0:
 		_end(End.BALL_LOST)
 	elif time_left == 0.0:
 		_end(End.TIME)
+
+
+# The drops' part of a step (see CHARGES).
+func _move_drops(delta: float) -> void:
+	var catcher := paddle.rect(board.size().y)
+	for d in drops.duplicate():  # a copy: a drop caught or gone leaves `drops`
+		d.pos.x -= stats.drop_speed * delta
+		if d.rect().intersects(catcher):
+			drops.erase(d)
+			charges += 1
+			caught.emit(d)
+		elif d.pos.x + d.size * 0.5 <= -board.lane():
+			drops.erase(d)
 
 
 ## Step 1 of step() alone: the paddle moves toward `paddle_target` at stats.paddle_speed and nothing else does.
@@ -473,22 +557,17 @@ func hit_brick(cell: Vector2i, cause: Cause, dir: Vector2, ball: Ball = null) ->
 	var kind := Kinds.of(brick.kind)
 	if kind:
 		kind.on_broken(self, cell, brick, cause, dir, ball)
-	var mod := Kinds.of(brick.mod)
-	if mod:
-		mod.on_host_broken(self, cell, brick, cause, dir, ball)
 
 
 ## An explosion from the brick cell `cell`, reaching `reach` units out from the cell's edges on every side, so
 ## the blast is the rectangle board.cell_rect(cell).grow(reach). A brick is hit if its cell rectangle overlaps
 ## that rectangle; touching edges do not count. At a reach of 64 that is 4 columns to each side and 1 brick row
 ## above and below; every 32 more adds 2 columns, and brick rows are added whole as soon as the blast enters them.
-## Emits `exploded`, then hits each of those bricks stats.explosion_damage times with Cause.BLAST. `cell` itself may be empty (the
-## explosive brick that calls this is already gone). A brick this blast breaks may set off a blast of its own
-## before the next brick of this one is hit.
-## If stats.shockwave is 1 or more, every ball whose centre is inside the blast is thrown: its dir points
-## straight away from the blast's centre (then the minimum angles apply) and its boost is multiplied by
-## stats.shockwave_boost. The throw comes after the hits, so in a chain the first blast throws last and its
-## direction is the one the ball leaves with.
+## Emits `exploded`, then hits each of those bricks stats.explosion_damage times with Cause.BLAST. `cell` itself
+## may be empty (the brick a charged ball hit may be gone); if it still stands, it is in the blast too.
+## If stats.shockwave is 1 or more, every ball whose centre is inside the blast is thrown, after the hits: its dir
+## points straight away from the blast's centre (then the minimum angles apply) and its boost is multiplied by
+## stats.shockwave_boost.
 func blast(cell: Vector2i, reach: float) -> void:
 	var area := board.cell_rect(cell).grow(reach)
 	var centre := area.get_center()
@@ -506,6 +585,22 @@ func blast(cell: Vector2i, reach: float) -> void:
 				set_boost(ball, ball.boost * stats.shockwave_boost)
 
 
+## A Zap from the brick cell `cell` (the brick a charged ball hit): every other brick in its brick row within
+## stats.zap_range columns takes stats.zap_damage hits with Cause.ZAP, from the paddle side to the back wall, each
+## one's hits landing before the next brick's. Emits `zapped` first, with those cells.
+func zap(cell: Vector2i) -> void:
+	var reach := int(stats.zap_range)
+	var cells: Array[Vector2i] = []
+	for column in range(maxi(cell.x - reach, 0), mini(cell.x + reach + 1, board.cols)):
+		var c := Vector2i(column, cell.y)
+		if column != cell.x and board.brick(c):
+			cells.append(c)
+	zapped.emit(cell, cells)
+	for c in cells:
+		for i in int(stats.zap_damage):
+			hit_brick(c, Cause.ZAP, Vector2.LEFT if c.x < cell.x else Vector2.RIGHT)
+
+
 ## A pulse from the Growth area on `cell`, reaching `reach` units out from the cell's edges by the blast's rule
 ## (Board.bricks_in). Every level brick there (not a placed one) under stats.max_hp gains 1 hp. That is no hit:
 ## it scores nothing and the tally does not see it. Emits grew if any brick gained.
@@ -521,7 +616,7 @@ func grow(cell: Vector2i, reach: float) -> void:
 
 
 ## Brings broken level bricks back (Refresh, Overgrowth). Each of `cells` that can take one
-## (restorable()) gets a standard 1 HP level brick: no kind, no mod, not placed, whatever was there before. It
+## (restorable()) gets a standard 1 HP level brick: no kind, not placed, whatever was there before. It
 ## scores and counts toward a clear like any level brick, and Overgrowth no longer waits for it. Emits
 ## restored(cell, those cells) if any came back, and returns them, so a caller can try a cell a ball was over
 ## again later. `cell` is where they came back from: the block, or NOWHERE.
@@ -700,7 +795,13 @@ func _bounce(ball: Ball, hit: Hit) -> void:
 	var was := _turn(ball, hit)
 	match hit.surface:
 		Hit.Surface.BRICK:
+			var charged := ball.charge != &"" and not board.brick(hit.cell).placed  # a level brick (ABILITIES)
 			hit_brick(hit.cell, Cause.BALL, was, ball)
+			if charged:
+				var kind := Kinds.of(ball.charge) as AbilityKind
+				ball.charge = &""
+				if kind:
+					kind.fire(self, hit.cell, was, ball)
 		Hit.Surface.ITEM:
 			hit.item.kind.on_ball_hit(self, ball, hit)
 			ball_bounced.emit(ball, hit)

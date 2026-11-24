@@ -422,16 +422,6 @@ func _on_brick_broken(cell: Vector2i, brick: Brick, cause: Round.Cause, dir: Vec
 	# `exploded`, time_changed, ball_added.
 	if kind is BrickKind and (kind as BrickKind).worth > 1:
 		_ring(_last, SPECIAL_RING, 2.0, colour, SPECIAL_TIME)
-	# A brick mod went off.
-	# ponytail: every mod gets the Zap's bolt along its row, the only mod there is. A mod that does something
-	# else needs a field on its kind that says what to draw.
-	var mod := Kinds.of(brick.mod)
-	if mod:
-		var row := Vector2(_round.board.size().x, BOLT)
-		# With reduce flashing it is unlit: a lit bar the width of the board is a flash.
-		_shape(_shapes, Vector2(row.x * 0.5, _last.y), row, Vector2(row.x, 1.0), Palette.of(mod.colour), 0.0, BOLT_TIME).boost = 1.0 if Settings.reduce_flashing else Palette.LIT
-		_shake(ZAP_SHAKE)
-		_freeze(ZAP_FREEZE)
 	if coins > 0:
 		# ponytail: one pop-up for everything a frame pays, where its first brick broke, so a blast reads "+12"
 		# and not twelve "+1". Two balls that break bricks far apart in the same frame share it; give each
@@ -445,10 +435,10 @@ func _on_brick_broken(cell: Vector2i, brick: Brick, cause: Round.Cause, dir: Vec
 func _on_exploded(pos: Vector2, reach: float, cells: Array[Vector2i]) -> void:
 	var grow := reach / Board.BRICK.y * (1.0 + MORE_SIZE * heat)
 	var wait := _blasts * CHAIN_GAP
-	_ring(pos, BLAST_RINGS[0] * grow, BLAST_WIDTHS[0], Palette.EXPLOSIVE, BLAST_TIMES[0], wait)
-	_ring(pos, BLAST_RINGS[1] * grow, BLAST_WIDTHS[1], Palette.EXPLOSIVE_DIM, BLAST_TIMES[1], wait).boost = BLAST_OUTER
+	_ring(pos, BLAST_RINGS[0] * grow, BLAST_WIDTHS[0], Palette.ABILITY, BLAST_TIMES[0], wait)
+	_ring(pos, BLAST_RINGS[1] * grow, BLAST_WIDTHS[1], Palette.ABILITY_DIM, BLAST_TIMES[1], wait).boost = BLAST_OUTER
 	if not Settings.reduce_flashing:
-		_shape(_pools, pos, Vector2.ZERO, Vector2.ONE * (POOL + 2.0 * (reach - Board.BRICK.y)), Palette.EXPLOSIVE, 0.0, POOL_TIME, wait)
+		_shape(_pools, pos, Vector2.ZERO, Vector2.ONE * (POOL + 2.0 * (reach - Board.BRICK.y)), Palette.ABILITY, 0.0, POOL_TIME, wait)
 		if _pools.size() > POOLS:
 			_pools.pop_front()
 	_flash(BLAST_FLASH)
@@ -458,7 +448,7 @@ func _on_exploded(pos: Vector2, reach: float, cells: Array[Vector2i]) -> void:
 	if _blasts < BLAST_MOST:
 		var board := _round.board
 		for i in int(BLAST_SPARKS * (1.0 + MORE_SPARKS * heat) / (1 + _blasts)):
-			var colour := Palette.EXPLOSIVE if i % 3 != 0 or cells.is_empty() else Palette.brick(board.brick(cells.pick_random()))
+			var colour := Palette.ABILITY if i % 3 != 0 or cells.is_empty() else Palette.brick(board.brick(cells.pick_random()))
 			_square(Rect2(pos, Vector2.ZERO), colour, Vector2.ZERO, BLAST_THROW * grow, BLAST_SIZE)
 	_blasts += 1
 

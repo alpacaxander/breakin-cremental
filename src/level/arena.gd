@@ -162,16 +162,6 @@ func _draw_bricks() -> void:
 		_bricks.draw_rect(rect.grow(-1.0), Palette.dim(kind.colour) if cooling else Palette.lit_brick(brick))
 		if kind and kind.unbreakable:
 			panes(_bricks, rect.grow(-1.0 - BLOCK_EDGE), kind.panes, BLOCK_EDGE, Palette.BASE)
-		var special := Kinds.of(brick.kind) as BrickKind
-		if special and special.mark:  # the ball a Ball Brick holds: slate, not white, which is for balls in play
-			var ball := Rect2(rect.get_center() - Vector2.ONE * round.stats.ball_size * 0.5, Vector2.ONE * round.stats.ball_size)
-			_bricks.draw_rect(ball.grow(MARK_RIM), Palette.BASE)
-			_bricks.draw_rect(ball, Palette.PADDLE)
-		var mod := Kinds.of(brick.mod) as PlaceableKind
-		if mod:
-			var mark := Rect2(rect.get_center() - mod.size * 0.5, mod.size)
-			_bricks.draw_rect(mark.grow(MARK_RIM), Palette.BASE)
-			_bricks.draw_rect(mark, Palette.lit(Palette.of(mod.colour)))
 
 
 ## The inside of a block that never breaks: `count` panes of `colour` stacked in `inside`, `gap` apart, so the
@@ -240,7 +230,7 @@ func _draw_balls() -> void:
 	# ball's halo, so they never pass for one in play.
 	# ponytail: one column, so about 25 fit on a 16-row board; count them in a number if a round ever has more.
 	var s := round.stats.ball_size
-	for i in round.spares:
+	for i in round.charges:
 		_balls.draw_rect(Rect2(-round.board.lane() + (round.stats.paddle_inset - s) * 0.5, round.board.size().y - (i + 1) * s * SPARE_PITCH,
 				s, s), Palette.lit(Palette.BALL))
 	var t := _between()

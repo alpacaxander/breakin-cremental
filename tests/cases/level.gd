@@ -148,7 +148,7 @@ func _placing() -> void:
 	await _drag(_slot(ZAP), _screen(Vector2(600, 300)))
 	t.check(_items().size() == 3, "a Zap on an empty cell is refused")
 	await _drag(_slot(ZAP), _screen(Vector2(870, 224)))
-	t.check(level.round.board.brick(Vector2i(54, 3)).mod == &"zap" and _items().size() == 4, "a Zap goes on an existing brick")
+	t.check(level.round.board.brick(Vector2i(54, 3)).get("mod") == &"zap" and _items().size() == 4, "a Zap goes on an existing brick")
 	t.check(level.get_node("SetupUi")._slots[BOOSTER].left == 0 and level.get_node("SetupUi")._slots[ZAP].left == 0, "the tray counts what is left to place")
 
 
@@ -273,7 +273,7 @@ func _ends() -> void:
 		if round.board.brick(Vector2i(54, row)).kind == &"":
 			round.hit_brick(Vector2i(54, row), Round.Cause.BALL, Vector2.RIGHT)
 			break
-	round.spares = 0  # Spare Ball is owned: with one in reserve the ball lost would not be the last
+	round.charges = 0  # Spare Ball is owned: with one in reserve the ball lost would not be the last
 	if round.waiting:  # with no spare_delay, one is already on the paddle: it came unannounced, so it goes the same way
 		round.balls.erase(round.waiting)
 		round.waiting = null

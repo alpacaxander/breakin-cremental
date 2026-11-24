@@ -5,7 +5,7 @@
 [resource]
 script = ExtResource("1")
 title = "Zap Damage"
-category = 1
+category = 3
 text = "A Zap hits each brick once more."
 first_cost = 800
 growth = 5

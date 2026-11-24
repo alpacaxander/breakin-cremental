@@ -5,7 +5,7 @@
 [resource]
 script = ExtResource("1")
 title = "Zap Range"
-category = 1
+category = 3
 text = "A Zap reaches 2 more bricks each way."
 first_cost = 400
 growth = 5

@@ -213,7 +213,7 @@ func _on_ball_bounced(_ball: Ball, hit: Hit) -> void:
 func _on_brick_broken(_cell: Vector2i, brick: Brick, _cause: Round.Cause, _dir: Vector2, _coins: int,
 		combo: Combo) -> void:
 	play(BRICK_BREAK, combo_pitch(combo.count))
-	for id: StringName in [brick.kind, brick.mod]:
+	for id: StringName in [brick.kind]:
 		var kind := Kinds.of(id)
 		if kind:
 			play(kind.cue)

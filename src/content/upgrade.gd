@@ -4,7 +4,7 @@ extends Resource
 ## stat (see Progress.stat). Where the node sits and what it connects to is in the hub's web scene, not here.
 ## The demo's 31 are listed in docs/design/upgrades.md.
 
-enum Category { ARENA, PLACEABLES, BRICKS }
+enum Category { ARENA, PLACEABLES, BRICKS, ABILITIES }
 
 ## The file name: data/upgrades/<id>.tres gives &"<id>". The save stores ranks by it. An upgrade made in code,
 ## in a test, has no file and sets its id by hand.
@@ -31,11 +31,11 @@ var id: StringName:
 
 
 ## The price of the next rank for someone who owns `owned` ranks: first_cost * growth ^ owned, rounded to a whole
-## coin. Explosive Brick (40, 3.5) costs 40, 140, 490, 1715.
+## coin. Power Brick (40, 3.5) costs 40, 140, 490, 1715.
 func cost(owned: int) -> int:
 	return roundi(first_cost * pow(growth, owned))
 
 
 ## The Palette meaning of its category: Palette.of(upgrade.meaning()) is the node's lit colour.
 func meaning() -> StringName:
-	return [&"player", &"placeable", &"bricks"][category]
+	return [&"player", &"placeable", &"bricks", &"ability"][category]

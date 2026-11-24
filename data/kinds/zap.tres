@@ -5,8 +5,5 @@
 [resource]
 script = ExtResource("1")
 title = "Zap"
-colour = &"placeable"
-cue = &"zap"
-order = 5
-placement = 2
-size = Vector2(6, 6)
+colour = &"ability"
+order = 1

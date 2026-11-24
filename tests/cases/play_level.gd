@@ -179,7 +179,7 @@ func _placing() -> void:
 	await _drag(_screen(Vector2(870, 100)), _screen(Vector2(728, 400)))
 	t.check(_item_on(Vector2i(45, 6), &"zap") != null and _item_on(Vector2i(54, 1), &"zap") == null, "a Zap moves onto a Splitter")
 	await _drag(_screen(Vector2(728, 400)), _screen(Vector2(470, 250)))
-	t.check(_item_on(Vector2i(45, 6), &"zap") != null and level.round.board.brick(Vector2i(45, 6)).mod == &"zap", "a Zap dropped on nothing goes back to its brick")
+	t.check(_item_on(Vector2i(45, 6), &"zap") != null and level.round.board.brick(Vector2i(45, 6)).get("mod") == &"zap", "a Zap dropped on nothing goes back to its brick")
 	await _drag(_screen(Vector2(728, 400)), Vector2(640, 40))
 	t.check(_item_on(Vector2i(45, 6), &"zap") == null and setup._slots[ZAP].left == 1, "a Zap dragged out of the arena comes off and back to the tray")
 	await _drag(_slot(ZAP), _screen(Vector2(870, 100)))

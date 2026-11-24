@@ -91,7 +91,7 @@ func _plain(round: Round, hp: int) -> Array[Vector2i]:
 	var out: Array[Vector2i] = []
 	for cell: Vector2i in round.board.bricks:
 		var brick := round.board.brick(cell)
-		if brick.kind == &"" and brick.mod == &"" and brick.hp == hp:
+		if brick.kind == &"" and brick.hp == hp:
 			out.append(cell)
 	out.sort()
 	return out
@@ -194,7 +194,7 @@ func _zap(main: Main, row: int) -> void:
 	var round := await _start(main, 3, 12)
 	var cell := Vector2i(48, row)
 	var brick := round.board.brick(cell)
-	brick.mod = &"zap"
+	brick.set("mod", &"zap")
 	brick.kind = &""
 	brick.hp = 1
 	round.hit_brick(cell, Round.Cause.BALL, Vector2.RIGHT)
@@ -214,8 +214,8 @@ static func worst(round: Round) -> void:
 		brick.kind = &""
 	for column: int in [36, 46, 56]:
 		round.board.brick(Vector2i(column, 2)).kind = &"explosive"
-	round.board.brick(Vector2i(34, 2)).mod = &"zap"
-	round.board.brick(Vector2i(40, 6)).mod = &"zap"
+	round.board.brick(Vector2i(34, 2)).set("mod", &"zap")
+	round.board.brick(Vector2i(40, 6)).set("mod", &"zap")
 	round.stats.zap_range = maxf(round.stats.zap_range, round.board.cols)  # a whole-row Zap: past any rank, for the worst case
 	round.hit_brick(Vector2i(34, 2), Round.Cause.BALL, Vector2.RIGHT)
 	round.hit_brick(Vector2i(40, 6), Round.Cause.BALL, Vector2.RIGHT)

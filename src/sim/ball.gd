@@ -16,6 +16,9 @@ var size: float
 var boost := 1.0
 ## The part of the boost a Booster gave, which the paddle leaves alone (1: none). Capped like boost.
 var kept := 1.0
+## The ability this ball carries (an AbilityKind's id), &"" for none. A charge leaves the paddle with
+## Round.ability; its first hit on a level brick spends it (Round, ONE BOUNCE).
+var charge: StringName = &""
 ## Rules only: the straight line the ball is on. It began at `from` and the ball is `gone` units along it, so
 ## pos is always from + dir * gone. The sweep measures every contact from `from`, never from pos, so where a
 ## ball bounces next does not depend on how the time was cut into steps.
