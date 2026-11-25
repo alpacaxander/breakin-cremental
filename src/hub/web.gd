@@ -53,16 +53,24 @@ func nodes() -> Array[HubNode]:
 
 ## For tests and screenshots, which need a save part of the way through the web: owns the first `count` nodes of
 ## SCENE, and nothing else, as if they had been bought in the scene's order (every node links to one before it,
-## so that order can be bought in). Sets Progress.owned and Progress.ranks together; takes no coins, no keys and
-## does not save.
+## so that order can be bought in). See own.
 static func own_first(count: int) -> void:
 	var web: HubWeb = (load(SCENE) as PackedScene).instantiate()
+	web.own(web.nodes().slice(0, count).map(func(n: HubNode) -> StringName: return n.name))
+	web.free()
+
+
+## Owns exactly the nodes named, and nothing else: sets Progress.owned to them (in scene order; a name that is no
+## node is dropped) and Progress.ranks to match, one copy of its upgrade per node. Joined to the seed or not, so
+## can_undo may then refuse what the web would never have sold. Takes no coins, no keys, does not save or emit.
+## For tests, screenshots and the Admin panel; a player buys with Progress.buy.
+func own(names: Array) -> void:
 	Progress.owned.clear()
 	Progress.ranks.clear()
-	for n in web.nodes().slice(0, count):
-		Progress.owned.append(n.name)
-		Progress.ranks[n.upgrade.id] = Progress.rank(n.upgrade) + 1
-	web.free()
+	for n in nodes():
+		if n.name in names:
+			Progress.owned.append(n.name)
+			Progress.ranks[n.upgrade.id] = Progress.rank(n.upgrade) + 1
 
 
 ## The seed: the node open from the start.

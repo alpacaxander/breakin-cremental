@@ -256,11 +256,6 @@ func _names(t: Node) -> void:
 	for kind in Kinds.all():
 		# ponytail: the Bumper and Refresh are off the web (their nodes were dropped) but kept in the code.
 		t.check(kind.id in counted or kind.id in [&"bumper", &"refresh"], "an upgrade raises %s, or nobody can ever have a %s" % [Balance.count_stat(kind.id), kind.title])
-	for preset: String in Admin.PRESETS:
-		var ranks: Dictionary = Admin.PRESETS[preset].ranks
-		for id: StringName in ranks:
-			var u := Progress.upgrade(id)
-			t.check(u != null and ranks[id] <= u.max_rank, "the admin preset %s's %s is an upgrade, at most its max rank" % [preset, id])
 
 
 ## docs/design/upgrades.md: an upgrade and what it needs first. No node of the first can be reached from the
@@ -301,6 +296,31 @@ func _web(t: Node) -> void:
 			i += 1
 		var early := seen.filter(func(n: HubNode) -> bool: return n.upgrade.id == id).map(func(n: HubNode) -> StringName: return n.name)
 		t.check(early.is_empty(), "no %s node can be reached without a %s node first (%s can)" % [id, NEEDS[id], early])
+	# The Admin panel's presets are the bot's purchases, in order: each is a node, on offer once the ones before it
+	# are owned (so they hang together from the seed), and the levels cleared pay for the keys they spend.
+	for preset: String in Admin.PRESETS:
+		var names: Array = Admin.PRESETS[preset].owned
+		for i in names.size():
+			web.own(names.slice(0, i))
+			var n := web.get_node_or_null(String(names[i])) as HubNode
+			t.check(n != null and web.state(n) == HubNode.State.AVAILABLE,
+					"the admin preset %s's %s is a web node, on offer once the ones before it are owned" % [preset, names[i]])
+		web.own(names)
+		Progress.unlocked = Admin.PRESETS[preset].unlocked
+		t.check(Progress.owned.size() == names.size() and Progress.keys() >= 0,
+				"the admin preset %s owns each of its nodes once and leaves %d keys, not fewer than 0" % [preset, Progress.keys()])
+	# The panel's count per upgrade owns that upgrade's first nodes and leaves the rest alone, ranks in step.
+	var admin := Admin.new()
+	t.add_child(admin)
+	admin._apply(Admin.PRESETS["Level 3"])
+	var splitter := Progress.upgrade(&"splitter")
+	var before := Progress.owned.filter(func(n: StringName) -> bool: return web.get_node(String(n)).upgrade != splitter)
+	admin._set_rank(2, splitter)
+	var copies := nodes.filter(func(n: HubNode) -> bool: return n.upgrade == splitter).slice(0, 2)
+	t.check(Progress.rank(splitter) == 2 and copies.all(web.owns) and before.all(func(n: StringName) -> bool: return n in Progress.owned)
+			and Progress.owned.size() == before.size() + 2, "the admin's Splitter count of 2 owns its first two nodes and keeps the others")
+	admin.free()
+	Progress.reset()
 	web.free()
 
 

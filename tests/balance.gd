@@ -25,6 +25,8 @@ extends Node
 ##           round's last SPEND seconds, when what is left is spent; launch: it goes at once
 ##   ability zap, blast, or first (default: whatever the round selects when built, the first unlocked): the ability
 ##           every charge is fired with. One that is not unlocked changes nothing
+##   key     zap (default), blast or overgrowth: the key node the campaign's buyer takes first when a key is in
+##           hand and more than one key node is on offer
 ##
 ## tests/layouts/found.json is what the search found, kept: on levels 1 and 2 the Splitters only (wherever
 ## the search puts a Bumper, a Booster or a Wall Segment there, this player does no better, and often worse: it does
@@ -82,7 +84,7 @@ const STAGE_GOALS := {1: [2, 6], 2: [4, 10], 3: [6, 16]}
 const WEB_SCENE := HubWeb.SCENE
 
 var _args := {"mode": "report", "level": "all", "ranks": "fresh", "skill": "average", "seeds": "20",
-		"layout": "auto", "rounds": "400", "base": "0", "charges": "hold", "ability": "first"}
+		"layout": "auto", "rounds": "400", "base": "0", "charges": "hold", "ability": "first", "key": "zap"}
 var _boards := {}  # level -> Board, read once
 var _targets := {}  # level -> its LevelData.target, read with its board; the test boards are never cleared
 var _aims := {}  # level -> its LevelData.aims as cell centres, for Player
@@ -505,7 +507,8 @@ func _value(level: int, layout: Layout, item: Layout.Item, stats: Balance, seeds
 ## `limit` rounds, or once the last level is cleared and every level's stages are measured (_stages) or every
 ## rank is bought: until then it goes on playing the last level, as a player farming it would. Buying: while
 ## anything is affordable, the cheapest node the web offers (HubWeb.buyable: the seed, or one linked to a node
-## owned); a tie goes to the first in the scene. A key node costs no coins, so it goes first while a key is in hand.
+## owned); a tie goes to the first in the scene. A key node costs no coins, so it goes first while a key is in hand,
+## and the one `key` names before any other (_price).
 # ponytail: cheapest first is one sensible player, not the best one. Add a smarter buyer (save up for a node
 # that unlocks a kind, say) if the campaign's pace looks wrong for a reason the buying explains.
 func _campaign(skill: String, limit: int) -> Dictionary:
@@ -549,7 +552,7 @@ func _campaign(skill: String, limit: int) -> Dictionary:
 		while true:
 			var pick: HubNode = null
 			for n in _web.nodes():
-				if _web.buyable(n) and (pick == null or Progress.cost(n.upgrade) < Progress.cost(pick.upgrade)):
+				if _web.buyable(n) and (pick == null or _price(n) < _price(pick)):
 					pick = n
 			if pick == null:
 				break
@@ -569,14 +572,23 @@ func _campaign(skill: String, limit: int) -> Dictionary:
 				levels[level].cleared_on if levels[level].cleared_on > 0 else "never"])
 	if stages:
 		_print_stages(stages, levels)
+	var of := _web.nodes().size()
 	_web.free()
 	var done := done_on > 0
-	print("%s, %d rounds played, %d purchases, %d coins left. Last progress on round %d." % [
+	var keyed := purchases.filter(func(p: Dictionary) -> bool: return Progress.upgrade(p.id).key)
+	var first_key: String = keyed[0].node if keyed else "none"
+	print("%s, %d rounds played, %d of %d nodes bought, first key node %s, %d coins left. Last progress on round %d." % [
 			"Finished on round %d" % done_on if done else "STUCK on level %d" % Progress.unlocked, rounds.size(),
-			purchases.size(), Progress.coins, last_progress])
+			purchases.size(), of, first_key, Progress.coins, last_progress])
 	return {"skill": skill, "finished": done, "finished_on": done_on, "stuck": not done, "rounds_played": rounds.size(),
 			"last_progress": last_progress, "levels": levels, "stages": stages, "purchases": purchases,
-			"ranks": Progress.ranks, "coins_left": Progress.coins, "rounds": rounds}
+			"nodes_bought": purchases.size(), "nodes": of, "first_key": first_key, "ranks": Progress.ranks,
+			"coins_left": Progress.coins, "rounds": rounds}
+
+
+## What the campaign's buyer compares: the next copy's price, or -1 for the key node `key` names, so it comes first.
+func _price(n: HubNode) -> int:
+	return -1 if n.upgrade.id == StringName(_args.key) else Progress.cost(n.upgrade)
 
 
 ## THE THREE STAGES of a level (docs/design.md, "Progression"), measured as a campaign goes. Before each round,
