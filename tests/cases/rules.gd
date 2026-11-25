@@ -130,8 +130,11 @@ func _charges() -> void:
 	round.launch()
 	var log := _events(round)
 	var seen := []
-	round.dropped.connect(func(d: Drop) -> void: seen.append(["dropped", d.id, round.drops.has(d)]))
-	round.caught.connect(func(d: Drop) -> void: seen.append(["caught", d.id, round.drops.has(d), round.charges]))
+	# These two read the round, so they hold it: they are cut at the end, or it is never freed (architecture.md, Tests).
+	var on_drop := func(d: Drop) -> void: seen.append(["dropped", d.id, round.drops.has(d)])
+	var on_catch := func(d: Drop) -> void: seen.append(["caught", d.id, round.drops.has(d), round.charges])
+	round.dropped.connect(on_drop)
+	round.caught.connect(on_catch)
 	t.check(round.charges == 0 and round.drops.is_empty(), "a round starts with no charge and no drop")
 	round.hit_brick(Vector2i(2, 3), Round.Cause.BLAST, Vector2.RIGHT)
 	var d := round.drops[0] if round.drops.size() == 1 else null
@@ -139,6 +142,8 @@ func _charges() -> void:
 			and d.rect() == Rect2(d.pos - Vector2.ONE * stats.drop_size * 0.5, Vector2.ONE * stats.drop_size) and seen == [["dropped", 0, true]],
 			"a Power Brick that breaks, however, leaves a drop at its centre, already in drops when dropped is emitted")
 	if d == null:
+		round.dropped.disconnect(on_drop)
+		round.caught.disconnect(on_catch)
 		return
 	var from := d.pos
 	round.step(0.1, round.paddle.y)
@@ -169,6 +174,8 @@ func _charges() -> void:
 		round.step(TICK, round.paddle.y)
 	t.check(round.over and round.reason == Round.End.BALL_LOST and round.drops.is_empty() and seen.size() == 3 and miss.pos.x < -board.lane(),
 			"a drop that misses the paddle leaves past the open side with no signal; with nothing left, the round ends on BALL_LOST")
+	round.dropped.disconnect(on_drop)
+	round.caught.disconnect(on_catch)
 
 
 ## Multiball: the first launch is followed by int(stats.multiball) more balls, multiball_gap s apart, each from
