@@ -17,6 +17,7 @@ func shots() -> Array[Dictionary]:
 		{"name": "hub_after_clearing_level_1", "setup": _clear_level_1},
 		{"name": "hub_hover_node_and_buy", "save": "mid", "crt": false, "setup": _hover},
 		{"name": "hub_mid_combo_detail", "save": "mid", "crt": false, "setup": _select.bind(&"Combo")},
+		{"name": "hub_mid_power_brick_detail", "save": "mid", "crt": false, "setup": _select.bind(&"PowerBrick")},
 		{"name": "hub_maxed_coins", "save": "maxed", "crt": false, "setup": _rich},
 	]
 

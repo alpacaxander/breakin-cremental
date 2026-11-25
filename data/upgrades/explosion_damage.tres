@@ -6,7 +6,7 @@
 script = ExtResource("1")
 title = "Blast Damage"
 category = 3
-text = "A Blast hits each brick once more."
+text = "Blasts hit each brick once more."
 first_cost = 300
 growth = 10
 max_rank = 2

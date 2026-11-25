@@ -22,17 +22,10 @@ const TABLE := {
 	&"RearPaddle": ["Rear Paddle", Upgrade.Category.ARENA, 2, "+20% speed off the Rear Paddle", 300, 8.0],
 	&"Booster": ["Booster", Upgrade.Category.PLACEABLES, 2, "One more Booster", 12, 20.0],
 	&"BoosterSpeed": ["Booster Speed", Upgrade.Category.PLACEABLES, 2, "Balls leave a Booster 20% faster still", 500, 6.0],
-	&"Zap": ["Zap", Upgrade.Category.PLACEABLES, 3, "One more Zap", 200, 4.0],
-	&"ZapRange": ["Zap Range", Upgrade.Category.PLACEABLES, 2, "A Zap reaches 2 more bricks each way", 400, 5.0],
-	&"ZapDamage": ["Zap Damage", Upgrade.Category.PLACEABLES, 2, "A Zap hits each brick once more", 800, 5.0],
 	&"Splitter": ["Splitter", Upgrade.Category.PLACEABLES, 5, "One more Splitter", 80, 3.0],
 	&"SplitterRespawn": ["Splitter Respawn", Upgrade.Category.PLACEABLES, 3, "A broken Splitter comes back", 2000, 2.5],
 	&"SplitterHealth": ["Splitter Health", Upgrade.Category.PLACEABLES, 2, "A Splitter takes one more hit", 500, 6.0],
 	&"WallSegment": ["Wall Segment", Upgrade.Category.PLACEABLES, 2, "One more Wall Segment", 40, 10.0],
-	&"ExplosiveBrick": ["Explosive Brick", Upgrade.Category.BRICKS, 4, "One more explosive brick", 40, 3.5],
-	&"ExplosionSize": ["Explosion Size", Upgrade.Category.BRICKS, 2, "Explosions reach one square further", 150, 20.0],
-	&"ExplosionDamage": ["Explosion Damage", Upgrade.Category.BRICKS, 2, "Explosions hit each brick once more", 300, 10.0],
-	&"Shockwave": ["Shockwave", Upgrade.Category.BRICKS, 1, "Explosions throw balls", 600, 1.0],
 	&"GoldBrick": ["Gold Brick", Upgrade.Category.BRICKS, 3, "One more gold brick", 30, 6.0],
 	&"HourglassBrick": ["Hourglass Brick", Upgrade.Category.BRICKS, 2, "One more hourglass brick", 25, 100.0],
 	&"HourglassTime": ["Hourglass Time", Upgrade.Category.BRICKS, 2, "An hourglass brick adds 5 s more", 1200, 5.0],
@@ -44,24 +37,44 @@ const TABLE := {
 	&"Overgrowth": ["Overgrowth", Upgrade.Category.ARENA, 1, "Broken bricks grow back", 8000, 1.0],
 	&"Guide": ["Guide", Upgrade.Category.ARENA, 4, "+250 guide length", 30, 4.0],
 	&"GuideBounces": ["Guide Bounces", Upgrade.Category.ARENA, 1, "The guide line bounces", 250, 1.0],
-	&"SpareBall": ["Spare Ball", Upgrade.Category.ARENA, 3, "+1 spare ball", 300, 5.0],
-	&"BallBrick": ["Ball Brick", Upgrade.Category.BRICKS, 2, "One more ball brick", 1800, 4.0],
+	&"Multiball": ["Multiball", Upgrade.Category.ARENA, 3, "One more ball", 300, 5.0],
+	&"PowerBrick": ["Power Brick", Upgrade.Category.ABILITIES, 4, "One more Power Brick", 40, 3.5],
+	&"Zap": ["Zap", Upgrade.Category.ABILITIES, 1, "Unlocks Zap: a charged ball hits the rest of its brick's row", 200, 1.0],
+	&"ZapRange": ["Zap Range", Upgrade.Category.ABILITIES, 2, "A Zap reaches 2 more bricks each way", 400, 5.0],
+	&"ZapDamage": ["Zap Damage", Upgrade.Category.ABILITIES, 2, "A Zap hits each brick once more", 800, 5.0],
+	&"Blast": ["Blast", Upgrade.Category.ABILITIES, 1, "Unlocks Blast: a charged ball sets off a blast at the brick it hits", 150, 1.0],
+	&"BlastSize": ["Blast Size", Upgrade.Category.ABILITIES, 2, "Blasts reach one square further", 150, 20.0],
+	&"BlastDamage": ["Blast Damage", Upgrade.Category.ABILITIES, 2, "Blasts hit each brick once more", 300, 10.0],
+	&"Shockwave": ["Shockwave", Upgrade.Category.ABILITIES, 1, "Blasts throw balls", 600, 1.0],
 }
 ## The drawn web of upgrades.md: each node and the one it hangs off, towards the seed. A node with two links
 ## would hang off one here and have the other in CROSS; none has now.
 const PARENT := {
 	&"HourglassBrick": &"PaddleSpeed", &"HourglassTime": &"HourglassBrick", &"HourglassFreeze": &"HourglassTime",
-	&"Booster": &"PaddleSpeed", &"BoosterSpeed": &"Booster", &"Zap": &"Booster", &"ZapRange": &"Zap",
-	&"ZapDamage": &"ZapRange", &"RearPaddle": &"Zap", &"Combo": &"PaddleSpeed", &"ComboWindow": &"Combo",
-	&"GoldBrick": &"Combo", &"WallSegment": &"GoldBrick", &"Splitter": &"Combo", &"SplitterRespawn": &"Splitter",
-	&"SplitterHealth": &"SplitterRespawn", &"PaddleSize": &"PaddleSpeed", &"ExplosiveBrick": &"PaddleSize",
-	&"ExplosionSize": &"ExplosiveBrick", &"ExplosionDamage": &"ExplosionSize", &"Shockwave": &"ExplosiveBrick",
-	&"ToughBrick": &"GoldBrick", &"Growth": &"ToughBrick", &"GrowthReach": &"Growth",
-	&"PulseRate": &"Growth",
-	&"Overgrowth": &"PulseRate",
-	&"Guide": &"Booster", &"GuideBounces": &"Guide",
-	&"SpareBall": &"WallSegment", &"BallBrick": &"SplitterRespawn",
+	&"Booster": &"PaddleSpeed", &"BoosterSpeed": &"Booster", &"RearPaddle": &"Booster", &"Guide": &"Booster",
+	&"GuideBounces": &"Guide", &"Combo": &"PaddleSpeed", &"ComboWindow": &"Combo", &"GoldBrick": &"Combo",
+	&"WallSegment": &"GoldBrick", &"Multiball": &"WallSegment", &"Splitter": &"Combo",
+	&"SplitterRespawn": &"Splitter", &"SplitterHealth": &"SplitterRespawn", &"ToughBrick": &"GoldBrick",
+	&"Growth": &"ToughBrick", &"GrowthReach": &"Growth", &"PulseRate": &"Growth", &"Overgrowth": &"PulseRate",
+	&"PaddleSize": &"PaddleSpeed", &"PowerBrick": &"PaddleSize", &"Zap": &"PowerBrick", &"ZapRange": &"Zap",
+	&"ZapDamage": &"ZapRange", &"Blast": &"PowerBrick", &"BlastSize": &"Blast", &"BlastDamage": &"BlastSize",
+	&"Shockwave": &"BlastDamage",
 }
+## Each node's cell on the drawn web (column, row).
+const CELL := {
+	&"ZapRange": Vector2i(0, 0), &"ZapDamage": Vector2i(1, 0), &"RearPaddle": Vector2i(2, 0),
+	&"Zap": Vector2i(0, 1), &"BoosterSpeed": Vector2i(1, 1), &"Booster": Vector2i(2, 1), &"Guide": Vector2i(3, 1),
+	&"GuideBounces": Vector2i(4, 1), &"PowerBrick": Vector2i(0, 2), &"PaddleSize": Vector2i(1, 2),
+	&"PaddleSpeed": Vector2i(2, 2), &"HourglassBrick": Vector2i(3, 2), &"HourglassTime": Vector2i(4, 2),
+	&"Blast": Vector2i(0, 3), &"Splitter": Vector2i(1, 3), &"Combo": Vector2i(2, 3), &"ComboWindow": Vector2i(3, 3),
+	&"HourglassFreeze": Vector2i(4, 3), &"BlastSize": Vector2i(0, 4), &"SplitterRespawn": Vector2i(1, 4),
+	&"GoldBrick": Vector2i(2, 4), &"WallSegment": Vector2i(3, 4), &"Multiball": Vector2i(4, 4),
+	&"BlastDamage": Vector2i(0, 5), &"SplitterHealth": Vector2i(1, 5), &"ToughBrick": Vector2i(2, 5),
+	&"Growth": Vector2i(3, 5), &"GrowthReach": Vector2i(4, 5), &"Shockwave": Vector2i(0, 6),
+	&"PulseRate": Vector2i(3, 6), &"Overgrowth": Vector2i(4, 6),
+}
+## art.md's category colours, by Upgrade.Category: cyan, blue, magenta, orange.
+const HUE := [Palette.PLAYER, Palette.PLACEABLE, Palette.BRICKS, Palette.ABILITY]
 const CROSS := {}
 const DETAIL := Rect2(904, 88, 352, 284)  ## art.md, "Upgrade screen"
 const LEVELS := Rect2(904, 388, 352, 308)
@@ -140,6 +153,7 @@ func _details(save: String) -> void:
 	for n in web.nodes():
 		var row: Array = TABLE[StringName(n.name)]
 		var what := "%s on a %s save" % [n.name, save]
+		t.check(n.cell == CELL[StringName(n.name)], "%s sits at upgrades.md's cell %s (is %s)" % [what, CELL[StringName(n.name)], n.cell])
 		if web.state(n) == HubNode.State.LOCKED:
 			t.check(not n.visible, "%s is locked, so it is hidden" % what)
 			continue
@@ -150,6 +164,14 @@ func _details(save: String) -> void:
 		var r := Progress.rank(u)
 		t.check(_text("Detail/%Name") == row[0] and u.title == row[0], "%s: the name is upgrades.md's %s" % [what, row[0]])
 		t.check(u.category == row[1] and _text("Detail/%Category") == Upgrade.Category.keys()[row[1]], "%s: the category is the table's" % what)
+		# The node, its pips and its lit lines all take Palette.of(meaning()); the panel lights the category in it.
+		var hue: Color = HUE[row[1]]
+		t.check(Palette.of(u.meaning()) == hue and (_hub().get_node("Detail/%Category") as Label).get_theme_color(&"font_color") == Palette.lit(hue, Palette.LIT_TEXT)
+				and (_hub().get_node("Detail/%Pips") as UiPips).meaning == u.meaning() and (n.get_node("Bottom/Pips") as UiPips).meaning == u.meaning(),
+				"%s: the node, its pips and the panel's category are in art.md's %s" % [what, hue.to_html(false)])
+		var text := _hub().get_node("Detail/%Text") as Label
+		t.check(text.get_line_count() <= 2 and text.get_visible_line_count() == text.get_line_count(),
+				"%s: the text fits the panel's two lines (%d lines, %d shown)" % [what, text.get_line_count(), text.get_visible_line_count()])
 		t.check(u.max_rank == row[2] and _text("Detail/%Rank") == "RANK %d" % r, "%s: the rank reads RANK %d, with no max" % [what, r])
 		var pips_shown := mini(r + 1, row[2])
 		t.check((_hub().get_node("Detail/%Pips") as UiPips).total == pips_shown and (n.get_node("Bottom/Pips") as UiPips).total == pips_shown,

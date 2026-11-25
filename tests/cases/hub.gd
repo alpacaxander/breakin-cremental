@@ -5,16 +5,14 @@ extends RefCounted
 ## docs/design/upgrades.md's web: each node and the one it hangs off.
 const WEB := {
 	&"HourglassBrick": &"PaddleSpeed", &"HourglassTime": &"HourglassBrick", &"HourglassFreeze": &"HourglassTime",
-	&"Booster": &"PaddleSpeed", &"BoosterSpeed": &"Booster", &"Zap": &"Booster", &"ZapRange": &"Zap",
-	&"ZapDamage": &"ZapRange", &"RearPaddle": &"Zap", &"Combo": &"PaddleSpeed", &"ComboWindow": &"Combo",
-	&"GoldBrick": &"Combo", &"WallSegment": &"GoldBrick", &"Splitter": &"Combo", &"SplitterRespawn": &"Splitter",
-	&"SplitterHealth": &"SplitterRespawn", &"PaddleSize": &"PaddleSpeed", &"ExplosiveBrick": &"PaddleSize",
-	&"ExplosionSize": &"ExplosiveBrick", &"ExplosionDamage": &"ExplosionSize", &"Shockwave": &"ExplosiveBrick",
-	&"ToughBrick": &"GoldBrick", &"Growth": &"ToughBrick", &"GrowthReach": &"Growth",
-	&"PulseRate": &"Growth",
-	&"Overgrowth": &"PulseRate",
-	&"Guide": &"Booster", &"GuideBounces": &"Guide",
-	&"SpareBall": &"WallSegment", &"BallBrick": &"SplitterRespawn",
+	&"Booster": &"PaddleSpeed", &"BoosterSpeed": &"Booster", &"RearPaddle": &"Booster", &"Guide": &"Booster",
+	&"GuideBounces": &"Guide", &"Combo": &"PaddleSpeed", &"ComboWindow": &"Combo", &"GoldBrick": &"Combo",
+	&"WallSegment": &"GoldBrick", &"Multiball": &"WallSegment", &"Splitter": &"Combo",
+	&"SplitterRespawn": &"Splitter", &"SplitterHealth": &"SplitterRespawn", &"ToughBrick": &"GoldBrick",
+	&"Growth": &"ToughBrick", &"GrowthReach": &"Growth", &"PulseRate": &"Growth", &"Overgrowth": &"PulseRate",
+	&"PaddleSize": &"PaddleSpeed", &"PowerBrick": &"PaddleSize", &"Zap": &"PowerBrick", &"ZapRange": &"Zap",
+	&"ZapDamage": &"ZapRange", &"Blast": &"PowerBrick", &"BlastSize": &"Blast", &"BlastDamage": &"BlastSize",
+	&"Shockwave": &"BlastDamage",
 }
 
 var _heard: Array[StringName] = []
@@ -47,10 +45,31 @@ func run(t: Node) -> void:
 		Progress.ranks[u.id] = 1
 	Progress.rank_changed.emit(web.seed_node().upgrade)
 	for pair: Array in [[&"Splitter", KEY_UP, &"PaddleSize"], [&"HourglassBrick", KEY_DOWN, &"ComboWindow"], [&"Splitter", KEY_DOWN, &"SplitterRespawn"],
-			[&"Combo", KEY_RIGHT, &"ComboWindow"], [&"Booster", KEY_UP, &"Zap"]]:
+			[&"Combo", KEY_RIGHT, &"ComboWindow"], [&"Booster", KEY_UP, &"RearPaddle"], [&"PowerBrick", KEY_DOWN, &"Blast"],
+			[&"BlastDamage", KEY_DOWN, &"Shockwave"], [&"Shockwave", KEY_RIGHT, &"PulseRate"], [&"ZapRange", KEY_DOWN, &"Zap"]]:
 		(at.call(pair[0]) as Control).grab_focus()
 		_key(t, pair[1])
 		t.check(focus.call() == at.call(pair[2]), "%s from %s goes to %s (went to %s)" % [OS.get_keycode_string(pair[1]), pair[0], pair[2], focus.call().name])
+	# The web is 7 rows tall and the view shows 5: a drag reaches the bottom row, and the arrows reach every shown
+	# node and bring each into view. Then the same walk on each admin preset, where some nodes are hidden.
+	var shock: HubNode = at.call(&"Shockwave")
+	(at.call(&"PaddleSpeed") as Control).grab_focus()
+	web.move(-web.pan)  # the pairs above scrolled down to Shockwave
+	t.check(not web.get_global_rect().encloses(shock.get_global_rect()), "at first the bottom row (Shockwave) is below the view")
+	web.move(Vector2(0, -99999))
+	t.check(web.get_global_rect().encloses(shock.get_global_rect()) and web.get_global_rect().encloses(at.call(&"Overgrowth").get_global_rect()),
+			"a drag up brings the bottom row, Shockwave to Overgrowth, into the view")
+	_walk(t, web, "every node owned")
+	for preset: String in Admin.PRESETS:
+		Progress.ranks.assign(Admin.PRESETS[preset].ranks)  # as Admin._apply does
+		Progress.rank_changed.emit(web.seed_node().upgrade)
+		for n in web.nodes():
+			if Progress.rank(n.upgrade) > 0:
+				t.check(_owned_path(web, n), "admin's %s preset: %s is joined to the seed through owned nodes" % [preset, n.name])
+		_walk(t, web, "admin's %s preset" % preset)
+	for u in Progress.upgrades():
+		Progress.ranks[u.id] = 1
+	Progress.rank_changed.emit(web.seed_node().upgrade)
 	# Pan and zoom: the wheel over a node zooms about the pointer, a drag on the background pans, and the view's
 	# centre can't leave the web.
 	var combo: HubNode = at.call(&"Combo")
@@ -97,7 +116,7 @@ func run(t: Node) -> void:
 	t.check(ids.size() == Progress.upgrades().size() and Progress.upgrades().all(func(u: Upgrade) -> bool: return ids.count(u.id) == 1),
 			"every upgrade is on the web exactly once")
 	t.check(web.seed_node() == at.call(&"PaddleSpeed"), "Paddle Speed is the seed")
-	# The web is taller than the view now (Splitter Health's row), so the check is that it fits zoomed out.
+	# The web is taller than the view (7 rows to its 5), so the check is that it fits zoomed out.
 	web.zoom_at(web.size / 2, 0.001)
 	for n in web.nodes():
 		t.check(Rect2(Vector2.ZERO, web.size).encloses(Rect2(n.position, n.size)), "%s sits inside the web view zoomed out" % n.name)
@@ -199,6 +218,41 @@ func run(t: Node) -> void:
 
 func _listen(cue: StringName, _player: AudioStreamPlayer) -> void:
 	_heard.append(cue)
+
+
+## From the seed, every arrow key from every node reached: the arrows reach each shown node, never a hidden one,
+## and each node they land on is moved wholly into the view.
+func _walk(t: Node, web: HubWeb, save: String) -> void:
+	var view := web.get_global_rect()
+	var reached: Array[HubNode] = [web.seed_node()]
+	var i := 0
+	while i < reached.size():
+		for key: Key in [KEY_LEFT, KEY_UP, KEY_RIGHT, KEY_DOWN]:
+			reached[i].grab_focus()
+			_key(t, key)
+			var n := web.get_viewport().gui_get_focus_owner() as HubNode
+			if n == null or n in reached:
+				continue
+			t.check(n.visible, "%s: %s from %s lands on a shown node (%s)" % [save, OS.get_keycode_string(key), reached[i].name, n.name])
+			t.check(view.grow(0.5).encloses(n.get_global_rect()), "%s: %s from %s brings %s into the view" % [save, OS.get_keycode_string(key), reached[i].name, n.name])
+			reached.append(n)
+		i += 1
+	var shown := web.nodes().filter(func(n: HubNode) -> bool: return n.visible)
+	t.check(reached.size() == shown.size(), "%s: the arrows reach all %d shown nodes (reached %d)" % [save, shown.size(), reached.size()])
+
+
+## True if `n` is joined to the seed through owned nodes.
+func _owned_path(web: HubWeb, n: HubNode) -> bool:
+	var seen: Array[HubNode] = [n]
+	var i := 0
+	while i < seen.size():
+		if seen[i].is_seed:
+			return true
+		for m in web.neighbours(seen[i]):
+			if Progress.rank(m.upgrade) > 0 and not m in seen:
+				seen.append(m)
+		i += 1
+	return false
 
 
 func _pair(a: StringName, b: StringName) -> String:

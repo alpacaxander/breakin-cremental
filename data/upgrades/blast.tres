@@ -6,7 +6,7 @@
 script = ExtResource("1")
 title = "Blast"
 category = 3
-text = "Unlocks Blast: a charge that hits a brick explodes, hitting the bricks around it."
+text = "Unlocks Blast: a charged ball sets off a blast at the brick it hits."
 first_cost = 150
 max_rank = 1
 stat = &"blast_count"
