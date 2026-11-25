@@ -9,4 +9,4 @@ tile_map_data = PackedByteArray("AAAYAAAAAAAAAAAAAAAYAAEAAAAAAAAAAAAYAAQAAAAAAAA
 tile_set = ExtResource("1_pqqg8")
 script = ExtResource("2_0srwa")
 title = "Checkerboard"
-target = 320
+target = 384

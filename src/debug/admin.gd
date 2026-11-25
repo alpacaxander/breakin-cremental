@@ -11,23 +11,20 @@ extends Node
 const KEY := KEY_QUOTELEFT
 ## The ranks the balance bot's average player owns on reaching each level (and after clearing the last), with
 ## `unlocked` to match: from `tests/run.sh bot campaign skill=average` on 2026-11-24 (levels cleared on rounds
-## 8, 17 and 42). Applying one replaces every rank and leaves the coins alone.
+## 3, 9 and 19). Applying one replaces every rank and leaves the coins alone.
 # ponytail: copied by hand from tests/out/bot/campaign.json's purchases. Rerun the campaign and recopy after tuning.
-# Since the abilities came in the ids are remapped by hand, not rerun: explosive_brick is power_brick, spare_ball
-# is multiball, ball_brick is gone, Zap has one rank, and Blast is owned wherever Blast Size is.
 const PRESETS := {
 	"Level 1": {"unlocked": 1, "ranks": {}},
 	"Level 2": {"unlocked": 2, "ranks": {&"booster": 1, &"combo": 1, &"gold_brick": 1, &"hourglass_brick": 1,
-			&"paddle_speed": 1, &"tough_brick": 1}},
-	"Level 3": {"unlocked": 3, "ranks": {&"blast": 1, &"blast_size": 1, &"booster": 1, &"combo": 1, &"combo_window": 1,
-			&"power_brick": 2, &"gold_brick": 2, &"growth": 1, &"guide": 2, &"hourglass_brick": 1,
-			&"paddle_size": 2, &"paddle_speed": 2, &"splitter": 1, &"tough_brick": 2, &"wall_segment": 1, &"zap": 1}},
-	"Cleared": {"unlocked": 4, "ranks": {&"blast": 1, &"blast_size": 2, &"booster": 2, &"booster_speed": 2,
-			&"combo": 1, &"combo_window": 2, &"explosion_damage": 2, &"power_brick": 4, &"gold_brick": 3,
-			&"growth": 2, &"growth_reach": 2, &"guide": 4, &"guide_bounces": 1, &"hourglass_brick": 2,
-			&"hourglass_freeze": 1, &"hourglass_time": 1, &"paddle_size": 4, &"paddle_speed": 2, &"pulse_rate": 1,
-			&"rear_paddle": 2, &"shockwave": 1, &"multiball": 2, &"splitter": 4, &"splitter_health": 2,
-			&"splitter_respawn": 1, &"tough_brick": 3, &"wall_segment": 2, &"zap": 1, &"zap_damage": 1, &"zap_range": 2}},
+			&"paddle_size": 1, &"paddle_speed": 1, &"power_brick": 1, &"tough_brick": 1}},
+	"Level 3": {"unlocked": 3, "ranks": {&"blast": 1, &"blast_size": 1, &"booster": 2, &"combo": 1, &"combo_window": 1,
+			&"gold_brick": 2, &"growth": 1, &"guide": 2, &"hourglass_brick": 1, &"paddle_size": 2, &"paddle_speed": 2,
+			&"power_brick": 2, &"splitter": 1, &"tough_brick": 2, &"wall_segment": 1, &"zap": 1}},
+	"Cleared": {"unlocked": 4, "ranks": {&"blast": 1, &"blast_size": 1, &"booster": 2, &"booster_speed": 1,
+			&"combo": 1, &"combo_window": 2, &"explosion_damage": 1, &"gold_brick": 2, &"growth": 2, &"growth_reach": 1,
+			&"guide": 3, &"guide_bounces": 1, &"hourglass_brick": 1, &"multiball": 1, &"paddle_size": 3,
+			&"paddle_speed": 2, &"power_brick": 3, &"rear_paddle": 1, &"shockwave": 1, &"splitter": 3,
+			&"tough_brick": 3, &"wall_segment": 2, &"zap": 1, &"zap_range": 1}},
 }
 
 var _win := Window.new()
