@@ -34,7 +34,16 @@ const CELLS := {
 
 func run(t: Node) -> void:
 	t.check(Levels.count() == 3, "there are 3 levels")
-	t.check(Levels.read(0) == null and Levels.read(4) == null, "read() of a level that does not exist is null")
+	t.check(Levels.read(-1) == null and Levels.read(4) == null, "read() of a level that does not exist is null")
+	# The test level: not counted, and its painted Power Bricks drop at rank 0.
+	var test := Levels.read(0)
+	var power := test.board.bricks.keys().filter(func(c: Vector2i) -> bool: return test.board.brick(c).kind == &"power")
+	t.check(power.size() == 12 and Vector2i(30, 0) in power, "level 0 has 12 painted Power Bricks, a column of them in front: %d" % power.size())
+	var stats: Balance = load("res://data/balance.tres").duplicate()
+	var round := Round.new(test.board, null, stats, 1)
+	t.check(stats.count(&"power") == 0 and round.board.brick(Vector2i(30, 0)).kind == &"power", "a round on it keeps them with no rank of Power Brick")
+	round.hit_brick(Vector2i(30, 0), Round.Cause.BALL, Vector2.RIGHT)
+	t.check(round.drops.size() == 1, "and one that breaks makes a drop: %d" % round.drops.size())
 	t.check(Levels.read(1).board != Levels.read(1).board, "each read() returns a new board")
 	# The tile set every level is painted with: tile n is an n + 1 HP brick. No level uses the 3 and 4 HP tiles now.
 	var tile_set: TileSet = load("res://levels/bricks.tres")  # kept in a variable: a tile reads its data through its set

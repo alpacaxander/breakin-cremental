@@ -2,7 +2,7 @@ extends RefCounted
 ## The level screen in each state that matters: Setup on a fresh save and with everything unlocked and placed,
 ## a drag that fits and one that does not, an item held over the tray, Play early, mid-combo, with tough bricks
 ## hit, with bricks grown by a Growth area, with bricks Overgrowth brought back, with a drop falling, charges in
-## reserve and a charge on the paddle and then fired, on the zoomed level 3, and paused, and the Summary for each
+## reserve and a charge on the paddle and then fired, on the zoomed level 3, on the test level (level 0) fresh and maxed, and paused, and the Summary for each
 ## of the three ends and with several combos. Compare them with docs/art.md ("Level screen") and the level mockup.
 ##
 ## The mouse is pushed straight into Main's View, so a position here is a position in the 1280 x 720 frame
@@ -52,6 +52,8 @@ func shots() -> Array[Dictionary]:
 		{"name": "play_charged", "save": "maxed", "crt": false, "setup": _charged.bind(false)},
 		{"name": "play_charged_crt", "save": "maxed", "setup": _charged.bind(false)},
 		{"name": "play_charge_fired", "save": "maxed", "crt": false, "setup": _charged.bind(true), "settle": 0, "frames": 3, "every": 6},
+		{"name": "play_test_fresh", "crt": false, "setup": _play.bind(0, [], 150, 0)},
+		{"name": "play_test_maxed", "save": "maxed", "crt": false, "setup": _play.bind(0, [], 200, 0)},
 		{"name": "play_strip", "save": "mid", "crt": false, "setup": _play.bind(2, [], 60, 0), "settle": 0, "frames": 4, "every": 2},
 		{"name": "summary_cleared", "save": "maxed", "setup": _end.bind(Round.End.CLEARED), "settle": 110},
 		{"name": "summary_cleared_crt_off", "save": "maxed", "crt": false, "setup": _end.bind(Round.End.CLEARED), "settle": 110},

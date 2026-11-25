@@ -263,12 +263,12 @@ src/
   hub/        hub.tscn  web.tscn  upgrade_node.tscn  detail_panel.tscn  level_panel.tscn, each with its script
   menu/       main_menu.tscn  settings.tscn, each with its script, and cursor.gd
   ui/         palette.gd  theme.gd  glyph.gd  coin.gd  price.gd  pips.gd  bar.gd  back_button.gd  top_bar.gd
-  debug/      admin.gd    the testing panel (` in a debug build): coins, upgrade ranks, levels unlocked, the bot's presets
+  debug/      admin.gd    the testing panel (` in a debug build): coins, upgrade ranks, levels unlocked, the bot's presets, the test level
 data/
   balance.tres
   upgrades/   one .tres per upgrade
   kinds/      one .tres per kind
-levels/       level_1.tscn  level_2.tscn  level_3.tscn
+levels/       level_1.tscn  level_2.tscn  level_3.tscn  level_0.tscn (the test level: not counted, opened from the Admin panel)
               level.gd  bricks.tres  bricks.png    the root script and the tile set every level shares
 assets/
   audio/      gen.mjs  demo.html  wav/

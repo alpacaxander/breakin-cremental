@@ -99,6 +99,19 @@ func _build() -> void:
 	for preset_name: String in PRESETS:
 		presets.add_child(_button(preset_name, func() -> void: _apply(PRESETS[preset_name])))
 
+	# The test level (levels/level_0.tscn): painted Power Bricks, so drops come at any rank
+	if Levels.read(0):
+		var test := HBoxContainer.new()
+		box.add_child(test)
+		test.add_child(_button("Play the test level", func() -> void:
+			_win.hide()
+			Main.show_level(0)))
+		test.add_child(_button("Max abilities", func() -> void:
+			for u in Progress.upgrades():
+				if u.category == Upgrade.Category.ABILITIES:
+					_set_rank(u.max_rank, u)
+			_build.call_deferred()))
+
 	# Upgrades
 	box.add_child(HSeparator.new())
 	var spins: Array[SpinBox] = []
