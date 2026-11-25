@@ -206,6 +206,9 @@ func _hunt(from: int, n: int) -> void:
 		var list: Array = wrong[what]
 		t.check(false, "%s: %d times, first %s" % [what, list.size(), list.slice(0, 3)])
 	print("   fuzz_physics: ", seen)
+	if n >= 18 and only == "":
+		t.check([&"drops", &"caught", &"charged", &"volley"].all(func(k: StringName) -> bool: return seen.get(k, 0) > 0),
+				"the hunt reaches drops, catches, charged balls and the opening volley: %s" % [seen])
 
 
 func _say(wrong: Dictionary, what: String, detail: String) -> void:
@@ -419,6 +422,9 @@ func _events(round: Round) -> Array[String]:
 	round.ball_added.connect(func(ball: Ball) -> void: log.append("added %d %s" % [ball.id, var_to_str(ball.pos)]))
 	round.ball_lost.connect(func(ball: Ball) -> void: log.append("lost %d %s" % [ball.id, var_to_str(ball.pos)]))
 	round.exploded.connect(func(pos: Vector2, reach: float, cells: Array[Vector2i]) -> void: log.append("exploded %s %s %d" % [pos, reach, cells.size()]))
+	round.zapped.connect(func(cell: Vector2i, cells: Array[Vector2i]) -> void: log.append("zapped %s %d" % [cell, cells.size()]))
+	round.dropped.connect(func(d: Drop) -> void: log.append("dropped %d %s" % [d.id, var_to_str(d.pos)]))
+	round.caught.connect(func(d: Drop) -> void: log.append("caught %d %s" % [d.id, var_to_str(d.pos)]))
 	round.ended.connect(func(reason: Round.End) -> void: log.append("ended %d" % reason))
 	return log
 
@@ -469,6 +475,9 @@ func _attack(p_seed: int, wrong: Dictionary, seen: Dictionary, cfg := {}) -> voi
 		targets.append(Vector2(rng.randi_range(0, board.cols), rng.randi_range(0, board.rows / 2)) * Board.BRICK)
 	var dt: float = cfg.dt if cfg.has("dt") else [1.0 / 240.0, 1.0 / 120.0, 1.0 / 60.0, 1.0 / 30.0, 1.0 / 144.0, 0.1][rng.randi() % 6]
 	var round := Round.new(board, layout, stats, p_seed)
+	var rest := round.balls[0].pos
+	var rng_c := RandomNumberGenerator.new()  # its own, so the draws above stay as they were for older seeds
+	rng_c.seed = p_seed + 77
 	seen.rounds += 1
 	var tag := "%s seed %d, %d rows, %d/s" % [cfg.get("name", ""), p_seed, board.rows, roundi(1.0 / dt)]
 	var balls := round.balls
@@ -488,13 +497,25 @@ func _attack(p_seed: int, wrong: Dictionary, seen: Dictionary, cfg := {}) -> voi
 	var contacts := [0]
 	var inside_paddle := {}  # balls the paddle moved onto at the start of this step: they are let out, not hit
 	var grown := {}  # cells Overgrowth or a rebuilt Splitter brought back at the end of this step (Round, ONE STEP, 4), after every contact
+	var charge := {}  # ball id -> the charge it carried when last seen
+	# Drops and charges (Round, CHARGES): where each drop was before this step, the drops caught this step, how many
+	# were caught and how many charges went onto the paddle, the balls seen so far, the Splitter breaks owed a ball,
+	# and the opening volley: [balls still to come, from, way, clock at the launch, balls come].
+	var drop_was := {}
+	var caught := {}
+	var tally := {"caught": 0, "put": 0, "split": 0}
+	var known := {round.balls[0].id: true}
+	var volley := [0, Vector2.ZERO, Vector2.ZERO, 0.0, 0]
 	var me := self
 	var follow := func(why: String) -> void:
 		contacts[0] += 1
 		for ball: Ball in balls:
-			if ball == round.waiting:  # a spare riding the paddle: checked from its launch, as a new ball
+			if ball == round.waiting:  # the held first ball or a charge riding the paddle: checked from its launch, as a new ball
 				at.erase(ball.id)
 				continue
+			if ball.charge != &"" and charge.get(ball.id, &"") != ball.charge:
+				me._say(wrong, "a ball's charge changes other than from an ability to none", "%s: ball %d %s -> %s, after %s" % [tag, ball.id, charge.get(ball.id, &""), ball.charge, why])
+			charge[ball.id] = ball.charge
 			if not at.has(ball.id):
 				at[ball.id] = ball.pos
 				used[ball.id] = 0.0
@@ -527,6 +548,8 @@ func _attack(p_seed: int, wrong: Dictionary, seen: Dictionary, cfg := {}) -> voi
 			if (ang < stats.min_angle_horizontal - LOW_SLACK or ang > 90.0 - stats.min_angle_vertical + LOW_SLACK) and ball.dir != Vector2.LEFT and ball.dir != launched.get(ball.id) and still[ball.id] < Round.WEDGED - 1:
 				me._say(wrong, "a ball leaves a contact at an illegal angle", "%s: ball %d at %.3f degrees, at %s, after %s" % [tag, ball.id, ang, ball.pos, why])
 	round.ball_bounced.connect(func(ball: Ball, hit: Hit) -> void:
+		if ball == round.waiting:
+			me._say(wrong, "a ball waiting on the paddle bounces", "%s: ball %d off surface %d" % [tag, ball.id, hit.surface])
 		var prev: float = boost.get(ball.id, ball.boost)
 		var thrown := skip.has(ball.id)
 		var was: Vector2 = dirs.get(ball.id, ball.dir)
@@ -578,12 +601,42 @@ func _attack(p_seed: int, wrong: Dictionary, seen: Dictionary, cfg := {}) -> voi
 			if round.board.bricks.has(cell + n):
 				me._say(wrong, "a ball bounces off a brick face another brick covers", "%s: ball %d at %s off %s, face %s" % [tag, ball.id, ball.pos, cell, n])
 	round.brick_hit.connect(func(c: Vector2i, _hp: int, cause: Round.Cause) -> void:
+		if round.board.brick(c).kind == &"splitter" and cause == Round.Cause.BALL:  # a Splitter splits at every hit
+			tally.split += 1
 		seam.call(c, cause)
 		follow.call("brick hit"))
-	round.brick_broken.connect(func(c: Vector2i, _b: Brick, cause: Round.Cause, _d: Vector2, _n: int) -> void:
+	round.brick_broken.connect(func(c: Vector2i, b: Brick, cause: Round.Cause, _d: Vector2, _n: int) -> void:
+		if b.kind == &"splitter" and cause == Round.Cause.BALL:
+			tally.split += 1
 		seam.call(c, cause)
 		follow.call("brick broken"))
-	round.ball_added.connect(func(_b: Ball) -> void: follow.call("added"))
+	round.ball_added.connect(func(b: Ball) -> void:
+		known[b.id] = true
+		if tally.split > 0:
+			tally.split -= 1
+		else:
+			# Round, launch(): the opening volley, int(multiball) balls multiball_gap s apart, from where the first left
+			# and the same way. Its k-th ball comes in the step that passes k * multiball_gap s after the launch.
+			volley[4] += 1
+			var gone: float = round.clock + dt - volley[3]
+			var due: float = volley[4] * stats.multiball_gap
+			if volley[0] <= 0 or b.pos != volley[1] or b.dir != volley[2] or b.boost != 1.0 or gone < due - 1e-5 or gone - dt >= due + 1e-5:
+				me._say(wrong, "a ball is added that is neither a Splitter's nor the opening volley's", "%s: ball %d at %s along %s; volley %s, %.4f s after the launch" % [tag, b.id, b.pos, b.dir, volley, gone])
+			volley[0] -= 1
+			seen.volley = seen.get(&"volley", 0) + 1
+		follow.call("added"))
+	round.dropped.connect(func(d: Drop) -> void:
+		drop_was[d] = d.pos
+		seen.drops = seen.get(&"drops", 0) + 1)
+	round.caught.connect(func(d: Drop) -> void:
+		caught[d] = true
+		tally.caught += 1
+		seen.caught = seen.get(&"caught", 0) + 1
+		if not d.rect().intersects(round.paddle.rect(board.size().y)):
+			me._say(wrong, "a drop is caught that does not touch the paddle", "%s: drop %d at %s, paddle at %f" % [tag, d.id, d.pos, round.paddle.y]))
+	round.ended.connect(func(why: Round.End) -> void:
+		if why == Round.End.BALL_LOST and (round.waiting or round.charges > 0 or not round.drops.is_empty() or volley[0] > 0):
+			me._say(wrong, "the round ends BALL_LOST with a charge, a drop or a volley ball left", "%s: waiting %s, %d charges, %d drops, %d to come" % [tag, round.waiting, round.charges, round.drops.size(), volley[0]]))
 	round.restored.connect(func(cell: Vector2i, cells: Array[Vector2i]) -> void:
 		if cell == Round.NOWHERE or cells.has(cell):  # Overgrowth, or a Splitter rebuilt: both in step 4
 			for c in cells:
@@ -617,6 +670,8 @@ func _attack(p_seed: int, wrong: Dictionary, seen: Dictionary, cfg := {}) -> voi
 				continue
 			round.balls[0].put(p, d)
 			break
+	if round.balls[0].pos == rest and rng_c.randf() < 0.5:
+		round.hold()  # as the level screen does: the first ball waits on the paddle, and its launch brings the volley
 	follow.call("start")
 	var style: int = cfg.get("style", rng.randi() % 4)
 	var start_pos := round.balls[0].pos
@@ -635,11 +690,28 @@ func _attack(p_seed: int, wrong: Dictionary, seen: Dictionary, cfg := {}) -> voi
 			used[id] = 0.0
 		skip.clear()
 		contacts[0] = 0
-		if round.waiting and rng.randf() < 0.05:  # spares go after a while, as a player sends them
+		if round.waiting and rng.randf() < 0.05:  # the held ball and charges go after a while, as a player sends them
 			var sent := round.waiting
+			var first := round.held
+			if first:
+				volley[0] = int(stats.multiball)
+				volley[1] = sent.pos
+				volley[2] = round.launch_dir()
+				volley[3] = round.clock
 			round.launch()
 			launched[sent.id] = sent.dir
 			dirs[sent.id] = sent.dir  # off a paddle at a wall, its first bounce can come before follow has seen it
+			charge[sent.id] = sent.charge
+			if sent.charge != &"":
+				seen.charged = seen.get(&"charged", 0) + 1
+			if sent.charge != (&"" if first else round.ability):
+				_say(wrong, "a launched ball carries the wrong charge", "%s: ball %d %s, the first %s, selected %s" % [tag, sent.id, sent.charge, first, round.ability])
+			if not first and rng_c.randf() < 0.3:
+				round.cycle(1)  # the wheel, now and then
+		drop_was.clear()
+		for d: Drop in round.drops:
+			drop_was[d] = d.pos
+		caught.clear()
 		var target := _target(rng, round, step, style)
 		# Which balls will the paddle be on after it moves: replay its move here.
 		var py := clampf(move_toward(round.paddle.y, target, stats.paddle_speed * dt), 0.0, board.size().y)
@@ -659,6 +731,27 @@ func _attack(p_seed: int, wrong: Dictionary, seen: Dictionary, cfg := {}) -> voi
 		seen.steps += 1
 		seen.contacts += contacts[0]
 		seen.balls = maxi(seen.balls, balls.size())
+		# Drops (Round, CHARGES): straight left at drop_speed, y unchanged, until the paddle catches one or it is
+		# wholly past the open side; nothing else ends one.
+		for d: Drop in drop_was:
+			var was: Vector2 = drop_was[d]
+			if d.pos != Vector2(was.x - stats.drop_speed * dt, was.y):
+				_say(wrong, "a drop does not move left by drop_speed x delta", "%s: drop %d %s -> %s" % [tag, d.id, was, d.pos])
+			if round.drops.has(d) == (caught.has(d) or d.pos.x + d.size * 0.5 <= -board.lane()):
+				_say(wrong, "a drop ends other than caught or past the open side, or neither ends it", "%s: drop %d at %s, caught %s, in drops %s" % [tag, d.id, d.pos, caught.has(d), round.drops.has(d)])
+		var w := round.waiting
+		if w and not known.has(w.id):
+			known[w.id] = true
+			tally.put += 1
+		for ball in balls:
+			if not known.has(ball.id):
+				_say(wrong, "a ball comes into play with no ball_added", "%s: ball %d" % [tag, ball.id])
+				known[ball.id] = true
+		if tally.caught != round.charges + tally.put or not (round.held or w or round.charges == 0):
+			_say(wrong, "the charges caught are not those held plus those put on the paddle, or one is held while no ball waits",
+					"%s: caught %d, held %d, put on %d, waiting %s" % [tag, tally.caught, round.charges, tally.put, w])
+		if w and (w.pos != Vector2(round.paddle.x + w.size * 0.5, clampf(round.paddle.y, w.size * 0.5, board.size().y - w.size * 0.5)) or w.dir != Vector2.RIGHT or w.boost != 1.0 or w.charge != &""):
+			_say(wrong, "a ball waiting on the paddle is not at rest on it", "%s: ball %d at %s along %s x%f, paddle at %f" % [tag, w.id, w.pos, w.dir, w.boost, round.paddle.y])
 		if _bad_number(round.paddle.y) or _bad_number(round.time_left):
 			_say(wrong, "the paddle or the timer is NaN", tag)
 		for ball in balls:
@@ -712,6 +805,8 @@ func _rates(p_seed: int, wrong: Dictionary) -> void:
 	var board := _random_board(rng)
 	var stats := _random_stats(rng)
 	stats.put(&"splitter_count", 0)
+	stats.put(&"power_count", 0)  # one ball: no charges
+	stats.put(&"multiball", 0)  # and no volley
 	if rng.randf() < 0.6:
 		stats.paddle_size = board.size().y
 	var layout := _random_layout(rng, board, stats)
@@ -762,7 +857,7 @@ func _fence(p_seed: int, wrong: Dictionary, seen: Dictionary) -> void:
 	var board := Board.new([14, 16, 18, 20][rng.randi() % 4])
 	var stats := _random_stats(rng)
 	stats.put(&"splitter_count", 0)
-	stats.put(&"explosive_count", 0)  # a blast would open the ring
+	stats.put(&"power_count", 0)  # no drops, so no charge brings a ball in from outside the ring
 	if rng.randf() < 0.3:
 		stats.round_time = 4.0
 	var c0 := rng.randi_range(8, board.cols - 12)  # clear of the ball at rest, 8 bricks out
