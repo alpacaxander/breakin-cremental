@@ -42,14 +42,16 @@ const BALL_LOST := &"ball_lost"
 # Bricks
 const BRICK_HIT := &"brick_hit"
 const BRICK_BREAK := &"brick_break"
-const EXPLOSION := &"explosion"
 const GOLD_BRICK := &"gold_brick"
 const HOURGLASS_BRICK := &"hourglass_brick"
 # Placeables
 const BUMPER := &"bumper"
 const BOOSTER := &"booster"
 const SPLITTER := &"splitter"
+# Abilities
+const CATCH := &"catch"
 const ZAP := &"zap"
+const EXPLOSION := &"explosion"
 # Round
 const ROUND_START := &"round_start"
 const LOW_TIMER_TICK := &"low_timer_tick"
@@ -159,10 +161,14 @@ static func combo_pitch(count: int) -> float:
 ##   ball_bounced   WALL: WALL_BOUNCE. PADDLE: PADDLE_HIT. ITEM: hit.item.kind.cue
 ##   brick_hit      BRICK_HIT
 ##   brick_broken   BRICK_BREAK, one pentatonic step higher per combo step (round.combo.count), up to two octaves.
-##                  Then the cue of the brick's kind and the cue of its mod, if they have one (GOLD_BRICK,
-##                  HOURGLASS_BRICK, ZAP), whatever broke it
-##   ball_added     SPLITTER: a ball split. A Splitter that a blast or a Zap breaks adds no ball, so its kind has
-##                  no cue and the sound follows the signal (the launch ball is not added, so it is silent)
+##                  Then the cue of its kind, if it has one, whatever broke it: GOLD_BRICK, HOURGLASS_BRICK, and
+##                  SPLITTER for a Power Brick (its drop leads to a new ball, as a Splitter's split does)
+##   ball_added     SPLITTER: a new ball in play, a Splitter's or one of the Multiball volley's. A Splitter that a
+##                  blast or a Zap breaks adds no ball, so its kind has no cue and the sound follows the signal. The
+##                  first ball and the charges are not added, so their launch is silent
+##   caught         CATCH: the paddle caught a drop. A drop made or missed, and a charge going onto the paddle, are
+##                  silent
+##   zapped         ZAP
 ##   exploded       EXPLOSION
 ##   ball_lost      BALL_LOST
 ##   grew           BOOSTER, its rising sweep: a Growth area pulsed (the kind has no cue, as it has no block)
@@ -177,6 +183,8 @@ func connect_round(p_round: Round) -> void:
 	p_round.brick_hit.connect(func(_cell: Vector2i, _hp_left: int, _cause: Round.Cause) -> void: play(BRICK_HIT))
 	p_round.brick_broken.connect(_on_brick_broken.bind(p_round.combo))
 	p_round.ball_added.connect(func(_ball: Ball) -> void: play(SPLITTER))
+	p_round.caught.connect(func(_drop: Drop) -> void: play(CATCH))
+	p_round.zapped.connect(func(_cell: Vector2i, _cells: Array[Vector2i]) -> void: play(ZAP))
 	p_round.exploded.connect(func(_pos: Vector2, _reach: float, _cells: Array[Vector2i]) -> void: play(EXPLOSION))
 	p_round.ball_lost.connect(func(_ball: Ball) -> void: play(BALL_LOST))
 	p_round.grew.connect(func(_cell: Vector2i, _reach: float, _cells: Array[Vector2i]) -> void: play(BOOSTER))
@@ -213,10 +221,9 @@ func _on_ball_bounced(_ball: Ball, hit: Hit) -> void:
 func _on_brick_broken(_cell: Vector2i, brick: Brick, _cause: Round.Cause, _dir: Vector2, _coins: int,
 		combo: Combo) -> void:
 	play(BRICK_BREAK, combo_pitch(combo.count))
-	for id: StringName in [brick.kind]:
-		var kind := Kinds.of(id)
-		if kind:
-			play(kind.cue)
+	var kind := Kinds.of(brick.kind)
+	if kind:
+		play(kind.cue)
 
 
 ## Every button clicks when pressed. node_added fires again when a button re-enters the tree, hence the check.

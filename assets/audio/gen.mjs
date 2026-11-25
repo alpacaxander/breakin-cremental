@@ -71,14 +71,16 @@ const CUES = {
 	// --- Bricks ---
 	brick_hit: { g: "Bricks", d: "a brick takes a hit and stays", gen: () => tone({ f: 1047, f1: 990, dur: 0.035, duty: 0.25 }), gain: 0.8 },
 	brick_break: { g: "Bricks", d: "a brick breaks; the game climbs a pentatonic scale per combo step", gen: () => layer([tone({ f: 659, f1: 523, dur: 0.06 })], [noise({ dur: 0.05, lp: 6000, lp1: 1500 }), 0.005, 0.35]) },
-	explosion: { g: "Bricks", d: "an explosive brick goes off (big)", gen: () => layer([noise({ dur: 0.5, lp: 3000, lp1: 120 })], [tone({ f: 220, f1: 55, dur: 0.25 }), 0, 0.45], [punch(110, 0.4), 0, 1.3]) },
 	gold_brick: { g: "Bricks", d: "a gold brick breaks", gen: () => notes([[988, 0.05], [1319, 0.18]], { k: 16 }) },
 	hourglass_brick: { g: "Bricks", d: "an hourglass brick breaks, time is added", gen: () => layer([click(1500, 0.02)], [click(1000, 0.02), 0.07], [tone({ f: 784, f1: 1568, dur: 0.12, duty: 0.25 }), 0.14]) },
 	// --- Placeables ---
 	bumper: { g: "Placeables", d: "ball bounces off a Bumper", gen: () => layer([tone({ f: 330, f1: 250, dur: 0.06, duty: 0.3 })], [noise({ dur: 0.03, lp: 2500 }), 0, 0.4], [tone({ f: 90, dur: 0.05, wave: "sin" }), 0, 0.8]) },
 	booster: { g: "Placeables", d: "ball passes a Booster and speeds up", gen: () => layer([tone({ f: 300, f1: 1200, dur: 0.12, duty: 0.25, k: 12 })], [noise({ dur: 0.12, lp: 800, lp1: 6000, hp: 300, a: 0.03 }), 0, 0.3]) },
-	splitter: { g: "Placeables", d: "a Splitter breaks into a second ball", gen: () => notes([[990, 0.04], [660, 0.04], [990, 0.06]]) },
-	zap: { g: "Placeables", d: "a Zap fires along its row", gen: () => layer([tone({ f: 2000, f1: 200, dur: 0.14, trem: 0.8, tremf: 90 })], [noise({ dur: 0.1, lp: 9000, hp: 1500 }), 0, 0.5]) },
+	splitter: { g: "Placeables", d: "a new ball: a Splitter's or the Multiball volley's; also a Power Brick breaking", gen: () => notes([[990, 0.04], [660, 0.04], [990, 0.06]]) },
+	// --- Abilities ---
+	catch: { g: "Abilities", d: "the paddle catches a drop: one more charge", gen: () => layer([tone({ f: 660, f1: 1320, dur: 0.05, duty: 0.25, k: 10 })], [tone({ f: 1320, f1: 1760, dur: 0.1, duty: 0.125, k: 24 }), 0.045], [noise({ dur: 0.03, lp: 12000, hp: 4000 }), 0.045, 0.3]) },
+	zap: { g: "Abilities", d: "a Zap goes off along its row", gen: () => layer([tone({ f: 2000, f1: 200, dur: 0.14, trem: 0.8, tremf: 90 })], [noise({ dur: 0.1, lp: 9000, hp: 1500 }), 0, 0.5]) },
+	explosion: { g: "Abilities", d: "a Blast goes off (big)", gen: () => layer([noise({ dur: 0.5, lp: 3000, lp1: 120 })], [tone({ f: 220, f1: 55, dur: 0.25 }), 0, 0.45], [punch(110, 0.4), 0, 1.3]) },
 	// --- Round ---
 	round_start: { g: "Round", d: "Start is pressed, the ball launches", gen: () => notes([[392, 0.06], [523, 0.06], [784, 0.16]], { duty: 0.25, k: 14 }) },
 	low_timer_tick: { g: "Round", d: "each whole second at or under the low-time mark", gen: () => layer([click(1500, 0.02)], [tone({ f: 300, dur: 0.04, wave: "sin" }), 0, 0.6]) },
