@@ -23,7 +23,7 @@ Source: [Endesga 64](https://lospec.com/palette-list/endesga-64) by ENDESGA. The
 | Background | `0e071b` |
 | Backdrop grid, panel fill | `1a1932` |
 | Walls, disabled buttons, setup grid lines | `2a2f4e` |
-| Panel borders, unlit connections, empty rank pips | `424c6e` |
+| Panel borders, unlit connections, empty pips | `424c6e` |
 | Paddle body | `657392` |
 | Secondary text | `92a1b9` |
 | Primary text | `c7cfdd` |

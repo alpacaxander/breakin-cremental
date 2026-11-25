@@ -129,20 +129,23 @@ The demo's upgrades. The id is the file name in `data/upgrades/`:
 | Id | Stat | Amount per rank |
 |---|---|---|
 | `paddle_speed` | `paddle_speed` | 100% |
-| `ball_speed` | `ball_speed` | 10% |
 | `paddle_size` | `paddle_size` | 40% |
-| `round_time` | `round_time` | 6 |
-| `combo` | `combo_rank` | 1 |
+| `combo`, `combo_window` | `combo_rank` | 1 |
+| `guide`, `guide_bounces` | `guide`, `guide_bounces` | 250, 1 |
+| `rear_paddle` | `rear_paddle` | 0.2 |
 | `blast_size` (Blast Size) | `blast_size` | 1 |
 | `explosion_damage` (Blast Damage) | `explosion_damage` | 1 |
 | `zap_range`, `zap_damage` | `zap_range`, `zap_damage` | 2, 1 |
 | `shockwave` | `shockwave` | 1 |
 | `booster`, `wall_segment`, `splitter`, `growth` | `<id>_count` | 1 |
+| `booster_speed` | `booster_speed` | 0.2 |
+| `splitter_respawn`, `splitter_health` | `splitter_respawn`, `splitter_health` | 1, 1 |
 | `growth_reach` | `growth_reach` | 1 |
 | `pulse_rate` (Growth Pulses) | `growth_pulses` | 1 |
 | `overgrowth` | `overgrowth` | 1 (on) |
 | `multiball` | `multiball` | 1 |
 | `gold_brick`, `hourglass_brick`, `tough_brick` | `gold_count`, `hourglass_count`, `tough_count` | 1 |
+| `hourglass_time`, `hourglass_freeze` | `hourglass_time`, `hourglass_freeze` | 5, 1 |
 | `power_brick`, `zap`, `blast` | `power_count`, `zap_count`, `blast_count` | 1 |
 
 The web scene (`src/hub/web.tscn`) holds only layout: where each node sits (`cell`, with the seed at (0, 0) in the middle of the view), which `.tres` it shows, and which nodes it connects to. There is one node per purchase: an upgrade with three ranks has three nodes, its copies, which share its price ladder, so the next copy bought costs the next rank's price whichever node it is. A node is bought once, and the save records its name in `Progress.owned`. Whether a node can be reached yet, and whether the web still hangs together after an undo, is the hub's question; `Progress.buy` checks only the price (coins, or a key) and the maximum rank, and `Progress.undo` only that a copy is owned.
@@ -192,7 +195,7 @@ Main                         never unloaded (src/main.tscn)
 - **The menus** (the main menu, Settings, the Summary's buttons) share one selection, `UiTheme.selection(controls)`: hover takes the focus, the focus outline is off, and a plain button is drawn primary while focused and secondary otherwise. Settings shows it with `src/menu/cursor.gd`, a lit triangle beside the focused control.
 - **The seam between the level screen and the effects** is written at the top of `src/level/fx/fx.gd`: where the `Fx` node sits, `watch(round)` and `clear()`, the `frozen` flag, the `shake` offset, and the z order. `z_index` sorts across the whole canvas layer, so the numbers are shared: what the level screen draws in `Arena` is at 0 (backdrop), 10 (bricks, items, paddle) and 20 (balls), `Fx` uses 1 to 99, and `Hud`, `SetupUi` and `Summary` are at 100. The one thing above them is Setup's ghost, at 101: the held item follows the cursor over the tray.
 - **`Fx`** is one script with four layers, each drawn from a plain list and clipped to `board.field()`: light pools at z 5, squares and shockwaves at 15, pop-ups at 18 and the trail at 19, so nothing it draws covers a ball. It holds the round it watches until `clear()`, which also disconnects it; a round that is thrown away without `clear()` is never freed. `frozen` is true during a freeze of its own or while someone holds it (a test, to stand a round still); `Fx` never clears a flag it did not set. The pop-up layer is scaled back by 1 ÷ zoom and draws in screen pixels. What each effect looks like is in [art.md](art.md#effects).
-- **The HUD and the hub answer too.** A HUD number swells for a moment when it goes up, and an upgrade node when a rank of it is bought, through `UiTheme.pulse`. They read the round and `Progress`; `Fx` does not touch them.
+- **The HUD and the hub answer too.** A HUD number swells for a moment when it goes up, and the upgrade node just bought (not its other copies), through `UiTheme.pulse`. They read the round and `Progress`; `Fx` does not touch them.
 
 ### Input
 
