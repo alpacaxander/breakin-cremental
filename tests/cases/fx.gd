@@ -1,7 +1,7 @@
 extends RefCounted
 ## The effects (src/level/fx/fx.gd), as far as they can be checked without eyes: what clear() leaves, that the
-## round is let go, the freeze and its cap, the caps in the worst burst and what that burst costs, the layers,
-## what reduce flashing drops, the bloom against the combo, how pop-ups join and stay unzoomed, and that a
+## round is let go, the freeze and its cap, the Zap's bolt and the catch, the caps in the worst burst (a Zap and
+## three Blasts in one step) and what that burst costs, the layers, what reduce flashing drops, the bloom against the combo, how pop-ups join and stay unzoomed, and that a
 ## watched round plays exactly like one nobody watches. How they look is tests/shots/fx.gd.
 ##
 ## Every upgrade is owned, so combos are on and the round has its special bricks. Fx's own clock is driven by
@@ -33,6 +33,7 @@ func run(p_t: Node) -> void:
 	await _bloom()
 	await _pop_ups()
 	await _calm()
+	await _abilities()
 	await _bursts()
 	await _same_round()
 	await _cost()
@@ -240,10 +241,10 @@ func _calm() -> void:
 	fx._process(1.0 / 60.0)
 	t.check(fx._pools.is_empty() and fx._kick == 0.0, "reduce flashing: no light pool and no flash")
 	var tagged := round.board.bricks.keys()[0] as Vector2i
-	round.board.brick(tagged).set("mod", &"zap")
 	round.board.brick(tagged).hp = 2
 	round.hit_brick(tagged, Round.Cause.BALL, Vector2.RIGHT)
 	round.hit_brick(tagged, Round.Cause.BALL, Vector2.RIGHT)
+	round.zap(tagged)
 	t.check(fx._shapes.any(func(s: Fx.Shape) -> bool: return s.width == 0.0 and s.boost == 1.0), "reduce flashing: the Zap's bolt is unlit")
 	t.check(fx._marks.size() >= 2 and fx._marks.all(func(s: Fx.Shape) -> bool: return s.width > 0.0 or s.boost <= Palette.LIT), "reduce flashing: a hit brick's flash is no brighter than a brick")
 	t.check(fx._shapes.size() >= 2 and fx.squares() > 0 and not fx._pops.is_empty(), "reduce flashing: shockwaves, squares and pop-ups stay")
@@ -262,6 +263,42 @@ func _calm() -> void:
 	t.check(calm <= Fx.SHAKE * Fx.SHAKE_CALM and wild > Fx.SHAKE * Fx.SHAKE_CALM and wild <= Fx.SHAKE,
 			"reduce flashing halves the shake (%.0f px against %.0f)" % [calm, wild])
 	t.check(fx.shake == fx.shake.round(), "the shake is in whole pixels, so text stays sharp")
+
+
+## A Zap's bolt covers its stretch of row and no more, and a caught drop is a small orange ring and squares with
+## no freeze and no shake. A drop being made shows nothing: the arena draws the drop.
+func _abilities() -> void:
+	await _play(3)
+	fx._process(1.0)
+	var cell := Vector2i(47, 4)
+	var left := cell.x
+	var right := cell.x
+	for c: Vector2i in round.board.bricks:
+		if c.y == cell.y and absi(c.x - cell.x) <= int(round.stats.zap_range):
+			left = mini(left, c.x)
+			right = maxi(right, c.x)
+	var before := fx._shapes.size()
+	round.zap(cell)
+	var bolt := fx._shapes[before] if fx._shapes.size() == before + 1 else null
+	var span := round.board.cell_rect(Vector2i(left, cell.y)).merge(round.board.cell_rect(Vector2i(right, cell.y)))
+	t.check(bolt != null and bolt.colour == Palette.ABILITY and bolt.from.y == Fx.BOLT and bolt.boost == Palette.LIT,
+			"a Zap leaves one lit orange bolt")
+	t.check(bolt != null and is_equal_approx(bolt.from.x, span.size.x) and is_equal_approx(bolt.at.x, span.get_center().x) and span.size.x < round.board.size().x,
+			"along its stretch of row (columns %d to %d), not the whole board" % [left, right])
+	t.check(fx.frozen and fx._strength > 0.0, "a Zap freezes and shakes")
+
+	await _play(1)
+	fx._process(1.0)
+	var strength := fx._strength
+	before = _count(fx)
+	var d := round.drop(round.board.bricks.keys()[0])
+	t.check(_count(fx) == before, "a drop being made adds no effect")
+	d.pos = round.paddle.rect(round.board.size().y).get_center()
+	round.step(1.0 / 120.0, round.paddle.y)
+	t.check(round.drops.is_empty(), "the paddle caught the drop")
+	t.check(fx._shapes.any(func(s: Fx.Shape) -> bool: return s.width > 0.0 and s.colour == Palette.ABILITY and s.at == d.pos), "a caught drop leaves an orange ring where it was caught")
+	fx._process(1.0 / 60.0)
+	t.check(fx.squares() > 0 and not fx.frozen and fx._strength <= strength, "and orange squares, with no freeze and no shake")
 
 
 ## The furthest the shake goes at full strength, over 60 frames.
@@ -283,13 +320,11 @@ func _bursts() -> void:
 	(load("res://tests/shots/fx.gd") as GDScript).worst(round)
 	t.check(bricks - round.board.bricks.size() > 150, "the worst burst breaks more than 150 bricks in one step (%d)" % (bricks - round.board.bricks.size()))
 	fx._process(1.0 / 60.0)
-	# What one frame may add: DEBRIS shared by the breaks, and each blast's own squares, fewer for each one after.
-	var most := Fx.DEBRIS + 1.0
-	for i in Fx.BLAST_MOST:
-		most += Fx.BLAST_SPARKS * (1.0 + Fx.MORE_SPARKS) / (1 + i)
-	t.check(fx.squares() > 100 and fx.squares() <= most, "the burst adds no more squares than a frame may (%d of %d)" % [fx.squares(), most])
-	t.check(fx._marks.size() == 4, "a burst leaves no mark on each brick: only the two a ball broke flash and ring (%d)" % fx._marks.size())
-	t.check(fx._shapes.size() >= 8 and fx._shapes.size() <= Fx.SHAPES, "its shockwaves and bolts are all there (%d)" % fx._shapes.size())
+	# What one frame may add: DEBRIS shared by the breaks, and each blast's own squares.
+	var most := Fx.DEBRIS + 1.0 + 3 * Fx.BLAST_SPARKS * (1.0 + Fx.MORE_SPARKS)
+	t.check(fx.squares() > 100 and fx.squares() <= most and most < Fx.PARTICLES, "the burst adds no more squares than a frame may, and fewer than there are (%d of %d)" % [fx.squares(), most])
+	t.check(fx._marks.size() <= 8, "a burst leaves no mark on each brick: only the four a ball broke flash and ring (%d)" % fx._marks.size())
+	t.check(fx._shapes.size() >= 7 and fx._shapes.size() <= Fx.SHAPES, "its three blasts' shockwaves and the bolt are all there (%d)" % fx._shapes.size())
 	t.check(fx._pools.size() <= Fx.POOLS and fx._pops.size() <= Fx.POPS, "pools and pop-ups stay under their caps")
 
 	var cells := round.board.bricks.keys()

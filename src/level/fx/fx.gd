@@ -34,7 +34,8 @@ extends Node2D
 ##   squares   every particle, in fixed arrays of PARTICLES that are written round and round, so there are
 ##             never more. What a frame's breaks ask for is thinned evenly to DEBRIS (see _process).
 ##   shapes    a rectangle that grows and fades: a shockwave, an item's pulse, a Growth area's reach, the outline
-##             closing on a brick a Refresh brought back, the Zap's bolt, the red bar where a ball left
+##             closing on a brick a Refresh brought back, the Zap's bolt, the ring where the paddle caught a drop,
+##             the red bar where a ball left
 ##   marks     the same, but small and many: the flash of a brick a ball hit or a Growth pulse grew or a
 ##             Refresh brought back, and the combo's ring. Kept apart, so a run of them never pushes a shockwave out
 ##   pools     the light under an explosion
@@ -48,12 +49,13 @@ extends Node2D
 ## `heat` is how far the combo is up its curve, 0 to 1 (heat_of). Squares, shockwaves, the shake and the bloom
 ## all grow with it, and a ball's break gets a gold ring and gold squares that grow with it too.
 ## A freeze, a shake and a flash (a kick on top of the bloom) come with an explosion; a Zap freezes and shakes;
-## a lost ball and the last brick of a clear shake, and the clear flashes. Nothing else freezes the game.
+## a lost ball and the last brick of a clear shake, and the clear flashes. Nothing else freezes the game: a caught
+## drop is a reward, not a hit, so it has a ring and squares and no shake.
 ## Reduce flashing drops the light pools, the flashes and the red bar, halves the shake, and draws the Zap's
 ## bolt and a hit brick's flash no brighter than a brick. Shockwaves, squares, pop-ups and the trail stay.
 ## Left without an effect: a wall bounce (the wall is slate, and white is the ball's), the Shockwave upgrade
-## (the ball it throws leaves with a longer trail, as any boosted ball does), and bricks Overgrowth brings back
-## (they reappear in their 1 HP colour; see _on_restored).
+## (the ball it throws leaves with a longer trail, as any boosted ball does), bricks Overgrowth brings back
+## (they reappear in their 1 HP colour; see _on_restored), and a drop made or missed (the arena draws the drop).
 
 # The combo.
 const COMBO_TOP := 160  ## The combo count at which the effects are at their biggest
@@ -103,8 +105,10 @@ const ITEM_RING := 18.0  ## A placed item's outline grows by this when a ball bo
 const ITEM_TIME := 0.25
 const ITEM_SPARKS := 4.0
 const BOOST_SPARKS := 8.0  ## More of them off an item while the ball is boosted
-const BOLT := 10.0  ## The Zap's bolt along its row: this thick at first, in units
+const BOLT := 10.0  ## The Zap's bolt along the stretch of row it reached: this thick at first, in units
 const BOLT_TIME := 0.3
+const CATCH_RING := 48.0  ## The ring where the paddle caught a drop
+const CATCH_SPARKS := 6.0  ## and its squares, thrown out into the open
 const PADDLE_RING := 34.0
 const PADDLE_SPARKS := 5.0
 const GROW_TIME := 0.5  ## A Growth pulse or bricks brought back (Refresh): outlines and the bricks flashing
@@ -117,8 +121,6 @@ const BLAST_OUTER := 0.4  ## The outer shockwave's strength: an unlit echo of th
 const BLAST_SPARKS := 24.0
 const BLAST_SIZE := Vector2(3, 6)
 const BLAST_THROW := Vector2(24, 120)
-const BLAST_MOST := 4  ## Explosions in one frame that throw squares. Each one after the first throws fewer
-const CHAIN_GAP := 0.07  ## Seconds between the shockwaves of blasts that set each other off, so a chain reads as one
 const POOL := 360.0  ## The light pool's width at the base blast. It grows by what the reach grows
 const POOL_ALPHA := 0.24  ## at its centre
 const POOL_FADE := 0.68  ## The share of its radius at which it has faded to nothing
@@ -168,10 +170,11 @@ const LOST_TIME := 0.4
 const LOST_SPARKS := 12
 const CLEAR_RINGS: Array[float] = [300.0, 600.0, 900.0]  ## They cross the arena
 const CLEAR_TIME := 0.6
+const CLEAR_GAP := 0.07  ## Seconds between its rings
 const CLEAR_SPARKS := 40
 
 const HEARD: Array[StringName] = [&"brick_hit", &"brick_broken", &"ball_bounced", &"ball_added", &"ball_lost",
-		&"exploded", &"grew", &"restored", &"combo_changed", &"time_changed", &"ended"]
+		&"caught", &"exploded", &"zapped", &"grew", &"restored", &"combo_changed", &"time_changed", &"ended"]
 
 
 class Shape:
@@ -219,7 +222,6 @@ var _live := 0
 ## What this frame's breaks and hits ask for: [area, colour, dir, how many, throw]. Dealt out in _process.
 var _asked: Array[Array] = []
 var _asked_n := 0.0
-var _blasts := 0  ## Explosions this frame
 
 var _shapes: Array[Shape] = []
 var _marks: Array[Shape] = []  ## The small ones, kept apart so that a run of them never pushes a shockwave out
@@ -275,7 +277,6 @@ func clear() -> void:
 	_live = 0
 	_asked.clear()
 	_asked_n = 0.0
-	_blasts = 0
 	_shapes.clear()
 	_marks.clear()
 	_pools.clear()
@@ -340,8 +341,8 @@ func _process(delta: float) -> void:
 		_ring(_last, SPECIAL_RING, 2.0, Palette.COINS, SPECIAL_TIME)
 		_flash(STEP_FLASH)
 
-	# A Zap breaks 63 bricks in one step and blasts chain, so what the frame asked for is dealt out here: every
-	# break gets the same share of DEBRIS, and a row that broke at once sparkles evenly along its length.
+	# A Zap breaks a row of bricks in one step and a big blast a hundred, so what the frame asked for is dealt out
+	# here: every break gets the same share of DEBRIS, and a row that broke at once sparkles evenly along its length.
 	var share := minf(1.0, DEBRIS / maxf(_asked_n, 1.0))
 	var owed := randf()
 	for ask in _asked:
@@ -351,7 +352,6 @@ func _process(delta: float) -> void:
 			_square(ask[0], ask[1], ask[2], ask[4], BREAK_SIZE)
 	_asked.clear()
 	_asked_n = 0.0
-	_blasts = 0
 	_paid = null
 
 	if _live > 0:
@@ -418,8 +418,8 @@ func _on_brick_broken(cell: Vector2i, brick: Brick, cause: Round.Cause, dir: Vec
 		var size := Vector2.ONE * lerpf(HOT_RING.x, HOT_RING.y, heat)
 		_shape(_marks, _last, size * RING_START, size, Palette.COINS, lerpf(HOT_WIDTH.x, HOT_WIDTH.y, heat), SPECIAL_TIME)
 		_ask(rect, Palette.COINS, -dir, HOT_SPARKS * heat, BREAK_THROW * HOT_THROW)
-	# A brick worth more than one (gold) rings as it pays. The other special bricks have a signal of their own:
-	# `exploded`, time_changed, ball_added.
+	# A brick worth more than one (gold) rings as it pays. The hourglass has a signal of its own (time_changed),
+	# and the Power Brick's drop is the arena's to draw.
 	if kind is BrickKind and (kind as BrickKind).worth > 1:
 		_ring(_last, SPECIAL_RING, 2.0, colour, SPECIAL_TIME)
 	if coins > 0:
@@ -432,25 +432,48 @@ func _on_brick_broken(cell: Vector2i, brick: Brick, cause: Round.Cause, dir: Vec
 		_paid.text = "+%d" % _paid.coins
 
 
+## A Blast went off. Only a charged ball sets one off and nothing chains, so the blasts of one frame are one per
+## charged ball, in different places: a handful at most (a round has no more charges than Power Bricks), and each
+## gets its whole picture. PARTICLES caps their squares however many there are.
 func _on_exploded(pos: Vector2, reach: float, cells: Array[Vector2i]) -> void:
 	var grow := reach / Board.BRICK.y * (1.0 + MORE_SIZE * heat)
-	var wait := _blasts * CHAIN_GAP
-	_ring(pos, BLAST_RINGS[0] * grow, BLAST_WIDTHS[0], Palette.ABILITY, BLAST_TIMES[0], wait)
-	_ring(pos, BLAST_RINGS[1] * grow, BLAST_WIDTHS[1], Palette.ABILITY_DIM, BLAST_TIMES[1], wait).boost = BLAST_OUTER
+	_ring(pos, BLAST_RINGS[0] * grow, BLAST_WIDTHS[0], Palette.ABILITY, BLAST_TIMES[0])
+	_ring(pos, BLAST_RINGS[1] * grow, BLAST_WIDTHS[1], Palette.ABILITY_DIM, BLAST_TIMES[1]).boost = BLAST_OUTER
 	if not Settings.reduce_flashing:
-		_shape(_pools, pos, Vector2.ZERO, Vector2.ONE * (POOL + 2.0 * (reach - Board.BRICK.y)), Palette.ABILITY, 0.0, POOL_TIME, wait)
+		_shape(_pools, pos, Vector2.ZERO, Vector2.ONE * (POOL + 2.0 * (reach - Board.BRICK.y)), Palette.ABILITY, 0.0, POOL_TIME)
 		if _pools.size() > POOLS:
 			_pools.pop_front()
 	_flash(BLAST_FLASH)
 	_shake(BLAST_SHAKE)
 	_freeze(BLAST_FREEZE)
 	# Two thirds orange, a third in the colours of the bricks it is about to hit.
-	if _blasts < BLAST_MOST:
-		var board := _round.board
-		for i in int(BLAST_SPARKS * (1.0 + MORE_SPARKS * heat) / (1 + _blasts)):
-			var colour := Palette.ABILITY if i % 3 != 0 or cells.is_empty() else Palette.brick(board.brick(cells.pick_random()))
-			_square(Rect2(pos, Vector2.ZERO), colour, Vector2.ZERO, BLAST_THROW * grow, BLAST_SIZE)
-	_blasts += 1
+	var board := _round.board
+	for i in int(BLAST_SPARKS * (1.0 + MORE_SPARKS * heat)):
+		var colour := Palette.ABILITY if i % 3 != 0 or cells.is_empty() else Palette.brick(board.brick(cells.pick_random()))
+		_square(Rect2(pos, Vector2.ZERO), colour, Vector2.ZERO, BLAST_THROW * grow, BLAST_SIZE)
+
+
+## A Zap went off: an orange bolt along the stretch of row it reached, from the furthest brick it is about to hit
+## on one side of the hit brick to the furthest on the other, thinning out. With reduce flashing it is unlit: a
+## lit bar across the board is a flash. The bricks' own squares come from brick_broken, along the row.
+func _on_zapped(cell: Vector2i, cells: Array[Vector2i]) -> void:
+	var left := cell.x
+	var right := cell.x
+	for c in cells:
+		left = mini(left, c.x)
+		right = maxi(right, c.x)
+	var row := _round.board.cell_rect(Vector2i(left, cell.y)).merge(_round.board.cell_rect(Vector2i(right, cell.y)))
+	_shape(_shapes, row.get_center(), Vector2(row.size.x, BOLT), Vector2(row.size.x, 1.0), Palette.ABILITY, 0.0, BOLT_TIME).boost = \
+			1.0 if Settings.reduce_flashing else Palette.LIT
+	_shake(ZAP_SHAKE)
+	_freeze(ZAP_FREEZE)
+
+
+## The paddle caught a drop: an orange ring where it landed and a few orange squares thrown out into the open.
+## No shake and no freeze: it is a reward, not a hit.
+func _on_caught(drop: Drop) -> void:
+	_ring(drop.pos, CATCH_RING, 2.0, Palette.ABILITY, SPECIAL_TIME)
+	_ask(Rect2(drop.pos, Vector2.ZERO), Palette.ABILITY, Vector2.RIGHT, CATCH_SPARKS, HIT_THROW)
 
 
 ## A Growth area pulsed: a blue outline grows from its cell out to the edge of its reach, and every brick that
@@ -496,7 +519,7 @@ func _on_ball_bounced(ball: Ball, hit: Hit) -> void:
 	# A wall bounce shows nothing: the wall is slate and the ball's own colour is the ball's alone.
 
 
-## A Splitter made a ball.
+## A Splitter made a ball, or the Multiball volley sent one.
 func _on_ball_added(ball: Ball) -> void:
 	_ring(ball.pos, SPECIAL_RING, 2.0, Palette.PLACEABLE, SPECIAL_TIME)
 
@@ -542,7 +565,7 @@ func _on_ended(reason: Round.End) -> void:
 					_square(Rect2(ball.pos, Vector2.ZERO), Palette.TIME, Vector2.ZERO, BREAK_THROW, BREAK_SIZE)
 		Round.End.CLEARED:
 			for i in CLEAR_RINGS.size():
-				_ring(_last, CLEAR_RINGS[i], 3.0, Palette.PLAYER, CLEAR_TIME, i * CHAIN_GAP)
+				_ring(_last, CLEAR_RINGS[i], 3.0, Palette.PLAYER, CLEAR_TIME, i * CLEAR_GAP)
 			for i in CLEAR_SPARKS:
 				_square(Rect2(_last, Vector2.ZERO), Palette.PLAYER, Vector2.ZERO, BLAST_THROW * 1.5, BLAST_SIZE)
 			_flash(CLEAR_FLASH)
@@ -681,8 +704,6 @@ func _redraw() -> void:
 
 func _draw_pools() -> void:
 	for pool in _pools:
-		if pool.age < 0.0:
-			continue
 		# Light falls off with the square of the way out, so it is drawn in two bands: to a quarter at half way,
 		# then to nothing. One straight ramp reads as a flat disc with an edge.
 		var fade := 1.0 - pool.age / pool.life
@@ -722,7 +743,7 @@ func _draw_sparks() -> void:
 			var strength := Palette.LIT * pow(1.0 - age / life, FADE)
 			var colour := (_col[i] * maxf(strength, 1.0)).linear_to_srgb()
 			colour.a = minf(strength, 1.0)
-			# A dark rim, as on the Zap mark: a brick's squares fly over bricks of their own colour.
+			# A dark rim: a brick's squares fly over bricks of their own colour.
 			_sparks.draw_rect(square.grow(RIM), Color(Palette.BASE, colour.a))
 			_sparks.draw_rect(square, colour)
 
@@ -770,6 +791,6 @@ func _draw_pops() -> void:
 		# The layer is in screen pixels (see watch), and the text sits on whole ones, so the pixel font stays sharp.
 		var at := (pop.at / _px - Vector2(width * 0.5, rise)).round()
 		var colour := _lit(pop.colour, POP_STRENGTHS[mini(newer, POP_STRENGTHS.size() - 1) if pop.coins > 0 else 0] * (1.0 - t * t))
-		# A dark rim, as on the Zap mark: on level 3 a pop-up is always over bricks.
+		# A dark rim: on level 3 a pop-up is always over bricks.
 		_text.draw_string_outline(font, at, pop.text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, POP_RIM, Color(Palette.BASE, colour.a))
 		_text.draw_string(font, at, pop.text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, colour)
