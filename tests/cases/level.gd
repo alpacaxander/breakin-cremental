@@ -1,9 +1,9 @@
 extends RefCounted
 ## The level screen, driven through the real scene under the real Main: the seam with the effects, placing in
-## Setup, the paddle in Play, the three ends, the Summary, Retry and the ways back.
+## Setup, the paddle in Play, the abilities in Play, the three ends, the Summary, Retry and the ways back.
 ##
-## Every upgrade is owned, so all five placeables are in the tray and special bricks are rolled. The CRT is off,
-## so a mouse position pushed here is the position the screen gets.
+## Every upgrade is owned, so every placeable on the web is in the tray, special bricks are rolled and both
+## abilities are unlocked. The CRT is off, so a mouse position pushed here is the position the screen gets.
 
 const ORIGIN := Vector2(154, 110)
 const SETUP := 0
@@ -13,7 +13,6 @@ const SUMMARY := 2
 const BOOSTER := 0
 const WALL := 1
 const SPLITTER := 2
-const ZAP := 3
 
 var t: Node
 var main: Main
@@ -39,6 +38,7 @@ func run(p_t: Node) -> void:
 	await _placing()
 	await _leaving()
 	await _paddle()
+	await _abilities()
 	await _ends()
 	Sfx.played.disconnect(on_played)
 	Progress.coins_changed.disconnect(on_paid)
@@ -64,7 +64,7 @@ func _seam() -> void:
 	t.check(arena.get_child_count() < 10 and round.board.bricks.size() == 256, "256 bricks are drawn by one node, not by 256")
 	for part: String in ["Hud", "SetupUi", "Summary"]:
 		t.check((level.get_node(part) as Control).z_index == 100, "%s is at z 100" % part)
-	t.check(_specials(round).size() == 5, "Setup shows this attempt's special bricks")
+	t.check(_specials(round).size() == 4, "Setup shows this attempt's special bricks (%d)" % _specials(round).size())
 	# Called by hand, here and for the freeze below: the real effects set shake and frozen themselves every frame.
 	level.fx.shake = Vector2(3, -2)
 	arena._process(0.0)
@@ -141,15 +141,11 @@ func _placing() -> void:
 	_key(KEY_E)
 	t.check(_rot(&"booster") == step, "a Booster turns as well")
 
-	# A placeable brick snaps to its cell; a brick mod goes on a brick and nowhere else.
+	# A placeable brick snaps to its cell.
 	await _drag(_slot(SPLITTER), _screen(Vector2(333, 140)))
 	var brick: Brick = level.round.board.brick(Vector2i(20, 2))
 	t.check(brick != null and brick.placed and brick.kind == &"splitter", "a Splitter snaps to the brick cell under the cursor")
-	await _drag(_slot(ZAP), _screen(Vector2(600, 300)))
-	t.check(_items().size() == 3, "a Zap on an empty cell is refused")
-	await _drag(_slot(ZAP), _screen(Vector2(870, 224)))
-	t.check(level.round.board.brick(Vector2i(54, 3)).get("mod") == &"zap" and _items().size() == 4, "a Zap goes on an existing brick")
-	t.check(level.get_node("SetupUi")._slots[BOOSTER].left == 0 and level.get_node("SetupUi")._slots[ZAP].left == 0, "the tray counts what is left to place")
+	t.check(level.get_node("SetupUi")._slots[BOOSTER].left == 0 and level.get_node("SetupUi")._slots[SPLITTER].left == 0, "the tray counts what is left to place")
 
 
 ## Esc goes back to the hub and no further, and the layout is there on the way back in.
@@ -161,7 +157,7 @@ func _leaving() -> void:
 	t.check(play != null and play._hub.visible and not is_instance_valid(was), "Esc in Setup goes to the hub, and one Esc goes no further")
 	Progress.use(Progress.path)  # from the file, as a new session would
 	await _open(1)
-	t.check(_items().size() == 4 and _rot(&"wall_segment") == level.round.stats.rotate_step * 2.0, "the layout is on the board when the level is opened again")
+	t.check(_items().size() == 3 and _rot(&"wall_segment") == level.round.stats.rotate_step * 2.0, "the layout is on the board when the level is opened again")
 	var back: Button = level.get_node("SetupUi").find_child("Back", true, false)
 	back.pressed.emit()
 	await t.tree().process_frame
@@ -175,6 +171,9 @@ func _paddle() -> void:
 	var setup_round: Round = level.round
 	var start: Button = level.get_node("SetupUi").find_child("Start", true, false)
 	t.check(start.is_in_group(Sfx.QUIET), "Start plays no click: the round start is its sound")
+	var hud: LevelHud = level.get_node("Hud")
+	hud._process(0.0)
+	t.check(not hud._ability.visible and not hud._ability_tag.visible, "Setup has no ability readout, though abilities are unlocked")
 	var rest := setup_round.balls[0].pos
 	Input.action_press(&"paddle_down")
 	await _steps(12)
@@ -187,7 +186,7 @@ func _paddle() -> void:
 	var round: Round = level.round
 	t.check(round.paddle.y == setup_y and round.balls[0].pos == rest and round.held, "Start keeps the paddle where Setup left it, with the ball held on it")
 	t.check(level.phase == PLAY and round != setup_round and _specials(round) == shown, "start() goes to Play on a new round with the special bricks Setup showed")
-	t.check(round.layout.items.size() == 4 and round.ball_bounced.is_connected(Sfx._on_ball_bounced) and round.ended.get_connections().size() >= 2,
+	t.check(round.layout.items.size() == 3 and round.ball_bounced.is_connected(Sfx._on_ball_bounced) and round.ended.get_connections().size() >= 2,
 			"start() is complete when it returns: the round has the layout, and the sound and the screen are listening")
 	t.check(not level.get_node("SetupUi").visible, "Setup's tray is gone in Play")
 	level.start(3)
@@ -263,6 +262,60 @@ func _paddle() -> void:
 	t.check(round.time_left < left, "and steps again after it")
 
 
+## Play's abilities, through real input where input is the point: the wheel, Q and E cycle the selection and
+## turn nothing Setup placed; a drop is drawn and caught, its charge rides the paddle with the orange rim, and a
+## click fires it carrying the selected ability; the HUD's readout follows. _ends checks the selection is kept.
+func _abilities() -> void:
+	var round: Round = level.round
+	var hud: LevelHud = level.get_node("Hud")
+	var arena: LevelArena = level.get_node("Arena")
+	var wall: Layout.Item = _items().filter(func(i: Layout.Item) -> bool: return i.kind.id == &"wall_segment")[0]
+	var rot := wall.rot
+	t.check(round.ability == &"zap" and not round.held and round.waiting == null, "with Zap and Blast unlocked, Play starts on Zap")
+	t.check(hud._hint.text.contains("picks the ability"), "the launch hint says how to pick the ability (%s)" % hud._hint.text)
+	hud._process(0.0)
+	t.check(hud._ability.visible and hud._ability.text == "ZAP ×0", "the readout shows the ability with no charge held (%s)" % hud._ability.text)
+	var on_wall := _screen(wall.pos)
+	_mouse(on_wall, MOUSE_BUTTON_WHEEL_DOWN, true)
+	_mouse(on_wall, MOUSE_BUTTON_WHEEL_DOWN, false)
+	t.check(round.ability == &"blast" and wall.rot == rot, "a wheel notch down picks the next ability, and turns no placed item under the cursor")
+	_key(KEY_E)
+	t.check(round.ability == &"zap", "E picks the next one, wrapping round")
+	_key(KEY_Q)
+	t.check(round.ability == &"blast", "Q picks the one before")
+	_mouse(on_wall, MOUSE_BUTTON_WHEEL_UP, true)
+	_mouse(on_wall, MOUSE_BUTTON_WHEEL_UP, false)
+	t.check(round.ability == &"zap" and wall.rot == rot, "and so does a wheel notch up")
+
+	# A drop put in the paddle's way, driven by the round: catching it is the paddle's part, not the player's.
+	var caught: Array[Drop] = []
+	round.caught.connect(func(d: Drop) -> void: caught.append(d))
+	var drop := round.drop(Vector2i(0, 0))
+	drop.pos = Vector2(40.0, round.paddle.y)
+	await _steps(2)  # the tree signals a physics frame before the level steps in it
+	t.check(round.drops.has(drop) and arena._was_drops.has(drop.id), "a drop in flight is drawn, between steps as the balls are")
+	for i in 60:
+		if not caught.is_empty():
+			break
+		await _steps(1)
+	var charge := round.waiting
+	hud._process(0.0)
+	t.check(caught.size() == 1 and caught[0] == drop and round.drops.is_empty() and charge != null and not round.held,
+			"the paddle catches it, and its charge goes onto the paddle at once")
+	t.check(LevelArena.charged(round, charge) and charge.charge == &"", "the charge on the paddle has the orange rim before it carries anything")
+	t.check(hud._ability.text == "ZAP ×1", "the readout counts the charge on the paddle (%s)" % hud._ability.text)
+	round.add_charge()
+	hud._process(0.0)
+	t.check(hud._ability.text == "ZAP ×2", "and the ones in reserve (%s)" % hud._ability.text)
+	_key(KEY_E)
+	_mouse(_screen(Vector2(500, 200)), MOUSE_BUTTON_LEFT, true)
+	_mouse(_screen(Vector2(500, 200)), MOUSE_BUTTON_LEFT, false)
+	t.check(round.waiting != charge and charge.charge == &"blast" and charge.dir.x > 0.0 and LevelArena.charged(round, charge),
+			"a click fires the charge toward the board, carrying the selected ability, rim and all")
+	hud._process(0.0)
+	t.check(hud._ability.text == "BLAST ×1", "the readout shows the new selection and the charge left (%s)" % hud._ability.text)
+
+
 ## The three ends: each reaches the Summary and pays once. Retry, and the clear that unlocks level 2.
 func _ends() -> void:
 	# The last ball lost, with something broken first: it is still paid.
@@ -273,10 +326,12 @@ func _ends() -> void:
 		if round.board.brick(Vector2i(54, row)).kind == &"":
 			round.hit_brick(Vector2i(54, row), Round.Cause.BALL, Vector2.RIGHT)
 			break
-	round.charges = 0  # Spare Ball is owned: with one in reserve the ball lost would not be the last
-	if round.waiting:  # with no spare_delay, one is already on the paddle: it came unannounced, so it goes the same way
-		round.balls.erase(round.waiting)
-		round.waiting = null
+	# Only the first ball is left: Multiball's volley ball and the charge _abilities fired go, unannounced, and
+	# nothing is held or falling that would keep the round alive.
+	round.balls.resize(1)
+	round.waiting = null
+	round.charges = 0
+	round.drops.clear()
 	round.balls[0].put(Vector2(-20.0, 20.0 if round.paddle.y > 224.0 else 428.0), Vector2.LEFT)
 	await _until_summary()
 	t.check(level.phase == SUMMARY and round.reason == Round.End.BALL_LOST, "losing the last ball ends the round in the Summary")
@@ -296,11 +351,12 @@ func _ends() -> void:
 	await t.tree().process_frame
 	t.check(level.phase == SETUP and level.round != round and not level.round.over and level.round.time_left == round.stats.round_time, "Retry goes back to Setup with a new round")
 	t.check(_specials(level.round) != before and _specials(level.round).size() == before.size(), "Retry rolls the special bricks again")
-	t.check(_items().size() == 4 and not summary.visible and level.get_node("SetupUi").visible, "the layout is still on the board after Retry")
+	t.check(_items().size() == 3 and not summary.visible and level.get_node("SetupUi").visible, "the layout is still on the board after Retry")
 
 	# The timer running out. Start is pressed this time.
 	(level.get_node("SetupUi").find_child("Start", true, false) as Button).pressed.emit()
 	round = level.round
+	t.check(round.ability == &"blast", "the next round starts on the ability the last one had selected (%s)" % round.ability)
 	round.launch()
 	t.check(level.phase == PLAY, "the Start button starts the round")
 	coins = Progress.coins

@@ -1,9 +1,9 @@
 extends RefCounted
 ## The level screen in each state that matters: Setup on a fresh save and with everything unlocked and placed,
 ## a drag that fits and one that does not, an item held over the tray, Play early, mid-combo, with tough bricks
-## hit, with bricks grown by a Growth area, with bricks
-## Overgrowth brought back, on the zoomed level 3, and paused, and the Summary for each of the three
-## ends and with several combos. Compare them with docs/art.md ("Level screen") and the level mockup.
+## hit, with bricks grown by a Growth area, with bricks Overgrowth brought back, with a drop falling, charges in
+## reserve and a charge on the paddle and then fired, on the zoomed level 3, and paused, and the Summary for each
+## of the three ends and with several combos. Compare them with docs/art.md ("Level screen") and the level mockup.
 ##
 ## The mouse is pushed straight into Main's View, so a position here is a position in the 1280 x 720 frame
 ## whether the CRT curves the picture or not.
@@ -17,8 +17,6 @@ const PLACED := [
 	{"kind": "wall_segment", "x": 200.0, "y": 380.0, "rot": 60.0},
 	{"kind": "splitter", "col": 30, "row": 2},
 	{"kind": "splitter", "col": 40, "row": 5},
-	{"kind": "zap", "col": 62, "row": 1},
-	{"kind": "zap", "col": 40, "row": 5},
 	{"kind": "growth", "col": 47, "row": 3},
 ]
 
@@ -34,7 +32,7 @@ func shots() -> Array[Dictionary]:
 		{"name": "drag_fits", "save": "maxed", "crt": false, "setup": _drag.bind(Vector2(520, 300), &"wall_segment")},
 		{"name": "drag_refused", "save": "maxed", "crt": false, "setup": _drag.bind(Vector2(1138, 300), &"wall_segment")},
 		{"name": "drag_brick", "save": "maxed", "crt": false, "setup": _drag.bind(Vector2(700, 420), &"splitter")},
-		{"name": "drag_zap", "save": "maxed", "crt": false, "setup": _drag.bind(Vector2(1138, 420), &"zap")},
+		{"name": "drag_growth", "save": "maxed", "crt": false, "setup": _drag.bind(Vector2(900, 420), &"growth")},
 		{"name": "hold_tray", "save": "maxed", "crt": false, "setup": _hold.bind(&"booster", Vector2(30, -8))},
 		{"name": "hold_tray_splitter", "save": "maxed", "crt": false, "setup": _hold.bind(&"splitter", Vector2.ZERO)},
 		{"name": "tray_scrolled", "save": "maxed", "setup": _scrolled},
@@ -51,6 +49,9 @@ func shots() -> Array[Dictionary]:
 		{"name": "play_tough", "save": "maxed", "crt": false, "setup": _tough},
 		{"name": "play_growth", "save": "maxed", "setup": _growth, "settle": 12},
 		{"name": "play_overgrowth", "save": "maxed", "crt": false, "setup": _overgrowth, "settle": 60},
+		{"name": "play_charged", "save": "maxed", "crt": false, "setup": _charged.bind(false)},
+		{"name": "play_charged_crt", "save": "maxed", "setup": _charged.bind(false)},
+		{"name": "play_charge_fired", "save": "maxed", "crt": false, "setup": _charged.bind(true), "settle": 0, "frames": 3, "every": 6},
 		{"name": "play_strip", "save": "mid", "crt": false, "setup": _play.bind(2, [], 60, 0), "settle": 0, "frames": 4, "every": 2},
 		{"name": "summary_cleared", "save": "maxed", "setup": _end.bind(Round.End.CLEARED), "settle": 110},
 		{"name": "summary_cleared_crt_off", "save": "maxed", "crt": false, "setup": _end.bind(Round.End.CLEARED), "settle": 110},
@@ -171,6 +172,29 @@ func _overgrowth(main: Main) -> void:
 	round.step(1.0 / 120.0, round.paddle.y)  # the step that brings the top block back
 	round.hold()  # the ball back on the paddle, so the shot does not depend on where it goes
 	smash.call([5, 6, 7])
+
+
+## Level 1 in Play with everything placed, the first ball out: a drop falling toward the paddle, a charge on the
+## paddle with the orange rim, two in reserve beside it and the readout at ZAP ×3. `fire` picks Blast with E and
+## clicks, so the frames show the charged ball leaving, rim and all, and BLAST ×2.
+func _charged(main: Main, fire: bool) -> void:
+	var level := await _play(main, 1, PLACED, 0, 0)
+	var round: Round = level.get("round")
+	round.launch()
+	for i in 40:
+		await main.get_tree().physics_frame
+	for i in 3:
+		round.add_charge()
+	round.drop(Vector2i(34, 5))
+	await main.get_tree().physics_frame
+	await main.get_tree().physics_frame
+	if fire:
+		var key := InputEventKey.new()
+		key.keycode = KEY_E
+		key.physical_keycode = KEY_E
+		key.pressed = true
+		main.view.push_input(key, true)
+		_mouse(main, LevelArena.ORIGIN + Vector2(0.0, round.paddle.y) * round.board.zoom(), true)
 
 
 func _low_time(main: Main) -> void:

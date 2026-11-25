@@ -1,9 +1,9 @@
 extends RefCounted
 ## A first player's pass over the level screen, on all three levels, through the real Main and real input
 ## events: placing every kind of item where it may and may not go, moving, removing and turning them, the count
-## limit, a Zap on and off a brick, leaving and coming back; then Play with the keys and the mouse, the HUD
-## against the round, nothing to click or escape; then each of the three ends against the round's tally,
-## Retry, Upgrades and the unlock. The pictures are in tests/shots/play_level.gd.
+## limit, leaving and coming back; then Play with the keys and the mouse, the HUD against the round, nothing to
+## click or escape; then each of the three ends against the round's tally, Retry, Upgrades and the unlock. The
+## pictures are in tests/shots/play_level.gd.
 ##
 ## The CRT is off, so a position pushed here is the position the screen gets. Keys a held paddle key needs go
 ## through Input.parse_input_event, which is how a real key press reaches both Input and the window.
@@ -15,7 +15,7 @@ const SUMMARY := 2
 const BOOSTER := 0
 const WALL := 1
 const SPLITTER := 2
-const ZAP := 3
+const GROWTH := 3
 
 var t: Node
 var main: Main
@@ -83,6 +83,14 @@ func _fresh() -> void:
 	t.check(round.paddle.y == y, "let go, it stops at once")
 	t.check(round.held and round.balls[0].pos.y == minf(round.paddle.y, bottom - round.stats.ball_size * 0.5) and round.time_left == round.stats.round_time and hud._hint.visible,
 			"until the launch the ball rides on the paddle (kept off the wall), the clock waits and the hint says how to launch")
+	hud._process(0.0)
+	t.check(not hud._ability.visible and hud._hint.text == LevelHud.LAUNCH_HINT, "with no ability unlocked and no charge held there is no readout, and the hint leaves abilities out")
+	round.charges = 1
+	hud._process(0.0)
+	t.check(hud._ability.visible and hud._ability.text == "×1", "a charge held with no ability shows its count alone (%s)" % hud._ability.text)
+	round.charges = 0
+	hud._process(0.0)
+	t.check(not hud._ability.visible, "and the readout goes with it")
 	_key(KEY_SPACE)
 	hud._process(0.0)
 	t.check(not round.held and round.balls[0].dir.x > 0.0 and not hud._hint.visible, "Space launches the ball toward the board, and the hint goes")
@@ -132,12 +140,12 @@ func _fresh() -> void:
 	t.check(level.phase == SETUP and level.get_node("SetupUi").visible, "Enter on the focused Retry goes back to Setup")
 
 
-## A maxed save on level 1: every placeable, legal and not, the count, moving, removing, turning, the Zap.
+## A maxed save on level 1: every placeable, legal and not, the count, moving, removing, turning.
 func _placing() -> void:
 	Main.show_hub()
 	await _open(1)
 	var setup: LevelSetupUi = level.get_node("SetupUi")
-	t.check(setup._slots.size() == 5, "a maxed save has five slots in the tray")
+	t.check(setup._slots.size() == 4, "a maxed save has four slots in the tray")
 	var start := setup.find_child("Start", true, false) as Control
 	t.check(start.get_global_rect().end.x <= LevelHud.FOOTER.end.x + 0.5, "with every slot and this run's special bricks the footer holds Start (its right edge is at %d)" % start.get_global_rect().end.x)
 	await _scrolling(setup)
@@ -145,17 +153,17 @@ func _placing() -> void:
 		BOOSTER: [Vector2(400, 200)],
 		WALL: [Vector2(600, 200)],
 		SPLITTER: [Vector2(720, 400)],
-		ZAP: [Vector2(870, 100)],
+		GROWTH: [Vector2(870, 100)],  # over bricks: nothing touches an area
 	}
 	## Refused wherever the layout stands: off the grid, in the paddle lane, on the launch path, on a brick.
 	var refused := {
 		BOOSTER: [Vector2(-30, 100), Vector2(30, 224), Vector2(870, 300), Vector2(870, 32), Vector2(40, 218)],
 		WALL: [Vector2(600, 10), Vector2(870, 300)],
 		SPLITTER: [Vector2(870, 100), Vector2(24, 248), Vector2(1100, 100)],
-		ZAP: [Vector2(600, 300), Vector2(-20, 300)],
+		GROWTH: [Vector2(-20, 300), Vector2(1100, 100)],
 	}
 	## Refused once the first ok spot is taken: on top of it.
-	var on_first := {BOOSTER: Vector2(410, 210), WALL: Vector2(604, 210), SPLITTER: Vector2(720, 400), ZAP: Vector2(870, 100)}
+	var on_first := {BOOSTER: Vector2(410, 210), WALL: Vector2(604, 210), SPLITTER: Vector2(720, 400), GROWTH: Vector2(870, 100)}
 	for slot: int in ok_spots:
 		var title := setup._slots[slot].kind.title
 		for spot: Vector2 in refused[slot]:
@@ -173,17 +181,6 @@ func _placing() -> void:
 		var before := _items().size()
 		await _drag(_slot(slot), _screen(Vector2(200, 420)))
 		t.check(_items().size() == before and level.get_node("Arena")._ghost == null, "%s: one more than the count cannot be taken from the tray" % title)
-
-	# A Zap on a Splitter, then off a brick: a refused drop puts it back, a drop outside the arena removes it.
-	var zap := _item_on(Vector2i(54, 1), &"zap")
-	await _drag(_screen(Vector2(870, 100)), _screen(Vector2(728, 400)))
-	t.check(_item_on(Vector2i(45, 6), &"zap") != null and _item_on(Vector2i(54, 1), &"zap") == null, "a Zap moves onto a Splitter")
-	await _drag(_screen(Vector2(728, 400)), _screen(Vector2(470, 250)))
-	t.check(_item_on(Vector2i(45, 6), &"zap") != null and level.round.board.brick(Vector2i(45, 6)).get("mod") == &"zap", "a Zap dropped on nothing goes back to its brick")
-	await _drag(_screen(Vector2(728, 400)), Vector2(640, 40))
-	t.check(_item_on(Vector2i(45, 6), &"zap") == null and setup._slots[ZAP].left == 1, "a Zap dragged out of the arena comes off and back to the tray")
-	await _drag(_slot(ZAP), _screen(Vector2(870, 100)))
-	t.check(zap != null and _item_on(Vector2i(54, 1), &"zap") != null, "and it goes on a brick again")
 
 	# Turning: the wheel and Q / E, and a turn that would hit something is not made.
 	var wall := _item_at_pos(Vector2(600, 200))
@@ -225,7 +222,7 @@ func _placing() -> void:
 ## the wheel, and a slot out of view cannot be picked. Then the extra slots go.
 func _scrolling(setup: LevelSetupUi) -> void:
 	var start := setup.find_child("Start", true, false) as Control
-	var arrows := setup._next.visible  # whether five slots fit depends on this run's special bricks beside them
+	var arrows := setup._next.visible  # whether four slots fit depends on this run's special bricks beside them
 	var extra: Array[Node] = []
 	for i in 6:
 		var slot := LevelSetupUi.Slot.new(setup._slots[i].kind, 1)
@@ -234,7 +231,7 @@ func _scrolling(setup: LevelSetupUi) -> void:
 		extra.append(slot)
 	await t.tree().process_frame
 	await t.tree().process_frame
-	t.check(setup._prev.visible and setup._next.visible, "twelve slots overflow: the arrows show")
+	t.check(setup._prev.visible and setup._next.visible, "ten slots overflow: the arrows show")
 	t.check(setup._prev.disabled and not setup._next.disabled, "at the start only the right arrow works")
 	t.check(start.get_global_rect().end.x <= LevelHud.FOOTER.end.x + 0.5, "the tray scrolls instead of pushing Start out of the footer")
 	var last := setup._slots[-1] as Control
@@ -255,7 +252,7 @@ func _scrolling(setup: LevelSetupUi) -> void:
 		slot.free()
 	await t.tree().process_frame
 	await t.tree().process_frame
-	t.check(setup._next.visible == arrows and setup._scroll.scroll_horizontal == 0, "back to five slots, the tray is as it was")
+	t.check(setup._next.visible == arrows and setup._scroll.scroll_horizontal == 0, "back to four slots, the tray is as it was")
 
 
 ## Level 1 maxed, everything placed: a real start, some real play, then every brick broken. The Summary, the

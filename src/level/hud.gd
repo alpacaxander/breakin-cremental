@@ -1,9 +1,10 @@
 class_name LevelHud
 extends Control
-## The level screen's HUD (docs/art.md, "Level screen" and "HUD numbers"): time on the left, the combo (Play) or
-## SETUP (Setup) in the centre, coins on the right, and under the arena Play's footer: the level's name, a legend
-## of the bricks on this board and the score against the level's target. It only reads the round. A number swells for a moment when
-## it goes up (UiTheme.pulse): the coins, the combo, the multiplier, and the time when an hourglass adds to it.
+## The level screen's HUD (docs/art.md, "Level screen" and "HUD numbers"): time on the left, with the selected
+## ability and the charges held at the far end of its column, the combo (Play) or SETUP (Setup) in the centre,
+## coins on the right, and under the arena Play's footer: the level's name, a legend of the bricks on this board
+## and the score against the level's target. It only reads the round. A number swells for a moment when it goes
+## up (UiTheme.pulse): the coins, the combo, the multiplier, the charges, and the time when an hourglass adds to it.
 ##
 ## The pixel fonts are taller than their digits (Jersey 10 at 75 is an 82 px line around 40 px digits), so every
 ## piece is placed by hand against the sizes theme.gd gives, not stacked in a container.
@@ -20,12 +21,16 @@ const SWATCH := Vector2(6, 22)  ## A legend swatch
 const STEP_PULSE := 1.5  ## How far the multiplier swells when it steps up
 
 const LAUNCH_HINT := "Click, or press Space, to launch the ball\nThe mouse, W / S or the arrow keys move the paddle"
+## Line 1 of the launch hint once an ability is unlocked: a click fires each charge as it launches the first ball.
+const ABILITY_HINT := "Click or Space launches  ·  Q / E or the wheel picks the ability"
 
 var _round: Round
 var _playing := false
 var _combos := false
 var _time_was := 0.0  ## What the round's clock, combo and multiplier were a frame ago
 var _count_was := 0
+var _charges_was := 0
+var _abilities := false  ## Whether an ability is unlocked
 var _times_was := 1
 
 var _time_tag := _label(&"Tag", Rect2(LEFT, 3, COLUMN, 21), HORIZONTAL_ALIGNMENT_LEFT, "TIME")
@@ -35,6 +40,10 @@ var _coins := UiPrice.new()
 var _combo_tag := _label(&"Tag", Rect2(CENTRE - 200, 3, 400, 21), HORIZONTAL_ALIGNMENT_CENTER, "COMBO")
 var _combo := _label(&"ComboNumber", Rect2(CENTRE - 200, 1, 400, 100), HORIZONTAL_ALIGNMENT_CENTER)
 var _multiplier := _label(&"Number", Rect2(CENTRE, 36, 120, 40), HORIZONTAL_ALIGNMENT_LEFT)
+## Right-aligned at the inner end of the time column: the time is four digits at most, so the column's far half
+## is free, and it is clear of the launch hint and the combo in the centre.
+var _ability_tag := _label(&"Tag", Rect2(LEFT, 3, COLUMN, 21), HORIZONTAL_ALIGNMENT_RIGHT, "ABILITY")
+var _ability := _label(&"Number", Rect2(LEFT, 36, COLUMN, 40), HORIZONTAL_ALIGNMENT_RIGHT)
 var _combo_bar := UiBar.new()
 var _setup_title := _label(&"Title", Rect2(CENTRE - 264, -1, 528, 60), HORIZONTAL_ALIGNMENT_CENTER, "SETUP")
 var _hint := _label(&"Hint", Rect2(CENTRE - 264, 52, 528, 40), HORIZONTAL_ALIGNMENT_CENTER)
@@ -53,6 +62,11 @@ static func swatch(colour: Color, px := SWATCH) -> ColorRect:
 	s.size_flags_vertical = SIZE_SHRINK_CENTER
 	s.mouse_filter = MOUSE_FILTER_IGNORE
 	return s
+
+
+## The charges a round holds: those in reserve and the one waiting on the paddle (the held first ball is none).
+static func held_charges(round: Round) -> int:
+	return round.charges + int(round.waiting != null and not round.held)
 
 
 func _ready() -> void:
@@ -97,12 +111,15 @@ func show_round(round: Round, data: LevelData, setup: bool, footer: bool) -> voi
 	_times_was = 1
 	_coins.amount = round.coins
 	_combos = round.stats.combo_rank >= 1.0
+	_abilities = not round.abilities().is_empty()
+	_charges_was = 0
 	_setup_title.visible = setup
 	_footer.visible = footer
 	# The hint names only what this tray can do: turning waits for an item that turns (the Wall Segment).
 	var tray := Kinds.placeables().filter(func(k: PlaceableKind) -> bool: return round.stats.count(k.id) > 0)
 	var turns := tray.any(func(k: PlaceableKind) -> bool: return k.rotatable)
-	_hint.text = LAUNCH_HINT if not setup else "Press Start, or Space, to begin\nW / S or the arrow keys move the paddle" if tray.is_empty() \
+	var launch := LAUNCH_HINT if not _abilities else ABILITY_HINT + LAUNCH_HINT.substr(LAUNCH_HINT.find("\n"))
+	_hint.text = launch if not setup else "Press Start, or Space, to begin\nW / S or the arrow keys move the paddle" if tray.is_empty() \
 			else "Drag items onto the board, then press Start\n" + ("Q / E or the wheel turns one  ·  right-click removes one" if turns else "Right-click removes one")
 	_waiting()
 	if setup or not footer:
@@ -151,6 +168,18 @@ func _process(_delta: float) -> void:
 	if _round.time_left > _time_was:
 		UiTheme.pulse(_time, 0.0)
 	_time_was = _round.time_left
+	# The ability readout: the selected one and the charges held, the one on the paddle included.
+	var charges := held_charges(_round)
+	_ability.visible = _playing and (_abilities or charges > 0)
+	_ability_tag.visible = _ability.visible
+	if _ability.visible:
+		var kind := Kinds.of(_round.ability)
+		_ability.text = ("%s ×%d" % [kind.title.to_upper(), charges]) if kind else "×%d" % charges
+		# Lit while a charge is held; dim at none, as the combo's 0 is.
+		_ability.add_theme_color_override(&"font_color", Palette.lit(Palette.ABILITY) if charges else Palette.ABILITY_DIM)
+		if charges > _charges_was:
+			UiTheme.pulse(_ability, 1.0)
+	_charges_was = charges
 	if _round.coins > _coins.amount:
 		UiTheme.pulse(_coins, 1.0)
 	_coins.amount = _round.coins
