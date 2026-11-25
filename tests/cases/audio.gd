@@ -17,6 +17,7 @@ func run(t: Node) -> void:
 	_files(t)
 	await _round(t)
 	await _splitter(t)
+	await _abilities(t)
 	_climb(t)
 	await _burst(t)
 	await _buttons(t)
@@ -55,7 +56,7 @@ func _cues() -> Array[StringName]:
 
 func _files(t: Node) -> void:
 	var cues := _cues()
-	t.check(cues.size() == 21, "Sfx has the twenty cues of audio.md and the music (has %d)" % cues.size())
+	t.check(cues.size() == 22, "Sfx has the twenty-one cues of audio.md and the music (has %d)" % cues.size())
 	for file in DirAccess.get_files_at(Sfx.DIR):
 		if file.get_extension() == "wav":
 			t.check(StringName(file.get_basename()) in cues, "%s is named after a cue constant" % file)
@@ -133,19 +134,17 @@ func _round(t: Node) -> void:
 	var gold := BrickKind.new()
 	gold.id = &"test_gold"
 	gold.cue = Sfx.GOLD_BRICK
-	var zap := PlaceableKind.new()
-	zap.id = &"test_zap"
-	zap.cue = Sfx.ZAP
 	Kinds.add(gold)
-	Kinds.add(zap)
 	brick.kind = gold.id
-	brick.set("mod", zap.id)
 	t.check(await _hear(t, func() -> void: r.brick_broken.emit(Vector2i.ZERO, brick, Round.Cause.ZAP, Vector2.LEFT, 5)) \
-			== [Sfx.BRICK_BREAK, Sfx.GOLD_BRICK, Sfx.ZAP], "a break plays BRICK_BREAK, then its kind's cue, then its mod's")
+			== [Sfx.BRICK_BREAK, Sfx.GOLD_BRICK], "a break plays BRICK_BREAK, then its kind's cue")
 	Kinds.reset()
 
 	var cells: Array[Vector2i] = [Vector2i.ZERO]
 	t.check(await _hear(t, func() -> void: r.exploded.emit(Vector2.ZERO, 64.0, cells)) == [Sfx.EXPLOSION], "exploded plays EXPLOSION")
+	t.check(await _hear(t, func() -> void: r.zapped.emit(Vector2i.ZERO, cells)) == [Sfx.ZAP], "zapped plays ZAP")
+	t.check(await _hear(t, func() -> void: r.caught.emit(Drop.new())) == [Sfx.CATCH], "caught plays CATCH")
+	t.check(await _hear(t, func() -> void: r.dropped.emit(Drop.new())) == [], "a drop being made plays nothing")
 	t.check(await _hear(t, func() -> void: r.ball_lost.emit(Ball.new())) == [Sfx.BALL_LOST], "ball_lost plays BALL_LOST")
 	t.check(await _hear(t, func() -> void: r.ended.emit(Round.End.TIME)) == [], "running out of time plays nothing")
 	t.check(await _hear(t, func() -> void: r.ended.emit(Round.End.CLEARED)) == [Sfx.LEVEL_CLEARED], "a clear plays LEVEL_CLEARED")
@@ -178,6 +177,30 @@ func _splitter(t: Node) -> void:
 	got = await _hear(t, func() -> void: r.hit_brick(Vector2i(30, 2), Round.Cause.BALL, into, r.balls[0]))
 	t.check(got == [Sfx.BRICK_BREAK, Sfx.SPLITTER] and r.balls.size() == 2, "a Splitter broken by a ball splits it and plays SPLITTER once (heard %s)" % [got])
 	t.check(r.balls[1].dir.is_equal_approx(into) and r.balls[1].pos == r.balls[0].pos, "the new ball starts at the first and carries on the way it came in")
+	r.over = true
+	await t.tree().process_frame
+
+
+## The ability system in a real round on level 1: a Power Brick's break plays its kind's cue (SPLITTER), its
+## drop is caught with CATCH, and a whole-row Zap and a blast each play their cue once over a burst of breaks
+## that the voice cap holds to VOICES.
+func _abilities(t: Node) -> void:
+	var stats: Balance = (load("res://data/balance.tres") as Balance).copy()
+	stats.put(&"power_count", 1)
+	stats.put(&"zap_count", 1)
+	stats.zap_range = 64.0
+	var r := Round.new(Levels.read(1).board, null, stats, 1)
+	await _hear(t, func() -> void: Sfx.connect_round(r))
+	var power: Vector2i = r.board.bricks.keys().filter(func(c: Vector2i) -> bool: return r.board.brick(c).kind == &"power")[0]
+	var got := await _hear(t, func() -> void: r.hit_brick(power, Round.Cause.BALL, Vector2.RIGHT))
+	t.check(got == [Sfx.BRICK_BREAK, Sfx.SPLITTER] and r.drops.size() == 1, "a Power Brick breaking plays its kind's cue, SPLITTER, and drops (heard %s)" % [got])
+	r.drops[0].pos = r.paddle.rect(r.board.size().y).get_center()
+	got = await _hear(t, func() -> void: r.step(1.0 / 120.0, r.paddle.y))
+	t.check(got.count(Sfx.CATCH) == 1 and r.drops.is_empty(), "the paddle catching it plays CATCH once (heard %s)" % [got])
+	got = await _hear(t, func() -> void: r.zap(power))
+	t.check(got.count(Sfx.ZAP) == 1 and got.count(Sfx.BRICK_BREAK) >= 1 and got.count(Sfx.BRICK_BREAK) <= Sfx.VOICES, "a whole-row Zap plays ZAP once, and its breaks at most %d voices (heard %s)" % [Sfx.VOICES, got])
+	got = await _hear(t, func() -> void: r.blast(power, 128.0))
+	t.check(got.count(Sfx.EXPLOSION) == 1 and got.count(Sfx.BRICK_BREAK) <= Sfx.VOICES, "a blast plays EXPLOSION once (heard %s)" % [got])
 	r.over = true
 	await t.tree().process_frame
 

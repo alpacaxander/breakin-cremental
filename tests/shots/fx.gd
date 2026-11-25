@@ -34,9 +34,12 @@ func shots() -> Array[Dictionary]:
 		{"name": "blast_top", "save": "maxed", "crt": false, "setup": _blast.bind(1, Fx.COMBO_TOP)},
 		{"name": "blast_x12_calm", "save": "maxed", "crt": false, "calm": true, "setup": _blast.bind(1, 12)},
 		{"name": "blast_x12_crt", "save": "maxed", "setup": _blast.bind(1, 12)},
-		# The special bricks as the round sets them off: gold, hourglass, and an explosive at the bought blast size.
+		# The special bricks as the round sets them off (gold, hourglass), a charged ball's Blast at the bought size,
+		# and a drop the paddle catches.
 		{"name": "specials", "save": "maxed", "crt": false, "setup": _specials.bind(1)},
-		{"name": "explosive_top", "save": "maxed", "crt": false, "setup": _explosive.bind(1, Fx.COMBO_TOP)},
+		{"name": "blast_charged_top", "save": "maxed", "crt": false, "setup": _charged_blast.bind(1, Fx.COMBO_TOP)},
+		{"name": "catch", "save": "maxed", "crt": false, "setup": _catch},
+		{"name": "catch_crt", "save": "maxed", "setup": _catch},
 		# The placeables, the paddle, a boosted ball, a ball lost, the last brick.
 		{"name": "items", "save": "maxed", "crt": false, "setup": _items},
 		{"name": "boost", "save": "maxed", "crt": false, "setup": _boost, "settle": 0, "frames": 3, "every": 4},
@@ -45,12 +48,12 @@ func shots() -> Array[Dictionary]:
 		{"name": "paddle_lost_calm", "crt": false, "calm": true, "setup": _paddle_lost},
 		{"name": "cleared", "save": "maxed", "setup": _cleared, "settle": 0, "frames": 8, "every": 6},
 		{"name": "time_up", "setup": _time_up},
-		# Level 3: smaller, and bursts. A Zap along a 2 HP row and along a 1 HP row, an explosive, and the worst
-		# burst there is: every brick at 1 HP, a Zap on a row and the three explosives next to it.
+		# Level 3: smaller, and bursts. A charged ball's Zap along a 2 HP row and along a 1 HP row, its Blast, and
+		# the worst burst there is: every brick at 1 HP, and a Zap and three Blasts in one step.
 		{"name": "l3_break_x12", "save": "maxed", "crt": false, "setup": _breaks.bind(3, 12)},
 		{"name": "l3_zap_hits", "save": "maxed", "crt": false, "setup": _zap.bind(3)},
 		{"name": "l3_zap_breaks_crt", "save": "maxed", "setup": _zap.bind(1)},
-		{"name": "l3_explosive_x12", "save": "maxed", "crt": false, "setup": _explosive.bind(3, 12)},
+		{"name": "l3_blast_x12", "save": "maxed", "crt": false, "setup": _charged_blast.bind(3, 12)},
 		{"name": "l3_worst", "save": "maxed", "crt": false, "setup": _worst},
 		{"name": "l3_worst_crt", "save": "maxed", "setup": _worst},
 		# Real play, a paddle following the ball.
@@ -124,9 +127,26 @@ func _blast(main: Main, number: int, combo: int) -> void:
 	round.blast(Vector2i(48, 3), Board.BRICK.y)
 
 
-func _explosive(main: Main, number: int, combo: int) -> void:
+## A ball charged with Blast hits a plain 1 HP brick in the middle of the wall.
+func _charged_blast(main: Main, number: int, combo: int) -> void:
 	var round := await _start(main, number, combo)
-	round.hit_brick(_of_kind(round, &"explosive")[0], Round.Cause.BALL, Vector2.RIGHT)
+	var soft := _plain(round, 1)
+	charged(round, soft[soft.size() / 2], &"blast")
+
+
+## A charged ball's first hit on a level brick at `cell`, as the round plays it: the ball's hit, then the ability
+## fired there (AbilityKind.fire). No ability reads the ball, so none is passed.
+static func charged(round: Round, cell: Vector2i, ability: StringName) -> void:
+	round.hit_brick(cell, Round.Cause.BALL, Vector2.RIGHT)
+	(Kinds.of(ability) as AbilityKind).fire(round, cell, Vector2.RIGHT, null)
+
+
+## A drop just in front of the paddle's face, caught a few frames into the strip.
+func _catch(main: Main) -> void:
+	var round := await _start(main, 1, 6)
+	round.launch()  # the round stands still until then
+	var face := round.paddle.rect(round.board.size().y)
+	round.drop(Vector2i(40, 5)).pos = Vector2(face.end.x + 40.0, face.get_center().y)
 
 
 func _specials(main: Main, number: int) -> void:
@@ -189,36 +209,34 @@ func _cleared(main: Main) -> void:
 			round.hit_brick(cells[i], Round.Cause.BALL, Vector2.RIGHT)
 
 
-## A Zap set off on brick row `row` of level 3: row 3 is 2 HP (31 hits that hold), row 1 is 1 HP (31 breaks).
+## A charged ball's Zap on brick row `row` of level 3, at the bought range and damage: row 3 is 2 HP and row 1 is
+## 1 HP, and both break.
 func _zap(main: Main, row: int) -> void:
 	var round := await _start(main, 3, 12)
 	var cell := Vector2i(48, row)
 	var brick := round.board.brick(cell)
-	brick.set("mod", &"zap")
 	brick.kind = &""
 	brick.hp = 1
-	round.hit_brick(cell, Round.Cause.BALL, Vector2.RIGHT)
+	charged(round, cell, &"zap")
 
 
-## The worst burst: every brick of level 3 at 1 HP, a Zap on a row, and the round's explosives moved into it.
+## The worst burst: every brick of level 3 at 1 HP, and a Zap and three Blasts in one step.
 func _worst(main: Main) -> void:
 	var round := await _start(main, 3, Fx.COMBO_TOP)
 	worst(round)
 
 
-## Also what tests/cases/fx.gd measures.
+## Also what tests/cases/fx.gd measures. Nothing chains, so the most one step can hold is one ability per charged
+## ball, and a round has no more charges than Power Bricks: four charged balls landing at once, at the round's
+## own ranks (maxed, in every caller), is past anything play makes.
 static func worst(round: Round) -> void:
 	for cell: Vector2i in round.board.bricks:
 		var brick := round.board.brick(cell)
 		brick.hp = 1
 		brick.kind = &""
-	for column: int in [36, 46, 56]:
-		round.board.brick(Vector2i(column, 2)).kind = &"explosive"
-	round.board.brick(Vector2i(34, 2)).set("mod", &"zap")
-	round.board.brick(Vector2i(40, 6)).set("mod", &"zap")
-	round.stats.zap_range = maxf(round.stats.zap_range, round.board.cols)  # a whole-row Zap: past any rank, for the worst case
-	round.hit_brick(Vector2i(34, 2), Round.Cause.BALL, Vector2.RIGHT)
-	round.hit_brick(Vector2i(40, 6), Round.Cause.BALL, Vector2.RIGHT)
+	charged(round, Vector2i(47, 0), &"zap")
+	for cell: Vector2i in [Vector2i(38, 3), Vector2i(57, 3), Vector2i(47, 7)]:
+		charged(round, cell, &"blast")
 
 
 ## Starts level `number` and lets a paddle that follows the nearest incoming ball play it for `ticks` physics
