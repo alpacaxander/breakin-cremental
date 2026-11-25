@@ -5,10 +5,11 @@ extends Node
 ##   tests/run.sh bot                       the standard report: every level fresh and maxed, and a campaign
 ##   tests/run.sh bot batch level=1 ranks=fresh skill=average seeds=20 layout=auto
 ##   tests/run.sh bot campaign skill=average rounds=400
-##   tests/run.sh bot check                 is the bot itself sane: drop rates by skill, same seed same line
+##   tests/run.sh bot check                 is the bot itself sane: lost balls and caught drops by skill, same seed same line
 ##
 ## Keys (all optional):
-##   level   a level number, or all. 0 is a test board: no bricks but one that cannot break, at the back
+##   level   a level number, or all. 0 is a test board: no bricks but one that cannot break, at the back; -1 is
+##           the same with a column of Power Bricks (_board)
 ##   ranks   fresh, max, or a list such as max,combo:0 or paddle_speed:2,bumper:1 (applied left to right)
 ##   skill   clumsy, average, good, or all (a campaign then plays as average)
 ##   seeds   rounds per line in a batch
@@ -20,12 +21,17 @@ extends Node
 ##   base    added to every seed a batch or a campaign plays with (default 0), to measure on other seeds
 ##   reaction, aim, steer, focus   override the skill's own numbers (see THE PLAYER); focus=0 ignores the aims
 ##   probe   seeds per skill for the campaign's stage probes (default 10; 0 skips them, see _stages)
-##   spares  hold (default): a spare ball waits on the paddle until no other ball is in play; launch: it goes at once
+##   charges hold (default): a charge waits on the paddle until no other ball is in play, as insurance, or until the
+##           round's last SPEND seconds, when what is left is spent; launch: it goes at once
+##   ability zap, blast, or first (default: whatever the round selects when built, the first unlocked): the ability
+##           every charge is fired with. One that is not unlocked changes nothing
 ##
-## tests/layouts/found.json is what the search found, kept: on levels 1 and 2 the Splitters and Zaps only (wherever
+## tests/layouts/found.json is what the search found, kept: on levels 1 and 2 the Splitters only (wherever
 ## the search puts a Bumper, a Booster or a Wall Segment there, this player does no better, and often worse: it does
 ## not foresee a bounce off its own item), on level 3 every item, from the best of several searches with every
-## upgrade owned. Tuning compared numbers on it. A campaign with it takes a second; with the search, minutes.
+## upgrade owned. Tuning compared numbers on it. A campaign with it takes a second; with the search, minutes. It
+## was searched before the ability system, when Zaps were placed items; those entries are gone, and nothing has
+## been searched again since.
 ##
 ## Every number is seeded: the same arguments give the same report. A table is printed and the full results
 ## are written as JSON to tests/out/bot/<mode>.json. The save is tests/out/bot/save.json (Progress.use), never
@@ -43,10 +49,18 @@ extends Node
 ## such as level 3's tunnel mouth. Each time the bot plans a catch, it aims
 ## at the easiest of them instead of steering, with the chance `focus`, if one can be reached: in a straight
 ## line or off the top or bottom wall once, from the paddle's middle 80%. That is the player knowing the level.
+## A drop (from a Power Brick) is one more thing arriving: it comes straight along its row, so it arrives at its own
+## y after its distance over drop_speed. The bot sees it as late as a ball and aims at it with the same error, drawn
+## once (a drop never turns), with no steering. Balls and drops are one list and the bot goes for whichever arrives
+## first: it never lets a ball go to catch a drop, and goes for a drop only when no ball comes back sooner. A drop
+## wholly behind the paddle is forgotten.
 ## # ponytail: the skills are three hand-set rows in SKILLS. Fit them to recordings of real players once there
 ## # are any.
 
 const STEP := 1.0 / 120.0
+## With charges=hold, the seconds left on the timer at which the bot fires the charges it still holds: insurance
+## that was not needed is spent before the round ends, as a person would, with time for a ball to cross the board.
+const SPEND := 3.0
 const OUT := "res://tests/out/bot"
 const SKILLS := {
 	"clumsy": {"reaction": 0.30, "aim": 44.0, "steer": 0.0, "focus": 0.0},
@@ -67,10 +81,10 @@ const STAGE_GOALS := {1: [2, 6], 2: [4, 10], 3: [6, 16]}
 const WEB_SCENE := "res://src/hub/web.tscn"
 
 var _args := {"mode": "report", "level": "all", "ranks": "fresh", "skill": "average", "seeds": "20",
-		"layout": "auto", "rounds": "400", "base": "0", "spares": "hold"}
+		"layout": "auto", "rounds": "400", "base": "0", "charges": "hold", "ability": "first"}
 var _boards := {}  # level -> Board, read once
-var _targets := {0: 1 << 30}  # level -> its LevelData.target, read with its board; the test board is never cleared
-var _aims := {0: [] as Array[Vector2]}  # level -> its LevelData.aims as cell centres, for Player
+var _targets := {}  # level -> its LevelData.target, read with its board; the test boards are never cleared
+var _aims := {}  # level -> its LevelData.aims as cell centres, for Player
 var _layouts := {}  # cache key -> Layout, for _auto
 var _web: Array[Array] = []  # the web's connections as pairs of upgrade ids
 var _seed_node := &""
@@ -84,8 +98,8 @@ class Player:
 	var focus: float
 	var aims: Array[Vector2] = []  # the level's aim cells' centres, in units
 	var rng := RandomNumberGenerator.new()
-	var _seen: Array = []  # what each step showed: [[id, pos, dir, speed], ...], oldest first
-	var _plan := {}  # ball id -> [the dir it was last seen with, how far off its arrival the paddle goes]
+	var _seen: Array = []  # what each step showed: [[id, pos, dir, speed], ...], oldest first; a drop's id is -1 - drop.id
+	var _plan := {}  # that id -> [the dir it was last seen with, how far off its arrival the paddle goes]
 
 	func _init(skill: Dictionary, p_seed: int, p_aims: Array[Vector2] = []) -> void:
 		reaction_steps = roundi(skill.reaction / STEP)
@@ -99,9 +113,15 @@ class Player:
 	func target(round: Round) -> float:
 		var now := []
 		for ball in round.balls:
-			if ball == round.waiting:  # a spare on the paddle: nothing to chase
+			if ball == round.waiting:  # a charge on the paddle: nothing to chase
 				continue
 			now.append([ball.id, ball.pos, ball.dir, round.speed_of(ball)])
+		# ponytail: whichever arrives first wins, so a drop never beats a ball that comes back sooner. A better
+		# player would weigh them: take a drop just ahead of a ball it could still reach after, or skip a ball
+		# that is lost anyway for a drop it can catch.
+		for d in round.drops:
+			if d.pos.x + d.size * 0.5 >= round.paddle.x - round.paddle.thickness:  # not yet wholly behind the paddle
+				now.append([-1 - d.id, d.pos, Vector2.LEFT, round.stats.drop_speed])
 		_seen.append(now)
 		if _seen.size() > reaction_steps + 1:
 			_seen.pop_front()
@@ -114,8 +134,8 @@ class Player:
 			soonest = arrival.y / seen[3]
 			var plan: Array = _plan.get(seen[0], [Vector2.ZERO, 0.0])
 			if plan[0] != seen[2]:
-				var off := NAN
-				if focus > 0.0 and aims and rng.randf() < focus:  # no draw without aims, so other levels play as before
+				var off := 0.0 if seen[0] < 0 else NAN  # a drop: nothing to steer
+				if is_nan(off) and focus > 0.0 and aims and rng.randf() < focus:  # no draw without aims, so other levels play as before
 					off = _aim(round, arrival.x)
 				plan = [seen[2], (_steer(round, arrival.x) if is_nan(off) else off) + rng.randfn(0.0, aim)]
 				_plan[seen[0]] = plan
@@ -233,13 +253,19 @@ func _skills() -> Array:
 
 
 ## A level's board, read once. Level 0 is the test board: a level-1-sized grid whose one brick, at the back
-## wall in the middle, cannot be broken in a round, so a round there ends only by time or by a drop.
+## wall in the middle, cannot be broken in a round, so a round there ends only by time or by a lost ball.
+## Level -1 is the drop board (_check): the test board with a column of Power Bricks, one per brick row, a third of
+## the way back, so every round breaks some and their drops come from every height.
 func _board(level: int) -> Board:
 	if not _boards.has(level):
-		if level == 0:
+		if level <= 0:
 			var b := Board.new()
 			b.bricks[Vector2i(b.cols - 1, b.rows / 4)] = Brick.new(100000)
+			for row in (b.rows / 2 if level < 0 else 0):
+				b.bricks[Vector2i(b.cols / 3, row)] = Brick.new(1, &"power")
 			_boards[level] = b
+			_targets[level] = 1 << 30
+			_aims[level] = [] as Array[Vector2]
 		else:
 			var data := Levels.read(level)
 			_boards[level] = data.board
@@ -273,6 +299,8 @@ func _play(level: int, layout: Layout, stats: Balance, skill: String, seed: int,
 	round.hold()  # the game's launch, at once: off the centred paddle at a random point of the sway
 	round.launch()
 	round.target = _targets[level]
+	if round.abilities().any(func(k: AbilityKind) -> bool: return k.id == StringName(_args.ability)):
+		round.ability = StringName(_args.ability)  # nothing else changes it, so every charge fires with it
 	var numbers: Dictionary = SKILLS[skill].duplicate()
 	for key: String in numbers:  # reaction=, aim=, steer= and focus= on the command line override the skill's own
 		numbers[key] = float(_args.get(key, numbers[key]))
@@ -286,22 +314,29 @@ func _play(level: int, layout: Layout, stats: Balance, skill: String, seed: int,
 		round.brick_hit.connect(func(c: Vector2i, hp: int, _c: Round.Cause) -> void: say.call("hit %s, %d left" % [c, hp], null))
 		round.brick_broken.connect(func(c: Vector2i, _b: Brick, _c: Round.Cause, _d: Vector2, _n: int) -> void: say.call("broke %s" % c, null))
 		round.ball_lost.connect(func(b: Ball) -> void: say.call("LOST", b))
-	# A drop is hopeless if, from the ball's last turn, the paddle at full speed could not have got to where it
+		round.dropped.connect(func(d: Drop) -> void: say.call("drop at %s" % d.pos.round(), null))
+		round.caught.connect(func(d: Drop) -> void: say.call("CAUGHT at %s" % d.pos.round(), null))
+	# A lost ball is hopeless if, from the ball's last turn, the paddle at full speed could not have got to where it
 	# left: nobody could have saved it, however quick. Many of those mean the rules, not the player, lose balls.
 	var turned := {}  # ball id -> [its line's start, the step it turned on, the paddle's y then]
-	var drops := [0, 0]  # drops, hopeless drops
+	var lost := [0, 0]  # balls lost, hopeless ones
 	round.ball_lost.connect(func(b: Ball) -> void:
 		var t: Array = turned[b.id]
 		var reach: float = stats.paddle_speed * (steps[0] + 1 - t[1]) * STEP + (paddle.length + b.size) * 0.5
-		drops[0] += 1
-		drops[1] += int(absf(b.pos.y - t[2]) > reach))
+		lost[0] += 1
+		lost[1] += int(absf(b.pos.y - t[2]) > reach))
+	var power := [0, 0, 0]  # drops made, drops caught, charges fired
+	round.dropped.connect(func(_d: Drop) -> void: power[0] += 1)
+	round.caught.connect(func(_d: Drop) -> void: power[1] += 1)
 	while not round.over:
 		for ball in round.balls:
 			if turned.get(ball.id, [null])[0] != ball.from:
 				turned[ball.id] = [ball.from, steps[0], round.paddle.y]
-		# A spare on the paddle goes at once with `spares=launch`, else only when no other ball is left to play.
-		if round.waiting and (_args.spares == "launch" or round.balls.size() == 1):
+		# A charge on the paddle goes at once with `charges=launch`, else when no other ball is left to play or the
+		# round is SPEND seconds from its end.
+		if round.waiting and (_args.charges == "launch" or round.balls.size() == 1 or round.time_left <= SPEND):
 			round.launch()
+			power[2] += 1
 		var target := player.target(round)
 		if trace and steps[0] % 12 == 0:
 			print("%6.2f   paddle %.0f, going to %.0f" % [steps[0] * STEP, round.paddle.y, target])
@@ -312,18 +347,20 @@ func _play(level: int, layout: Layout, stats: Balance, skill: String, seed: int,
 		bricks += n
 	return {"seed": seed, "bricks": bricks, "coins": round.coins, "time": steps[0] * STEP,
 			"end": String(Round.End.find_key(round.reason)).to_lower(), "best_combo": round.tally.best_combo,
-			"cleared": round.tally.cleared, "drops": drops[0], "hopeless": drops[1]}
+			"cleared": round.tally.cleared, "lost": lost[0], "hopeless": lost[1], "drops": power[0], "caught": power[1],
+			"fired": power[2]}
 
 
 ## One line per level and skill: `seeds` rounds each, summed up. Prints the table: "of" is the level's bricks,
-## "hopeless" the drops nobody could have saved out of all drops (see _play).
+## "hopeless" the lost balls nobody could have saved out of all lost balls (see _play), "caught" the drops caught
+## out of all drops made, "fired" the charges fired.
 func _batches(levels: Array, ranks: String, skills: Array, seeds: int, layout_kind: String) -> Array:
 	_set_ranks(ranks)
 	var stats := Progress.snapshot()
 	var out := []
 	print("\nranks %s, layout %s, %d seeds" % [ranks, layout_kind, seeds])
-	print("%-5s %-8s %-4s %-12s %-12s %-11s %-6s %-6s %-6s %-8s %s" % ["level", "skill", "of", "bricks", "coins", "time s",
-			"clear", "lost", "combo", "hopeless", "items"])
+	print("%-5s %-8s %-4s %-12s %-12s %-11s %-6s %-6s %-6s %-8s %-8s %-5s %s" % ["level", "skill", "of", "bricks", "coins",
+			"time s", "clear", "lost", "combo", "hopeless", "caught", "fired", "items"])
 	for level: int in levels:
 		var layout := _given(level, stats, layout_kind)
 		for skill: String in skills:
@@ -334,21 +371,19 @@ func _batches(levels: Array, ranks: String, skills: Array, seeds: int, layout_ki
 			for key: String in ["bricks", "coins", "time", "best_combo"]:
 				line[key] = _spread(rounds.map(func(r: Dictionary) -> float: return r[key]))
 			var ends := {"time": 0, "ball_lost": 0, "cleared": 0}
-			var drops := 0
-			var hopeless := 0
+			for key: String in ["lost", "hopeless", "drops", "caught", "fired"]:  # summed over the rounds
+				line[key] = 0
 			for r: Dictionary in rounds:
 				ends[r.end] += 1
-				drops += r.drops
-				hopeless += r.hopeless
+				for key: String in ["lost", "hopeless", "drops", "caught", "fired"]:
+					line[key] += r[key]
 			line.ends = ends
 			line.clear_rate = rounds.filter(func(r: Dictionary) -> bool: return r.cleared).size() / float(seeds)  # the target, not End.CLEARED
 			line.lost_rate = ends.ball_lost / float(seeds)
-			line.drops = drops
-			line.hopeless_drops = hopeless
 			out.append(line)
-			print("%-5d %-8s %-4d %-12s %-12s %-11s %-6s %-6s %-6.1f %-8s %d" % [level, skill, line.of, _show(line.bricks),
-					_show(line.coins), _show(line.time), _pct(line.clear_rate), _pct(line.lost_rate),
-					line.best_combo.mean, "%d/%d" % [hopeless, drops], layout.items.size()])
+			print("%-5d %-8s %-4d %-12s %-12s %-11s %-6s %-6s %-6.1f %-8s %-8s %-5d %d" % [level, skill, line.of, _show(line.bricks),
+					_show(line.coins), _show(line.time), _pct(line.clear_rate), _pct(line.lost_rate), line.best_combo.mean,
+					"%d/%d" % [line.hopeless, line.lost], "%d/%d" % [line.caught, line.drops], line.fired, layout.items.size()])
 	return out
 
 
@@ -618,9 +653,10 @@ func _offered(id: StringName) -> bool:
 	return false
 
 
-## Is the bot itself sane? On the test board (level 0), where only a drop ends a round early: how often each
-## skill drops the ball, against what a person of that skill would; and the same seed must give the same line.
-## Fails the run (exit 1) if not.
+## Is the bot itself sane? On the test board (level 0), where only a lost ball ends a round early: how often each
+## skill loses the ball, against what a person of that skill would. On the drop board (level -1): what share of
+## the drops each skill catches, and that every charge fired is counted and was caught first. And the same seed
+## must give the same line, with every upgrade owned. Fails the run (exit 1) if not.
 func _check() -> Dictionary:
 	_set_ranks("fresh")
 	var stats := Progress.snapshot()
@@ -638,6 +674,32 @@ func _check() -> Dictionary:
 		print("%-8s %-6s %s to %s%s" % [skill, _pct(rate), _pct(want[skill][0]), _pct(want[skill][1]), "" if ok else "  FAIL"])
 		if not ok:
 			failed.append(skill)
+	# The caught share's bounds. A drop comes straight and slow, so it is easier than a ball; a skill misses one
+	# mostly when a ball comes back first and keeps the paddle away.
+	var catch := {"clumsy": [0.3, 0.9], "average": [0.6, 1.0], "good": [0.75, 1.0], "perfect": [0.9, 1.0]}
+	var fired := 0
+	print("\n%-8s %-8s %-7s %-6s %s" % ["skill", "caught", "of", "fired", "wanted"])
+	for skill: String in catch:
+		var sum := {"drops": 0, "caught": 0, "fired": 0}
+		var ok := true
+		for i in 40:
+			var r := _play(-1, Layout.new(), stats, skill, i + 1)
+			ok = ok and r.fired <= r.caught  # a charge comes only from a catch
+			for key: String in sum:
+				sum[key] += r[key]
+		var rate: float = sum.caught / maxf(sum.drops, 1.0)
+		out["caught_" + skill] = rate
+		ok = ok and rate >= catch[skill][0] and rate <= catch[skill][1]
+		print("%-8s %-8s %-7d %-6d %s to %s%s" % [skill, _pct(rate), sum.drops, sum.fired, _pct(catch[skill][0]),
+				_pct(catch[skill][1]), "" if ok else "  FAIL"])
+		if not ok:
+			failed.append("caught_" + skill)
+		fired += sum.fired
+	if fired == 0:  # someone loses a ball with a charge in hand, or the count is broken
+		print("no charge fired  FAIL")
+		failed.append("fired")
+	_set_ranks("max")
+	stats = Progress.snapshot()
 	var a := _play(2, Layout.new(), stats, "average", 7)
 	var b := _play(2, Layout.new(), stats, "average", 7)
 	out.same_seed_same_line = a == b
