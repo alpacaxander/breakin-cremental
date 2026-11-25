@@ -183,26 +183,30 @@ func _details(save: String) -> void:
 		# The node, its pips and its lit lines all take Palette.of(meaning()); the panel lights the category in it.
 		var hue: Color = HUE[row[1]]
 		t.check(Palette.of(u.meaning()) == hue and (_hub().get_node("Detail/%Category") as Label).get_theme_color(&"font_color") == Palette.lit(hue, Palette.LIT_TEXT)
-				and (_hub().get_node("Detail/%Pips") as UiPips).meaning == u.meaning() and (n.get_node("Bottom/Pips") as UiPips).meaning == u.meaning(),
+				and (n.get_node("Bottom/Pips") as UiPips).meaning == u.meaning(),
 				"%s: the node, its pips and the panel's category are in art.md's %s" % [what, hue.to_html(false)])
 		var text := _hub().get_node("Detail/%Text") as Label
 		t.check(text.get_line_count() <= 2 and text.get_visible_line_count() == text.get_line_count(),
 				"%s: the text fits the panel's two lines (%d lines, %d shown)" % [what, text.get_line_count(), text.get_visible_line_count()])
-		t.check(u.max_rank == row[2] and _text("Detail/%Rank") == "RANK %d" % r, "%s: the rank reads RANK %d, the copies owned, with no max" % [what, r])
-		t.check((_hub().get_node("Detail/%Pips") as UiPips).total == r and (n.get_node("Bottom/Pips") as UiPips).total == r,
-				"%s: %d pips, one per copy owned, on the panel and on the node" % [what, r])
-		t.check(_text("Detail/%Text").begins_with(row[3]), "%s: the effect is the table's \"%s\" (reads \"%s\")" % [what, row[3], _text("Detail/%Text")])
 		var owned := StringName(n.name) in Progress.owned
-		t.check(_text("Detail/%State") == ("OWNED" if owned else "AVAILABLE") and _text("Detail/%State") == ["LOCKED", "AVAILABLE", "OWNED"][web.state(n)],
-				"%s: the state on the panel is the node's" % what)
+		var open := web.state(n) == HubNode.State.AVAILABLE
+		var note := "" if owned else "COSTS 1 KEY, NO COINS" if u.key else "BUY A NODE NEXT TO IT FIRST" if not open \
+				else "YOU OWN %d. EACH ONE RAISES THE REST" % r if r else "NONE OWNED YET"
+		t.check(u.max_rank == row[2] and _text("Detail/%Note") == note, "%s: the note reads \"%s\" (reads \"%s\")" % [what, note, _text("Detail/%Note")])
+		var note_label := _hub().get_node("Detail/%Note") as Label
+		t.check(note_label.get_minimum_size().x <= note_label.size.x + 0.5, "%s: the note fits the panel" % what)
+		t.check((n.get_node("Bottom/Pips") as UiPips).total == (0 if u.key else r), "%s: %d pips on the node, one per copy owned, none on a key node" % [what, r])
+		t.check(_text("Detail/%Text").begins_with(row[3]), "%s: the effect is the table's \"%s\" (reads \"%s\")" % [what, row[3], _text("Detail/%Text")])
+		t.check(_text("Detail/%State") == HubNode.State.keys()[web.state(n)] and (owned or open or web.state(n) == HubNode.State.PREVIEW),
+				"%s: the state on the panel is the node's (%s)" % [what, _text("Detail/%State")])
 		var price: int = roundi(row[4] * pow(row[5], r))
 		if not owned:
 			t.check((_hub().get_node("Detail/%Price") as UiPrice).amount == price and (n.get_node("Bottom/Price") as UiPrice).amount == price,
 					"%s: the next copy costs %d, on the panel and on the node" % [what, price])
 		t.check((_hub().get_node("Detail/%Cost") as Control).visible != owned and (n.get_node("Bottom/Price") as Control).visible != owned,
 				"%s: the price shows only until the node is bought" % what)
-		t.check(buy.text == ("OWNED" if owned else "BUY") and buy.disabled == owned, "%s: Buy reads %s" % [what, buy.text])
-		var can := not owned and (Progress.keys() > 0 if u.key else Progress.coins >= price)
+		t.check(buy.text == ("OWNED" if owned else "BUY" if open else "LOCKED") and buy.disabled == not open, "%s: Buy reads %s" % [what, buy.text])
+		var can := open and (Progress.keys() > 0 if u.key else Progress.coins >= price)
 		t.check((n.get_node("Bottom/Price") as UiPrice).dim == not can, "%s: the node's price is gold only when it can be bought now" % what)
 		t.check((_hub().get_node("Detail") as Control).get_global_rect() == DETAIL, "%s: the detail panel keeps its size (is %s)" % [what, (_hub().get_node("Detail") as Control).get_global_rect()])
 		var label := n.get_node("Name") as Label
@@ -547,7 +551,7 @@ func _seed(save: String) -> void:
 		return
 	var top := save == "maxed"
 	Progress.coins = 99999 if top else 250
-	Progress.unlocked = Levels.count() if top else 2
+	Progress.unlocked = Levels.count() + 1 if top else 2  # every level cleared, so the 3 keys pay for the 3 key upgrades
 	HubWeb.own_first(DRAWN.size() if top else ceili(DRAWN.size() / 2.0))
 	Progress.save()
 

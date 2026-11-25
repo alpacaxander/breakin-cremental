@@ -5,6 +5,8 @@ extends HBoxContainer
 ## sized to it (art.md: about a quarter of the number's height).
 ##     HudNumber   the coin counters        Number   the detail panel's price        SmallTag   a node's price
 ## The amount is lit gold, or secondary text and unlit when `dim` (a price you can't afford; never red).
+## With `key` the glyph is the key instead (the hub's key counter, a key node's price); set `text` after `amount`
+## to show a word in place of the number ("KEY", "1 KEY").
 
 @export var amount := 0:
 	set(v):
@@ -18,6 +20,16 @@ extends HBoxContainer
 	set(v):
 		style = v
 		_paint()
+@export var key := false:
+	set(v):
+		key = v
+		_coin.key = v
+## What the label shows: `amount`, unless set to something else after it.
+var text: String:
+	get:
+		return _label.text
+	set(v):
+		_label.text = v
 
 var _coin := UiCoin.new()
 var _label := Label.new()

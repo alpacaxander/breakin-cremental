@@ -1,6 +1,6 @@
 extends Control
-## The upgrade screen (docs/art.md, "Upgrade screen"; docs/design/upgrades.md): the top bar, the web, the detail
-## panel and the level panel.
+## The upgrade screen (docs/art.md, "Upgrade screen"; docs/design/upgrades.md): the top bar (the keys held and
+## the coins), the web, the detail panel and the level panel.
 ##
 ## Everything on it is drawn from Progress: it redraws on coins_changed, rank_changed and level_unlocked, and
 ## whenever it is shown again. Play hides it with processing off while a level is open, so nothing here runs
@@ -53,6 +53,9 @@ func _double_click(event: InputEvent, node: HubNode) -> void:
 
 func _refresh() -> void:
 	($Bar/Coins as UiPrice).amount = Progress.coins
+	var keys: UiPrice = $Bar/Keys
+	keys.amount = Progress.keys()
+	keys.dim = keys.amount <= 0
 	_web.refresh(selected)
 	_detail.show_node(selected, _web.state(selected))
 	_levels.refresh()

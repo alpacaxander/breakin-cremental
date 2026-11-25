@@ -1,7 +1,6 @@
 [gd_scene format=3]
 
 [ext_resource type="Script" path="res://src/hub/detail_panel.gd" id="1"]
-[ext_resource type="Script" path="res://src/ui/pips.gd" id="2"]
 [ext_resource type="Script" path="res://src/ui/price.gd" id="3"]
 
 [node name="Detail" type="PanelContainer"]
@@ -32,28 +31,16 @@ unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"PanelTitle"
 
-[node name="RankRow" type="HBoxContainer" parent="Box"]
-layout_mode = 2
-theme_override_constants/separation = 12
-
-[node name="Pips" type="Control" parent="Box/RankRow"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_vertical = 4
-script = ExtResource("2")
-side = 16
-gap = 6
-
-[node name="Rank" type="Label" parent="Box/RankRow"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_type_variation = &"Tag"
-
 [node name="Text" type="Label" parent="Box"]
 unique_name_in_owner = true
 layout_mode = 2
-size_flags_vertical = 3
 autowrap_mode = 3
+
+[node name="Note" type="Label" parent="Box"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+theme_type_variation = &"Hint"
 
 [node name="Foot" type="HBoxContainer" parent="Box"]
 layout_mode = 2
@@ -65,10 +52,10 @@ layout_mode = 2
 size_flags_vertical = 4
 theme_override_constants/separation = 0
 
-[node name="NextRank" type="Label" parent="Box/Foot/Cost"]
+[node name="PriceTag" type="Label" parent="Box/Foot/Cost"]
 layout_mode = 2
 theme_type_variation = &"SmallTag"
-text = "NEXT RANK"
+text = "PRICE"
 
 [node name="Price" type="HBoxContainer" parent="Box/Foot/Cost"]
 unique_name_in_owner = true

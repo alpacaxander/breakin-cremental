@@ -11,8 +11,9 @@ extends Control
 ##
 ## A node is bought once (its name goes into Progress.owned). An unbought node is on offer once a node it links to
 ## has been bought; the seed is on offer from the start. That is decided here, from the links, never by Progress
-## (which only checks price, key and max rank). A node not on offer (LOCKED) is hidden, and so are its links: the
-## web shows only what is bought or what coins alone buy.
+## (which only checks price, key and max rank). A node one link past an offered one, or up to PEEK links behind a
+## key node that is on offer or owned, is a PREVIEW: shown dimmed, selectable, not for sale. Every other node is
+## LOCKED and hidden, and so are its links.
 ##
 ## The view pans and zooms (art.md, "Web view"): a drag with any mouse button or a two-finger swipe pans, the wheel
 ## or a pinch zooms about the pointer. The nodes are laid out in web.tscn at zoom 1 with no pan; _layout moves and
@@ -27,6 +28,7 @@ const ZOOM_MAX := 1.5
 const ZOOM_STEP := 1.1  ## per wheel notch
 const PAN_GESTURE := 16.0  ## px per unit of a touchpad swipe
 const REVEAL := 12.0  ## px kept between the selected node and the frame when the view moves to show it
+const PEEK := 3  ## how many links past a key node the web previews what only that key opens
 
 ## Where the web's origin is in the view, and its scale. (0, 0) and 1 show it as web.tscn lays it out.
 var pan := Vector2.ZERO
@@ -35,6 +37,8 @@ var zoom := 1.0
 # ponytail: the links, read once; the scene doesn't change at run time. The editor reads them on every call.
 var _links: Array[Array] = []
 var _neighbours := {}  # HubNode -> Array of the HubNodes linked to it
+var _depth := {}  # HubNode -> links from the seed
+var _behind := {}  # key HubNode -> Array of the HubNodes it previews (see _read_behind)
 
 
 ## Every node of the web, in scene order.
@@ -83,7 +87,42 @@ func links() -> Array[Array]:
 	for l in out:
 		for i in 2:
 			_neighbours.get_or_add(l[i], []).append(l[1 - i])
+	var start := seed_node()
+	_depth = _reach(start, {}) if start else {}
+	if start and not Engine.is_editor_hint():
+		_read_behind(start)
 	return out
+
+
+## Links from `from` to each node it reaches without stepping on a node in `skip` (a Dictionary used as a set).
+## Reads _neighbours, so only links() and what runs after it call this.
+func _reach(from: HubNode, skip: Dictionary) -> Dictionary:
+	var seen := {from: 0}
+	var queue: Array[HubNode] = [from]
+	while queue:
+		var n: HubNode = queue.pop_front()
+		for m: HubNode in _neighbours.get(n, []):
+			if not seen.has(m) and not skip.has(m):
+				seen[m] = seen[n] + 1
+				queue.append(m)
+	return seen
+
+
+## What each key node previews: the nodes coins alone can't reach (not reachable from the seed with every key
+## node shut), up to PEEK links from the key node without passing another key node or a node coins reach, and
+## further from the seed than it.
+func _read_behind(start: HubNode) -> void:
+	var shut := {}
+	for n in nodes():
+		if n.upgrade.key:
+			shut[n] = true
+	var open := _reach(start, shut)
+	_behind = {}
+	for g: HubNode in shut:
+		var skip := open.merged(shut)
+		skip.erase(g)
+		var near := _reach(g, skip)
+		_behind[g] = near.keys().filter(func(n: HubNode) -> bool: return n != g and near[n] <= PEEK and _depth[n] > _depth[g])
 
 
 ## The nodes linked to n.
@@ -94,15 +133,23 @@ func neighbours(n: HubNode) -> Array[HubNode]:
 	return out
 
 
-## OWNED if the node was bought, AVAILABLE if it is the seed or linked to an owned node, LOCKED otherwise.
+## OWNED if the node was bought, AVAILABLE if it is the seed or linked to an owned node, PREVIEW if it is linked
+## to an AVAILABLE node or behind a key node that is AVAILABLE or OWNED (see _read_behind), LOCKED otherwise.
 func state(n: HubNode) -> HubNode.State:
 	if Engine.is_editor_hint():
 		return HubNode.State.AVAILABLE
 	if owns(n):
 		return HubNode.State.OWNED
-	if n.is_seed or neighbours(n).any(owns):
+	if _offered(n):
 		return HubNode.State.AVAILABLE
+	if neighbours(n).any(_offered) or _behind.keys().any(func(g: HubNode) -> bool: return n in _behind[g] and (owns(g) or _offered(g))):
+		return HubNode.State.PREVIEW
 	return HubNode.State.LOCKED
+
+
+## True if the node is the seed or linked to an owned node: AVAILABLE unless it is owned itself.
+func _offered(n: HubNode) -> bool:
+	return n.is_seed or neighbours(n).any(owns)
 
 
 ## True if this node was bought.
@@ -213,30 +260,13 @@ func _draw() -> void:
 			draw_rect(Rect2(x - 1, y - 1, DOT, DOT), Palette.WALL)
 			y += step
 		x += step
-	var depth := _depth()
 	for l in links():
 		var a: HubNode = l[0]
 		var b: HubNode = l[1]
 		if not (a.visible and b.visible):
 			continue
-		var outer := b if depth.get(b, 0) >= depth.get(a, 0) else a
+		var outer := b if _depth.get(b, 0) >= _depth.get(a, 0) else a
 		var lit := not Engine.is_editor_hint() and (owns(a) or owns(b))
 		var colour := Palette.lit(Palette.of(outer.upgrade.meaning()), Palette.LIT_TEXT) if lit else Palette.BORDER
 		# ponytail: a straight line between centres; the web's links are all straight across or straight down.
 		draw_line(a.position + a.size / 2, b.position + b.size / 2, colour, LINE * zoom)
-
-
-## Steps from the seed to each node, for colouring a line by its outer end.
-func _depth() -> Dictionary:
-	var start := seed_node()
-	if start == null:
-		return {}
-	var depth := {start: 0}
-	var queue: Array[HubNode] = [start]
-	while queue:
-		var n: HubNode = queue.pop_front()
-		for m in neighbours(n):
-			if not depth.has(m):
-				depth[m] = depth[n] + 1
-				queue.append(m)
-	return depth

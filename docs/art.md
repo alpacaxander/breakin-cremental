@@ -16,8 +16,8 @@ The main menu, Settings and the Summary have no mockup. They are described below
 - The web is grouped by category, with a label over each group and a junction square under the seed. The demo's web mixes the categories, one node per copy of an upgrade, with the seed in the middle of the view (see [upgrades.md](design/upgrades.md#the-demos-web)).
 - The Booster, the Splitter, the Growth area and the Refresh block are not drawn.
 - The mockups have none of the ability system. The game draws all of it as this file describes: the Power Brick, drops, the charges in reserve, a charged ball's orange rim and the HUD's ability readout (see [Level screen](#level-screen)), and the catch effect and the Zap's bolt (see [Effects](#effects)). The upgrade screen has three categories; it now has four, Abilities in orange (see [Upgrade screen](#upgrade-screen)). The explosive bricks the mockups show are gone.
-- The web shows locked nodes in grey. Locked nodes, and their lines, are now hidden until a neighbour is owned (see [Upgrade screen](#upgrade-screen)).
-- Nodes and the detail panel show a pip for every rank, and the panel reads "RANK 2/4". They now show a pip per copy owned, and never the max rank (see [Upgrade screen](#upgrade-screen)).
+- The web shows locked nodes in grey. Only the nodes next to an open one, and a few behind an open key node, now show, dimmed as previews; the rest, and their lines, are hidden (see [Upgrade screen](#upgrade-screen)).
+- Nodes and the detail panel show a pip for every rank, and the panel reads "RANK 2/4". Nodes now show a pip per copy owned, and never the max rank; the panel shows no pips and says how many are owned in a note (see [Upgrade screen](#upgrade-screen)).
 - A tray slot reads "1 OF 2 LEFT", and locked placeables are in the tray. A slot now shows pips, and only unlocked placeables are listed (see [Setup](#setup)).
 - The combo is one number, "×12". It is now the combo count with the multiplier beside it (see [HUD numbers](#level-screen)).
 - The legend lists every brick type. It now lists only what is on the board.
@@ -176,47 +176,51 @@ At most 600 squares are alive at once, and one frame's breaks share 240 new ones
 | Tooltip | A small panel with 14 px Chakra Petch text |
 | Icons | Flat filled shapes or 2.5 px strokes in the text colour. No emoji or font glyphs for arrows |
 | Coin glyph | A gold square turned 45°, about a quarter of the number's height |
+| Key glyph | A gold square ring with a shaft and one tooth to its right, 14 × 8 units, drawn from squares like the coin. Dim (secondary text) where no key can be spent |
 | Hit target | At least 44 × 44 |
 
 ## Upgrade screen
 
-**Layout:** a top bar 84 px tall with a back button (to the main menu) and the title on the left and coins on the right. Below it, the web view at (24, 88), 864 × 608. On the right, the detail panel at (904, 88), 352 × 284, and the level panel at (904, 388), 352 × 308.
+**Layout:** a top bar 84 px tall with a back button (to the main menu) and the title on the left and the keys and coins on the right (the key glyph and the keys held, gold above 0 and secondary text at 0, then the coins). Below it, the web view at (24, 88), 864 × 608. On the right, the detail panel at (904, 88), 352 × 284, and the level panel at (904, 388), 352 × 308.
 
 **Web view:**
 - **Frame:** a 2 px `2a2f4e` border over a dot grid of 3 px dots every 24 px, also in `2a2f4e`.
 - **Spacing:** nodes sit on a 170 × 116 px pitch. The demo's web is 11 columns × 13 rows with the seed in the middle of the view. At zoom 1 with no pan the view shows about five columns and five rows; the rest is reached by panning.
 - **Pan and zoom:** a drag with any mouse button, on a node or between them, pans; so does a two-finger swipe. The wheel or a pinch zooms about the pointer, by 1.1 a notch, from 0.5 to 1.5. Everything in the view scales with the zoom (nodes, their text, lines and the dot grid, which also moves with the pan) except the frame, which is drawn over the nodes. The view's centre can't leave the box around the shown nodes, so the web is never lost. When the selection changes (an arrow key, a click), the view moves just enough to show the selected node whole, 12 px clear of the frame. The view is not saved: it lasts while you go into a level and back, and resets when the screen is opened from the main menu.
 - **Node:** 148 × 60 px (the seed node is 168 × 72), with 8 × 10 px padding. The name is top left. Rank pips (8 px squares, 4 px apart) are bottom left, and an unowned node's price is bottom right. A node is one copy of its upgrade, bought once: there is a pip for each copy of the upgrade owned, on every copy, so the web never shows how many ranks it has, and the price is the next copy's. Five pips and a five-digit price are about 10 px wider than the padding leaves, so on those nodes (Splitter and Paddle Size, the two with five ranks, if a price there reaches five digits) the row runs to 4 px from each border.
-- **Connections:** 3 px lines that run straight across or straight down through node centres. A line is lit in its outer node's category colour once either end is owned; otherwise it's `424c6e`. A line to a locked node is not drawn.
-- **Locked nodes are hidden.** A node shows once it can be bought with coins alone, that is once a node it connects to is owned; until then it, its ranks and its lines are not drawn. A fresh save shows only the seed.
+- **Connections:** 3 px lines that run straight across or straight down through node centres. A line is lit in its outer node's category colour once either end is owned; otherwise it's `424c6e`. A line is drawn only when both its ends are shown.
+- **What shows:** an available node (the seed, or one linked to an owned node), an owned node and a preview. A preview is a node linked to an available one, or one behind a key node that is available or owned: up to 3 links past it, further from the seed, on a part of the web only that key node opens (the walk from it stops at other key nodes and at nodes coins can reach). Every other node is locked and hidden with its lines. A fresh save shows the seed and its four neighbours as previews.
+- **Key nodes** (Zap, Blast, Overgrowth, which cost a key and no coins) have a second outline 3 px outside the box, 2 px, in the border's colour. In place of a coin price they show the key glyph and "KEY", gold when a key is held and the node is available, secondary text otherwise. They have no pips.
 - **Categories:** a node's colour is the only thing that shows its category. The web mixes the categories, so there are no group labels. There are four: Arena in cyan, Placeables in blue, Bricks in magenta (the 1 HP brick's `ca52c9`) and Abilities in orange (see [palette.md](palette.md#meanings)).
 
 | Node state | Fill | Border | Text | Pips |
 |---|---|---|---|---|
 | Owned | Dim | Lit, solid | Primary | Lit, one per copy owned |
 | Available | Base | Lit, dashed | Primary | Lit, one per copy owned |
+| Preview | Base | `424c6e`, solid | Secondary, price too | Lit, one per copy owned |
 
 No fill is lit: a lit fill blooms over the 14 px name and washes it out. The lit border carries the glow.
 
-The selected node keeps its state's look and adds a 2 px cyan outline 4 px outside the node, plus a cyan glow. A node under the pointer that is not the selected one gets the same outline in unlit secondary text (`92a1b9`), with no glow. Prices are gold when you can afford them and secondary text when you can't, never red.
+The selected node keeps its state's look and adds a 2 px cyan outline 4 px outside the node (7 px on a key node, outside its second outline), plus a cyan glow. A node under the pointer that is not the selected one gets the same outline in unlit secondary text (`92a1b9`), with no glow. Prices are gold when you can afford them and secondary text when you can't, never red.
 
-**Mouse:** a click on a node selects it; a double click selects it and buys it, as Buy does (on an owned node it buys nothing).
+**Mouse:** a click on a node selects it; a double click selects it and buys it, as Buy does (on an owned node or a preview it buys nothing).
 
 **Keyboard:** whenever the upgrade screen is shown, the selected node takes the keyboard focus, and focusing a node selects it, so a focused node is always the selected one. A click on Buy hands the focus straight back to the selected node, so a Space or Enter after it buys nothing; a Buy reached with the arrows or Tab keeps the focus, and Enter on it buys the node. A clicked level arrow keeps it too, so Space steps the level again. An arrow key moves to the nearest node in the same row or column of the web's grid; where there is none in that direction, it goes wherever Godot's own search finds a control, which is how Right from the last column reaches the panels.
 
 **Detail panel:** from the top:
-- the category in its colour, with the state on the right
+- the category in its colour, with the state on the right: AVAILABLE, OWNED or PREVIEW
 - the name in 46 px Jersey 10
-- 16 px rank pips, as on the node: one per copy owned. The rank reads "RANK 2", never the max
 - the effect text
-- the next rank's price in 40 px Jersey 10, beside the Buy button. Buy reads BUY on an available node: the primary button if the coins cover it, the can't-afford look and a grey price if not. On an owned node it is disabled and reads OWNED, and the price is gone
+- a note in 14 px Chakra Petch, secondary text: "YOU OWN 2. EACH ONE RAISES THE REST" (or "NONE OWNED YET") on an available node, "COSTS 1 KEY, NO COINS" on an unowned key node, "BUY A NODE NEXT TO IT FIRST" on any other preview, and nothing on an owned node
+- the next copy's price in 40 px Jersey 10 (on a key node the key glyph and "1 KEY"), beside the Buy button. Buy reads BUY on an available node: the primary button if the coins (or a key) cover it, the can't-afford look and a grey price if not. On a preview it is disabled and reads LOCKED, with the price grey. On an owned node it is disabled and reads OWNED, and the price is gone
 
 **Level panel:**
-- ◄ ► icon buttons around the level number (46 px Jersey 10, the panel title size, drawn at 37) and the level's name.
-- A 256 × 128 thumbnail of the layout, scaled so the whole grid fits. On a 16-row level that is 4 px per column and 8 px per row, with bricks drawn 3 × 15 in their HP colours. A locked level's thumbnail is at 35% opacity.
-- Then Play Level, or a disabled "CLEAR LEVEL N FIRST".
 - The status on the right of the panel's tag reads CLEARED, NOT CLEARED YET or LOCKED. The last level reads CLEARED once it is cleared; that is the only mark of having won.
-- The rows of the panel are 6 px apart, which is what fits its 308 px.
+- Under it, on the right, the key line in 16 px Silkscreen with the key glyph: "FIRST CLEAR PAYS 1 KEY" in gold until the level is cleared, then "KEY PAID" in secondary text.
+- ◄ ► icon buttons around the level number (46 px Jersey 10, the panel title size, drawn at 37) and the level's name.
+- A 256 × 104 thumbnail of the layout, scaled so the whole grid fits. On a 16-row level that is 3.25 px per column and 6.5 px per row, with bricks drawn 1 px short each way in their HP colours. A locked level's thumbnail is at 35% opacity.
+- Then Play Level, or a disabled "CLEAR LEVEL N FIRST".
+- The rows of the panel are 5 px apart, which is what fits its 308 px.
 - The panel opens on the highest level unlocked and jumps to a level when it unlocks. Thumbnail bricks are unlit.
 
 ## Main menu

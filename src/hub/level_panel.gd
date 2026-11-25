@@ -1,9 +1,10 @@
 extends PanelContainer
 ## The level panel (docs/art.md, "Upgrade screen"): ◄ ► through the levels, the chosen level's number, name and
 ## a thumbnail of its bricks, and Play Level. A locked level can be looked at (its thumbnail at 35%) but not
-## played: its button is disabled and says which level opens it.
+## played: its button is disabled and says which level opens it. Under the status, the key line: whether the
+## level's first clear still pays its key.
 
-const THUMB := Vector2(256, 128)
+const THUMB := Vector2(256, 104)  # 128 before the key line took its 26 px
 const LOCKED_ALPHA := 0.35
 
 ## The level on show, counted from 1.
@@ -39,6 +40,9 @@ func refresh() -> void:
 	(%Number as Label).text = str(level)
 	(%Title as Label).text = data.title if data else ""
 	(%Status as Label).text = "CLEARED" if Progress.is_cleared(level) else "NOT CLEARED YET" if open else "LOCKED"
+	var key_line: UiPrice = %KeyLine
+	key_line.text = "KEY PAID" if Progress.is_cleared(level) else "FIRST CLEAR PAYS 1 KEY"
+	key_line.dim = Progress.is_cleared(level)
 	%Prev.disabled = level <= 1
 	%Next.disabled = level >= Progress.level_count
 	_thumb.modulate.a = 1.0 if open else LOCKED_ALPHA
@@ -59,7 +63,7 @@ func _read(n: int) -> LevelData:
 	return _data[n]
 
 
-## The whole grid scaled to fit THUMB: 4 x 8 px a cell on a 16-row level, each brick 1 px short each way.
+## The whole grid scaled to fit THUMB: 3.25 x 6.5 px a cell on a 16-row level, each brick 1 px short each way.
 func _draw_thumb() -> void:
 	_thumb.draw_rect(Rect2(Vector2.ZERO, THUMB), Palette.BASE)
 	_thumb.draw_rect(Rect2(-Vector2(3.5, 3.5), THUMB + Vector2(7, 7)), Palette.WALL, false, 1)

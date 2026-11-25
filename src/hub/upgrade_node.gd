@@ -4,13 +4,14 @@ extends Button
 ## One node of the upgrade web (docs/art.md, "Upgrade screen"): a flat box in its category's colour with the
 ## upgrade's name, a pip per copy of the upgrade owned and, until it is bought, the next copy's price. web.tscn
 ## places one per purchase: an upgrade has max_rank nodes, its copies, which share its price ladder (buying any
-## copy raises the others' price). See web.gd for how to add one.
+## copy raises the others' price). See web.gd for how to add one. A key node (its upgrade's `key`) has a second
+## outline, no pips, and the key glyph and KEY where the others show a price.
 ##
 ## It only shows what it is told: HubWeb works out its state from Progress and the web's links and calls show_state.
 ## In the editor (this is a @tool script so the web can be laid out by eye) it shows its node name and the
 ## available look in the text colour, and never reads Progress.
 
-enum State { LOCKED, AVAILABLE, OWNED }
+enum State { LOCKED, PREVIEW, AVAILABLE, OWNED }
 
 const PITCH := Vector2(170, 116)  ## art.md: one grid step, centre to centre
 const ORIGIN := Vector2(432, 304)  ## The centre of cell (0, 0), the seed's, in the web view: the view's centre
@@ -63,15 +64,23 @@ func _ready() -> void:
 func show_state(s: State, affordable: bool) -> void:
 	state = s
 	var u := upgrade
-	accessibility_name = "%s, %s, %d owned" % [u.title, State.keys()[s].to_lower(), Progress.rank(u)]
+	accessibility_name = "%s, %s, %s" % [u.title, State.keys()[s].to_lower(), "costs one key" if u.key else "%d owned" % Progress.rank(u)]
 	var pips: UiPips = $Bottom/Pips
-	pips.total = Progress.rank(u)
-	pips.owned = Progress.rank(u)
+	pips.total = 0 if u.key else Progress.rank(u)
+	pips.owned = pips.total
 	pips.meaning = u.meaning()
 	var price: UiPrice = $Bottom/Price
 	price.visible = s != State.OWNED
+	price.key = u.key
 	price.amount = Progress.cost(u)
+	if u.key:
+		price.text = "KEY"
 	price.dim = not affordable
+	var name_label: Label = $Name
+	if s == State.PREVIEW:
+		name_label.add_theme_color_override(&"font_color", Palette.TEXT_DIM)
+	else:
+		name_label.remove_theme_color_override(&"font_color")
 	queue_redraw()
 
 
@@ -94,19 +103,27 @@ func _draw() -> void:
 	var hue := Palette.TEXT if editor else Palette.of(upgrade.meaning())
 	var r := Rect2(Vector2.ZERO, size)
 	var edge := Rect2(Vector2.ONE, size - Vector2(2, 2))  # a 2 px stroke centred 1 px in, so it stays inside the box
+	var border := Palette.BORDER if state == State.PREVIEW else hue if editor else Palette.lit(hue)
 	match state:
 		State.OWNED:
 			draw_rect(r, Palette.dim(upgrade.meaning()))
-			draw_rect(edge, Palette.lit(hue), false, 2)
+			draw_rect(edge, border, false, 2)
 		State.AVAILABLE:
 			draw_rect(r, Palette.BASE)
-			var c := hue if editor else Palette.lit(hue)
 			var p := [edge.position, Vector2(edge.end.x, edge.position.y), edge.end, Vector2(edge.position.x, edge.end.y)]
 			for i in 4:
-				draw_dashed_line(p[i], p[(i + 1) % 4], c, 2, DASH)
+				draw_dashed_line(p[i], p[(i + 1) % 4], border, 2, DASH)
+		State.PREVIEW:
+			draw_rect(r, Palette.BASE)  # base, not clear: the links run to the centres and would show through
+			draw_rect(edge, border, false, 2)
 		# LOCKED draws nothing: the web hides a locked node.
+	# A key node's second outline: 2 px, 2 px outside the box. The selection ring then goes outside it.
+	var out := 3.0
+	if not editor and upgrade.key:
+		draw_rect(r.grow(3), border, false, 2)
+		out = 7.0
 	if selected:
 		# Over the theme's focus ring (2 px, 4 px out), so a focused, selected node shows one cyan ring.
-		draw_rect(Rect2(-Vector2(3, 3), size + Vector2(6, 6)), Palette.lit(Palette.PLAYER, Palette.LIT_TEXT), false, 2)
+		draw_rect(r.grow(out), Palette.lit(Palette.PLAYER, Palette.LIT_TEXT), false, 2)
 	elif is_hovered():
-		draw_rect(Rect2(-Vector2(3, 3), size + Vector2(6, 6)), Palette.TEXT_DIM, false, 2)  # where the selection goes, unlit
+		draw_rect(r.grow(out), Palette.TEXT_DIM, false, 2)  # where the selection goes, unlit

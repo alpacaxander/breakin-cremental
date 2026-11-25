@@ -3,7 +3,8 @@ extends RefCounted
 ## node of each shown state selected (and Growth Pulses, low on the web, and Overgrowth, a key node, not bought),
 ## the orange Abilities branch part bought with Blast, the longest text, in the panel, Shockwave scrolled into
 ## view, a Buy the player cannot afford, a locked level in the level panel, the pointer over a node, and the web
-## zoomed fully out and fully in.
+## zoomed fully out and fully in, and the key moment: level 1 cleared, the first 11 nodes bought, Zap and Blast on
+## offer for the one key with the nodes behind them previewed, Zap selected, then a preview behind it selected.
 
 
 func shots() -> Array[Dictionary]:
@@ -25,6 +26,9 @@ func shots() -> Array[Dictionary]:
 		{"name": "mid_hover", "save": "mid", "crt": false, "setup": _hover.bind(&"Combo")},
 		{"name": "maxed_zoom_out", "save": "maxed", "crt": false, "setup": _zoom.bind(HubWeb.ZOOM_MIN)},
 		{"name": "maxed_zoom_in", "save": "maxed", "crt": false, "setup": _zoom.bind(HubWeb.ZOOM_MAX)},
+		{"name": "key", "crt": false, "setup": _key.bind(&"Zap")},
+		{"name": "key_crt", "setup": _key.bind(&"Zap")},
+		{"name": "key_preview", "crt": false, "setup": _key.bind(&"ZapRange")},
 	]
 
 
@@ -75,3 +79,11 @@ func _level(main: Main, n: int) -> void:
 	Main.show_hub()
 	_screen(main).get_node("Levels").pick(n)
 
+
+
+## Level 1 cleared (one key in hand), the first 11 nodes owned and a few coins, with this node selected.
+func _key(main: Main, node: StringName) -> void:
+	Progress.unlocked = 2
+	Progress.coins = 40
+	HubWeb.own_first(11)
+	_pick(main, node)

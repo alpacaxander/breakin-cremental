@@ -4,7 +4,7 @@ See also: [placeables.md](placeables.md), [physics.md](physics.md), [overview.md
 
 ## Rules
 
-- Upgrades form a **web** that grows out from one seed node, **Paddle Speed** (the paddle starts slow). Each node unlocks once a connected node has been bought. Until then the upgrade screen hides it: the web shows only nodes whose ranks need nothing but coins.
+- Upgrades form a **web** that grows out from one seed node, **Paddle Speed** (the paddle starts slow). Each node unlocks once a connected node has been bought. Until then the upgrade screen shows it only as a dimmed preview, and only if it is next to a node that can be bought, or a few links behind a key node that can be bought or is owned (a look at what the key opens); every other node is hidden.
 - An upgrade can have **one or more ranks**, each more expensive than the last. Each rank is its own node in the web, a copy of the upgrade.
 - **Keys.** Each level's first clear pays one key. Zap, Blast and Overgrowth are key upgrades: each costs one key and no coins. An owned node can be undone: it gives back what it cost, coins or its key.
 - **Categories are mixed across the web.** A category says what kind of thing a node is, not where it sits. Every path out from the seed should pass through different categories, so the player picks up a mix as they go.
@@ -154,16 +154,18 @@ An ability goes off once, at the cell of the first level brick a charged ball hi
 ## Upgrade screen
 
 ```
-┌─ UPGRADES ────────────────────────────── ● 142 ─┐
+┌─ UPGRADES ──────────────────────── ⚷ 1   ● 142 ─┐
 │                                                 │
 │        (web view, pan/zoom)                     │
 │                                                 │
 ├─────────────────────────────────────────────────┤
-│ Power Brick        Rank 2                       │
+│ Power Brick                        AVAILABLE    │
 │ One more Power Brick each round                 │
-│ Next rank: 400 ●                [ BUY ]         │
+│ You own 2. Each one raises the rest             │
+│ Price: 400 ●                    [ BUY ]         │
 ├─────────────────────────────────────────────────┤
 │ Level: [◄ 2 ►]  (3 locked)    [ PLAY LEVEL ▶ ]  │
+│ First clear pays 1 key ⚷                        │
 └─────────────────────────────────────────────────┘
 ```
 

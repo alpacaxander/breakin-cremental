@@ -24,6 +24,12 @@ layout_mode = 2
 size_flags_horizontal = 3
 mouse_filter = 2
 
+[node name="Keys" type="HBoxContainer" parent="Bar"]
+layout_mode = 2
+size_flags_vertical = 4
+script = ExtResource("3")
+key = true
+
 [node name="Coins" type="HBoxContainer" parent="Bar"]
 layout_mode = 2
 size_flags_vertical = 4

@@ -96,7 +96,8 @@ func _walk() -> void:
 		t.check(web.state(node) == HubNode.State.OWNED and Progress.coins == earned and heard.has(Sfx.BUY), "Buy buys %s for its price" % node_name)
 		t.check(node_name in _saved().owned and int(_saved().ranks.get(String(node.upgrade.id), 0)) == Progress.rank(node.upgrade)
 				and _saved().coins == earned, "and the purchase is in the save")
-	t.check(web.state(web.get_node("RearPaddle")) == HubNode.State.AVAILABLE and web.state(web.get_node("BoosterSpeed")) == HubNode.State.LOCKED, "buying opens the next ring and no more")
+	t.check(web.state(web.get_node("RearPaddle")) == HubNode.State.AVAILABLE and web.state(web.get_node("BoosterSpeed")) == HubNode.State.PREVIEW,
+			"buying opens the next ring and previews the one after")
 
 	# The level again: place the Splitter, start with Space, play it out.
 	await _click(levels.get_node("%Play"))

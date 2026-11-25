@@ -1,6 +1,7 @@
 extends RefCounted
-## The upgrade screen, through the real Main and real clicks: which nodes are open, Buy (coins, copies, sounds),
-## the arrows, pan and zoom, the level panel and Esc. The web scene's own shape is checked in contracts.gd.
+## The upgrade screen, through the real Main and real clicks: which nodes are open, previewed and hidden, Buy
+## (coins, keys, copies, sounds), the key counter, the arrows, pan and zoom, the level panel and Esc. The web
+## scene's own shape is checked in contracts.gd.
 
 var _heard: Array[StringName] = []
 
@@ -94,10 +95,13 @@ func run(t: Node) -> void:
 	t.check(web.seed_node().get_global_rect().get_center().is_equal_approx(web.get_global_rect().get_center()),
 			"the seed sits at the centre of the view")
 
-	# A fresh save: only the seed is open, and the rest is hidden.
+	# A fresh save: only the seed is open, its four neighbours are previews, and the rest is hidden.
+	var ring: Array[StringName] = [&"Booster", &"Combo", &"PaddleSize", &"ToughBrick"]
 	for n in web.nodes():
-		var open: bool = web.state(n) == HubNode.State.AVAILABLE
-		t.check(open == n.is_seed and n.visible == n.is_seed, "on a fresh save only the seed is open and shown (%s)" % n.name)
+		var want := HubNode.State.AVAILABLE if n.is_seed else HubNode.State.PREVIEW if StringName(n.name) in ring else HubNode.State.LOCKED
+		t.check(web.state(n) == want and n.visible == (want != HubNode.State.LOCKED),
+				"on a fresh save %s is %s (is %s, %s)" % [n.name, HubNode.State.keys()[want], HubNode.State.keys()[web.state(n)], "shown" if n.visible else "hidden"])
+	t.check((hub.get_node("Bar/Keys") as UiPrice).amount == 0 and (hub.get_node("Bar/Keys") as UiPrice).dim, "the top bar shows no keys, dim")
 
 	# Buy the seed's first rank with a click: coins go, the rank comes, BUY plays and no CLICK.
 	var buy: Button = hub.get_node("Detail/%Buy")
@@ -115,7 +119,8 @@ func run(t: Node) -> void:
 	var opened := web.nodes().filter(func(n: HubNode) -> bool: return web.state(n) == HubNode.State.AVAILABLE).map(func(n: HubNode) -> String: return n.name)
 	opened.sort()
 	t.check(opened == ["Booster", "Combo", "PaddleSize", "ToughBrick"], "buying the seed opens its four neighbours and nothing else (open: %s)" % [opened])
-	t.check(web.state(seed) == HubNode.State.OWNED and web.state(at.call(&"PowerBrick")) == HubNode.State.LOCKED, "the seed is owned and the next ring stays locked")
+	t.check(web.state(seed) == HubNode.State.OWNED and web.state(at.call(&"PowerBrick")) == HubNode.State.PREVIEW
+			and web.state(at.call(&"Zap")) == HubNode.State.LOCKED, "the seed is owned, the next ring is previewed and the one after stays locked")
 	t.check(web.nodes().all(func(n: HubNode) -> bool: return n.visible == (web.state(n) != HubNode.State.LOCKED)), "every open node is shown and every locked one hidden")
 	# Copies share a price ladder and the pips: the other Paddle Speed node now asks the second rank's price, and
 	# both show the one copy owned.
@@ -130,6 +135,18 @@ func run(t: Node) -> void:
 	buy.grab_focus()
 	_key(t, KEY_ENTER)
 	t.check(focus.call() == buy and Progress.rank(at.call(&"Combo").upgrade) == 1, "by keyboard the focus stays on Buy, and Enter buys the selected node (Combo, which opens Hourglass Brick)")
+	# A preview can be selected and read, not bought: Buy is disabled and reads LOCKED, and a double click buys nothing.
+	var power: HubNode = at.call(&"PowerBrick")
+	await _click(t, power)
+	t.check(hub.selected == power and buy.disabled and buy.text == "LOCKED" and (hub.get_node("Detail/%State") as Label).text == "PREVIEW"
+			and (hub.get_node("Detail/%Note") as Label).text == "BUY A NODE NEXT TO IT FIRST", "a preview is selected, and the panel says it can't be bought yet")
+	t.check((power.get_node("Bottom/Price") as UiPrice).dim and (hub.get_node("Detail/%Price") as UiPrice).dim, "a preview's price is dim, on the node and the panel")
+	var before_coins := Progress.coins
+	await t.tree().create_timer(0.15).timeout
+	await _click(t, power, true)
+	t.check(Progress.rank(power.upgrade) == 0 and Progress.coins == before_coins and not web.owns(power), "a double click on a preview buys nothing")
+	(hub.get_node("Detail") as Node).call(&"buy")
+	t.check(Progress.rank(power.upgrade) == 0, "nor does the panel's buy()")
 
 	# Too poor: Buy can still be pressed, buys nothing and plays can't afford.
 	var splitter: HubNode = at.call(&"HourglassBrick")
@@ -180,6 +197,47 @@ func run(t: Node) -> void:
 	t.check(hub.visible and (hub.get_node("Bar/Coins") as UiPrice).amount == Progress.coins, "back on the hub, the coins are the new total")
 	t.check(levels.level == 2 and not play.disabled, "a newly unlocked level is the one on show, and playable")
 	t.check(focus.call() == hub.selected, "back from a level, the selected node has the focus again")
+
+	# Keys: level 1 is cleared, so one is held. With the first 11 nodes owned (Power Brick among them), Zap and Blast
+	# are on offer, and up to 3 links behind each of them is previewed; past that, and past another way in, is not.
+	var keys: UiPrice = hub.get_node("Bar/Keys")
+	t.check(Progress.keys() == 1 and keys.amount == 1 and not keys.dim and keys.key, "the top bar shows the key level 1 paid, in gold")
+	HubWeb.own_first(11)
+	Progress.coins = 0
+	Progress.rank_changed.emit(seed.upgrade)
+	for pair: Array in [[&"Zap", HubNode.State.AVAILABLE], [&"Blast", HubNode.State.AVAILABLE], [&"Guide2", HubNode.State.PREVIEW],
+			[&"ZapRange", HubNode.State.PREVIEW], [&"ZapDamage", HubNode.State.PREVIEW], [&"BlastSize", HubNode.State.PREVIEW],
+			[&"BlastDamage", HubNode.State.PREVIEW], [&"Shockwave", HubNode.State.PREVIEW], [&"Splitter4", HubNode.State.LOCKED],
+			[&"PowerBrick3", HubNode.State.LOCKED], [&"PowerBrick4", HubNode.State.LOCKED], [&"BlastDamage2", HubNode.State.LOCKED]]:
+		var n: HubNode = at.call(pair[0])
+		t.check(web.state(n) == pair[1] and n.visible == (pair[1] != HubNode.State.LOCKED),
+				"with Power Brick owned, %s is %s (is %s)" % [pair[0], HubNode.State.keys()[pair[1]], HubNode.State.keys()[web.state(n)]])
+	var zap: HubNode = at.call(&"Zap")
+	var zap_price: UiPrice = zap.get_node("Bottom/Price")
+	t.check(zap_price.key and zap_price.text == "KEY" and not zap_price.dim and (zap.get_node("Bottom/Pips") as UiPips).total == 0,
+			"a key node shows the key glyph and KEY, gold with a key in hand, and no pips")
+	hub.select(zap)
+	var panel_price: UiPrice = hub.get_node("Detail/%Price")
+	t.check((hub.get_node("Detail/%Note") as Label).text == "COSTS 1 KEY, NO COINS" and panel_price.key and panel_price.text == "1 KEY"
+			and not panel_price.dim and not buy.disabled and buy.theme_type_variation == &"", "with a key, Zap's panel asks 1 KEY and Buy is the primary button, with no coins")
+	Progress.unlocked = 1  # the key is gone
+	hub.select(zap)
+	t.check(keys.amount == 0 and keys.dim and zap_price.dim and panel_price.dim and buy.theme_type_variation == &"CantAfford" and not buy.disabled,
+			"with no key the counter reads 0, dim, the price is dim and Buy has the can't-afford look")
+	await t.tree().create_timer(0.15).timeout
+	_heard.clear()
+	await _click(t, buy)
+	await t.tree().create_timer(0.15).timeout
+	t.check(not web.owns(zap) and Sfx.CANT_AFFORD in _heard, "Buy with no key buys nothing and plays can't afford (heard %s)" % [_heard])
+	Progress.unlocked = 2
+	hub.select(zap)
+	_heard.clear()
+	await _click(t, buy)
+	await t.tree().create_timer(0.15).timeout
+	t.check(web.owns(zap) and Progress.coins == 0 and Progress.keys() == 0 and keys.amount == 0 and Sfx.BUY in _heard,
+			"Buy with the key owns Zap, spends the key and no coins (heard %s)" % [_heard])
+	hub.select(at.call(&"Blast"))
+	t.check(buy.theme_type_variation == &"CantAfford" and (at.call(&"Blast").get_node("Bottom/Price") as UiPrice).dim, "then Blast, the other key node, can't be afforded")
 
 	# Esc goes to the main menu and is handled there.
 	var viewport := hub.get_viewport()

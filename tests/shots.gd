@@ -95,7 +95,7 @@ func _take(main: Main, list: String, shot: Dictionary) -> void:
 ## Puts Progress on a new save file under tests/out/ and fills it in memory:
 ##   fresh  0 coins, no upgrades, level 1 only
 ##   mid    250 coins, level 2 unlocked, the first half of the web's nodes bought (HubWeb.own_first)
-##   maxed  99999 coins, every level unlocked, every web node bought: every upgrade at its top rank
+##   maxed  99999 coins, every level cleared (so keys() is 0, not below), every web node bought: every upgrade at its top rank
 ## A setup may change Progress further before it navigates.
 func _seed(save: String) -> void:
 	var path := OUT.path_join("save.json")
@@ -106,7 +106,7 @@ func _seed(save: String) -> void:
 		return
 	var top := save == "maxed"
 	Progress.coins = 99999 if top else 250
-	Progress.unlocked = maxi(1, Levels.count() if top else mini(2, Levels.count()))
+	Progress.unlocked = maxi(1, Levels.count() + 1 if top else mini(2, Levels.count()))
 	var nodes := 0
 	for u in Progress.upgrades():
 		nodes += u.max_rank
