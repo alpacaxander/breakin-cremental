@@ -11,14 +11,14 @@ extends Node2D
 ##   ItemViews   10  the free-form placed items, and in Setup  with the round
 ##                   the areas (Growth) over the bricks
 ##   PaddleView  10  the paddle, cut off at the walls          every frame
-##   BallViews   20  the balls, the spares in reserve, and     every frame of Play
-##                   the Guide's line while a ball waits
+##   BallViews   20  the Guide's line while a ball waits, the  every frame of Play
+##                   drops, the charges in reserve, the balls
 ##   Ghost      101  the item being dragged in Setup           when it moves. Over SetupUi (100): it follows the
 ##                   cursor over the tray
 ##   Fx              the effects, last, so their children sort between these (src/level/fx/fx.gd)
 ##
-## The round steps 120 times a second and the screen draws at its own rate, so the paddle and the balls are
-## drawn between where they were one step ago and where they are now (remember()). That is one step, 8 ms,
+## The round steps 120 times a second and the screen draws at its own rate, so the paddle, the balls and the
+## drops are drawn between where they were one step ago and where they are now (remember()). That is one step, 8 ms,
 ## behind the rules, and it is what keeps them steady on a display that is not 60 or 120 Hz.
 
 ## Where the grid's top left corner is on screen, and the arena's frame around it (docs/art.md, "Level screen").
@@ -26,7 +26,7 @@ const ORIGIN := Vector2(154, 110)
 const FRAME := Rect2(96, 104, 1088, 524)
 const WALL := 6.0  ## The walls' thickness, in screen pixels at every level size
 const STRIPE := 4.0  ## The paddle's cyan stripe, in units
-const MARK_RIM := 2.0  ## The dark rim around a Zap mark, in units, so it reads on a brick of any colour
+const MARK_RIM := 2.0  ## The orange rim round a charged ball, in units; the ball inside it stays white
 const BLOCK_EDGE := 3.0  ## A block that never breaks (Refresh) is a frame this thick round base-colour panes, in units
 const DASH := 6.0  ## The ghost's border: dashes this long, 2 units thick
 const GHOST_EDGE := 2.0
@@ -40,16 +40,17 @@ const GATE_LINE := 2.0  ## The centre line's thickness, in units, at any length
 ## The Guide's line (Round.guide): cyan dashes this thick, half see-through so it stays under the bloom.
 const GUIDE_WIDTH := 2.0
 const GUIDE_ALPHA := 0.5
-## The spares in reserve are stacked this many ball sizes apart.
-const SPARE_PITCH := 1.5
+## The charges in reserve are stacked this many ball sizes apart.
+const CHARGE_PITCH := 1.5
 
 var round: Round
 
 var _setup := true
 var _ghost: Layout.Item
 var _ghost_fits := false
-## Where each ball (by id) and the paddle were one step ago.
+## Where each ball and each drop (by id) and the paddle were one step ago.
 var _was: Dictionary[int, Vector2] = {}
+var _was_drops: Dictionary[int, Vector2] = {}
 var _was_paddle := 0.0
 var _cooling := 0
 
@@ -86,13 +87,16 @@ func show_round(p_round: Round, setup: bool) -> void:
 	_process(0.0)
 
 
-## Notes where the paddle and the balls are. The level screen calls it on every physics tick, before it steps
-## the round or decides not to, so a round that stands still is drawn still.
+## Notes where the paddle, the balls and the drops are. The level screen calls it on every physics tick, before
+## it steps the round or decides not to, so a round that stands still is drawn still.
 func remember() -> void:
 	_was_paddle = round.paddle.y
 	_was.clear()
 	for ball in round.balls:
 		_was[ball.id] = ball.pos
+	_was_drops.clear()
+	for d in round.drops:
+		_was_drops[d.id] = d.pos
 
 
 ## A point of the screen (the level screen's own coordinates) in round units. The shake is left out.
@@ -101,7 +105,7 @@ func to_units(point: Vector2) -> Vector2:
 
 
 ## Shows `item` as the placement ghost, in blue if it fits and in red if it does not; null shows none. A BRICK
-## or MOD item is drawn on its cell, or at item.pos while that cell is off the board.
+## or AREA item is drawn on its cell, or at item.pos while that cell is off the board.
 func ghost(item: Layout.Item, fits := false) -> void:
 	_ghost = item
 	_ghost_fits = fits
@@ -226,17 +230,29 @@ func _draw_balls() -> void:
 	var guide := round.guide()  # empty unless a ball waits on the paddle and the Guide is owned
 	for i in guide.size() - 1:
 		_balls.draw_dashed_line(guide[i], guide[i + 1], Color(Palette.PLAYER, GUIDE_ALPHA), GUIDE_WIDTH, DASH)
-	# The spares in reserve: ball squares up the strip behind the paddle, from the bottom wall, without the
-	# ball's halo, so they never pass for one in play.
-	# ponytail: one column, so about 25 fit on a 16-row board; count them in a number if a round ever has more.
+	var t := _between()
+	for d in round.drops:  # over the bricks and items they pass through, under the balls
+		var at: Vector2 = _was_drops.get(d.id, d.pos).lerp(d.pos, t)
+		_balls.draw_rect(Rect2(at - Vector2.ONE * d.size * 0.5, Vector2.ONE * d.size), Palette.lit(Palette.ABILITY))
+	# The charges in reserve: ball squares up the strip behind the paddle, from the bottom wall, without the
+	# ball's halo, so they never pass for one in play. The one on the paddle is drawn as a ball.
+	# ponytail: one column, so about 25 fit on a 16-row board; the HUD's readout counts them past that.
 	var s := round.stats.ball_size
 	for i in round.charges:
-		_balls.draw_rect(Rect2(-round.board.lane() + (round.stats.paddle_inset - s) * 0.5, round.board.size().y - (i + 1) * s * SPARE_PITCH,
+		_balls.draw_rect(Rect2(-round.board.lane() + (round.stats.paddle_inset - s) * 0.5, round.board.size().y - (i + 1) * s * CHARGE_PITCH,
 				s, s), Palette.lit(Palette.BALL))
-	var t := _between()
 	for ball in round.balls:
 		var at: Vector2 = _was.get(ball.id, ball.pos).lerp(ball.pos, t)
-		_balls.draw_rect(Rect2(at - Vector2.ONE * ball.size * 0.5, Vector2.ONE * ball.size), Palette.lit(Palette.BALL, Palette.LIT_BALL))
+		var square := Rect2(at - Vector2.ONE * ball.size * 0.5, Vector2.ONE * ball.size)
+		if charged(round, ball):
+			_balls.draw_rect(square.grow(MARK_RIM), Palette.lit(Palette.ABILITY))
+		_balls.draw_rect(square, Palette.lit(Palette.BALL, Palette.LIT_BALL))
+
+
+## Whether `ball` is drawn with the orange rim: it carries an ability, or it is the charge on the paddle and there
+## is an ability to fire it with. The first ball, held on the paddle, is no charge.
+static func charged(p_round: Round, ball: Ball) -> bool:
+	return ball.charge != &"" or (ball == p_round.waiting and not p_round.held and p_round.ability != &"")
 
 
 func _draw_ghost() -> void:
@@ -260,14 +276,10 @@ func _draw_ghost() -> void:
 		var r := _area(_ghost) if round.board.has_cell(_ghost.cell) else cell
 		_ghost_view.draw_rect(r, Color(fill, 0.5))
 		_dashed(Collide.box(r.grow(-GHOST_EDGE * 0.5)), edge)
-	elif kind.placement == PlaceableKind.Placement.BRICK:
+	else:
 		var body := cell.grow(-1.0 - GHOST_EDGE * 0.5)
 		_ghost_view.draw_rect(body, fill)
 		_dashed(Collide.box(body), edge)
-	else:
-		var mark := Rect2(cell.get_center() - kind.size * 0.5, kind.size)
-		_ghost_view.draw_rect(mark.grow(MARK_RIM), Palette.BASE)
-		_ghost_view.draw_rect(mark, edge)
 
 
 # What an AREA item covers, cut to the board.

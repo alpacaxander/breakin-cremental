@@ -6,7 +6,7 @@ extends Control
 ## It owns the clock and the phase and nothing of the rules: it builds a Round, steps it on the physics tick,
 ## and hands it to the nodes that show it.
 ##   Arena     arena.gd      the board, the paddle, the balls, the placed items, the ghost; and Fx, last
-##   Hud       hud.gd        time, combo, coins; Play's footer
+##   Hud       hud.gd        time, the ability readout, combo, coins; Play's footer
 ##   SetupUi   setup_ui.gd   the tray, the placing, Start
 ##   Summary   summary.gd    the result, Retry or Next, Upgrades
 ##
@@ -14,8 +14,11 @@ extends Control
 ## bricks are already where Play will have them. Every edit saves the layout and builds that round again.
 ## The keys (not the mouse, which places items) move its paddle, and the ball rides on it (Round.hold).
 ## PLAY builds it once more and steps it, with the ball still on the paddle until a click or Space launches it
-## (Round.launch); until then only the paddle moves and the timer waits. Each spare ball that comes onto the
-## paddle later is launched the same way (Round, SPARES). Esc, or the window losing focus, pauses it (pause()):
+## (Round.launch); until then only the paddle moves and the timer waits. Each charge that comes onto the paddle
+## later is fired the same way, carrying the selected ability (Round, CHARGES and ABILITIES). The wheel, Q and E
+## (rotate_ccw, rotate_cw) cycle that selection (Round.cycle); this screen keeps it from one round to the next,
+## and nothing saves it. Setup reads the same actions to turn items, so each phase reads them only while it is
+## the one open. Esc, or the window losing focus, pauses it (pause()):
 ## Resume, Retry or Upgrades, and leaving that way pays nothing. The paddle goes where the last thing the player
 ## used says: a held key (W/S, the arrows) moves it, the mouse's height draws it, both at paddle speed. A key
 ## takes over at once, and the mouse takes it back only by moving, so a key player's paddle stays where it was
@@ -41,6 +44,8 @@ var _stats: Balance
 ## The level's layout as it is being edited. The round is built from it; it is saved on every change.
 var _layout: Layout
 var _seed := 0
+## The ability Play last had selected, &"" before any: every round built here starts on it.
+var _ability: StringName = &""
 var _by_mouse := false
 var _mouse_y := 0.0
 ## The mouse's height when the keys last had the paddle.
@@ -111,6 +116,13 @@ func _input(event: InputEvent) -> void:
 	if b and b.pressed and b.button_index == MOUSE_BUTTON_LEFT and phase == Phase.PLAY and round.waiting and not paused:
 		get_viewport().set_input_as_handled()
 		round.launch()
+	# From the event: a wheel notch is pressed and released within one frame. Setup's tray is hidden in Play, so
+	# only this reads them then.
+	var steps := int(event.is_action_pressed(&"rotate_cw")) - int(event.is_action_pressed(&"rotate_ccw"))
+	if steps != 0 and phase == Phase.PLAY and not paused:
+		get_viewport().set_input_as_handled()
+		round.cycle(steps)
+		_ability = round.ability
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -205,12 +217,15 @@ func _setup() -> void:
 	_build()
 
 
-## Builds the round from the layout and the seed and puts it on screen. The paddle stays where Setup moved it.
+## Builds the round from the layout and the seed and puts it on screen. The paddle stays where Setup moved it,
+## and the selected ability stays what Play last had (the stats are this screen's, so it is still unlocked).
 func _build() -> void:
 	var paddle_y := round.paddle.y if round else NAN
 	round = Round.new(_data.board, _layout, _stats, _seed)
 	if not is_nan(paddle_y):
 		round.paddle.y = paddle_y
+	if _ability:
+		round.ability = _ability
 	round.hold()
 	round.target = _data.target
 	_arena.show_round(round, phase == Phase.SETUP)
