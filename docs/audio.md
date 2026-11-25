@@ -12,7 +12,7 @@ Every sound is synthesised by one script. Nothing is recorded or downloaded.
 - **Audition page:** the script also writes a `demo.html` with a play button for every cue. Sounds are judged by ear on that page.
 - **Dev shell:** `flake.nix` provides Node, so the script runs under `nix develop`.
 - **In the game:** a cue's name is its file name, `assets/audio/wav/<cue>.wav`. `Sfx` (`src/autoload/sfx.gd`) has a constant for each cue below, and `Sfx.connect_round(round)` wires a round's signals to them.
-- **Clicks:** `Sfx` plays the click for every button in the game by itself, so no screen and no widget plays one. A button whose press has a cue of its own (Buy, Start) is put in the group `Sfx.QUIET` and gets no click. The other UI cues are played by the screen they belong to: buy and can't afford by the hub, place item and the tally tick by the level screen (see the header of `sfx.gd`).
+- **Clicks:** `Sfx` plays the click for every button in the game by itself, so no screen and no widget plays one. A button whose press has a cue of its own (Buy, Start) is put in the group `Sfx.QUIET` and gets no click. The other UI cues are played by the screen they belong to: buy, can't afford and, for an undo, place item by the hub, place item and the tally tick by the level screen (see the header of `sfx.gd`).
 
 ## Sound cues
 

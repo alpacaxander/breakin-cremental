@@ -1,6 +1,7 @@
 extends RefCounted
 ## The upgrade screen, through the real Main and real clicks: which nodes are open, previewed and hidden, Buy
-## (coins, keys, copies, sounds), the key counter, the arrows, pan and zoom, the level panel and Esc. The web
+## (coins, keys, copies, sounds), undo (the rule, the refund, a key back, right click against right drag, the
+## button's faces), the key counter, the arrows, pan and zoom, the level panel and Esc. The web
 ## scene's own shape is checked in contracts.gd.
 
 var _heard: Array[StringName] = []
@@ -239,6 +240,94 @@ func run(t: Node) -> void:
 	hub.select(at.call(&"Blast"))
 	t.check(buy.theme_type_variation == &"CantAfford" and (at.call(&"Blast").get_node("Bottom/Price") as UiPrice).dim, "then Blast, the other key node, can't be afforded")
 
+	# Undo. The rule: an owned node can be undone when every other owned node still reaches the seed through owned
+	# nodes without it. With the first 11 nodes owned, the leaves can and the nodes others hang off can't.
+	HubWeb.own_first(11)
+	Progress.unlocked = 1
+	Progress.coins = 0
+	Progress.rank_changed.emit(seed.upgrade)
+	for pair: Array in [[&"ComboWindow", true], [&"PowerBrick", true], [&"WallSegment", true], [&"PaddleSize", false],
+			[&"HourglassBrick", false], [&"PaddleSpeed", false], [&"Zap", false], [&"Guide2", false]]:
+		t.check(web.can_undo(at.call(pair[0])) == pair[1], "with the first 11 nodes owned, %s %s be undone" % [pair[0], "can" if pair[1] else "can't"])
+	# The web's one loop, bottom right: Hourglass Freeze, Hourglass Time, Hourglass Freeze 2, Hourglass Brick 2.
+	HubWeb.own_first(web.nodes().size())
+	t.check(web.can_undo(at.call(&"HourglassTime")) and web.can_undo(at.call(&"HourglassFreeze2")) and not web.can_undo(at.call(&"HourglassFreeze")),
+			"with every node owned, Hourglass Time and Hourglass Freeze 2 on the loop can be undone and Hourglass Freeze, where it hangs, can't")
+	Progress.owned.erase(&"HourglassTime2")
+	Progress.owned.erase(&"HourglassBrick2")
+	t.check(not web.can_undo(at.call(&"HourglassTime")), "without Hourglass Brick 2 the loop is open, and Hourglass Time holds up Hourglass Freeze 2")
+	HubWeb.own_first(1)
+	t.check(web.can_undo(seed), "the seed can be undone when it is the only node owned")
+	HubWeb.own_first(0)
+	t.check(not web.can_undo(seed), "and nothing can be undone with nothing owned")
+
+	# A right click undoes a leaf: Paddle Size 2, the second copy, gives back the last price paid; the copies'
+	# prices fall back a step, the node is on offer again and stays selected, and what it alone opened is a preview.
+	HubWeb.own_first(13)  # Zap among them, with level 1's key
+	Progress.unlocked = 2
+	Progress.rank_changed.emit(seed.upgrade)
+	var size2: HubNode = at.call(&"PaddleSize2")
+	var size_u := size2.upgrade
+	hub.select(size2)
+	t.check(Progress.rank(size_u) == 2 and web.state(at.call(&"Multiball")) == HubNode.State.AVAILABLE, "Paddle Size 2 is owned, the second copy, and Multiball hangs off it")
+	t.check((hub.get_node("Detail/%Note") as Label).text == "UNDO REFUNDS THE LAST PRICE PAID" and (hub.get_node("Detail/%PriceTag") as Label).text == "REFUND"
+			and panel_price.amount == size_u.cost(1) and not panel_price.dim and not panel_price.key and not buy.disabled and buy.text == "UNDO"
+			and buy.theme_type_variation == &"SecondaryButton", "an owned leaf's panel: the refund of %d, gold, and UNDO in the secondary look" % size_u.cost(1))
+	await t.tree().create_timer(0.15).timeout
+	_heard.clear()
+	await _right_click(t, size2)
+	await t.tree().create_timer(0.15).timeout
+	t.check(not web.owns(size2) and Progress.rank(size_u) == 1 and Progress.coins == size_u.cost(1) and hub.selected == size2
+			and web.state(size2) == HubNode.State.AVAILABLE, "a right click undoes it: one copy, %d coins back, on offer again and selected" % size_u.cost(1))
+	t.check(Sfx.PLACE_ITEM in _heard and not Sfx.CLICK in _heard, "an undo plays place item and no click (heard %s)" % [_heard])
+	t.check((size2.get_node("Bottom/Price") as UiPrice).amount == size_u.cost(1) and (at.call(&"PaddleSize3").get_node("Bottom/Price") as UiPrice).amount == size_u.cost(1)
+			and (at.call(&"PaddleSize").get_node("Bottom/Pips") as UiPips).total == 1, "the copies ask %d again, and the one left shows one pip" % size_u.cost(1))
+	t.check(web.state(at.call(&"Multiball")) == HubNode.State.PREVIEW and web.state(at.call(&"GoldBrick2")) == HubNode.State.PREVIEW
+			and web.state(at.call(&"ComboWindow2")) == HubNode.State.LOCKED and not at.call(&"ComboWindow2").visible,
+			"what it alone opened is a preview again, and the ring past that hidden")
+	t.check((hub.get_node("Detail/%Note") as Label).text == "YOU OWN 1. EACH ONE RAISES THE REST" and buy.text == "BUY",
+			"the panel shows it on offer again")
+	# A right press that turns into a drag pans and undoes nothing, wherever it is let go.
+	var paddle_size: HubNode = at.call(&"PaddleSize")
+	var hour: HubNode = at.call(&"HourglassBrick")
+	var ladder := at.call(&"ComboWindow") as HubNode
+	var pan := web.pan
+	await _right_click(t, ladder, Vector2(30, 0), true)
+	t.check(web.owns(ladder), "a right drag that comes back to where it began undoes nothing")
+	await _right_click(t, ladder, Vector2(30, 0))
+	t.check(web.owns(ladder) and web.pan != pan, "nor does one let go elsewhere, which pans the web")
+	# A node in use: IN USE, disabled, and a right click only selects it and plays can't afford.
+	hub.select(hour)
+	t.check((hub.get_node("Detail/%Note") as Label).text == "UNDO WHAT HANGS OFF IT FIRST" and buy.disabled and buy.text == "IN USE",
+			"a node others hang off: the panel says undo those first and the button is IN USE, disabled")
+	await t.tree().create_timer(0.15).timeout
+	_heard.clear()
+	await _right_click(t, paddle_size)
+	await t.tree().create_timer(0.15).timeout
+	t.check(web.owns(paddle_size) and hub.selected == paddle_size and buy.text == "IN USE" and Sfx.CANT_AFFORD in _heard,
+			"a right click on a node in use selects it, undoes nothing and plays can't afford (heard %s)" % [_heard])
+	# A node not owned: a right click selects it, silently. And a double click on an owned node undoes nothing.
+	_heard.clear()
+	await _right_click(t, size2)
+	await t.tree().create_timer(0.15).timeout
+	t.check(hub.selected == size2 and not web.owns(size2) and Progress.coins == size_u.cost(1) and _heard.is_empty(),
+			"a right click on a node on offer selects it and does nothing else (heard %s)" % [_heard])
+	hub.select(ladder)  # in view
+	await _click(t, ladder, true)
+	t.check(web.owns(ladder) and Progress.rank(ladder.upgrade) == 1, "a double click on an owned leaf undoes nothing")
+	# A key comes back: Zap bought with level 1's key, then undone by keyboard, Enter on UNDO.
+	Progress.unlocked = 2
+	HubWeb.own_first(12)
+	Progress.rank_changed.emit(seed.upgrade)
+	hub.select(zap)
+	t.check(Progress.keys() == 0 and (hub.get_node("Detail/%Note") as Label).text == "UNDO GIVES THE KEY BACK" and panel_price.key and panel_price.text == "1 KEY"
+			and not buy.disabled and buy.text == "UNDO", "an owned key node: UNDO gives the key back, the refund is 1 KEY")
+	var coins_before := Progress.coins
+	buy.grab_focus()
+	_key(t, KEY_ENTER)
+	t.check(not web.owns(zap) and Progress.keys() == 1 and keys.amount == 1 and Progress.coins == coins_before and hub.selected == zap
+			and web.state(zap) == HubNode.State.AVAILABLE, "Enter on UNDO undoes Zap: the key is back in the top bar, no coins")
+
 	# Esc goes to the main menu and is handled there.
 	var viewport := hub.get_viewport()
 	var esc := InputEventKey.new()
@@ -297,4 +386,30 @@ func _click(t: Node, control: Control, double := false) -> void:
 		click.position = at
 		click.global_position = at
 		t.get_viewport().push_input(click, true)
+		await t.tree().process_frame
+
+
+## A right click on a web node, as _click. With `drag`, the pointer moves that much with the button held before the
+## release; with `back` too, it moves back to where it began first.
+func _right_click(t: Node, control: Control, drag := Vector2.ZERO, back := false) -> void:
+	(control.get_parent() as HubWeb).refresh(control)  # bring it into the view, as the arrow keys would
+	var at := control.get_global_rect().get_center()
+	var path: Array[Vector2] = [at]
+	if drag:
+		path.append(at + drag)
+	if back:
+		path.append(at)
+	for i in path.size() + 1:
+		var e: InputEventMouse
+		if i in [0, path.size()]:
+			e = InputEventMouseButton.new()
+			e.button_index = MOUSE_BUTTON_RIGHT
+			e.pressed = i == 0
+		else:
+			e = InputEventMouseMotion.new()
+			e.button_mask = MOUSE_BUTTON_MASK_RIGHT
+			e.relative = path[i] - path[i - 1]
+		e.position = path[mini(i, path.size() - 1)]
+		e.global_position = e.position
+		t.get_viewport().push_input(e, true)
 		await t.tree().process_frame

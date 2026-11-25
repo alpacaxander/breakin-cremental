@@ -10,8 +10,9 @@ extends Control
 ## hangs off). No code changes. tests/cases/hub.gd checks the copies, the seed and what each node needs first.
 ##
 ## A node is bought once (its name goes into Progress.owned). An unbought node is on offer once a node it links to
-## has been bought; the seed is on offer from the start. That is decided here, from the links, never by Progress
-## (which only checks price, key and max rank). A node one link past an offered one, or up to PEEK links behind a
+## has been bought; the seed is on offer from the start. An owned node can be undone while the rest stay joined to
+## the seed without it (can_undo). That is decided here, from the links, never by Progress (which only checks
+## price, key and max rank). A node one link past an offered one, or up to PEEK links behind a
 ## key node that is on offer or owned, is a PREVIEW: shown dimmed, selectable, not for sale. Every other node is
 ## LOCKED and hidden, and so are its links.
 ##
@@ -155,6 +156,23 @@ func _offered(n: HubNode) -> bool:
 ## True if this node was bought.
 func owns(n: HubNode) -> bool:
 	return n.name in Progress.owned
+
+
+## True if the owned node can be undone: every other owned node still reaches the seed through owned nodes
+## without it. So the seed only when nothing else is owned, and a node on a loop while the loop's other way holds.
+func can_undo(n: HubNode) -> bool:
+	if not owns(n):
+		return false
+	var rest := nodes().filter(func(m: HubNode) -> bool: return m != n and owns(m))
+	if n.is_seed or rest.is_empty():
+		return rest.is_empty()
+	links()
+	var skip := {n: true}
+	for m in nodes():
+		if not owns(m):
+			skip[m] = true
+	var held := _reach(seed_node(), skip)
+	return rest.all(func(m: HubNode) -> bool: return held.has(m))
 
 
 ## True if the node can be bought now: on offer, and a key or the coins cover the next copy.

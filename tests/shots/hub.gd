@@ -4,7 +4,9 @@ extends RefCounted
 ## the orange Abilities branch part bought with Blast, the longest text, in the panel, Shockwave scrolled into
 ## view, a Buy the player cannot afford, a locked level in the level panel, the pointer over a node, and the web
 ## zoomed fully out and fully in, and the key moment: level 1 cleared, the first 11 nodes bought, Zap and Blast on
-## offer for the one key with the nodes behind them previewed, Zap selected, then a preview behind it selected.
+## offer for the one key with the nodes behind them previewed, Zap selected, then a preview behind it selected. And
+## undo: an owned leaf selected (Combo Window: UNDO and the refund) and an owned node others hang off (Hourglass
+## Brick: IN USE).
 
 
 func shots() -> Array[Dictionary]:
@@ -19,6 +21,8 @@ func shots() -> Array[Dictionary]:
 		{"name": "maxed_flat", "save": "maxed", "crt": false, "setup": _pick.bind(&"Combo")},
 		{"name": "mid_growth_pulses", "save": "mid", "crt": false, "setup": _pick.bind(&"GrowthPulses")},
 		{"name": "mid_overgrowth", "save": "mid", "crt": false, "setup": _pick.bind(&"Overgrowth")},
+		{"name": "mid_undo", "save": "mid", "crt": false, "setup": _pick.bind(&"ComboWindow")},
+		{"name": "mid_in_use", "save": "mid", "crt": false, "setup": _pick.bind(&"HourglassBrick")},
 		{"name": "mid_abilities", "save": "mid", "crt": false, "setup": _pick.bind(&"Blast")},
 		{"name": "mid_abilities_crt", "save": "mid", "setup": _pick.bind(&"Blast")},
 		{"name": "maxed_shockwave", "save": "maxed", "crt": false, "setup": _pick.bind(&"Shockwave")},

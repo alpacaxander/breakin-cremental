@@ -38,6 +38,7 @@ const DASH := 6.0
 @export var links: Array[NodePath] = []
 
 var state := State.AVAILABLE
+var _rank := 0  # the copies of the upgrade owned at the last rank_changed: a pulse only when it rises
 ## The web view's zoom, which HubWeb also sets as this node's scale: a pulse swells from it and settles back to it.
 var zoom := 1.0
 ## Drawn with the selection outline.
@@ -55,9 +56,13 @@ func _ready() -> void:
 	mouse_exited.connect(queue_redraw)
 	_place()
 	if not Engine.is_editor_hint():  # this node was just bought: it swells for a moment
+		_rank = Progress.rank(upgrade)
 		Progress.rank_changed.connect(func(u: Upgrade) -> void:
-			if u == upgrade and Progress.owned and Progress.owned.back() == name:
-				UiTheme.pulse(self, 0.5, UiTheme.PULSE, zoom))
+			if u != upgrade:
+				return
+			if Progress.rank(u) > _rank and Progress.owned and Progress.owned.back() == name:  # not when a copy is undone
+				UiTheme.pulse(self, 0.5, UiTheme.PULSE, zoom)
+			_rank = Progress.rank(u))
 
 
 ## Shows the node in `s`. `affordable` lights the price gold.

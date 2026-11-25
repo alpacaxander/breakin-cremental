@@ -26,11 +26,12 @@ extends Node
 ##                it in _ready.
 ##   BUY          the hub, when Progress.buy returns true.
 ##   CANT_AFFORD  the hub, when Buy is pressed and the coins do not cover it. That Buy button stays enabled (a
-##                disabled Button emits no `pressed`) and shows art.md's "Can't afford" look.
-##   PLACE_ITEM   the level screen, when an item is put down in Setup.
+##                disabled Button emits no `pressed`) and shows art.md's "Can't afford" look. Also for a right
+##                click on an owned node that is in use, which can't be undone.
+##   PLACE_ITEM   the level screen, when an item is put down in Setup; the hub, when Progress.undo returns true.
 ##   TALLY_TICK   the level screen, as the Summary counts up.
-## A button whose press has a cue of its own goes in QUIET: Buy (BUY or CANT_AFFORD) and Start (ROUND_START, which
-## connect_round plays).
+## A button whose press has a cue of its own goes in QUIET: Buy (BUY, PLACE_ITEM for an undo, or CANT_AFFORD) and Start
+## (ROUND_START, which connect_round plays).
 
 ## The group of buttons that play no CLICK.
 const QUIET := &"quiet"

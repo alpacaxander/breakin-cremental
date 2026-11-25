@@ -72,7 +72,7 @@ Win by clearing the final level. There is no loss state: a round that times out 
 ## Controls
 
 - In a round: W/S or the up/down arrows move the paddle. With the mouse, the paddle chases the cursor's vertical position at paddle speed. A left click or Space launches the ball waiting on the paddle, the first ball or a charge. The scroll wheel, or Q and E, cycles the ability a charge fires with.
-- Between rounds: the mouse. Click to buy upgrades and drag to place items. The scroll wheel, or Q and E, rotates a rotatable item. Esc, or the back button, goes one step back (see `docs/design/overview.md`).
+- Between rounds: the mouse. Click to buy upgrades, right click to undo one, and drag to place items. The scroll wheel, or Q and E, rotates a rotatable item. Esc, or the back button, goes one step back (see `docs/design/overview.md`).
 
 ## Target audience & platform
 

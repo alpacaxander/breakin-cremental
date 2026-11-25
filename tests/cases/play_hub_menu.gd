@@ -5,7 +5,7 @@ extends RefCounted
 ##
 ## The hub: every node read on fresh, mid and maxed saves against docs/design/upgrades.md's table and drawn web,
 ## every path out from the seed to a leaf bought and the open set compared with the drawn links, a node owned and
-## its copy's price, Buy with too few coins,
+## its copy's price, then undone by a right click (a right drag only pans) and by Undo, Buy with too few coins,
 ## each level picked, a locked one tried, and the hub after a real round on level 1 that clears it.
 ## The menu and Settings by mouse and by keyboard, each setting at once and after a restart.
 ## The joins: Esc twice from every screen and state, back buttons, double clicks, and how many times each UI cue
@@ -190,8 +190,11 @@ func _details(save: String) -> void:
 				"%s: the text fits the panel's two lines (%d lines, %d shown)" % [what, text.get_line_count(), text.get_visible_line_count()])
 		var owned := StringName(n.name) in Progress.owned
 		var open := web.state(n) == HubNode.State.AVAILABLE
-		var note := "" if owned else "COSTS 1 KEY, NO COINS" if u.key else "BUY A NODE NEXT TO IT FIRST" if not open \
+		var undo := owned and web.can_undo(n)  # the rule itself is checked in hub.gd
+		var note := "COSTS 1 KEY, NO COINS" if u.key else "BUY A NODE NEXT TO IT FIRST" if not open \
 				else "YOU OWN %d. EACH ONE RAISES THE REST" % r if r else "NONE OWNED YET"
+		if owned:
+			note = "UNDO WHAT HANGS OFF IT FIRST" if not undo else "UNDO GIVES THE KEY BACK" if u.key else "UNDO REFUNDS THE LAST PRICE PAID"
 		t.check(u.max_rank == row[2] and _text("Detail/%Note") == note, "%s: the note reads \"%s\" (reads \"%s\")" % [what, note, _text("Detail/%Note")])
 		var note_label := _hub().get_node("Detail/%Note") as Label
 		t.check(note_label.get_minimum_size().x <= note_label.size.x + 0.5, "%s: the note fits the panel" % what)
@@ -203,9 +206,13 @@ func _details(save: String) -> void:
 		if not owned:
 			t.check((_hub().get_node("Detail/%Price") as UiPrice).amount == price and (n.get_node("Bottom/Price") as UiPrice).amount == price,
 					"%s: the next copy costs %d, on the panel and on the node" % [what, price])
-		t.check((_hub().get_node("Detail/%Cost") as Control).visible != owned and (n.get_node("Bottom/Price") as Control).visible != owned,
-				"%s: the price shows only until the node is bought" % what)
-		t.check(buy.text == ("OWNED" if owned else "BUY" if open else "LOCKED") and buy.disabled == not open, "%s: Buy reads %s" % [what, buy.text])
+		elif not u.key:
+			var back: int = roundi(row[4] * pow(row[5], r - 1))
+			t.check(_text("Detail/%PriceTag") == "REFUND" and (_hub().get_node("Detail/%Price") as UiPrice).amount == back,
+					"%s: the panel offers a refund of %d, the last price paid" % [what, back])
+		t.check((n.get_node("Bottom/Price") as Control).visible != owned, "%s: the node's price shows only until it is bought" % what)
+		t.check(buy.text == ("BUY" if open else ("UNDO" if undo else "IN USE") if owned else "LOCKED") and buy.disabled == not (open or undo),
+				"%s: Buy reads %s" % [what, buy.text])
 		var can := open and (Progress.keys() > 0 if u.key else Progress.coins >= price)
 		t.check((n.get_node("Bottom/Price") as UiPrice).dim == not can, "%s: the node's price is gold only when it can be bought now" % what)
 		t.check((_hub().get_node("Detail") as Control).get_global_rect() == DETAIL, "%s: the detail panel keeps its size (is %s)" % [what, (_hub().get_node("Detail") as Control).get_global_rect()])
@@ -275,14 +282,27 @@ func _max_and_poor() -> void:
 	await _click(buy)
 	await _heard_settle()
 	t.check(heard == [Sfx.BUY] and Progress.coins == 195, "buying the seed costs 5 and plays the buy cue once and nothing else (heard %s)" % [heard])
-	t.check(_web().state(seed) == HubNode.State.OWNED and buy.disabled and buy.text == "OWNED", "once bought it is owned and Buy reads OWNED")
-	t.check(not (_hub().get_node("Detail/%Cost") as Control).visible and not (seed.get_node("Bottom/Price") as Control).visible, "the price is gone, on the panel and on the node")
+	t.check(_web().state(seed) == HubNode.State.OWNED and not buy.disabled and buy.text == "UNDO", "once bought it is owned, and Buy reads UNDO: the seed is the only node owned")
+	t.check(_text("Detail/%PriceTag") == "REFUND" and (_hub().get_node("Detail/%Price") as UiPrice).amount == 5 and not (seed.get_node("Bottom/Price") as Control).visible,
+			"the panel offers the 5 back, and the node's price is gone")
 	t.check((_web().get_node("PaddleSpeed2/Bottom/Price") as UiPrice).amount == 150, "Paddle Speed's other copy now costs 150, its second rank")
-	var coins := Progress.coins
+	# A right click on it undoes it, through the CRT as the player sees it; a right drag that ends there too only pans.
+	var pan := _web().pan
+	await _quiet()
+	await _right_click_at(seed.get_global_rect().get_center(), Vector2(40, 0))
+	await _heard_settle()
+	t.check(_web().owns(seed) and heard.is_empty() and _web().pan != pan, "a right drag from the seed pans and undoes nothing (heard %s)" % [heard])
+	await _quiet()
+	await _right_click_at(seed.get_global_rect().get_center())
+	await _heard_settle()
+	t.check(not _web().owns(seed) and Progress.coins == 200 and heard == [Sfx.PLACE_ITEM] and _hub().selected == seed and buy.text == "BUY",
+			"a right click on the seed undoes it: the 5 come back, place item plays once and nothing else (heard %s)" % [heard])
+	t.check((_web().get_node("PaddleSpeed2/Bottom/Price") as UiPrice).amount == 5, "and the other copy's price falls back to 5")
+	await _click(buy)
 	await _quiet()
 	await _click(buy)
 	await _heard_settle()
-	t.check(Progress.coins == coins and heard.is_empty(), "a click on the owned node's Buy does nothing and plays nothing (heard %s)" % [heard])
+	t.check(not _web().owns(seed) and Progress.coins == 200 and heard == [Sfx.PLACE_ITEM], "bought again, a click on UNDO undoes it too (heard %s)" % [heard])
 	await _quiet()
 	await _click(_web().get_node("Combo"))
 	await _heard_settle()
@@ -678,3 +698,21 @@ func _key(key: Key) -> void:
 		event.physical_keycode = key
 		event.pressed = down
 		t.get_viewport().push_input(event, true)
+
+
+## A right click at the game's point `at`: a move there and a press, then with `drag` a move by that much with the
+## right button held, and the release where the pointer ends.
+func _right_click_at(at: Vector2, drag := Vector2.ZERO) -> void:
+	_mouse(at)
+	_mouse(at, MOUSE_BUTTON_RIGHT, true)
+	await t.tree().process_frame
+	if drag:
+		var move := InputEventMouseMotion.new()
+		move.button_mask = MOUSE_BUTTON_MASK_RIGHT
+		move.position = _at(at + drag)
+		move.global_position = move.position
+		move.relative = move.position - _at(at)
+		t.get_viewport().push_input(move, true)
+		await t.tree().process_frame
+	_mouse(at + drag, MOUSE_BUTTON_RIGHT, false)
+	await t.tree().process_frame
