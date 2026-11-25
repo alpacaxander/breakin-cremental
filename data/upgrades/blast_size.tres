@@ -6,7 +6,7 @@
 script = ExtResource("1")
 title = "Blast Size"
 category = 3
-text = "A Blast reaches one square further."
+text = "Blasts reach one square further."
 first_cost = 150
 growth = 20
 max_rank = 2
