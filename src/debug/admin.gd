@@ -16,7 +16,8 @@ extends Node
 const KEY := KEY_QUOTELEFT
 ## The web nodes the balance bot's average player owns on reaching each level (and after clearing the last), in
 ## the order it bought them, with `unlocked` to match: from `tests/run.sh bot campaign skill=average` (key=zap) on
-## 2026-11-24, levels cleared on rounds 3, 9 and 29; each list holds what was bought up to and on that round.
+## 2026-11-24 after the third Power Brick moved behind Zap, levels cleared on rounds 3, 9 and 26; each list holds
+## what was bought up to and on that round (9, 19 and 41 nodes).
 ## Applying one replaces every owned node and leaves the coins alone; the keys come out at 0.
 # ponytail: copied by hand from tests/out/bot/campaign.json's purchases. Rerun the campaign and recopy after tuning.
 const PRESETS := {
@@ -25,14 +26,14 @@ const PRESETS := {
 			&"PowerBrick", &"Zap", &"HourglassBrick", &"Guide"]},
 	"Level 3": {"unlocked": 3, "owned": [&"PaddleSpeed", &"Combo", &"Booster", &"PaddleSize", &"ToughBrick",
 			&"PowerBrick", &"Zap", &"HourglassBrick", &"Guide", &"GoldBrick", &"ComboWindow", &"WallSegment",
-			&"PaddleSize2", &"Booster2", &"Blast", &"Splitter", &"PowerBrick2", &"Growth", &"Guide2"]},
+			&"PaddleSize2", &"Booster2", &"Blast", &"Splitter", &"PowerBrick2", &"Growth", &"PaddleSpeed2"]},
 	"Cleared": {"unlocked": 4, "owned": [&"PaddleSpeed", &"Combo", &"Booster", &"PaddleSize", &"ToughBrick",
 			&"PowerBrick", &"Zap", &"HourglassBrick", &"Guide", &"GoldBrick", &"ComboWindow", &"WallSegment",
-			&"PaddleSize2", &"Booster2", &"Blast", &"Splitter", &"PowerBrick2", &"Growth", &"Guide2", &"PaddleSpeed2",
-			&"ToughBrick2", &"BlastSize", &"GoldBrick2", &"Splitter2", &"GuideBounces", &"Multiball", &"RearPaddle",
-			&"GrowthReach", &"BlastDamage", &"PaddleSize3", &"ZapRange", &"Guide3", &"BoosterSpeed", &"ComboWindow2",
-			&"Shockwave", &"PowerBrick4", &"ToughBrick3", &"Growth2", &"WallSegment2", &"Splitter3", &"Overgrowth",
-			&"ZapDamage", &"HourglassFreeze", &"GrowthPulses", &"GoldBrick3"]},
+			&"PaddleSize2", &"Booster2", &"Blast", &"Splitter", &"PowerBrick2", &"Growth", &"PaddleSpeed2",
+			&"ToughBrick2", &"Guide2", &"BlastSize", &"GoldBrick2", &"Splitter2", &"GuideBounces", &"Multiball",
+			&"RearPaddle", &"GrowthReach", &"BlastDamage", &"PaddleSize3", &"PowerBrick3", &"ZapRange", &"BoosterSpeed",
+			&"Guide4", &"SplitterHealth2", &"ComboWindow2", &"Overgrowth", &"Shockwave", &"ToughBrick3", &"Growth2",
+			&"WallSegment2"]},
 }
 
 var _win := Window.new()

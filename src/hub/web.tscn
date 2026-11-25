@@ -126,11 +126,6 @@ upgrade = ExtResource("growth")
 cell = Vector2i(0, 4)
 links = Array[NodePath]([NodePath("../WallSegment")])
 
-[node name="Guide2" parent="." instance=ExtResource("node")]
-upgrade = ExtResource("guide")
-cell = Vector2i(-2, -2)
-links = Array[NodePath]([NodePath("../Zap")])
-
 [node name="PaddleSpeed2" parent="." instance=ExtResource("node")]
 upgrade = ExtResource("paddle_speed")
 cell = Vector2i(1, -4)
@@ -140,6 +135,11 @@ links = Array[NodePath]([NodePath("../Splitter")])
 upgrade = ExtResource("tough_brick")
 cell = Vector2i(1, -5)
 links = Array[NodePath]([NodePath("../PaddleSpeed2")])
+
+[node name="Guide2" parent="." instance=ExtResource("node")]
+upgrade = ExtResource("guide")
+cell = Vector2i(0, -5)
+links = Array[NodePath]([NodePath("../ToughBrick2")])
 
 [node name="GoldBrick2" parent="." instance=ExtResource("node")]
 upgrade = ExtResource("gold_brick")
@@ -176,15 +176,15 @@ upgrade = ExtResource("paddle_size")
 cell = Vector2i(-4, 0)
 links = Array[NodePath]([NodePath("../PowerBrick2")])
 
+[node name="PowerBrick3" parent="." instance=ExtResource("node")]
+upgrade = ExtResource("power_brick")
+cell = Vector2i(-2, -2)
+links = Array[NodePath]([NodePath("../Zap")])
+
 [node name="ZapRange" parent="." instance=ExtResource("node")]
 upgrade = ExtResource("zap_range")
 cell = Vector2i(-3, -2)
-links = Array[NodePath]([NodePath("../Guide2")])
-
-[node name="Guide3" parent="." instance=ExtResource("node")]
-upgrade = ExtResource("guide")
-cell = Vector2i(0, -5)
-links = Array[NodePath]([NodePath("../ToughBrick2")])
+links = Array[NodePath]([NodePath("../PowerBrick3")])
 
 [node name="BoosterSpeed" parent="." instance=ExtResource("node")]
 upgrade = ExtResource("booster_speed")
@@ -221,8 +221,8 @@ upgrade = ExtResource("zap_damage")
 cell = Vector2i(-4, -2)
 links = Array[NodePath]([NodePath("../ZapRange")])
 
-[node name="PowerBrick3" parent="." instance=ExtResource("node")]
-upgrade = ExtResource("power_brick")
+[node name="Guide3" parent="." instance=ExtResource("node")]
+upgrade = ExtResource("guide")
 cell = Vector2i(-4, -3)
 links = Array[NodePath]([NodePath("../ZapDamage")])
 
@@ -269,7 +269,7 @@ links = Array[NodePath]([NodePath("../BlastDamage")])
 [node name="PaddleSize4" parent="." instance=ExtResource("node")]
 upgrade = ExtResource("paddle_size")
 cell = Vector2i(-1, -5)
-links = Array[NodePath]([NodePath("../Guide3")])
+links = Array[NodePath]([NodePath("../Guide2")])
 
 [node name="Multiball2" parent="." instance=ExtResource("node")]
 upgrade = ExtResource("multiball")
@@ -299,7 +299,7 @@ links = Array[NodePath]([NodePath("../ToughBrick2")])
 [node name="ZapRange2" parent="." instance=ExtResource("node")]
 upgrade = ExtResource("zap_range")
 cell = Vector2i(-4, -4)
-links = Array[NodePath]([NodePath("../PowerBrick3")])
+links = Array[NodePath]([NodePath("../Guide3")])
 
 [node name="Splitter4" parent="." instance=ExtResource("node")]
 upgrade = ExtResource("splitter")

@@ -34,7 +34,7 @@ func run(t: Node) -> void:
 	Progress.rank_changed.emit(web.seed_node().upgrade)
 	for pair: Array in [[&"Combo", KEY_UP, &"Splitter"], [&"Combo", KEY_DOWN, &"GrowthReach"], [&"PaddleSize", KEY_UP, &"GuideBounces"],
 			[&"PaddleSize", KEY_DOWN, &"Splitter2"], [&"Booster", KEY_DOWN, &"PaddleSpeed"], [&"Blast", KEY_RIGHT, &"ToughBrick"],
-			[&"HourglassFreeze", KEY_RIGHT, &"HourglassTime"], [&"Zap", KEY_UP, &"Guide2"], [&"Shockwave", KEY_LEFT, &"PowerBrick4"]]:
+			[&"HourglassFreeze", KEY_RIGHT, &"HourglassTime"], [&"Zap", KEY_UP, &"PowerBrick3"], [&"Shockwave", KEY_LEFT, &"PowerBrick4"]]:
 		(at.call(pair[0]) as Control).grab_focus()
 		_key(t, pair[1])
 		t.check(focus.call() == at.call(pair[2]), "%s from %s goes to %s (went to %s)" % [OS.get_keycode_string(pair[1]), pair[0], pair[2], focus.call().name])
@@ -248,10 +248,10 @@ func run(t: Node) -> void:
 	HubWeb.own_first(11)
 	Progress.coins = 0
 	Progress.rank_changed.emit(seed.upgrade)
-	for pair: Array in [[&"Zap", HubNode.State.AVAILABLE], [&"Blast", HubNode.State.AVAILABLE], [&"Guide2", HubNode.State.PREVIEW],
+	for pair: Array in [[&"Zap", HubNode.State.AVAILABLE], [&"Blast", HubNode.State.AVAILABLE], [&"PowerBrick3", HubNode.State.PREVIEW],
 			[&"ZapRange", HubNode.State.PREVIEW], [&"ZapDamage", HubNode.State.PREVIEW], [&"BlastSize", HubNode.State.PREVIEW],
 			[&"BlastDamage", HubNode.State.PREVIEW], [&"Shockwave", HubNode.State.PREVIEW], [&"Splitter4", HubNode.State.LOCKED],
-			[&"PowerBrick3", HubNode.State.LOCKED], [&"PowerBrick4", HubNode.State.LOCKED], [&"BlastDamage2", HubNode.State.LOCKED]]:
+			[&"Guide3", HubNode.State.LOCKED], [&"PowerBrick4", HubNode.State.LOCKED], [&"BlastDamage2", HubNode.State.LOCKED]]:
 		var n: HubNode = at.call(pair[0])
 		t.check(web.state(n) == pair[1] and n.visible == (pair[1] != HubNode.State.LOCKED),
 				"with Power Brick owned, %s is %s (is %s)" % [pair[0], HubNode.State.keys()[pair[1]], HubNode.State.keys()[web.state(n)]])
@@ -289,7 +289,7 @@ func run(t: Node) -> void:
 	Progress.coins = 0
 	Progress.rank_changed.emit(seed.upgrade)
 	for pair: Array in [[&"ComboWindow", true], [&"PowerBrick", true], [&"WallSegment", true], [&"PaddleSize", false],
-			[&"HourglassBrick", false], [&"PaddleSpeed", false], [&"Zap", false], [&"Guide2", false]]:
+			[&"HourglassBrick", false], [&"PaddleSpeed", false], [&"Zap", false], [&"PowerBrick3", false]]:
 		t.check(web.can_undo(at.call(pair[0])) == pair[1], "with the first 11 nodes owned, %s %s be undone" % [pair[0], "can" if pair[1] else "can't"])
 	# The web's one loop, bottom right: Hourglass Freeze, Hourglass Time, Hourglass Freeze 2, Hourglass Brick 2.
 	HubWeb.own_first(web.nodes().size())

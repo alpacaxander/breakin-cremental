@@ -5,6 +5,7 @@ extends Node
 ##   tests/run.sh bot                       the standard report: every level fresh and maxed, and a campaign
 ##   tests/run.sh bot batch level=1 ranks=fresh skill=average seeds=20 layout=auto
 ##   tests/run.sh bot campaign skill=average rounds=400
+##   tests/run.sh bot campaign skill=average bases=20    20 campaigns in a row and their spread (_campaigns): about an hour
 ##   tests/run.sh bot check                 is the bot itself sane: lost balls and caught drops by skill, same seed same line
 ##
 ## Keys (all optional):
@@ -21,6 +22,10 @@ extends Node
 ##   base    added to every seed a batch or a campaign plays with (default 0), to measure on other seeds
 ##   reaction, aim, steer, focus   override the skill's own numbers (see THE PLAYER); focus=0 ignores the aims
 ##   probe   seeds per skill for the campaign's stage probes (default 10; 0 skips them, see _stages)
+##   bases   with campaign: play that many campaigns, at base 0, 100, 200 ..., each with probe=0 and stopped at the
+##           last level's first clear, and print per level the mean, median and range of the round it was first
+##           cleared on (_campaigns). One campaign is noise: its level 3 clear moves by about 6 rounds between bases.
+##           Each takes about 3.5 minutes with the layout search, and they run one after another
 ##   charges hold (default): a charge waits on the paddle until no other ball is in play, as insurance, or until the
 ##           round's last SPEND seconds, when what is left is spent; launch: it goes at once
 ##   ability zap, blast, or first (default: whatever the round selects when built, the first unlocked): the ability
@@ -220,7 +225,11 @@ func _ready() -> void:
 		"batch":
 			result = {"batch": _batches(_levels(), _args.ranks, _skills(), int(_args.seeds), _args.layout)}
 		"campaign":
-			result = {"campaign": _campaign(_skills()[1 if _args.skill == "all" else 0], int(_args.rounds))}
+			var skill: String = _skills()[1 if _args.skill == "all" else 0]
+			if _args.has("bases"):
+				result = {"campaigns": _campaigns(skill, int(_args.rounds), int(_args.bases))}
+			else:
+				result = {"campaign": _campaign(skill, int(_args.rounds))}
 		"check":
 			result = _check()
 		"trace":
@@ -584,6 +593,52 @@ func _campaign(skill: String, limit: int) -> Dictionary:
 			"last_progress": last_progress, "levels": levels, "stages": stages, "purchases": purchases,
 			"nodes_bought": purchases.size(), "nodes": of, "first_key": first_key, "ranks": Progress.ranks,
 			"coins_left": Progress.coins, "rounds": rounds}
+
+
+## `bases` campaigns one after another, at base 0, 100, 200 ..., each with no stage probes (probe=0) and stopped at
+## the last level's first clear, since one campaign is noise: its level 3 clear moves by about 6 rounds from one base
+## to the next. Prints each base's first clears, then per level the mean, median and range of the round it was first
+## cleared on, and the mean nodes bought and coins spent before the round that first cleared the last level.
+func _campaigns(skill: String, limit: int, bases: int) -> Dictionary:
+	_args.probe = "0"
+	var runs := []
+	for b in bases:
+		_args.base = str(b * 100)
+		var c := _campaign(skill, limit)
+		var last: int = c.levels.get(Progress.level_count, {}).get("cleared_on", -1)
+		var before: Array = c.purchases.filter(func(p: Dictionary) -> bool: return last > 0 and p.round < last)
+		c.base = b * 100
+		c.nodes_at_clear = before.size()
+		c.spent_at_clear = before.reduce(func(sum: int, p: Dictionary) -> int: return sum + p.cost, 0)
+		c.erase("rounds")  # every round of every campaign would make the JSON huge
+		runs.append(c)
+	print("\n%d campaigns, skill %s, base 0 to %d, no stage probes" % [bases, skill, (bases - 1) * 100])
+	print("%-6s %s   %s" % ["base", " ".join(range(1, Progress.level_count + 1).map(func(l: int) -> String: return "L%-3d" % l)),
+			"nodes and coins before the last clear"])
+	for c: Dictionary in runs:
+		var on := range(1, Progress.level_count + 1).map(func(l: int) -> String:
+				return "%-4s" % (str(c.levels[l].cleared_on) if c.levels.has(l) and c.levels[l].cleared_on > 0 else "-"))
+		print("%-6d %s   %d, %d" % [c.base, " ".join(on), c.nodes_at_clear, c.spent_at_clear])
+	var out := {"skill": skill, "bases": bases, "levels": {}, "runs": runs}
+	print("\n%-5s %-10s %-6s %-7s %s" % ["level", "cleared", "mean", "median", "range (round first cleared on)"])
+	for level in range(1, Progress.level_count + 1):
+		var on := runs.map(func(c: Dictionary) -> int: return c.levels[level].cleared_on if c.levels.has(level) else -1) \
+				.filter(func(v: int) -> bool: return v > 0)
+		on.sort()
+		var s := {"cleared": on.size(), "mean": -1.0, "median": -1.0, "min": -1, "max": -1}
+		if on:
+			s.mean = on.reduce(func(sum: int, v: int) -> int: return sum + v, 0) / float(on.size())
+			s.median = (on[(on.size() - 1) / 2] + on[on.size() / 2]) / 2.0
+			s.min = on[0]
+			s.max = on[-1]
+		out.levels[level] = s
+		print("%-5d %-10s %-6.1f %-7.1f %d to %d" % [level, "%d of %d" % [on.size(), bases], s.mean, s.median, s.min, s.max])
+	var done := runs.filter(func(c: Dictionary) -> bool: return c.nodes_at_clear > 0)
+	out.nodes_at_clear = done.reduce(func(sum: float, c: Dictionary) -> float: return sum + c.nodes_at_clear, 0.0) / maxi(done.size(), 1)
+	out.spent_at_clear = done.reduce(func(sum: float, c: Dictionary) -> float: return sum + c.spent_at_clear, 0.0) / maxi(done.size(), 1)
+	print("Before the round that first cleared level %d: %.1f of %d nodes bought and %.0f coins spent on average." % [
+			Progress.level_count, out.nodes_at_clear, runs[0].nodes, out.spent_at_clear])
+	return out
 
 
 ## What the campaign's buyer compares: the next copy's price, or -1 for the key node `key` names, so it comes first.
