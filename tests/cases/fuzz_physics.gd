@@ -701,6 +701,7 @@ func _attack(p_seed: int, wrong: Dictionary, seen: Dictionary, cfg := {}) -> voi
 			round.launch()
 			launched[sent.id] = sent.dir
 			dirs[sent.id] = sent.dir  # off a paddle at a wall, its first bounce can come before follow has seen it
+			boost[sent.id] = sent.boost  # likewise its first Booster
 			charge[sent.id] = sent.charge
 			if sent.charge != &"":
 				seen.charged = seen.get(&"charged", 0) + 1
