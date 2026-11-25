@@ -19,6 +19,12 @@ layout_mode = 0
 script = ExtResource("2")
 title = "UPGRADES"
 
+[node name="Hint" type="Label" parent="Bar"]
+layout_mode = 2
+size_flags_vertical = 4
+theme_type_variation = &"SmallTag"
+text = "RIGHT CLICK AN OWNED NODE TO UNDO IT"
+
 [node name="Spacer" type="Control" parent="Bar"]
 layout_mode = 2
 size_flags_horizontal = 3

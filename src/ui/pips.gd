@@ -1,7 +1,7 @@
 class_name UiPips
 extends Control
 ## Rank pips (art.md, "Upgrade screen"): one square per rank, in a row. Owned ranks are lit in the meaning's
-## colour, the rest are 424c6e. On an upgrade node: side 8, gap 4. In the detail panel: side 16, gap 6.
+## colour, the rest are 424c6e. On an upgrade node: side 6, gap 3. In the detail panel: side 16, gap 6.
 
 @export var total := 3:
 	set(v):

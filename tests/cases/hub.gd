@@ -28,7 +28,7 @@ func run(t: Node) -> void:
 			"Enter on the menu's Play, then Esc, puts the focus on the hub's selected node, and buys nothing")
 	_key(t, KEY_TAB)
 	t.check(focus.call() != null and focus.call() != web.seed_node() and hub.is_ancestor_of(focus.call()), "Tab moves the focus on from there")
-	# The arrows go to the nearest node in line on the web's grid, not to the larger seed beside it. Every node is
+	# The arrows go to the nearest node in line on the web's grid, not to a node off the line past a gap. Every node is
 	# owned for this, so every node is shown; the hub opens again on a fresh save below.
 	HubWeb.own_first(web.nodes().size())
 	Progress.rank_changed.emit(web.seed_node().upgrade)
@@ -38,7 +38,22 @@ func run(t: Node) -> void:
 		(at.call(pair[0]) as Control).grab_focus()
 		_key(t, pair[1])
 		t.check(focus.call() == at.call(pair[2]), "%s from %s goes to %s (went to %s)" % [OS.get_keycode_string(pair[1]), pair[0], pair[2], focus.call().name])
-	# The web is 13 rows tall and the view shows 5: a drag reaches the bottom row, and the arrows reach every shown
+	# Every name fits its box on one line, unclipped ("Splitter Respawn" is the longest), and so does the widest
+	# bottom row each upgrade can show: a price shows only beside max_rank - 1 pips at most, with the last copy's
+	# price (Splitter: 4 pips and 6480; Splitter Respawn: 2 and 12500). Five pips never sit beside a price, and
+	# wouldn't fit beside a 5-digit one.
+	var row: Control = web.seed_node().get_node("Bottom")
+	var room := web.seed_node().size.x - 16  # 8 px in from each side
+	for n in web.nodes():
+		var label: Label = n.get_node("Name")
+		var wide := label.get_theme_font(&"font").get_string_size(label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, label.get_theme_font_size(&"font_size")).x
+		t.check(wide <= label.size.x, "%s's name fits its box (%d of %d px)" % [label.text, wide, label.size.x])
+		(row.get_node("Pips") as UiPips).total = n.upgrade.max_rank - 1
+		(row.get_node("Price") as UiPrice).amount = n.upgrade.cost(n.upgrade.max_rank - 1)
+		(row.get_node("Price") as Control).show()
+		t.check(row.get_combined_minimum_size().x <= room, "%s's last pips and price fit a box (%d of %d px)" % [label.text, row.get_combined_minimum_size().x, room])
+	Progress.rank_changed.emit(web.seed_node().upgrade)  # redraws the seed as it was
+	# The web is 13 rows tall and the view shows 10 at zoom 1: a drag reaches the bottom row, and the arrows reach every shown
 	# node and bring each into view. Then the same walk part of the way through the web, where some nodes are hidden.
 	var bottom: HubNode = at.call(&"GrowthReach2")
 	(at.call(&"PaddleSpeed") as Control).grab_focus()
@@ -82,6 +97,17 @@ func run(t: Node) -> void:
 			"a long drag stops with the web still under the view's centre")
 	web.zoom_at(Vector2.ZERO, 0.001)
 	t.check(web.zoom == HubWeb.ZOOM_MIN, "zoom stops at its minimum")
+	# Zoomed out, the whole web fits the view: centred, every node is inside it.
+	var bounds: Rect2 = web.nodes()[0].home()
+	for n in web.nodes():
+		bounds = bounds.merge(n.home())
+	web.move(web.size / 2 - bounds.get_center() * web.zoom - web.pan)
+	for n in web.nodes():
+		t.check(web.get_global_rect().encloses(n.get_global_rect()), "%s sits inside the view zoomed out" % n.name)
+	# The opening fit: every node shown is wider than the view at 0.6, so it stops there, centred on them.
+	web.fit()
+	t.check(web.zoom == HubWeb.FIT_MIN and (web.pan + bounds.get_center() * web.zoom).is_equal_approx(web.size / 2),
+			"with every node shown, fit() zooms to %.1f centred on the web (zoom %.2f)" % [HubWeb.FIT_MIN, web.zoom])
 	Progress.ranks.clear()
 	Progress.owned.clear()
 	Main.show_menu()
@@ -95,6 +121,7 @@ func run(t: Node) -> void:
 	t.check(web.seed_node() == at.call(&"PaddleSpeed"), "Paddle Speed is the seed")
 	t.check(web.seed_node().get_global_rect().get_center().is_equal_approx(web.get_global_rect().get_center()),
 			"the seed sits at the centre of the view")
+	t.check(web.zoom == 1.0, "a fresh save opens at zoom 1: the seed and its four previews fit with room to spare")
 
 	# A fresh save: only the seed is open, its four neighbours are previews, and the rest is hidden.
 	var ring: Array[StringName] = [&"Booster", &"Combo", &"PaddleSize", &"ToughBrick"]
@@ -132,10 +159,22 @@ func run(t: Node) -> void:
 	# A click leaves no focus on Buy: Space is Start and Retry in a level, and here it would press Buy again.
 	_key(t, KEY_SPACE)
 	t.check(focus.call() == seed and Progress.rank(seed.upgrade) == 1, "after a click on Buy the focus is back on the selected node, and Space buys nothing")
-	(at.call(&"Combo") as Control).grab_focus()
-	buy.grab_focus()
+	# By keyboard: Tab from a node goes to Buy, Enter buys the selected node (Combo, which opens Hourglass Brick) and
+	# hands the focus back to the node, in view, so a second Enter does not undo it; Tab reaches Buy again, now UNDO,
+	# and Shift+Tab goes back to the node.
+	var combo_node: HubNode = at.call(&"Combo")
+	combo_node.grab_focus()
+	_key(t, KEY_TAB)
+	t.check(focus.call() == buy, "Tab from a node goes to Buy")
 	_key(t, KEY_ENTER)
-	t.check(focus.call() == buy and Progress.rank(at.call(&"Combo").upgrade) == 1, "by keyboard the focus stays on Buy, and Enter buys the selected node (Combo, which opens Hourglass Brick)")
+	t.check(Progress.rank(combo_node.upgrade) == 1 and focus.call() == combo_node and web.get_global_rect().encloses(combo_node.get_global_rect()),
+			"Enter on Buy buys the selected node and gives the focus back to it, in view")
+	_key(t, KEY_ENTER)
+	t.check(web.owns(combo_node), "a second Enter leaves it bought")
+	_key(t, KEY_TAB)
+	t.check(focus.call() == buy and buy.text == "UNDO", "Tab reaches the button again, now UNDO")
+	_key(t, KEY_TAB, true)
+	t.check(focus.call() == combo_node, "Shift+Tab goes back to the node")
 	# A preview can be selected and read, not bought: Buy is disabled and reads LOCKED, and a double click buys nothing.
 	var power: HubNode = at.call(&"PowerBrick")
 	await _click(t, power)
@@ -189,6 +228,8 @@ func run(t: Node) -> void:
 
 	# While a level is open the hub is hidden; it shows what changed when it comes back.
 	await _click(t, levels.get_node("%Prev"))
+	web.zoom_at(web.size / 2, 1.2)  # the player's zoom, which the way back keeps
+	var zoom_before := web.zoom
 	await _click(t, play)
 	var open_level = main.screen.get_child(0).get_child(-1)
 	t.check(not hub.visible and open_level.get("level") == 1, "Play opens the level on show (level %s)" % [open_level.get("level")])
@@ -196,6 +237,7 @@ func run(t: Node) -> void:
 	Main.show_hub()
 	await t.tree().process_frame
 	t.check(hub.visible and (hub.get_node("Bar/Coins") as UiPrice).amount == Progress.coins, "back on the hub, the coins are the new total")
+	t.check(web.zoom == zoom_before, "back from a level the zoom is as the player left it, not fitted again")
 	t.check(levels.level == 2 and not play.disabled, "a newly unlocked level is the one on show, and playable")
 	t.check(focus.call() == hub.selected, "back from a level, the selected node has the focus again")
 
@@ -365,11 +407,12 @@ func _walk(t: Node, web: HubWeb, save: String) -> void:
 	t.check(reached.size() == shown.size(), "%s: the arrows reach all %d shown nodes (reached %d)" % [save, shown.size(), reached.size()])
 
 
-func _key(t: Node, key: Key) -> void:
+func _key(t: Node, key: Key, shift := false) -> void:
 	for down in [true, false]:
 		var e := InputEventKey.new()
 		e.keycode = key
 		e.physical_keycode = key
+		e.shift_pressed = shift
 		e.pressed = down
 		t.get_viewport().push_input(e)
 

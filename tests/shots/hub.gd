@@ -6,7 +6,7 @@ extends RefCounted
 ## zoomed fully out and fully in, and the key moment: level 1 cleared, the first 11 nodes bought, Zap and Blast on
 ## offer for the one key with the nodes behind them previewed, Zap selected, then a preview behind it selected. And
 ## undo: an owned leaf selected (Combo Window: UNDO and the refund) and an owned node others hang off (Hourglass
-## Brick: IN USE).
+## Brick: IN USE). And the widest pips and price a node shows, at zoom 1.
 
 
 func shots() -> Array[Dictionary]:
@@ -33,6 +33,7 @@ func shots() -> Array[Dictionary]:
 		{"name": "key", "crt": false, "setup": _key.bind(&"Zap")},
 		{"name": "key_crt", "setup": _key.bind(&"Zap")},
 		{"name": "key_preview", "crt": false, "setup": _key.bind(&"ZapRange")},
+		{"name": "maxed_widest", "save": "maxed", "crt": false, "setup": _widest},
 	]
 
 
@@ -40,7 +41,7 @@ func shots() -> Array[Dictionary]:
 func _zoom(main: Main, z: float) -> void:
 	Main.show_hub()
 	var web: HubWeb = _screen(main).get_node("Web")
-	web.zoom_at(web.size / 4, z)
+	web.zoom_at(web.size / 4, z / web.zoom)
 
 
 func _hub(_main: Main) -> void:
@@ -91,3 +92,15 @@ func _key(main: Main, node: StringName) -> void:
 	Progress.coins = 40
 	HubWeb.own_first(11)
 	_pick(main, node)
+
+
+## The widest bottom rows a node shows: Splitter's last copy (4 pips and 6480) and Splitter Respawn's (2 and
+## 12500), each the last copy undone from the maxed save, at zoom 1 with Splitter's selected.
+func _widest(main: Main) -> void:
+	var splitter: Upgrade = load("res://data/upgrades/splitter.tres")
+	Progress.undo(splitter, &"Splitter5")
+	Progress.undo(load("res://data/upgrades/splitter_respawn.tres"), &"SplitterRespawn3")
+	_pick(main, &"Splitter5")
+	var web: HubWeb = _screen(main).get_node("Web")
+	web.zoom_at(web.size / 2, 1.0 / web.zoom)
+	_screen(main).select(web.get_node("Splitter5"))  # scrolls it into view again

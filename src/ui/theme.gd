@@ -7,7 +7,8 @@ class_name UiTheme
 ##   Label (no variation)  Chakra Petch 16 on a 22 line, primary text: descriptions, body text
 ##   Hint                  Chakra Petch 14, secondary text: a hint line, a key reminder
 ##   Name                  Chakra Petch SemiBold 18: an upgrade's or a level's name in a panel
-##   SmallName             Chakra Petch SemiBold 14: a name on an upgrade node or a tray slot
+##   SmallName             Chakra Petch SemiBold 14: a name on a tray slot
+##   NodeName              Chakra Petch SemiBold 12: a name on an upgrade node
 ##   Tag                   Silkscreen 12 -> 16, spacing 2, secondary text: a label over a number (COINS, TIME,
 ##                         RANK 2/3, a category). Write the text in capitals
 ##   SmallTag              Silkscreen 11 -> 16 (8 is unreadable), spacing 1, secondary text: a price on a node,
@@ -182,6 +183,7 @@ static func _build(t: Theme) -> void:
 		[&"Hint", CHAKRA, 14, Palette.TEXT_DIM],
 		[&"Name", CHAKRA_SEMI, 18, Palette.TEXT],
 		[&"SmallName", CHAKRA_SEMI, 14, Palette.TEXT],
+		[&"NodeName", CHAKRA_SEMI, 12, Palette.TEXT],
 		[&"Tag", tag, _pixel_size(12, SILKSCREEN_PIXEL), Palette.TEXT_DIM],
 		# art.md says 11, which rounds to 8: too small to read through the CRT. 16 is the next even size.
 		[&"SmallTag", small_tag, _pixel_size(16, SILKSCREEN_PIXEL), Palette.TEXT_DIM],
@@ -196,6 +198,9 @@ static func _build(t: Theme) -> void:
 		t.set_font_size(&"font_size", v[0], v[2])
 		t.set_color(&"font_color", v[0], v[3])
 		t.set_constant(&"line_spacing", v[0], 0)
+	# A node's name sits on its category's dim fill, and orange's (Abilities) is bright: a dark rim keeps it readable.
+	t.set_color(&"font_outline_color", &"NodeName", Palette.BASE)
+	t.set_constant(&"outline_size", &"NodeName", 4)
 
 	# Buttons. Each variation sets its own fills and colours; sizes and fonts come from Button.
 	var px := number_size(36)

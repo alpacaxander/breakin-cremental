@@ -22,11 +22,13 @@ func _ready() -> void:
 		n.pressed.connect(select.bind(n))
 		n.focus_entered.connect(select.bind(n))
 		n.gui_input.connect(_node_input.bind(n))
+		n.focus_next = n.get_path_to(_detail.get_node("%Buy"))  # Tab from a node goes to its Buy, not the next node
 	selected = _web.seed_node()
 	Progress.coins_changed.connect(_refresh.unbind(1))
 	Progress.rank_changed.connect(_refresh.unbind(1))
 	Progress.level_unlocked.connect(_levels.pick)
 	visibility_changed.connect(_shown)
+	_web.fit()  # the opening view; Play keeps this screen, so after this the pan and zoom are the player's
 	_shown()
 
 

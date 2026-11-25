@@ -13,10 +13,9 @@ extends Button
 
 enum State { LOCKED, PREVIEW, AVAILABLE, OWNED }
 
-const PITCH := Vector2(170, 116)  ## art.md: one grid step, centre to centre
+const PITCH := Vector2(136, 60)  ## art.md: one grid step, centre to centre
 const ORIGIN := Vector2(432, 304)  ## The centre of cell (0, 0), the seed's, in the web view: the view's centre
-const SIZE := Vector2(148, 60)
-const SEED_SIZE := Vector2(168, 72)
+const SIZE := Vector2(120, 44)
 const DASH := 6.0
 
 ## The upgrade this node sells: a .tres from data/upgrades/.
@@ -29,7 +28,7 @@ const DASH := 6.0
 	set(v):
 		cell = v
 		_place()
-## The seed is open from the start and drawn larger. The web has one.
+## The seed is open from the start. The web has one, drawn like any other node.
 @export var is_seed := false:
 	set(v):
 		is_seed = v
@@ -95,11 +94,10 @@ func home() -> Rect2:
 
 
 func _place() -> void:
-	size = SEED_SIZE if is_seed else SIZE
+	size = SIZE
 	pivot_offset = size / 2
 	position = home().position
 	if is_node_ready():
-		($Name as Label).theme_type_variation = &"Name" if is_seed else &"SmallName"
 		($Name as Label).text = String(name) if Engine.is_editor_hint() or upgrade == null else upgrade.title
 
 

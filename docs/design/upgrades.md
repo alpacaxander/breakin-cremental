@@ -73,7 +73,7 @@ P0 Paddle Speed (the seed), PS Paddle Speed, SZ Paddle Size, CO Combo, CW Combo 
 
 - Only the drawn lines are connections. The scene `src/hub/web.tscn` is the source; this drawing follows it. Its 70 nodes sit on cells, the seed's at (0, 0), in the middle of the view.
 - Four bent arms leave the seed: up through the Booster, right through Combo, down through Tough Brick and left through Paddle Size. Zap and Blast hang off the first Power Brick, left of the seed, and each opens its own branch. The one loop is at the bottom right: Hourglass Brick, Hourglass Freeze, Hourglass Time and Hourglass Freeze.
-- A node is bought once, and opens the nodes it links to. The view shows about five rows at zoom 1: the rest is reached by panning, or the view scrolls to a node when it is selected.
+- A node is bought once, and opens the nodes it links to. The view shows about ten of its 13 rows at zoom 1 and opens zoomed to fit what shows: the rest is reached by panning or zooming out, or the view scrolls to a node when it is selected.
 
 A price is the first price times the growth for every rank owned, rounded to a whole coin. The ranks and prices are first values, set with the balance bot against the three stages of [design.md](../design.md#progression). The ability system's nodes first took the prices of the nodes they replaced; the retune after it made Combo, the Booster, Paddle Size, Power Brick, Zap and Blast cheaper, so that Combo and a Booster come on the second round and abilities on level 1 or early on level 2, and left the rest alone.
 

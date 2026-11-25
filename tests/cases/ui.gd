@@ -2,7 +2,7 @@ extends RefCounted
 ## The ui kit: the theme covers every control it claims to (no default stylebox or texture shows), the sizes
 ## art.md asks for, pixel-font sizes with even stems, and the widgets.
 
-const VARIATIONS := [&"Hint", &"Name", &"SmallName", &"Tag", &"SmallTag", &"Title", &"PanelTitle", &"Number",
+const VARIATIONS := [&"Hint", &"Name", &"SmallName", &"NodeName", &"Tag", &"SmallTag", &"Title", &"PanelTitle", &"Number",
 		&"HudNumber", &"ComboNumber", &"SecondaryButton", &"CantAfford", &"IconButton", &"TooltipPanel", &"TooltipLabel"]
 
 

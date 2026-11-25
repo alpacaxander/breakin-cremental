@@ -27,6 +27,7 @@ func show_node(node: HubNode, state: HubNode.State, undoable := false) -> void:
 	_node = node
 	_state = state
 	_undoable = undoable
+	_buy.focus_previous = _buy.get_path_to(node)  # Shift+Tab goes back to the node, as Tab on it came here
 	var u := node.upgrade
 	var open := state == HubNode.State.AVAILABLE
 	var owned := state == HubNode.State.OWNED
@@ -76,8 +77,8 @@ func _on_press() -> void:
 		Sfx.play(Sfx.BUY)
 	else:
 		Sfx.play(Sfx.CANT_AFFORD)
-	# A click gives the button a focus Godot does not draw, and the next Space or Enter (Start and Retry in a level)
-	# would press it again unseen. Hand that focus back to the node; one a keyboard player brought here shows, and
-	# stays.
-	if not _buy.has_focus(true):
-		_node.grab_focus()
+	# Hand the focus back to the node, which now shows it. Left here, the next Space or Enter would press the button
+	# again, and the button has just turned from BUY to UNDO or back: a click's focus, which Godot does not draw,
+	# would press it unseen (Space is Start and Retry in a level), and a second Enter would undo what the first
+	# bought. Tab from the node comes back here (hub.gd sets it).
+	_node.grab_focus()

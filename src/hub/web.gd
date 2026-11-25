@@ -6,7 +6,7 @@ extends Control
 ## web.tscn holds only layout: one node per purchase, so an upgrade with max_rank 3 has three nodes, its copies,
 ## anywhere on the web. TO ADD AN UPGRADE: make its .tres in data/upgrades/, then in web.tscn instance
 ## src/hub/upgrade_node.tscn as a child of Web max_rank times, and for each set its Upgrade, its Cell (column, row;
-## the seed is at (0, 0), the centre of the view, and one step is 170 x 116 px) and its Links (the node or nodes it
+## the seed is at (0, 0), the centre of the view, and one step is 136 x 60 px) and its Links (the node or nodes it
 ## hangs off). No code changes. tests/cases/hub.gd checks the copies, the seed and what each node needs first.
 ##
 ## A node is bought once (its name goes into Progress.owned). An unbought node is on offer once a node it links to
@@ -18,7 +18,8 @@ extends Control
 ##
 ## The view pans and zooms (art.md, "Web view"): a drag with any mouse button or a two-finger swipe pans, the wheel
 ## or a pinch zooms about the pointer. The nodes are laid out in web.tscn at zoom 1 with no pan; _layout moves and
-## scales them from there. The view's centre stays over the shown nodes, so the web can't be lost off screen.
+## scales them from there. The view's centre stays over the shown nodes, so the web can't be lost off screen. The
+## hub calls fit() once, when it is made, for the opening view; after that the pan and zoom are the player's.
 
 const SCENE := "res://src/hub/web.tscn"
 const DOT := 3.0
@@ -27,6 +28,7 @@ const LINE := 3.0
 const ZOOM_MIN := 0.5
 const ZOOM_MAX := 1.5
 const ZOOM_STEP := 1.1  ## per wheel notch
+const FIT_MIN := 0.6  ## fit() zooms out no further than this, so the names stay readable
 const PAN_GESTURE := 16.0  ## px per unit of a touchpad swipe
 const REVEAL := 12.0  ## px kept between the selected node and the frame when the view moves to show it
 const PEEK := 3  ## how many links past a key node the web previews what only that key opens
@@ -207,6 +209,19 @@ func move(by: Vector2) -> void:
 	_layout()
 
 
+## The opening view: centred on the nodes that are not locked, zoomed to fit them REVEAL clear of the frame, from
+## FIT_MIN to 1. It reads the states itself, so it can run before the first refresh.
+func fit() -> void:
+	var shown := nodes().filter(func(n: HubNode) -> bool: return state(n) != HubNode.State.LOCKED)
+	var bounds: Rect2 = shown[0].home()
+	for n: HubNode in shown:
+		bounds = bounds.merge(n.home())
+	var room := (size - Vector2.ONE * 2 * REVEAL) / bounds.size
+	zoom = clampf(minf(room.x, room.y), FIT_MIN, 1.0)
+	pan = size / 2 - bounds.get_center() * zoom
+	_layout()
+
+
 ## Keeps the view's centre over the shown nodes, then places and scales every node for pan and zoom. A node's
 ## pivot is its centre, so its centre lands at pan + home centre × zoom.
 func _layout() -> void:
@@ -252,9 +267,9 @@ func _ready() -> void:
 		child_order_changed.connect(queue_redraw)
 
 
-## The arrows go to the nearest shown node in line on the grid. Godot's own search goes by the boxes, and the
-## seed's larger box sticks out past its neighbours, so Up or Down from beside it would land on it. With no node
-## in line, Godot's search stays: Right from the last column still reaches the panels.
+## The arrows go to the nearest shown node in line on the grid. Godot's own search goes by the boxes and can land
+## on a node off the line, past a gap in it. With no node in line, Godot's search stays: Right from the last
+## column still reaches the panels.
 func _focus_neighbours() -> void:
 	var shown := nodes().filter(func(n: HubNode) -> bool: return n.visible)
 	for n: HubNode in shown:
