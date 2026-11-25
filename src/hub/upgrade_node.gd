@@ -120,7 +120,7 @@ func _draw() -> void:
 			draw_rect(r, Palette.BASE)  # base, not clear: the links run to the centres and would show through
 			draw_rect(edge, border, false, 2)
 		# LOCKED draws nothing: the web hides a locked node.
-	# A key node's second outline: 2 px, 2 px outside the box. The selection ring then goes outside it.
+	# A key node's second outline: 2 px wide, 3 px outside the box. The selection ring then goes outside it.
 	var out := 3.0
 	if not editor and upgrade.key:
 		draw_rect(r.grow(3), border, false, 2)
