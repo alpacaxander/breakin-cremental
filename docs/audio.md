@@ -16,6 +16,8 @@ Every sound is synthesised by one script. Nothing is recorded or downloaded.
 
 ## Sound cues
 
+There are 21 cues and the music loop: 22 files in `assets/audio/wav/`, each a constant in `Sfx`. The newest is catch.
+
 | Group | Cues |
 |---|---|
 | Ball and paddle | paddle hit, wall bounce, ball lost |
@@ -38,4 +40,4 @@ Every sound is synthesised by one script. Nothing is recorded or downloaded.
 
 The demo has one simple placeholder loop, made by the same script: a square-wave lead, a triangle bass and a noise hi-hat, about 16 bars long (25.6 s at 150 bpm, in A minor). It loops through the loop mode in `music.wav.import`, so keep that file when the wav is made again. It loops on every screen and plays quieter than the sound effects.
 
-**Nobody has listened to any of it yet.** The cues and the loop were checked by their numbers only (format, length, peak, loudness, silent ends, a silent loop seam). Judge them by ear on `assets/audio/demo.html`. Settings has a volume slider for music and one for sound.
+**Nobody has listened to any of it yet**, catch included. The cues and the loop were checked by their numbers only (format, length, peak, loudness, silent ends, a silent loop seam). Judge them by ear on `assets/audio/demo.html`. Settings has a volume slider for music and one for sound.
