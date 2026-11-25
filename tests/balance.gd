@@ -77,8 +77,9 @@ const ROTATIONS := [0.0, 45.0, 90.0, 135.0]
 ## Where each level's stages should end (_stages), in rounds from its first: [stage 1, stage 2]. The goals in
 ## docs/design.md, "Progression"; change them there too.
 const STAGE_GOALS := {1: [2, 6], 2: [4, 10], 3: [6, 16]}
-## The upgrade web's scene: the bot reads which nodes connect from it, so it buys what the hub would offer.
-const WEB_SCENE := "res://src/hub/web.tscn"
+## The upgrade web's scene: the bot asks an instance of it, never on screen, which nodes are on offer, so it buys
+## what the hub would.
+const WEB_SCENE := HubWeb.SCENE
 
 var _args := {"mode": "report", "level": "all", "ranks": "fresh", "skill": "average", "seeds": "20",
 		"layout": "auto", "rounds": "400", "base": "0", "charges": "hold", "ability": "first"}
@@ -86,8 +87,7 @@ var _boards := {}  # level -> Board, read once
 var _targets := {}  # level -> its LevelData.target, read with its board; the test boards are never cleared
 var _aims := {}  # level -> its LevelData.aims as cell centres, for Player
 var _layouts := {}  # cache key -> Layout, for _auto
-var _web: Array[Array] = []  # the web's connections as pairs of upgrade ids
-var _seed_node := &""
+var _web: HubWeb  # WEB_SCENE, instanced for the length of a campaign and never put on screen
 
 
 ## Stands in for a person at the mouse. See THE PLAYER at the top.
@@ -504,14 +504,15 @@ func _value(level: int, layout: Layout, item: Layout.Item, stats: Balance, seeds
 ## the ranks allow (_fill; with layout=<file> or empty, that layout instead), take the coins, then buy. Stops after
 ## `limit` rounds, or once the last level is cleared and every level's stages are measured (_stages) or every
 ## rank is bought: until then it goes on playing the last level, as a player farming it would. Buying: while
-## anything is affordable, the cheapest next rank of a node the web offers (the seed node, or one next to a node
-## owned); a tie goes to the first by id.
+## anything is affordable, the cheapest node the web offers (HubWeb.buyable: the seed, or one linked to a node
+## owned); a tie goes to the first in the scene. A key node costs no coins, so it goes first while a key is in hand.
 # ponytail: cheapest first is one sensible player, not the best one. Add a smarter buyer (save up for a node
 # that unlocks a kind, say) if the campaign's pace looks wrong for a reason the buying explains.
 func _campaign(skill: String, limit: int) -> Dictionary:
 	var save := OUT.path_join("save.json")
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(save))
 	Progress.use(save)
+	_web = (load(WEB_SCENE) as PackedScene).instantiate()
 	var rounds := []
 	var purchases := []
 	var levels := {}  # level -> {rounds, coins, cleared_on}: rounds played and coins earned there up to its first clear
@@ -546,17 +547,18 @@ func _campaign(skill: String, limit: int) -> Dictionary:
 		levels[level] = first
 		Progress.finish_round(level, r.coins, r.cleared)
 		while true:
-			var pick: Upgrade = null
-			for u in Progress.upgrades():
-				if Progress.can_buy(u) and _offered(u.id) and (pick == null or Progress.cost(u) < Progress.cost(pick)):
-					pick = u
+			var pick: HubNode = null
+			for n in _web.nodes():
+				if _web.buyable(n) and (pick == null or Progress.cost(n.upgrade) < Progress.cost(pick.upgrade)):
+					pick = n
 			if pick == null:
 				break
-			var price := Progress.cost(pick)
-			Progress.buy(pick)
+			var u := pick.upgrade
+			var price := 0 if u.key else Progress.cost(u)
+			Progress.buy(u, pick.name)
 			last_progress = i + 1
-			purchases.append({"round": i + 1, "id": String(pick.id), "rank": Progress.rank(pick), "cost": price})
-			print("round %d: bought %s rank %d for %d" % [i + 1, pick.id, Progress.rank(pick), price])
+			purchases.append({"round": i + 1, "node": String(pick.name), "id": String(u.id), "rank": Progress.rank(u), "cost": price})
+			print("round %d: bought %s (%s rank %d) for %d" % [i + 1, pick.name, u.id, Progress.rank(u), price])
 		if r.cleared and level == Progress.level_count and not done_on:
 			done_on = i + 1
 			if probe <= 0:
@@ -567,6 +569,7 @@ func _campaign(skill: String, limit: int) -> Dictionary:
 				levels[level].cleared_on if levels[level].cleared_on > 0 else "never"])
 	if stages:
 		_print_stages(stages, levels)
+	_web.free()
 	var done := done_on > 0
 	print("%s, %d rounds played, %d purchases, %d coins left. Last progress on round %d." % [
 			"Finished on round %d" % done_on if done else "STUCK on level %d" % Progress.unlocked, rounds.size(),
@@ -634,23 +637,6 @@ func _print_stages(stages: Dictionary, levels: Dictionary) -> void:
 		var clears: String = str(first.rounds) if first.get("cleared_on", -1) > 0 else "never"
 		var pays := "%.0f / %.0f%s" % [s.pays_new, s.pays_old, "" if s.pays_new >= s.pays_old else " !"] if s.has("pays_new") else ""
 		print("%-5d %-12d %-14s %-14s %-15s %s" % [level, s.first_round, cells[0], cells[1], clears, pays])
-
-
-## True if the hub offers this node: the seed node, or one next to an owned node. The connections come from the
-## hub's own web scene, read once without putting it on screen.
-func _offered(id: StringName) -> bool:
-	if _web.is_empty():
-		var web: HubWeb = (load(WEB_SCENE) as PackedScene).instantiate()
-		_seed_node = web.seed_node().upgrade.id
-		for link in web.links():
-			_web.append([link[0].upgrade.id, link[1].upgrade.id])
-		web.free()
-	if id == _seed_node:
-		return true
-	for edge: Array in _web:
-		if id in edge and Progress.ranks.get(StringName(edge[0] if edge[1] == id else edge[1]), 0) > 0:
-			return true
-	return false
 
 
 ## Is the bot itself sane? On the test board (level 0), where only a lost ball ends a round early: how often each

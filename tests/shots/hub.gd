@@ -1,9 +1,9 @@
 extends RefCounted
-## The upgrade screen: fresh, mid and maxed saves, with and without the CRT, a node of each shown state selected
-## (and Growth Pulses, on the bottom row, and Overgrowth beside it, not bought), the orange Abilities column in
-## every state with Blast, the longest text, in the panel, Shockwave scrolled into view, a Buy the player
-## cannot afford, a locked level in the level panel, the pointer over a node, and the web zoomed fully out and
-## fully in.
+## The upgrade screen: fresh, mid (the first half of the web bought) and maxed saves, with and without the CRT, a
+## node of each shown state selected (and Growth Pulses, low on the web, and Overgrowth, a key node, not bought),
+## the orange Abilities branch part bought with Blast, the longest text, in the panel, Shockwave scrolled into
+## view, a Buy the player cannot afford, a locked level in the level panel, the pointer over a node, and the web
+## zoomed fully out and fully in.
 
 
 func shots() -> Array[Dictionary]:
@@ -16,10 +16,10 @@ func shots() -> Array[Dictionary]:
 		{"name": "mid_locked_level", "save": "mid", "crt": false, "setup": _level.bind(3)},
 		{"name": "maxed", "save": "maxed", "setup": _hub},
 		{"name": "maxed_flat", "save": "maxed", "crt": false, "setup": _pick.bind(&"Combo")},
-		{"name": "mid_pulse_rate", "save": "mid", "crt": false, "setup": _pick.bind(&"PulseRate")},
-		{"name": "mid_overgrowth", "save": "mid", "crt": false, "setup": _unbought.bind(&"Overgrowth", &"overgrowth")},
-		{"name": "mid_abilities", "save": "mid", "crt": false, "setup": _abilities},
-		{"name": "mid_abilities_crt", "save": "mid", "setup": _abilities},
+		{"name": "mid_growth_pulses", "save": "mid", "crt": false, "setup": _pick.bind(&"GrowthPulses")},
+		{"name": "mid_overgrowth", "save": "mid", "crt": false, "setup": _pick.bind(&"Overgrowth")},
+		{"name": "mid_abilities", "save": "mid", "crt": false, "setup": _pick.bind(&"Blast")},
+		{"name": "mid_abilities_crt", "save": "mid", "setup": _pick.bind(&"Blast")},
 		{"name": "maxed_shockwave", "save": "maxed", "crt": false, "setup": _pick.bind(&"Shockwave")},
 		{"name": "small", "save": "mid", "size": Vector2i(960, 540), "setup": _hub},
 		{"name": "mid_hover", "save": "mid", "crt": false, "setup": _hover.bind(&"Combo")},
@@ -57,7 +57,7 @@ func _poor(main: Main) -> void:
 	var hub := _screen(main)
 	var web: HubWeb = hub.get_node("Web")
 	for n in web.nodes():
-		if web.state(n) in [HubNode.State.AVAILABLE, HubNode.State.OWNED]:
+		if web.state(n) == HubNode.State.AVAILABLE:
 			hub.select(n)
 			return
 
@@ -75,17 +75,3 @@ func _level(main: Main, n: int) -> void:
 	Main.show_hub()
 	_screen(main).get_node("Levels").pick(n)
 
-
-## Selects the web node with this name with its upgrade (`id`) not bought, so the panel offers it.
-func _unbought(main: Main, node: StringName, id: StringName) -> void:
-	Progress.ranks[id] = 0
-	_pick(main, node)
-
-
-## The Abilities column in each state: Power Brick owned, Zap maxed, Zap Range owned, Zap Damage open, Blast open
-## and selected (its text is the longest), the rest locked.
-func _abilities(main: Main) -> void:
-	for id: StringName in [&"zap_damage", &"blast", &"blast_size", &"explosion_damage", &"shockwave"]:
-		Progress.ranks[id] = 0
-	Progress.ranks.merge({&"power_brick": 2, &"zap": 1, &"zap_range": 1}, true)
-	_pick(main, &"Blast")

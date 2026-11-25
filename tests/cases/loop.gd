@@ -75,13 +75,15 @@ func _walk() -> void:
 	var how := "LEVEL CLEARED" if level.round.tally.cleared else "TIME UP" if level.round.reason == Round.End.TIME else "BALL LOST" if level.round.reason == Round.End.BALL_LOST else "BOARD EMPTY"
 	t.check(summary.is_visible_in_tree() and _texts(summary).has(how), "the Summary says how it ended (%s)" % how)
 
-	# Upgrades: the hub again, with the coins. Buy the seed, then the Splitter, with coins given for the test.
+	# Upgrades: the hub again, with the coins. Buy the way from the seed to the Splitter (two Boosters and a Guide
+	# on the way), with coins given for the test.
 	await _click(summary.find_child("Upgrades", true, false))
 	await t.tree().process_frame
 	t.check(_screen() == play and hub.is_visible_in_tree() and not is_instance_valid(level), "Upgrades goes back to the hub and the level is gone")
 	t.check(counter.amount == Progress.coins, "the hub shows the coins the round paid")
-	for node_name: String in ["PaddleSpeed", "Combo", "Splitter"]:
+	for node_name: String in ["PaddleSpeed", "Booster", "Guide", "Booster2", "Splitter"]:
 		var node: HubNode = web.get_node(node_name)
+		web.refresh(node)  # Booster2 and the Splitter are above the view: bring each into it, as the arrow keys would
 		await _click(node)
 		t.check(hub.selected == node, "clicking %s selects it" % node_name)
 		var price := Progress.cost(node.upgrade)
@@ -91,18 +93,20 @@ func _walk() -> void:
 		heard.clear()
 		await _click(buy)
 		await t.tree().create_timer(0.15).timeout
-		t.check(Progress.rank(node.upgrade) == 1 and Progress.coins == earned and heard.has(Sfx.BUY), "Buy buys a rank of %s for its price" % node_name)
-		t.check(int(_saved().ranks.get(String(node.upgrade.id), 0)) == 1 and _saved().coins == earned, "and the purchase is in the save")
-	t.check(web.state(web.get_node("SplitterRespawn")) == HubNode.State.AVAILABLE and web.state(web.get_node("SplitterHealth")) == HubNode.State.LOCKED, "buying opens the next ring and no more")
+		t.check(web.state(node) == HubNode.State.OWNED and Progress.coins == earned and heard.has(Sfx.BUY), "Buy buys %s for its price" % node_name)
+		t.check(node_name in _saved().owned and int(_saved().ranks.get(String(node.upgrade.id), 0)) == Progress.rank(node.upgrade)
+				and _saved().coins == earned, "and the purchase is in the save")
+	t.check(web.state(web.get_node("RearPaddle")) == HubNode.State.AVAILABLE and web.state(web.get_node("BoosterSpeed")) == HubNode.State.LOCKED, "buying opens the next ring and no more")
 
 	# The level again: place the Splitter, start with Space, play it out.
 	await _click(levels.get_node("%Play"))
 	level = play.get_child(-1) as Control
 	setup = level.get_node("SetupUi")
-	t.check(level.phase == SETUP and setup._slots.size() == 1 and setup._slots[0].kind.id == &"splitter" and setup._slots[0].left == 1, "the tray now holds one Splitter")
+	var splitters: Array = setup._slots.filter(func(s: Control) -> bool: return s.kind.id == &"splitter")
+	t.check(level.phase == SETUP and setup._slots.size() == 2 and splitters.size() == 1 and splitters[0].left == 1, "the tray now holds the Boosters and one Splitter")
 	t.check(level.round.stats.paddle_speed > Progress.balance.paddle_speed, "the round has the faster paddle that was bought")
 	heard.clear()
-	var slot := (setup._slots[0] as Control).get_global_rect().get_center()
+	var slot := (splitters[0] as Control).get_global_rect().get_center()
 	var spot: Vector2 = LevelArena.ORIGIN + SPLITTER_AT * level.round.board.zoom()
 	_mouse(slot, MOUSE_BUTTON_LEFT, true)
 	_mouse(slot.lerp(spot, 0.5))
@@ -112,7 +116,7 @@ func _walk() -> void:
 	await t.tree().create_timer(0.15).timeout
 	var items: Array[Layout.Item] = level.round.layout.items
 	t.check(items.size() == 1 and items[0].kind.id == &"splitter" and items[0].cell == level.round.board.cell_at(SPLITTER_AT), "dragging the Splitter from the tray places it in the cell under the cursor, through the CRT's curve")
-	t.check(setup._slots[0].left == 0 and heard.has(Sfx.PLACE_ITEM), "the tray has none left, and the placing was heard")
+	t.check(splitters[0].left == 0 and heard.has(Sfx.PLACE_ITEM), "the tray has none left, and the placing was heard")
 	t.check((_saved().layouts.get("1", []) as Array).size() == 1, "the layout is in the save")
 	_key(KEY_SPACE)
 	t.check(level.phase == PLAY and level.round.layout.items.size() == 1, "Space starts the round with the Splitter on the board")

@@ -5,7 +5,7 @@ See also: [placeables.md](placeables.md), [physics.md](physics.md), [overview.md
 ## Rules
 
 - Upgrades form a **web** that grows out from one seed node, **Paddle Speed** (the paddle starts slow). Each node unlocks once a connected node has been bought. Until then the upgrade screen hides it: the web shows only nodes whose ranks need nothing but coins.
-- An upgrade can have **one or more ranks**, each more expensive than the last.
+- An upgrade can have **one or more ranks**, each more expensive than the last. Each rank is its own node in the web, a copy of the upgrade.
 - **Keys.** Each level's first clear pays one key. Zap, Blast and Overgrowth are key upgrades: each costs one key and no coins. An owned node can be undone: it gives back what it cost, coins or its key.
 - **Categories are mixed across the web.** A category says what kind of thing a node is, not where it sits. Every path out from the seed should pass through different categories, so the player picks up a mix as they go.
 - **A node that needs another node branches off it.** Zap and Blast only do something once there are charges to fire, so both connect directly to Power Brick, and Blast Size, Blast Damage and Shockwave only once there are blasts, so they hang off Blast.
@@ -38,27 +38,41 @@ The ball and the paddle both start slow, and upgrades speed them up. The ball's 
 
 ## The demo's web
 
-Bracket shape shows the category: `( )` Arena, `[ ]` Placeables, `{ }` Bricks, `< >` Abilities. Rows run top to bottom, as on screen.
+One node per purchase: an upgrade with three ranks has three nodes, its copies, anywhere in the web. The copies share the upgrade's prices, so whichever copy is bought next costs the next rank's price. Rows run top to bottom, as on screen, and each name is two letters (the legend is below).
 
 ```
-<  Zap Range   >──<  Zap Damage  >   ( Rear Paddle  )
-        │                                    │
-<     Zap      >   [Booster Speed ]───[   Booster    ]───(    Guide     )───(Guide Bounces )
-        │                                    │
-< Power Brick  >───( Paddle Size  )───(PADDLE SPEED  )───{  Hourglass   }───{Hourglass Time}
-        │                                    │                                     │
-<    Blast     >   [   Splitter   ]───(    Combo     )───( Combo Window )   {Hourglass Frz.}
-        │                  │                 │
-<  Blast Size  >   [Splitter Resp.]   {  Gold Brick  }───[ Wall Segment ]───(  Multiball   )
-        │                  │                 │
-< Blast Damage >   [SplitterHealth]   { Tough Brick  }───[    Growth    ]───[ Growth Reach ]
-        │                                                       │
-<  Shockwave   >                                         [Growth Pulses ]───(  Overgrowth  )
+                     SR    BS
+                     |     |
+               SZ-GU-TO    SH-RP
+                     |     |
+MB-ZD-ZR             PS    GU
+      |              |     |
+      PB       GB-BO-SP-RP-BS
+      |           |
+SR-SP-ZD-ZR-GU    GU
+            |     |
+            ZA    BO    CW
+            |     |     |
+      SZ-PB-PB-SZ-P0-CO-HG-SZ-GO
+            |     |        |
+            BL    TO       MB
+            |     |        |
+BZ-PB-SW-BD-BZ    GO    OG-CW
+|     |           |        |
+SZ    BD          WA       HF-HT
+                  |        |  |
+   SR          SP-GR-GE    HG-HF
+   |           |     |     |
+   SP-MB-SP-GR-TO    GP    HT
+      |     |        |
+      SH    WA    GE-GO-GP
 ```
 
-- Only the drawn lines are connections. The scene `src/hub/web.tscn` is the source; this drawing follows it.
-- The Abilities fill the first column: Power Brick hangs off Paddle Size, where Explosive Brick did, Zap and Blast hang off it, and each ability's improvements run in a line away from it. Rear Paddle sits over the Booster, which it links to, and Multiball takes Spare Ball's place off the Wall Segment.
-- The web is 5 columns × 7 rows, taller than the view at zoom 1: the bottom two rows (Blast Damage, Splitter Health, Tough Brick, Growth, Growth Reach; Shockwave, Growth Pulses, Overgrowth) are reached by panning, or the view scrolls to a node when it is selected.
+P0 Paddle Speed (the seed), PS Paddle Speed, SZ Paddle Size, CO Combo, CW Combo Window, RP Rear Paddle, OG Overgrowth, GU Guide, GB Guide Bounces, MB Multiball, BO Booster, BS Booster Speed, SP Splitter, SR Splitter Respawn, SH Splitter Health, WA Wall Segment, GR Growth, GE Growth Reach, GP Growth Pulses, GO Gold Brick, TO Tough Brick, HG Hourglass Brick, HT Hourglass Time, HF Hourglass Freeze, PB Power Brick, ZA Zap, ZR Zap Range, ZD Zap Damage, BL Blast, BZ Blast Size, BD Blast Damage, SW Shockwave.
+
+- Only the drawn lines are connections. The scene `src/hub/web.tscn` is the source; this drawing follows it. Its 70 nodes sit on cells, the seed's at (0, 0), in the middle of the view.
+- Four bent arms leave the seed: up through the Booster, right through Combo, down through Tough Brick and left through Paddle Size. Zap and Blast hang off the first Power Brick, left of the seed, and each opens its own branch. The one loop is at the bottom right: Hourglass Brick, Hourglass Freeze, Hourglass Time and Hourglass Freeze.
+- A node is bought once, and opens the nodes it links to. The view shows about five rows at zoom 1: the rest is reached by panning, or the view scrolls to a node when it is selected.
 
 A price is the first price times the growth for every rank owned, rounded to a whole coin. The ranks and prices are first values, set with the balance bot against the three stages of [design.md](../design.md#progression). The ability system's nodes first took the prices of the nodes they replaced; the retune after it made Combo, the Booster, Paddle Size, Power Brick, Zap and Blast cheaper, so that Combo and a Booster come on the second round and abilities on level 1 or early on level 2, and left the rest alone.
 
@@ -98,9 +112,9 @@ A price is the first price times the growth for every rank owned, rounded to a w
 | Blast Damage | Abilities | Blasts hit each brick once more | 2 | ×10 | 300, 3,000 |
 | Shockwave | Abilities | Blasts throw balls | 1 |  | 600 |
 
-- That is 31 nodes and 70 purchases, 103,044 coins and 3 keys in all (111,164 coins when Zap, Blast and Overgrowth cost 60, 60 and 8,000; 115,474 before the retune after the ability system, and 73 purchases and 128,324 coins before the ability system). The Bumper and Refresh are still kinds in the code, with their stats (`refresh_count`, `refresh_size`), but no node unlocks them. Refresh and Refresh Size were taken out of the web (3 ranks from 150 ×4.5, and 2 from 400 ×10). Blast Damage's id is still `explosion_damage`.
+- That is 31 upgrades and 70 nodes, one per purchase, 103,044 coins and 3 keys in all (111,164 coins when Zap, Blast and Overgrowth cost 60, 60 and 8,000; 115,474 before the retune after the ability system, and 73 purchases and 128,324 coins before the ability system). The Bumper and Refresh are still kinds in the code, with their stats (`refresh_count`, `refresh_size`), but no node unlocks them. Refresh and Refresh Size were taken out of the web (3 ranks from 150 ×4.5, and 2 from 400 ×10). Blast Damage's id is still `explosion_damage`.
 - **Charges and abilities.** A Power Brick makes a **drop** when it breaks, however it broke (a ball, a blast or a Zap). The drop moves straight toward the paddle side at 250 units/s (`drop_speed`), through bricks, placed items and balls: nothing stops it. If it touches the solid part of the paddle it is caught and the paddle gains a **charge**; if it passes the open side it is gone. A charge is a ball in reserve (see [physics.md](physics.md#ball)): it goes onto the paddle's face at once when no ball waits there, and a click or Space fires it as a new ball carrying the selected ability. On that ball's first hit on a level brick the brick takes the hit as usual, then the charge is spent and the ability goes off at the brick's cell (see [What the abilities do](#what-the-abilities-do)); after that it plays on as an ordinary ball. A hit on a placed brick, such as a Splitter, does not spend it. Zap and Blast are each unlocked by their node; with neither, a charge fires a plain ball. During Play the wheel, or Q and E, cycles the selection through the unlocked abilities, Zap first. The level screen keeps the selection from one round to the next while it is open, and the save does not. A round starts with no charges and keeps every one it catches, so it can hold at most one per rank of Power Brick. **A held charge keeps the round alive:** when the last ball in play is lost the charge on the paddle is next, and the round also waits for a drop still falling. Power Brick's first rank is in level 1's band, and Zap and Blast cost a key each.
-- **Multiball** replaces Spare Ball. The round's first launch is followed by one more ball for each rank, 0.15 s apart (`multiball_gap`), each from the point the first one left and the same way, so they go down one line and each can go through the gap the one before made. It hangs off the Wall Segment, as Spare Ball did, and its first rank is in level 2's band.
+- **Multiball** replaces Spare Ball. The round's first launch is followed by one more ball for each rank, 0.15 s apart (`multiball_gap`), each from the point the first one left and the same way, so they go down one line and each can go through the gap the one before made. Its first copy hangs off Paddle Size, right of the seed, and its first rank is in level 2's band.
 - **Before the ability system** Spare Ball put a ball in reserve for every round, one per rank, and a Ball Brick (off Splitter Respawn, in level 3's band, 2 ranks from 1,800 ×4) added one when it broke. A spare went onto the paddle right after the last launch (`spare_delay`, 0 s), to be launched with a click while the others played, or kept there until the last ball in play was lost. The bot kept a spare on the paddle until no other ball was left (`spares=hold`), or launched it at once (`spares=launch`). Measured on `tests/layouts/found.json` (not the layout search, so not comparable with the campaigns below), against the same campaigns without the two nodes: with every rank, level 3 lost its last ball in 10 to 35% of rounds instead of 85 to 90%, and a round paid 90,000 to 140,000 instead of 14,000 to 38,000; level 2 hardly moved, or cleared every round with `spares=launch`. In the campaigns the first Spare Ball was bought on level 3 (rounds 27 to 55) and the clears moved little: level 3 on round 72, 42 and 40 (clumsy, average, good) against 71, 48 and 40. So it ended level 3's lottery once owned, which is what the level needed, and made a maxed level 3 a farm. Held charges and Multiball take its place as the safety net: in the retune's campaigns 1 round of 46 on level 3 ended on a lost ball (see "What the bot measured").
 - **Guide** shows, while a ball waits on the paddle, a dashed cyan line along the way it would go if launched now (see [physics.md](physics.md#ball) for the sway). Each rank makes the line 250 units longer (`guide` in the stats), counted along the whole way. Without **Guide Bounces** the line stops at the first thing the ball would touch; with it, it bounces off walls, bricks and placed items as the ball would, until its length runs out or it reaches the paddle or the open side, where the way depends on the player. It does not foresee blasts, Shockwaves, Splitters or bricks brought back. Owning a rank of Guide also widens the launch's sway from 45° to the steepest legal angle (70°) and lets it pass through level instead of skipping the minimum angle, since the player can now see where a steep or flat launch goes. It hangs off the Booster, which the second trip buys, so it is on offer from the third; Guide Bounces belongs to level 2's band. The bot does not use it: it launches at once.
 - **Overgrowth** makes the arena grow back. A level brick that breaks, by a ball, a blast or a Zap, comes back 8 s of play later (`overgrowth_delay`, on the round's clock, so an hourglass does not move it) as a plain 1 HP level brick: a special brick comes back plain, so a Power Brick drops only once. It comes back again each time it breaks. A brick the player placed never comes back. If a ball is over the cell when it is due, it comes back on the first step the cell is clear. A brick that came back scores and counts toward the target and the clear like any level brick, but the round does not wait for one: breaking the last level brick standing still ends it. It has no effect or sound of its own (see [art.md](../art.md#effects) and [audio.md](../audio.md)). It means levels 1 and 2 are seldom wiped any more: before the ability system, with every rank, the contract round on level 2 ran to time, 356 bricks broken and 5,149 coins, where it used to break all 128 for about 2,000. A clear comes from the target, so this costs nothing but the sight of an empty board. None of the bot's campaigns reaches it (see "What the bot measured").

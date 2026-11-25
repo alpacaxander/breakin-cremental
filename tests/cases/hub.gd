@@ -1,19 +1,6 @@
 extends RefCounted
-## The upgrade screen, through the real Main and real clicks: the web's connections, which nodes are open, Buy
-## (coins, ranks, sounds), the level panel and Esc.
-
-## docs/design/upgrades.md's web: each node and the one it hangs off.
-const WEB := {
-	&"HourglassBrick": &"PaddleSpeed", &"HourglassTime": &"HourglassBrick", &"HourglassFreeze": &"HourglassTime",
-	&"Booster": &"PaddleSpeed", &"BoosterSpeed": &"Booster", &"RearPaddle": &"Booster", &"Guide": &"Booster",
-	&"GuideBounces": &"Guide", &"Combo": &"PaddleSpeed", &"ComboWindow": &"Combo", &"GoldBrick": &"Combo",
-	&"WallSegment": &"GoldBrick", &"Multiball": &"WallSegment", &"Splitter": &"Combo",
-	&"SplitterRespawn": &"Splitter", &"SplitterHealth": &"SplitterRespawn", &"ToughBrick": &"GoldBrick",
-	&"Growth": &"ToughBrick", &"GrowthReach": &"Growth", &"PulseRate": &"Growth", &"Overgrowth": &"PulseRate",
-	&"PaddleSize": &"PaddleSpeed", &"PowerBrick": &"PaddleSize", &"Zap": &"PowerBrick", &"ZapRange": &"Zap",
-	&"ZapDamage": &"ZapRange", &"Blast": &"PowerBrick", &"BlastSize": &"Blast", &"BlastDamage": &"BlastSize",
-	&"Shockwave": &"BlastDamage",
-}
+## The upgrade screen, through the real Main and real clicks: which nodes are open, Buy (coins, copies, sounds),
+## the arrows, pan and zoom, the level panel and Esc. The web scene's own shape is checked in contracts.gd.
 
 var _heard: Array[StringName] = []
 
@@ -39,40 +26,36 @@ func run(t: Node) -> void:
 			"Enter on the menu's Play, then Esc, puts the focus on the hub's selected node, and buys nothing")
 	_key(t, KEY_TAB)
 	t.check(focus.call() != null and focus.call() != web.seed_node() and hub.is_ancestor_of(focus.call()), "Tab moves the focus on from there")
-	# The arrows go to the node in line on the web's grid, not to the larger seed beside it. Every node is owned
-	# for this, so every node is shown; the hub opens again on a fresh save below.
-	for u in Progress.upgrades():
-		Progress.ranks[u.id] = 1
+	# The arrows go to the nearest node in line on the web's grid, not to the larger seed beside it. Every node is
+	# owned for this, so every node is shown; the hub opens again on a fresh save below.
+	HubWeb.own_first(web.nodes().size())
 	Progress.rank_changed.emit(web.seed_node().upgrade)
-	for pair: Array in [[&"Splitter", KEY_UP, &"PaddleSize"], [&"HourglassBrick", KEY_DOWN, &"ComboWindow"], [&"Splitter", KEY_DOWN, &"SplitterRespawn"],
-			[&"Combo", KEY_RIGHT, &"ComboWindow"], [&"Booster", KEY_UP, &"RearPaddle"], [&"PowerBrick", KEY_DOWN, &"Blast"],
-			[&"BlastDamage", KEY_DOWN, &"Shockwave"], [&"Shockwave", KEY_RIGHT, &"PulseRate"], [&"ZapRange", KEY_DOWN, &"Zap"]]:
+	for pair: Array in [[&"Combo", KEY_UP, &"Splitter"], [&"Combo", KEY_DOWN, &"GrowthReach"], [&"PaddleSize", KEY_UP, &"GuideBounces"],
+			[&"PaddleSize", KEY_DOWN, &"Splitter2"], [&"Booster", KEY_DOWN, &"PaddleSpeed"], [&"Blast", KEY_RIGHT, &"ToughBrick"],
+			[&"HourglassFreeze", KEY_RIGHT, &"HourglassTime"], [&"Zap", KEY_UP, &"Guide2"], [&"Shockwave", KEY_LEFT, &"PowerBrick4"]]:
 		(at.call(pair[0]) as Control).grab_focus()
 		_key(t, pair[1])
 		t.check(focus.call() == at.call(pair[2]), "%s from %s goes to %s (went to %s)" % [OS.get_keycode_string(pair[1]), pair[0], pair[2], focus.call().name])
-	# The web is 7 rows tall and the view shows 5: a drag reaches the bottom row, and the arrows reach every shown
-	# node and bring each into view. Then the same walk on each admin preset, where some nodes are hidden.
-	var shock: HubNode = at.call(&"Shockwave")
+	# The web is 13 rows tall and the view shows 5: a drag reaches the bottom row, and the arrows reach every shown
+	# node and bring each into view. Then the same walk part of the way through the web, where some nodes are hidden.
+	var bottom: HubNode = at.call(&"GrowthReach2")
 	(at.call(&"PaddleSpeed") as Control).grab_focus()
-	web.move(-web.pan)  # the pairs above scrolled down to Shockwave
-	t.check(not web.get_global_rect().encloses(shock.get_global_rect()), "at first the bottom row (Shockwave) is below the view")
+	web.move(-web.pan)  # the pairs above scrolled the view
+	t.check(not web.get_global_rect().encloses(bottom.get_global_rect()), "at first the bottom row (GrowthReach2) is below the view")
 	web.move(Vector2(0, -99999))
-	t.check(web.get_global_rect().encloses(shock.get_global_rect()) and web.get_global_rect().encloses(at.call(&"Overgrowth").get_global_rect()),
-			"a drag up brings the bottom row, Shockwave to Overgrowth, into the view")
+	t.check(web.get_global_rect().encloses(bottom.get_global_rect()) and web.get_global_rect().encloses(at.call(&"GrowthPulses2").get_global_rect()),
+			"a drag up brings the bottom row, GrowthReach2 to GrowthPulses2, into the view")
 	_walk(t, web, "every node owned")
-	for preset: String in Admin.PRESETS:
-		Progress.ranks.assign(Admin.PRESETS[preset].ranks)  # as Admin._apply does
+	for count in [5, 20, 40]:
+		HubWeb.own_first(count)
 		Progress.rank_changed.emit(web.seed_node().upgrade)
-		for n in web.nodes():
-			if Progress.rank(n.upgrade) > 0:
-				t.check(_owned_path(web, n), "admin's %s preset: %s is joined to the seed through owned nodes" % [preset, n.name])
-		_walk(t, web, "admin's %s preset" % preset)
-	for u in Progress.upgrades():
-		Progress.ranks[u.id] = 1
+		_walk(t, web, "the first %d nodes owned" % count)
+	HubWeb.own_first(web.nodes().size())
 	Progress.rank_changed.emit(web.seed_node().upgrade)
 	# Pan and zoom: the wheel over a node zooms about the pointer, a drag on the background pans, and the view's
 	# centre can't leave the web.
 	var combo: HubNode = at.call(&"Combo")
+	web.refresh(combo)  # the walks left the view anywhere: bring Combo into it
 	var spot := combo.get_global_rect().get_center()
 	var wheel := InputEventMouseButton.new()
 	wheel.button_index = MOUSE_BUTTON_WHEEL_UP
@@ -98,6 +81,7 @@ func run(t: Node) -> void:
 	web.zoom_at(Vector2.ZERO, 0.001)
 	t.check(web.zoom == HubWeb.ZOOM_MIN, "zoom stops at its minimum")
 	Progress.ranks.clear()
+	Progress.owned.clear()
 	Main.show_menu()
 	Main.show_hub()
 	await t.tree().process_frame
@@ -106,21 +90,9 @@ func run(t: Node) -> void:
 	at = func(name: StringName) -> HubNode: return web.get_node(String(name))
 	t.check(focus.call() == hub.selected, "the hub takes the focus every time it opens")
 
-	# The web is the documented one, and every upgrade is on it once.
-	var pairs := web.links().map(func(l: Array) -> String: return _pair(l[0].name, l[1].name))
-	var want := WEB.keys().map(func(k: StringName) -> String: return _pair(k, WEB[k]))
-	pairs.sort()
-	want.sort()
-	t.check(pairs == want, "the web's links are upgrades.md's (have %s)" % [pairs])
-	var ids := web.nodes().map(func(n: HubNode) -> StringName: return n.upgrade.id)
-	t.check(ids.size() == Progress.upgrades().size() and Progress.upgrades().all(func(u: Upgrade) -> bool: return ids.count(u.id) == 1),
-			"every upgrade is on the web exactly once")
 	t.check(web.seed_node() == at.call(&"PaddleSpeed"), "Paddle Speed is the seed")
-	# The web is taller than the view (7 rows to its 5), so the check is that it fits zoomed out.
-	web.zoom_at(web.size / 2, 0.001)
-	for n in web.nodes():
-		t.check(Rect2(Vector2.ZERO, web.size).encloses(Rect2(n.position, n.size)), "%s sits inside the web view zoomed out" % n.name)
-	web.zoom_at(web.size / 2, 1.0 / HubWeb.ZOOM_MIN)
+	t.check(web.seed_node().get_global_rect().get_center().is_equal_approx(web.get_global_rect().get_center()),
+			"the seed sits at the centre of the view")
 
 	# A fresh save: only the seed is open, and the rest is hidden.
 	for n in web.nodes():
@@ -138,24 +110,31 @@ func run(t: Node) -> void:
 	_heard.clear()
 	await _click(t, buy)
 	await t.tree().create_timer(0.15).timeout
-	t.check(Progress.rank(seed.upgrade) == 1 and Progress.coins == 100 - price, "Buy takes the price and adds a rank")
+	t.check(Progress.rank(seed.upgrade) == 1 and Progress.coins == 100 - price and Progress.owned == [&"PaddleSpeed"], "Buy takes the price, adds a copy and owns the node")
 	t.check(Sfx.BUY in _heard and not Sfx.CLICK in _heard, "Buy plays the buy cue and no click (heard %s)" % [_heard])
 	var opened := web.nodes().filter(func(n: HubNode) -> bool: return web.state(n) == HubNode.State.AVAILABLE).map(func(n: HubNode) -> String: return n.name)
 	opened.sort()
-	t.check(opened == ["Booster", "Combo", "HourglassBrick", "PaddleSize"], "buying the seed opens its four neighbours and nothing else (open: %s)" % [opened])
-	t.check(web.state(seed) == HubNode.State.OWNED and web.state(at.call(&"Splitter")) == HubNode.State.LOCKED, "the seed is owned, with a rank still to buy, and the next ring stays locked")
-	t.check(web.nodes().all(func(n: HubNode) -> bool: return n.visible == (web.state(n) != HubNode.State.LOCKED)), "every open node is shown and every locked one hidden")	# A click leaves no focus on Buy: Space is Start and Retry in a level, and here it would buy the next rank.
+	t.check(opened == ["Booster", "Combo", "PaddleSize", "ToughBrick"], "buying the seed opens its four neighbours and nothing else (open: %s)" % [opened])
+	t.check(web.state(seed) == HubNode.State.OWNED and web.state(at.call(&"PowerBrick")) == HubNode.State.LOCKED, "the seed is owned and the next ring stays locked")
+	t.check(web.nodes().all(func(n: HubNode) -> bool: return n.visible == (web.state(n) != HubNode.State.LOCKED)), "every open node is shown and every locked one hidden")
+	# Copies share a price ladder and the pips: the other Paddle Speed node now asks the second rank's price, and
+	# both show the one copy owned.
+	var copy: HubNode = at.call(&"PaddleSpeed2")
+	t.check((copy.get_node("Bottom/Price") as UiPrice).amount == seed.upgrade.cost(1) and (copy.get_node("Bottom/Pips") as UiPips).total == 1
+			and (seed.get_node("Bottom/Pips") as UiPips).total == 1 and not (seed.get_node("Bottom/Price") as Control).visible,
+			"the other copy asks %d, the next copy's price, every copy shows one pip, and the bought one no price" % seed.upgrade.cost(1))
+	# A click leaves no focus on Buy: Space is Start and Retry in a level, and here it would press Buy again.
 	_key(t, KEY_SPACE)
 	t.check(focus.call() == seed and Progress.rank(seed.upgrade) == 1, "after a click on Buy the focus is back on the selected node, and Space buys nothing")
 	(at.call(&"Combo") as Control).grab_focus()
 	buy.grab_focus()
 	_key(t, KEY_ENTER)
-	t.check(focus.call() == buy and Progress.rank(at.call(&"Combo").upgrade) == 1, "by keyboard the focus stays on Buy, and Enter buys the selected node (Combo, which opens Splitter)")
+	t.check(focus.call() == buy and Progress.rank(at.call(&"Combo").upgrade) == 1, "by keyboard the focus stays on Buy, and Enter buys the selected node (Combo, which opens Hourglass Brick)")
 
 	# Too poor: Buy can still be pressed, buys nothing and plays can't afford.
-	var splitter: HubNode = at.call(&"Splitter")
+	var splitter: HubNode = at.call(&"HourglassBrick")
 	await _click(t, splitter)
-	t.check(hub.selected == splitter and (hub.get_node("Detail/%Name") as Label).text == "Splitter", "clicking a node selects it and shows it in the detail panel")
+	t.check(hub.selected == splitter and (hub.get_node("Detail/%Name") as Label).text == "Hourglass Brick", "clicking a node selects it and shows it in the detail panel")
 	await t.tree().create_timer(0.15).timeout
 	Progress.coins = Progress.cost(splitter.upgrade) - 1
 	t.check(not buy.disabled and buy.theme_type_variation == &"CantAfford", "Buy stays pressable when the coins don't cover it, and looks it")
@@ -167,21 +146,19 @@ func run(t: Node) -> void:
 
 	# A double click on a node buys it, as Buy does; a single click only selected it above.
 	Progress.coins = 99999
-	await _click(t, at.call(&"Booster"))
+	await _click(t, at.call(&"Combo"))
 	await t.tree().create_timer(0.15).timeout
 	_heard.clear()
 	await _click(t, splitter, true)
 	await t.tree().create_timer(0.15).timeout
-	t.check(hub.selected == splitter and Progress.rank(splitter.upgrade) == 1 and Sfx.BUY in _heard, "a double click on a node selects it and buys a rank (heard %s)" % [_heard])
+	t.check(hub.selected == splitter and Progress.rank(splitter.upgrade) == 1 and Sfx.BUY in _heard, "a double click on a node selects it and buys it (heard %s)" % [_heard])
 
-	# A maxed node can't be bought.
-	Progress.ranks[seed.upgrade.id] = seed.upgrade.max_rank
-	Progress.rank_changed.emit(seed.upgrade)
+	# An owned node can't be bought again, though its upgrade has a copy left elsewhere.
 	await _click(t, seed)
-	t.check(buy.disabled and web.state(seed) == HubNode.State.MAXED, "Buy is disabled on a maxed node")
+	t.check(buy.disabled and web.state(seed) == HubNode.State.OWNED and not Progress.maxed(seed.upgrade), "Buy is disabled on an owned node")
 	var coins := Progress.coins
 	await _click(t, seed, true)
-	t.check(Progress.rank(seed.upgrade) == seed.upgrade.max_rank and Progress.coins == coins, "a double click on a maxed node buys nothing")
+	t.check(Progress.rank(seed.upgrade) == 1 and Progress.coins == coins, "a double click on an owned node buys nothing")
 
 	# The level panel: a locked level can be looked at but not played; Play opens the level on show.
 	var levels: Control = hub.get_node("Levels")
@@ -239,24 +216,6 @@ func _walk(t: Node, web: HubWeb, save: String) -> void:
 		i += 1
 	var shown := web.nodes().filter(func(n: HubNode) -> bool: return n.visible)
 	t.check(reached.size() == shown.size(), "%s: the arrows reach all %d shown nodes (reached %d)" % [save, shown.size(), reached.size()])
-
-
-## True if `n` is joined to the seed through owned nodes.
-func _owned_path(web: HubWeb, n: HubNode) -> bool:
-	var seen: Array[HubNode] = [n]
-	var i := 0
-	while i < seen.size():
-		if seen[i].is_seed:
-			return true
-		for m in web.neighbours(seen[i]):
-			if Progress.rank(m.upgrade) > 0 and not m in seen:
-				seen.append(m)
-		i += 1
-	return false
-
-
-func _pair(a: StringName, b: StringName) -> String:
-	return "%s-%s" % ([a, b] if String(a) < String(b) else [b, a])
 
 
 func _key(t: Node, key: Key) -> void:

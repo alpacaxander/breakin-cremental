@@ -3,18 +3,22 @@ class_name HubWeb
 extends Control
 ## The upgrade web's view (docs/art.md, "Upgrade screen"): the framed dot grid, the connections and the nodes.
 ##
-## web.tscn holds only layout. TO ADD AN UPGRADE: make its .tres in data/upgrades/, then in web.tscn instance
-## src/hub/upgrade_node.tscn as a child of Web, set its Upgrade, its Cell (column, row; (2, 2) is the centre of
-## the view, one step is 170 x 116 px) and its Links (the node or nodes it hangs off). No code changes.
+## web.tscn holds only layout: one node per purchase, so an upgrade with max_rank 3 has three nodes, its copies,
+## anywhere on the web. TO ADD AN UPGRADE: make its .tres in data/upgrades/, then in web.tscn instance
+## src/hub/upgrade_node.tscn as a child of Web max_rank times, and for each set its Upgrade, its Cell (column, row;
+## the seed is at (0, 0), the centre of the view, and one step is 170 x 116 px) and its Links (the node or nodes it
+## hangs off). No code changes. tests/cases/hub.gd checks the copies, the seed and what each node needs first.
 ##
-## A node is reachable once a node it links to has been bought; the seed is reachable from the start. That is
-## decided here, from the links, never by Progress (which only checks price and max rank). A node that is not
-## reachable (LOCKED) is hidden, and so are its links: the web shows only what is bought or what coins alone buy.
+## A node is bought once (its name goes into Progress.owned). An unbought node is on offer once a node it links to
+## has been bought; the seed is on offer from the start. That is decided here, from the links, never by Progress
+## (which only checks price, key and max rank). A node not on offer (LOCKED) is hidden, and so are its links: the
+## web shows only what is bought or what coins alone buy.
 ##
 ## The view pans and zooms (art.md, "Web view"): a drag with any mouse button or a two-finger swipe pans, the wheel
 ## or a pinch zooms about the pointer. The nodes are laid out in web.tscn at zoom 1 with no pan; _layout moves and
 ## scales them from there. The view's centre stays over the shown nodes, so the web can't be lost off screen.
 
+const SCENE := "res://src/hub/web.tscn"
 const DOT := 3.0
 const DOT_STEP := 24
 const LINE := 3.0
@@ -28,12 +32,30 @@ const REVEAL := 12.0  ## px kept between the selected node and the frame when th
 var pan := Vector2.ZERO
 var zoom := 1.0
 
+# ponytail: the links, read once; the scene doesn't change at run time. The editor reads them on every call.
+var _links: Array[Array] = []
+var _neighbours := {}  # HubNode -> Array of the HubNodes linked to it
+
 
 ## Every node of the web, in scene order.
 func nodes() -> Array[HubNode]:
 	var out: Array[HubNode] = []
 	out.assign(get_children().filter(func(c: Node) -> bool: return c is HubNode))
 	return out
+
+
+## For tests and screenshots, which need a save part of the way through the web: owns the first `count` nodes of
+## SCENE, and nothing else, as if they had been bought in the scene's order (every node links to one before it,
+## so that order can be bought in). Sets Progress.owned and Progress.ranks together; takes no coins, no keys and
+## does not save.
+static func own_first(count: int) -> void:
+	var web: HubWeb = (load(SCENE) as PackedScene).instantiate()
+	Progress.owned.clear()
+	Progress.ranks.clear()
+	for n in web.nodes().slice(0, count):
+		Progress.owned.append(n.name)
+		Progress.ranks[n.upgrade.id] = Progress.rank(n.upgrade) + 1
+	web.free()
 
 
 ## The seed: the node open from the start.
@@ -46,6 +68,8 @@ func seed_node() -> HubNode:
 
 ## Every connection once, as [a, b] pairs, whichever end lists it.
 func links() -> Array[Array]:
+	if _links and not Engine.is_editor_hint():
+		return _links
 	var out: Array[Array] = []
 	for a in nodes():
 		for path in a.links:
@@ -54,32 +78,41 @@ func links() -> Array[Array]:
 				push_error("%s links to %s, which is not a node of the web" % [a.name, path])
 			elif not out.any(func(l: Array) -> bool: return l.has(a) and l.has(b)):
 				out.append([a, b])
+	_links = out
+	_neighbours = {}
+	for l in out:
+		for i in 2:
+			_neighbours.get_or_add(l[i], []).append(l[1 - i])
 	return out
 
 
+## The nodes linked to n.
 func neighbours(n: HubNode) -> Array[HubNode]:
+	links()
 	var out: Array[HubNode] = []
-	for l in links():
-		if l.has(n):
-			out.append(l[1] if l[0] == n else l[0])
+	out.assign(_neighbours.get(n, []))
 	return out
 
 
+## OWNED if the node was bought, AVAILABLE if it is the seed or linked to an owned node, LOCKED otherwise.
 func state(n: HubNode) -> HubNode.State:
 	if Engine.is_editor_hint():
 		return HubNode.State.AVAILABLE
-	if Progress.maxed(n.upgrade):
-		return HubNode.State.MAXED
-	if Progress.rank(n.upgrade) > 0:
+	if owns(n):
 		return HubNode.State.OWNED
-	if n.is_seed or neighbours(n).any(func(m: HubNode) -> bool: return Progress.rank(m.upgrade) > 0):
+	if n.is_seed or neighbours(n).any(owns):
 		return HubNode.State.AVAILABLE
 	return HubNode.State.LOCKED
 
 
-## True if the node's next rank can be bought now: reachable, not maxed, and the coins cover it.
+## True if this node was bought.
+func owns(n: HubNode) -> bool:
+	return n.name in Progress.owned
+
+
+## True if the node can be bought now: on offer, and a key or the coins cover the next copy.
 func buyable(n: HubNode) -> bool:
-	return state(n) in [HubNode.State.AVAILABLE, HubNode.State.OWNED] and Progress.can_buy(n.upgrade)
+	return state(n) == HubNode.State.AVAILABLE and Progress.can_buy(n.upgrade)
 
 
 ## Shows every node's state from Progress, with `selected` outlined, and hides the locked ones. The view moves just
@@ -187,9 +220,9 @@ func _draw() -> void:
 		if not (a.visible and b.visible):
 			continue
 		var outer := b if depth.get(b, 0) >= depth.get(a, 0) else a
-		var lit := not Engine.is_editor_hint() and (Progress.rank(a.upgrade) > 0 or Progress.rank(b.upgrade) > 0)
+		var lit := not Engine.is_editor_hint() and (owns(a) or owns(b))
 		var colour := Palette.lit(Palette.of(outer.upgrade.meaning()), Palette.LIT_TEXT) if lit else Palette.BORDER
-		# ponytail: a straight line between centres; the demo's links are all straight across or straight down.
+		# ponytail: a straight line between centres; the web's links are all straight across or straight down.
 		draw_line(a.position + a.size / 2, b.position + b.size / 2, colour, LINE * zoom)
 
 

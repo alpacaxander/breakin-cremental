@@ -41,9 +41,3 @@ script = ExtResource("2")
 layout_mode = 2
 script = ExtResource("3")
 style = &"SmallTag"
-
-[node name="Max" type="Label" parent="Bottom"]
-visible = false
-layout_mode = 2
-theme_type_variation = &"SmallTag"
-text = "MAX"

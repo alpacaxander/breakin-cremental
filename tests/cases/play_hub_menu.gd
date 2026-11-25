@@ -3,8 +3,9 @@ extends RefCounted
 ## Main with real input events only. The CRT is on, as it is for a new player, so every click lands where the
 ## curved picture shows the control (_at, as in loop.gd).
 ##
-## The hub: every node read on fresh, mid and maxed saves against docs/design/upgrades.md's table, every path out
-## from the seed bought and the open set compared with the documented links, a node maxed, Buy with too few coins,
+## The hub: every node read on fresh, mid and maxed saves against docs/design/upgrades.md's table and drawn web,
+## every path out from the seed to a leaf bought and the open set compared with the drawn links, a node owned and
+## its copy's price, Buy with too few coins,
 ## each level picked, a locked one tried, and the hub after a real round on level 1 that clears it.
 ## The menu and Settings by mouse and by keyboard, each setting at once and after a restart.
 ## The joins: Esc twice from every screen and state, back buttons, double clicks, and how many times each UI cue
@@ -12,70 +13,83 @@ extends RefCounted
 ##
 ## A double click here is what the OS reports: a second press marked `double_click` (_double_click_at).
 
-## docs/design/upgrades.md's table, by web node: name, category, ranks, "Each rank", first cost, growth. Every
-## node's ranks and prices are first values, set with the balance bot.
+## docs/design/upgrades.md's table, by upgrade id: name, category, ranks (its nodes on the web), "Each rank", first
+## cost, growth. Every upgrade's ranks and prices are first values, set with the balance bot.
 const TABLE := {
-	&"PaddleSpeed": ["Paddle Speed", Upgrade.Category.ARENA, 2, "+100% paddle speed", 5, 30.0],
-	&"PaddleSize": ["Paddle Size", Upgrade.Category.ARENA, 5, "+40% paddle length", 20, 4.0],
-	&"Combo": ["Combo", Upgrade.Category.ARENA, 1, "Turns combos on", 4, 1.0],
-	&"ComboWindow": ["Combo Window", Upgrade.Category.ARENA, 2, "Combos last longer", 40, 15.0],
-	&"RearPaddle": ["Rear Paddle", Upgrade.Category.ARENA, 2, "+20% speed off the Rear Paddle", 300, 8.0],
-	&"Booster": ["Booster", Upgrade.Category.PLACEABLES, 2, "One more Booster", 5, 20.0],
-	&"BoosterSpeed": ["Booster Speed", Upgrade.Category.PLACEABLES, 2, "Balls leave a Booster 20% faster still", 500, 6.0],
-	&"Splitter": ["Splitter", Upgrade.Category.PLACEABLES, 5, "One more Splitter", 80, 3.0],
-	&"SplitterRespawn": ["Splitter Respawn", Upgrade.Category.PLACEABLES, 3, "A broken Splitter comes back", 2000, 2.5],
-	&"SplitterHealth": ["Splitter Health", Upgrade.Category.PLACEABLES, 2, "A Splitter takes one more hit", 500, 6.0],
-	&"WallSegment": ["Wall Segment", Upgrade.Category.PLACEABLES, 2, "One more Wall Segment", 40, 10.0],
-	&"GoldBrick": ["Gold Brick", Upgrade.Category.BRICKS, 3, "One more gold brick", 30, 6.0],
-	&"HourglassBrick": ["Hourglass Brick", Upgrade.Category.BRICKS, 2, "One more hourglass brick", 25, 100.0],
-	&"HourglassTime": ["Hourglass Time", Upgrade.Category.BRICKS, 2, "An hourglass brick adds 5 s more", 1200, 5.0],
-	&"HourglassFreeze": ["Hourglass Freeze", Upgrade.Category.BRICKS, 2, "Breaking an hourglass brick holds the combo", 800, 5.0],
-	&"ToughBrick": ["Tough Brick", Upgrade.Category.BRICKS, 3, "One more tough brick", 20, 6.0],
-	&"Growth": ["Growth", Upgrade.Category.PLACEABLES, 2, "One more Growth area", 100, 4.5],
-	&"GrowthReach": ["Growth Reach", Upgrade.Category.PLACEABLES, 2, "Growth areas reach one square further", 300, 10.0],
-	&"PulseRate": ["Growth Pulses", Upgrade.Category.PLACEABLES, 2, "Growth pulses once more", 1000, 6.0],
-	&"Overgrowth": ["Overgrowth", Upgrade.Category.ARENA, 1, "Broken bricks grow back", 0, 1.0],
-	&"Guide": ["Guide", Upgrade.Category.ARENA, 4, "+250 guide length", 30, 4.0],
-	&"GuideBounces": ["Guide Bounces", Upgrade.Category.ARENA, 1, "The guide line bounces", 250, 1.0],
-	&"Multiball": ["Multiball", Upgrade.Category.ARENA, 3, "One more ball", 300, 5.0],
-	&"PowerBrick": ["Power Brick", Upgrade.Category.ABILITIES, 4, "One more Power Brick", 25, 4.0],
-	&"Zap": ["Zap", Upgrade.Category.ABILITIES, 1, "Unlocks Zap: a charged ball hits the rest of its brick's row", 0, 1.0],
-	&"ZapRange": ["Zap Range", Upgrade.Category.ABILITIES, 2, "A Zap reaches 2 more bricks each way", 400, 5.0],
-	&"ZapDamage": ["Zap Damage", Upgrade.Category.ABILITIES, 2, "A Zap hits each brick once more", 800, 5.0],
-	&"Blast": ["Blast", Upgrade.Category.ABILITIES, 1, "Unlocks Blast: a charged ball sets off a blast at the brick it hits", 0, 1.0],
-	&"BlastSize": ["Blast Size", Upgrade.Category.ABILITIES, 2, "Blasts reach one square further", 150, 20.0],
-	&"BlastDamage": ["Blast Damage", Upgrade.Category.ABILITIES, 2, "Blasts hit each brick once more", 300, 10.0],
-	&"Shockwave": ["Shockwave", Upgrade.Category.ABILITIES, 1, "Blasts throw balls", 600, 1.0],
+	&"paddle_speed": ["Paddle Speed", Upgrade.Category.ARENA, 2, "+100% paddle speed", 5, 30.0],
+	&"paddle_size": ["Paddle Size", Upgrade.Category.ARENA, 5, "+40% paddle length", 20, 4.0],
+	&"combo": ["Combo", Upgrade.Category.ARENA, 1, "Turns combos on", 4, 1.0],
+	&"combo_window": ["Combo Window", Upgrade.Category.ARENA, 2, "Combos last longer", 40, 15.0],
+	&"rear_paddle": ["Rear Paddle", Upgrade.Category.ARENA, 2, "+20% speed off the Rear Paddle", 300, 8.0],
+	&"booster": ["Booster", Upgrade.Category.PLACEABLES, 2, "One more Booster", 5, 20.0],
+	&"booster_speed": ["Booster Speed", Upgrade.Category.PLACEABLES, 2, "Balls leave a Booster 20% faster still", 500, 6.0],
+	&"splitter": ["Splitter", Upgrade.Category.PLACEABLES, 5, "One more Splitter", 80, 3.0],
+	&"splitter_respawn": ["Splitter Respawn", Upgrade.Category.PLACEABLES, 3, "A broken Splitter comes back", 2000, 2.5],
+	&"splitter_health": ["Splitter Health", Upgrade.Category.PLACEABLES, 2, "A Splitter takes one more hit", 500, 6.0],
+	&"wall_segment": ["Wall Segment", Upgrade.Category.PLACEABLES, 2, "One more Wall Segment", 40, 10.0],
+	&"gold_brick": ["Gold Brick", Upgrade.Category.BRICKS, 3, "One more gold brick", 30, 6.0],
+	&"hourglass_brick": ["Hourglass Brick", Upgrade.Category.BRICKS, 2, "One more hourglass brick", 25, 100.0],
+	&"hourglass_time": ["Hourglass Time", Upgrade.Category.BRICKS, 2, "An hourglass brick adds 5 s more", 1200, 5.0],
+	&"hourglass_freeze": ["Hourglass Freeze", Upgrade.Category.BRICKS, 2, "Breaking an hourglass brick holds the combo", 800, 5.0],
+	&"tough_brick": ["Tough Brick", Upgrade.Category.BRICKS, 3, "One more tough brick", 20, 6.0],
+	&"growth": ["Growth", Upgrade.Category.PLACEABLES, 2, "One more Growth area", 100, 4.5],
+	&"growth_reach": ["Growth Reach", Upgrade.Category.PLACEABLES, 2, "Growth areas reach one square further", 300, 10.0],
+	&"pulse_rate": ["Growth Pulses", Upgrade.Category.PLACEABLES, 2, "Growth pulses once more", 1000, 6.0],
+	&"overgrowth": ["Overgrowth", Upgrade.Category.ARENA, 1, "Broken bricks grow back", 0, 1.0],
+	&"guide": ["Guide", Upgrade.Category.ARENA, 4, "+250 guide length", 30, 4.0],
+	&"guide_bounces": ["Guide Bounces", Upgrade.Category.ARENA, 1, "The guide line bounces", 250, 1.0],
+	&"multiball": ["Multiball", Upgrade.Category.ARENA, 3, "One more ball", 300, 5.0],
+	&"power_brick": ["Power Brick", Upgrade.Category.ABILITIES, 4, "One more Power Brick", 25, 4.0],
+	&"zap": ["Zap", Upgrade.Category.ABILITIES, 1, "Unlocks Zap: a charged ball hits the rest of its brick's row", 0, 1.0],
+	&"zap_range": ["Zap Range", Upgrade.Category.ABILITIES, 2, "A Zap reaches 2 more bricks each way", 400, 5.0],
+	&"zap_damage": ["Zap Damage", Upgrade.Category.ABILITIES, 2, "A Zap hits each brick once more", 800, 5.0],
+	&"blast": ["Blast", Upgrade.Category.ABILITIES, 1, "Unlocks Blast: a charged ball sets off a blast at the brick it hits", 0, 1.0],
+	&"blast_size": ["Blast Size", Upgrade.Category.ABILITIES, 2, "Blasts reach one square further", 150, 20.0],
+	&"explosion_damage": ["Blast Damage", Upgrade.Category.ABILITIES, 2, "Blasts hit each brick once more", 300, 10.0],
+	&"shockwave": ["Shockwave", Upgrade.Category.ABILITIES, 1, "Blasts throw balls", 600, 1.0],
 }
-## The drawn web of upgrades.md: each node and the one it hangs off, towards the seed. A node with two links
-## would hang off one here and have the other in CROSS; none has now.
-const PARENT := {
-	&"HourglassBrick": &"PaddleSpeed", &"HourglassTime": &"HourglassBrick", &"HourglassFreeze": &"HourglassTime",
-	&"Booster": &"PaddleSpeed", &"BoosterSpeed": &"Booster", &"RearPaddle": &"Booster", &"Guide": &"Booster",
-	&"GuideBounces": &"Guide", &"Combo": &"PaddleSpeed", &"ComboWindow": &"Combo", &"GoldBrick": &"Combo",
-	&"WallSegment": &"GoldBrick", &"Multiball": &"WallSegment", &"Splitter": &"Combo",
-	&"SplitterRespawn": &"Splitter", &"SplitterHealth": &"SplitterRespawn", &"ToughBrick": &"GoldBrick",
-	&"Growth": &"ToughBrick", &"GrowthReach": &"Growth", &"PulseRate": &"Growth", &"Overgrowth": &"PulseRate",
-	&"PaddleSize": &"PaddleSpeed", &"PowerBrick": &"PaddleSize", &"Zap": &"PowerBrick", &"ZapRange": &"Zap",
-	&"ZapDamage": &"ZapRange", &"Blast": &"PowerBrick", &"BlastSize": &"Blast", &"BlastDamage": &"BlastSize",
-	&"Shockwave": &"BlastDamage",
-}
-## Each node's cell on the drawn web (column, row).
-const CELL := {
-	&"ZapRange": Vector2i(0, 0), &"ZapDamage": Vector2i(1, 0), &"RearPaddle": Vector2i(2, 0),
-	&"Zap": Vector2i(0, 1), &"BoosterSpeed": Vector2i(1, 1), &"Booster": Vector2i(2, 1), &"Guide": Vector2i(3, 1),
-	&"GuideBounces": Vector2i(4, 1), &"PowerBrick": Vector2i(0, 2), &"PaddleSize": Vector2i(1, 2),
-	&"PaddleSpeed": Vector2i(2, 2), &"HourglassBrick": Vector2i(3, 2), &"HourglassTime": Vector2i(4, 2),
-	&"Blast": Vector2i(0, 3), &"Splitter": Vector2i(1, 3), &"Combo": Vector2i(2, 3), &"ComboWindow": Vector2i(3, 3),
-	&"HourglassFreeze": Vector2i(4, 3), &"BlastSize": Vector2i(0, 4), &"SplitterRespawn": Vector2i(1, 4),
-	&"GoldBrick": Vector2i(2, 4), &"WallSegment": Vector2i(3, 4), &"Multiball": Vector2i(4, 4),
-	&"BlastDamage": Vector2i(0, 5), &"SplitterHealth": Vector2i(1, 5), &"ToughBrick": Vector2i(2, 5),
-	&"Growth": Vector2i(3, 5), &"GrowthReach": Vector2i(4, 5), &"Shockwave": Vector2i(0, 6),
-	&"PulseRate": Vector2i(3, 6), &"Overgrowth": Vector2i(4, 6),
+## The drawn web of upgrades.md, by web node: its cell (column, row; the seed's is (0, 0)) and the nodes it hangs
+## off, towards the seed. The scene lists the nodes in this order, which is one they can be bought in.
+const DRAWN := {
+	&"PaddleSpeed": [Vector2i(0, 0)], &"Combo": [Vector2i(1, 0), &"PaddleSpeed"],
+	&"Booster": [Vector2i(0, -1), &"PaddleSpeed"], &"PaddleSize": [Vector2i(-1, 0), &"PaddleSpeed"],
+	&"ToughBrick": [Vector2i(0, 1), &"PaddleSpeed"], &"PowerBrick": [Vector2i(-2, 0), &"PaddleSize"],
+	&"HourglassBrick": [Vector2i(2, 0), &"Combo"], &"Guide": [Vector2i(0, -2), &"Booster"],
+	&"GoldBrick": [Vector2i(0, 2), &"ToughBrick"], &"ComboWindow": [Vector2i(2, -1), &"HourglassBrick"],
+	&"WallSegment": [Vector2i(0, 3), &"GoldBrick"], &"Zap": [Vector2i(-2, -1), &"PowerBrick"],
+	&"PaddleSize2": [Vector2i(3, 0), &"HourglassBrick"], &"Booster2": [Vector2i(0, -3), &"Guide"],
+	&"Splitter": [Vector2i(1, -3), &"Booster2"], &"PowerBrick2": [Vector2i(-3, 0), &"PowerBrick"],
+	&"Growth": [Vector2i(0, 4), &"WallSegment"], &"Guide2": [Vector2i(-2, -2), &"Zap"],
+	&"PaddleSpeed2": [Vector2i(1, -4), &"Splitter"], &"ToughBrick2": [Vector2i(1, -5), &"PaddleSpeed2"],
+	&"GoldBrick2": [Vector2i(4, 0), &"PaddleSize2"], &"Splitter2": [Vector2i(-1, 4), &"Growth"],
+	&"GuideBounces": [Vector2i(-1, -3), &"Booster2"], &"Multiball": [Vector2i(3, 1), &"PaddleSize2"],
+	&"RearPaddle": [Vector2i(2, -3), &"Splitter"], &"GrowthReach": [Vector2i(1, 4), &"Growth"],
+	&"PaddleSize3": [Vector2i(-4, 0), &"PowerBrick2"], &"ZapRange": [Vector2i(-3, -2), &"Guide2"],
+	&"Guide3": [Vector2i(0, -5), &"ToughBrick2"], &"BoosterSpeed": [Vector2i(3, -3), &"RearPaddle"],
+	&"ComboWindow2": [Vector2i(3, 2), &"Multiball"], &"ToughBrick3": [Vector2i(-1, 5), &"Splitter2"],
+	&"Growth2": [Vector2i(-2, 5), &"ToughBrick3"], &"WallSegment2": [Vector2i(-2, 6), &"Growth2"],
+	&"Splitter3": [Vector2i(-3, 5), &"Growth2"], &"ZapDamage": [Vector2i(-4, -2), &"ZapRange"],
+	&"PowerBrick3": [Vector2i(-4, -3), &"ZapDamage"], &"HourglassFreeze": [Vector2i(3, 3), &"ComboWindow2"],
+	&"GrowthPulses": [Vector2i(1, 5), &"GrowthReach"], &"GoldBrick3": [Vector2i(1, 6), &"GrowthPulses"],
+	&"HourglassTime": [Vector2i(4, 3), &"HourglassFreeze"], &"Blast": [Vector2i(-2, 1), &"PowerBrick"],
+	&"BlastSize": [Vector2i(-2, 2), &"Blast"], &"BlastDamage": [Vector2i(-3, 2), &"BlastSize"],
+	&"Shockwave": [Vector2i(-4, 2), &"BlastDamage"], &"PaddleSize4": [Vector2i(-1, -5), &"Guide3"],
+	&"Multiball2": [Vector2i(-4, 5), &"Splitter3"], &"SplitterHealth": [Vector2i(-4, 6), &"Multiball2"],
+	&"PowerBrick4": [Vector2i(-5, 2), &"Shockwave"], &"Guide4": [Vector2i(3, -4), &"BoosterSpeed"],
+	&"SplitterRespawn": [Vector2i(1, -6), &"ToughBrick2"], &"ZapRange2": [Vector2i(-4, -4), &"PowerBrick3"],
+	&"Splitter4": [Vector2i(-5, -2), &"ZapDamage"], &"HourglassBrick2": [Vector2i(3, 4), &"HourglassFreeze"],
+	&"BlastDamage2": [Vector2i(-4, 3), &"Shockwave"], &"SplitterHealth2": [Vector2i(3, -5), &"Guide4"],
+	&"RearPaddle2": [Vector2i(4, -5), &"SplitterHealth2"], &"BlastSize2": [Vector2i(-6, 2), &"PowerBrick4"],
+	&"GrowthReach2": [Vector2i(0, 6), &"GoldBrick3"], &"BoosterSpeed2": [Vector2i(3, -6), &"SplitterHealth2"],
+	&"HourglassFreeze2": [Vector2i(4, 4), &"HourglassTime", &"HourglassBrick2"],
+	&"ZapDamage2": [Vector2i(-5, -4), &"ZapRange2"], &"SplitterRespawn2": [Vector2i(-6, -2), &"Splitter4"],
+	&"PaddleSize5": [Vector2i(-6, 3), &"BlastSize2"], &"HourglassTime2": [Vector2i(3, 5), &"HourglassBrick2"],
+	&"GrowthPulses2": [Vector2i(2, 6), &"GoldBrick3"], &"Splitter5": [Vector2i(-5, 5), &"Multiball2"],
+	&"Multiball3": [Vector2i(-6, -4), &"ZapDamage2"], &"SplitterRespawn3": [Vector2i(-5, 4), &"Splitter5"],
+	&"Overgrowth": [Vector2i(2, 2), &"ComboWindow2"],
 }
 ## art.md's category colours, by Upgrade.Category: cyan, blue, magenta, orange.
 const HUE := [Palette.PLAYER, Palette.PLACEABLE, Palette.BRICKS, Palette.ABILITY]
-const CROSS := {}
 const DETAIL := Rect2(904, 88, 352, 284)  ## art.md, "Upgrade screen"
 const LEVELS := Rect2(904, 388, 352, 308)
 const SPACE := 0.06  ## Sfx spaces plays of one cue 15 ms apart in real time; wait this long before counting them
@@ -150,10 +164,12 @@ func _details(save: String) -> void:
 	await _fresh_hub()
 	var web := _web()
 	var buy: Button = _hub().get_node("Detail/%Buy")
+	t.check(web.nodes().map(func(n: HubNode) -> StringName: return n.name) == DRAWN.keys(), "the web's nodes are upgrades.md's, in its order")
 	for n in web.nodes():
-		var row: Array = TABLE[StringName(n.name)]
+		var row: Array = TABLE[n.upgrade.id]
 		var what := "%s on a %s save" % [n.name, save]
-		t.check(n.cell == CELL[StringName(n.name)], "%s sits at upgrades.md's cell %s (is %s)" % [what, CELL[StringName(n.name)], n.cell])
+		var drawn: Array = DRAWN.get(StringName(n.name), [null])
+		t.check(n.cell == drawn[0], "%s sits at upgrades.md's cell %s (is %s)" % [what, drawn[0], n.cell])
 		if web.state(n) == HubNode.State.LOCKED:
 			t.check(not n.visible, "%s is locked, so it is hidden" % what)
 			continue
@@ -172,36 +188,43 @@ func _details(save: String) -> void:
 		var text := _hub().get_node("Detail/%Text") as Label
 		t.check(text.get_line_count() <= 2 and text.get_visible_line_count() == text.get_line_count(),
 				"%s: the text fits the panel's two lines (%d lines, %d shown)" % [what, text.get_line_count(), text.get_visible_line_count()])
-		t.check(u.max_rank == row[2] and _text("Detail/%Rank") == "RANK %d" % r, "%s: the rank reads RANK %d, with no max" % [what, r])
-		var pips_shown := mini(r + 1, row[2])
-		t.check((_hub().get_node("Detail/%Pips") as UiPips).total == pips_shown and (n.get_node("Bottom/Pips") as UiPips).total == pips_shown,
-				"%s: %d pips, the ranks owned and the next, on the panel and on the node" % [what, pips_shown])
+		t.check(u.max_rank == row[2] and _text("Detail/%Rank") == "RANK %d" % r, "%s: the rank reads RANK %d, the copies owned, with no max" % [what, r])
+		t.check((_hub().get_node("Detail/%Pips") as UiPips).total == r and (n.get_node("Bottom/Pips") as UiPips).total == r,
+				"%s: %d pips, one per copy owned, on the panel and on the node" % [what, r])
 		t.check(_text("Detail/%Text").begins_with(row[3]), "%s: the effect is the table's \"%s\" (reads \"%s\")" % [what, row[3], _text("Detail/%Text")])
-		t.check(_text("Detail/%State") == ["LOCKED", "AVAILABLE", "OWNED", "MAXED"][web.state(n)], "%s: the state on the panel is the node's" % what)
+		var owned := StringName(n.name) in Progress.owned
+		t.check(_text("Detail/%State") == ("OWNED" if owned else "AVAILABLE") and _text("Detail/%State") == ["LOCKED", "AVAILABLE", "OWNED"][web.state(n)],
+				"%s: the state on the panel is the node's" % what)
 		var price: int = roundi(row[4] * pow(row[5], r))
-		var maxed: bool = r >= row[2]
-		if not maxed:
+		if not owned:
 			t.check((_hub().get_node("Detail/%Price") as UiPrice).amount == price and (n.get_node("Bottom/Price") as UiPrice).amount == price,
-					"%s: the next rank costs %d, on the panel and on the node" % [what, price])
-		t.check((_hub().get_node("Detail/%Cost") as Control).visible != maxed and (n.get_node("Bottom/Max") as Control).visible == maxed,
-				"%s: the price is gone and MAX shows only when maxed" % what)
-		t.check(buy.text == ("MAXED" if maxed else "BUY") and buy.disabled == maxed, "%s: Buy reads %s" % [what, buy.text])
-		t.check((n.get_node("Bottom/Price") as UiPrice).dim == not (not maxed and Progress.coins >= price), "%s: the node's price is gold only when it can be bought now" % what)
+					"%s: the next copy costs %d, on the panel and on the node" % [what, price])
+		t.check((_hub().get_node("Detail/%Cost") as Control).visible != owned and (n.get_node("Bottom/Price") as Control).visible != owned,
+				"%s: the price shows only until the node is bought" % what)
+		t.check(buy.text == ("OWNED" if owned else "BUY") and buy.disabled == owned, "%s: Buy reads %s" % [what, buy.text])
+		var can := not owned and (Progress.keys() > 0 if u.key else Progress.coins >= price)
+		t.check((n.get_node("Bottom/Price") as UiPrice).dim == not can, "%s: the node's price is gold only when it can be bought now" % what)
 		t.check((_hub().get_node("Detail") as Control).get_global_rect() == DETAIL, "%s: the detail panel keeps its size (is %s)" % [what, (_hub().get_node("Detail") as Control).get_global_rect()])
 		var label := n.get_node("Name") as Label
 		t.check(label.get_minimum_size().x <= label.size.x + 0.5 or not label.clip_text, "%s: the name fits on the node" % what)
 
 
-## Every path out from the seed, bought node by node with clicks: after each buy the open nodes are exactly the
-## unbought ones with a bought neighbour on the drawn web, and each rank costs what the table says.
+## Every path out from the seed to a leaf (a node nothing hangs off), bought node by node with clicks, each node
+## by the first one it hangs off: after each buy the open nodes are exactly the unbought ones with a bought
+## neighbour on the drawn web, and each copy costs what the table says for the copies owned before it.
 func _paths() -> void:
-	for leaf: StringName in PARENT:
+	var hung := []
+	for k: StringName in DRAWN:
+		hung.append_array(DRAWN[k].slice(1))
+	for leaf: StringName in DRAWN:
+		if leaf in hung:
+			continue
 		var path: Array[StringName] = [leaf]
-		while PARENT.has(path[0]):
-			path.push_front(PARENT[path[0]])
+		while DRAWN[path[0]].size() > 1:
+			path.push_front(DRAWN[path[0]][1])
 		_seed("fresh")
-		Progress.coins = 9999
-		Progress.unlocked = 2  # level 1 cleared: the one key a path's Zap, Blast or Overgrowth costs
+		Progress.coins = 999999
+		Progress.unlocked = Progress.level_count + 1  # every level cleared: a key for each of Zap, Blast and Overgrowth
 		await _fresh_hub()
 		var buy: Button = _hub().get_node("Detail/%Buy")
 		for step: StringName in path:
@@ -209,12 +232,16 @@ func _paths() -> void:
 			_web().refresh(n)
 			await _click(n)
 			var before := Progress.coins
+			var r := Progress.rank(n.upgrade)
+			var row: Array = TABLE[n.upgrade.id]
+			var price: int = roundi(row[4] * pow(row[5], r))
 			await _click(buy)
-			t.check(Progress.rank(n.upgrade) == 1 and before - Progress.coins == TABLE[step][4], "on the path to %s, Buy on %s buys rank 1 for %d" % [leaf, step, TABLE[step][4]])
+			t.check(Progress.rank(n.upgrade) == r + 1 and StringName(step) in Progress.owned and before - Progress.coins == price,
+					"on the path to %s, Buy on %s buys copy %d for %d" % [leaf, step, r + 1, price])
 			var want: Array[String] = []
 			for m in _web().nodes():
 				var id := StringName(m.name)
-				if Progress.rank(m.upgrade) == 0 and _docs_neighbours(id).any(func(o: StringName) -> bool: return Progress.rank(_web().get_node(String(o)).upgrade) > 0):
+				if id not in Progress.owned and _docs_neighbours(id).any(func(o: StringName) -> bool: return o in Progress.owned):
 					want.append(m.name)
 			var have: Array[String] = []
 			for m in _web().nodes():
@@ -225,7 +252,7 @@ func _paths() -> void:
 			t.check(have == want, "after buying %s on the path to %s, open are %s (open: %s)" % [step, leaf, want, have])
 
 
-## Paddle Speed bought to its top rank with clicks, a Buy with too few coins, and the cues of each.
+## The seed bought with clicks, a Buy with too few coins, and the cues of each.
 func _max_and_poor() -> void:
 	_seed("fresh")
 	await _fresh_hub()
@@ -239,23 +266,19 @@ func _max_and_poor() -> void:
 	t.check(Progress.coins == 1 and Progress.rank(seed.upgrade) == 0, "Buy with 1 coin on a 5-coin node buys nothing")
 	t.check(heard == [Sfx.CANT_AFFORD], "it plays can't afford once and nothing else (heard %s)" % [heard])
 	t.check(buy.theme_type_variation == &"CantAfford" and not buy.disabled and buy.text == "BUY", "it reads BUY in the can't-afford look")
-	var paid: Array[int] = []
 	Progress.coins = 200
-	for i in 2:
-		var before := Progress.coins
-		await _quiet()
-		await _click(buy)
-		await _heard_settle()
-		paid.append(before - Progress.coins)
-		t.check(heard == [Sfx.BUY], "buying rank %d plays the buy cue once and nothing else (heard %s)" % [i + 1, heard])
-	t.check(paid == [5, 150], "Paddle Speed's two ranks cost 5 and 150 (paid %s)" % [paid])
-	t.check(_web().state(seed) == HubNode.State.MAXED and buy.disabled and buy.text == "MAXED", "after its top rank it is maxed and Buy reads MAXED")
-	t.check(not (_hub().get_node("Detail/%Cost") as Control).visible and (seed.get_node("Bottom/Max") as Control).visible, "the price is gone and the node says MAX")
+	await _quiet()
+	await _click(buy)
+	await _heard_settle()
+	t.check(heard == [Sfx.BUY] and Progress.coins == 195, "buying the seed costs 5 and plays the buy cue once and nothing else (heard %s)" % [heard])
+	t.check(_web().state(seed) == HubNode.State.OWNED and buy.disabled and buy.text == "OWNED", "once bought it is owned and Buy reads OWNED")
+	t.check(not (_hub().get_node("Detail/%Cost") as Control).visible and not (seed.get_node("Bottom/Price") as Control).visible, "the price is gone, on the panel and on the node")
+	t.check((_web().get_node("PaddleSpeed2/Bottom/Price") as UiPrice).amount == 150, "Paddle Speed's other copy now costs 150, its second rank")
 	var coins := Progress.coins
 	await _quiet()
 	await _click(buy)
 	await _heard_settle()
-	t.check(Progress.coins == coins and heard.is_empty(), "a click on the maxed Buy does nothing and plays nothing (heard %s)" % [heard])
+	t.check(Progress.coins == coins and heard.is_empty(), "a click on the owned node's Buy does nothing and plays nothing (heard %s)" % [heard])
 	await _quiet()
 	await _click(_web().get_node("Combo"))
 	await _heard_settle()
@@ -443,12 +466,12 @@ func _double_clicks() -> void:
 	Main.show_hub()
 	await _frames(2)
 	t.check(_hub().selected == _web().seed_node(), "the hub still has the seed selected (selected %s)" % _hub().selected.name)
-	for u in Progress.upgrades():  # every node owned, so whichever is under the pointer is shown
-		Progress.ranks[u.id] = 1
+	HubWeb.own_first(DRAWN.size())  # every node owned, so whichever is under the pointer is shown
 	Progress.rank_changed.emit(_web().seed_node().upgrade)
 	await _double_click_at(at)
 	t.check(_hub().selected != _web().seed_node(), "a double click that starts in the hub is not dropped: the node under it is selected")
 	Progress.ranks.clear()
+	Progress.owned.clear()
 	Progress.rank_changed.emit(_web().seed_node().upgrade)
 
 
@@ -525,8 +548,7 @@ func _seed(save: String) -> void:
 	var top := save == "maxed"
 	Progress.coins = 99999 if top else 250
 	Progress.unlocked = Levels.count() if top else 2
-	for u in Progress.upgrades():
-		Progress.ranks[u.id] = u.max_rank if top else ceili(u.max_rank / 2.0)
+	HubWeb.own_first(DRAWN.size() if top else ceili(DRAWN.size() / 2.0))
 	Progress.save()
 
 
@@ -580,12 +602,11 @@ func _labels(under: Node) -> Array:
 
 func _docs_neighbours(id: StringName) -> Array[StringName]:
 	var out: Array[StringName] = []
-	for links: Dictionary in [PARENT, CROSS]:
-		for k: StringName in links:
-			if k == id:
-				out.append(links[k])
-			elif links[k] == id:
-				out.append(k)
+	for k: StringName in DRAWN:
+		if k == id:
+			out.append_array(DRAWN[k].slice(1))
+		elif id in DRAWN[k].slice(1):
+			out.append(k)
 	return out
 
 

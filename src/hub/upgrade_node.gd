@@ -2,16 +2,18 @@
 class_name HubNode
 extends Button
 ## One node of the upgrade web (docs/art.md, "Upgrade screen"): a flat box in its category's colour with the
-## upgrade's name, its rank pips and its price or MAX. web.tscn places one per upgrade; see web.gd for how to add one.
+## upgrade's name, a pip per copy of the upgrade owned and, until it is bought, the next copy's price. web.tscn
+## places one per purchase: an upgrade has max_rank nodes, its copies, which share its price ladder (buying any
+## copy raises the others' price). See web.gd for how to add one.
 ##
 ## It only shows what it is told: HubWeb works out its state from Progress and the web's links and calls show_state.
 ## In the editor (this is a @tool script so the web can be laid out by eye) it shows its node name and the
 ## available look in the text colour, and never reads Progress.
 
-enum State { LOCKED, AVAILABLE, OWNED, MAXED }
+enum State { LOCKED, AVAILABLE, OWNED }
 
 const PITCH := Vector2(170, 116)  ## art.md: one grid step, centre to centre
-const ORIGIN := Vector2(92, 72)  ## The centre of cell (0, 0) in the web view, so cell (2, 2) is the view's centre
+const ORIGIN := Vector2(432, 304)  ## The centre of cell (0, 0), the seed's, in the web view: the view's centre
 const SIZE := Vector2(148, 60)
 const SEED_SIZE := Vector2(168, 72)
 const DASH := 6.0
@@ -21,8 +23,8 @@ const DASH := 6.0
 	set(v):
 		upgrade = v
 		_place()
-## Where it sits on the web's grid: column, row. (2, 2) is the centre of the view.
-@export var cell := Vector2i(2, 2):
+## Where it sits on the web's grid: column, row. (0, 0) is the seed's, at the centre of the view.
+@export var cell := Vector2i.ZERO:
 	set(v):
 		cell = v
 		_place()
@@ -51,9 +53,9 @@ func _ready() -> void:
 	mouse_entered.connect(queue_redraw)
 	mouse_exited.connect(queue_redraw)
 	_place()
-	if not Engine.is_editor_hint():  # a rank of this node was bought: it swells for a moment
+	if not Engine.is_editor_hint():  # this node was just bought: it swells for a moment
 		Progress.rank_changed.connect(func(u: Upgrade) -> void:
-			if u == upgrade:
+			if u == upgrade and Progress.owned and Progress.owned.back() == name:
 				UiTheme.pulse(self, 0.5, UiTheme.PULSE, zoom))
 
 
@@ -61,27 +63,16 @@ func _ready() -> void:
 func show_state(s: State, affordable: bool) -> void:
 	state = s
 	var u := upgrade
-	accessibility_name = "%s, %s, rank %d" % [u.title, State.keys()[s].to_lower(), Progress.rank(u)]
-	($Name as Label).add_theme_color_override(&"font_color",
-			Palette.BASE if s == State.MAXED else Palette.TEXT)
+	accessibility_name = "%s, %s, %d owned" % [u.title, State.keys()[s].to_lower(), Progress.rank(u)]
 	var pips: UiPips = $Bottom/Pips
-	pips.total = shown_pips(u)
+	pips.total = Progress.rank(u)
 	pips.owned = Progress.rank(u)
 	pips.meaning = u.meaning()
-	pips.on_lit = s == State.MAXED
 	var price: UiPrice = $Bottom/Price
-	price.visible = s != State.MAXED
+	price.visible = s != State.OWNED
 	price.amount = Progress.cost(u)
 	price.dim = not affordable
-	var max_label: Label = $Bottom/Max
-	max_label.visible = s == State.MAXED
-	max_label.add_theme_color_override(&"font_color", Palette.BASE)
 	queue_redraw()
-
-
-## The ranks owned and the next one, never the max rank: the web doesn't say how many ranks are left.
-static func shown_pips(u: Upgrade) -> int:
-	return mini(Progress.rank(u) + 1, u.max_rank)
 
 
 ## Where the node sits in web.tscn's layout: at zoom 1 with no pan.
@@ -104,11 +95,6 @@ func _draw() -> void:
 	var r := Rect2(Vector2.ZERO, size)
 	var edge := Rect2(Vector2.ONE, size - Vector2(2, 2))  # a 2 px stroke centred 1 px in, so it stays inside the box
 	match state:
-		State.MAXED:
-			# The palette colour as it is, not lit: a lit cyan fill blooms over the 14 px name and washes it out. The
-			# border is lit, so a maxed node still glows.
-			draw_rect(r, hue)
-			draw_rect(edge, Palette.lit(hue), false, 2)
 		State.OWNED:
 			draw_rect(r, Palette.dim(upgrade.meaning()))
 			draw_rect(edge, Palette.lit(hue), false, 2)

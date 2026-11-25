@@ -223,6 +223,7 @@ class EscListener:
 
 func _across(t: Node) -> void:
 	_names(t)
+	_web(t)
 	_snapshot(t)
 	await _levels(t)
 
@@ -260,6 +261,47 @@ func _names(t: Node) -> void:
 		for id: StringName in ranks:
 			var u := Progress.upgrade(id)
 			t.check(u != null and ranks[id] <= u.max_rank, "the admin preset %s's %s is an upgrade, at most its max rank" % [preset, id])
+
+
+## docs/design/upgrades.md: an upgrade and what it needs first. No node of the first can be reached from the
+## seed without passing through a node of the second.
+const NEEDS := {
+	&"booster_speed": &"booster", &"splitter_respawn": &"splitter", &"splitter_health": &"splitter",
+	&"growth_reach": &"growth", &"pulse_rate": &"growth", &"hourglass_time": &"hourglass_brick",
+	&"hourglass_freeze": &"hourglass_brick", &"combo_window": &"combo", &"guide_bounces": &"guide",
+	&"zap": &"power_brick", &"blast": &"power_brick", &"zap_range": &"zap", &"zap_damage": &"zap",
+	&"blast_size": &"blast", &"explosion_damage": &"blast", &"shockwave": &"blast",
+}
+
+
+## The web scene (the hub lane) against the upgrades (the state lane): each upgrade has a node per rank, one seed,
+## every node can be bought in the scene's order, and nothing is reached before what it needs.
+func _web(t: Node) -> void:
+	var web: HubWeb = (load(HubWeb.SCENE) as PackedScene).instantiate()
+	var nodes := web.nodes()
+	for u in Progress.upgrades():
+		var copies := nodes.filter(func(n: HubNode) -> bool: return n.upgrade == u).size()
+		t.check(copies == u.max_rank, "the web has a node for each of %s's %d ranks (has %d)" % [u.id, u.max_rank, copies])
+	t.check(nodes.all(func(n: HubNode) -> bool: return n.upgrade != null), "every web node sells an upgrade")
+	var seeds := nodes.filter(func(n: HubNode) -> bool: return n.is_seed)
+	t.check(seeds.size() == 1 and nodes[0].is_seed and nodes[0].cell == Vector2i.ZERO, "the web has one seed, first in the scene, at cell (0, 0)")
+	var cells := nodes.map(func(n: HubNode) -> Vector2i: return n.cell)
+	t.check(nodes.all(func(n: HubNode) -> bool: return cells.count(n.cell) == 1), "no two web nodes share a cell")
+	# The scene's order is a buying order: HubWeb.own_first relies on it, and it makes every node reachable.
+	for i in range(1, nodes.size()):
+		t.check(web.neighbours(nodes[i]).any(func(m: HubNode) -> bool: return nodes.find(m) < i),
+				"web node %s links to a node before it in the scene, so it can be reached from the seed" % nodes[i].name)
+	for id: StringName in NEEDS:
+		var seen: Array[HubNode] = [web.seed_node()]
+		var i := 0
+		while i < seen.size():
+			for m in web.neighbours(seen[i]):
+				if m.upgrade.id != NEEDS[id] and not m in seen:
+					seen.append(m)
+			i += 1
+		var early := seen.filter(func(n: HubNode) -> bool: return n.upgrade.id == id).map(func(n: HubNode) -> StringName: return n.name)
+		t.check(early.is_empty(), "no %s node can be reached without a %s node first (%s can)" % [id, NEEDS[id], early])
+	web.free()
 
 
 ## With every upgrade owned, Progress.snapshot() hands a round each number it reads, moved off its base.

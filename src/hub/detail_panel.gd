@@ -1,12 +1,13 @@
 extends PanelContainer
-## The detail panel (docs/art.md, "Upgrade screen"): the selected node's category and state, name, rank, what a
-## rank does, the next rank's price and Buy.
+## The detail panel (docs/art.md, "Upgrade screen"): the selected node's category and state, name, the copies of
+## its upgrade owned (its rank), what a copy does, the next copy's price and Buy.
 ##
 ## Buy stays pressable when the coins don't cover it (Sfx.CANT_AFFORD, the CantAfford look). It is disabled only
-## for a maxed node: a locked one is hidden on the web, so it is never shown here. It is in Sfx.QUIET because its
-## press has a cue of its own. Buying goes through Progress.buy; the hub redraws from Progress's signals.
+## for an owned node: a locked one is hidden on the web, so it is never shown here. It is in Sfx.QUIET because its
+## press has a cue of its own. Buying goes through Progress.buy with the node's name; the hub redraws from
+## Progress's signals.
 
-const STATES := ["LOCKED", "AVAILABLE", "OWNED", "MAXED"]
+const STATES := ["LOCKED", "AVAILABLE", "OWNED"]
 
 var _node: HubNode
 
@@ -22,29 +23,29 @@ func _ready() -> void:
 func show_node(node: HubNode, state: HubNode.State) -> void:
 	_node = node
 	var u := node.upgrade
-	var open := state != HubNode.State.MAXED
+	var open := state == HubNode.State.AVAILABLE
 	var category: Label = %Category
 	category.text = Upgrade.Category.keys()[u.category]
 	UiTheme.light(category, Palette.of(u.meaning()))
 	(%State as Label).text = STATES[state]
 	(%Name as Label).text = u.title
 	var pips: UiPips = %Pips
-	pips.total = HubNode.shown_pips(u)
+	pips.total = Progress.rank(u)
 	pips.owned = Progress.rank(u)
 	pips.meaning = u.meaning()
 	(%Rank as Label).text = "RANK %d" % Progress.rank(u)
 	(%Text as Label).text = u.text
-	%Cost.visible = state != HubNode.State.MAXED
+	%Cost.visible = open
 	var price: UiPrice = %Price
 	price.amount = Progress.cost(u)
 	price.dim = not (open and Progress.can_buy(u))
 	_buy.disabled = not open
 	var poor := open and not Progress.can_buy(u)
 	_buy.theme_type_variation = &"CantAfford" if poor else &""
-	_buy.text = "BUY" if open else "MAXED"  # poor: the red outline and grey price say it ("CAN'T AFFORD" overflows the panel)
+	_buy.text = "BUY" if open else "OWNED"  # poor: the red outline and grey price say it ("CAN'T AFFORD" overflows the panel)
 
 
-## Buy, for a double click on a node: does what pressing it does, and nothing on a maxed node.
+## Buy, for a double click on a node: does what pressing it does, and nothing on an owned node.
 func buy() -> void:
 	if not _buy.disabled:
 		_on_buy()
@@ -52,7 +53,7 @@ func buy() -> void:
 
 ## Only an open node's Buy is enabled, and a disabled button never presses.
 func _on_buy() -> void:
-	if Progress.buy(_node.upgrade):
+	if Progress.buy(_node.upgrade, _node.name):
 		Sfx.play(Sfx.BUY)
 	else:
 		Sfx.play(Sfx.CANT_AFFORD)
