@@ -16,8 +16,10 @@ var id: StringName:
 @export var category: Category
 ## What one rank does, for the detail panel: "+10% ball speed", "One more Bumper".
 @export_multiline var text: String
-## The price of rank 1.
+## The price of rank 1. 0 for a key upgrade.
 @export var first_cost: int
+## A key upgrade costs one key and no coins. A level's first clear pays one key (Progress.keys).
+@export var key := false
 ## Each rank costs this many times the one before.
 @export var growth := 1.8
 ## The number of ranks it has.

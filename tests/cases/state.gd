@@ -15,7 +15,7 @@ const TABLE := {
 	&"rear_paddle": [A, 2, 300, &"rear_paddle", 0.2, false],
 	&"booster": [P, 2, 5, &"booster_count", 1.0, false],
 	&"booster_speed": [P, 2, 500, &"booster_speed", 0.2, false],
-	&"zap": [AB, 1, 60, &"zap_count", 1.0, false],
+	&"zap": [AB, 1, 0, &"zap_count", 1.0, false],
 	&"zap_range": [AB, 2, 400, &"zap_range", 2.0, false],
 	&"zap_damage": [AB, 2, 800, &"zap_damage", 1.0, false],
 	&"splitter": [P, 5, 80, &"splitter_count", 1.0, false],
@@ -23,7 +23,7 @@ const TABLE := {
 	&"splitter_health": [P, 2, 500, &"splitter_health", 1.0, false],
 	&"wall_segment": [P, 2, 40, &"wall_segment_count", 1.0, false],
 	&"power_brick": [AB, 4, 25, &"power_count", 1.0, false],
-	&"blast": [AB, 1, 60, &"blast_count", 1.0, false],
+	&"blast": [AB, 1, 0, &"blast_count", 1.0, false],
 	&"blast_size": [AB, 2, 150, &"blast_size", 1.0, false],
 	&"explosion_damage": [AB, 2, 300, &"explosion_damage", 1.0, false],
 	&"shockwave": [AB, 1, 600, &"shockwave", 1.0, false],
@@ -35,17 +35,21 @@ const TABLE := {
 	&"growth": [P, 2, 100, &"growth_count", 1.0, false],
 	&"growth_reach": [P, 2, 300, &"growth_reach", 1.0, false],
 	&"pulse_rate": [P, 2, 1000, &"growth_pulses", 1.0, false],
-	&"overgrowth": [A, 1, 8000, &"overgrowth", 1.0, false],
+	&"overgrowth": [A, 1, 0, &"overgrowth", 1.0, false],
 	&"guide": [A, 4, 30, &"guide", 250.0, false],
 	&"guide_bounces": [A, 1, 250, &"guide_bounces", 1.0, false],
 	&"multiball": [A, 3, 300, &"multiball", 1.0, false],
 }
+## The key upgrades: one key each and no coins.
+const KEYS := [&"zap", &"blast", &"overgrowth"]
 
 
 func run(t: Node) -> void:
 	_upgrades(t)
 	_stats(t)
 	_buy(t)
+	_keys(t)
+	_undo(t)
 	_finish_round(t)
 	_round_trip(t)
 	_bad_saves(t)
@@ -68,6 +72,7 @@ func _upgrades(t: Node) -> void:
 		t.check([u.category, u.max_rank, u.first_cost, u.stat] == row.slice(0, 4), "%s has the category, ranks, first cost and stat of the table" % u.id)
 		t.check(is_equal_approx(u.amount, row[4]) and u.percent == row[5], "%s adds %s%s per rank" % [u.id, row[4], " of the base" if row[5] else ""])
 		t.check(u.cost(0) == u.first_cost, "%s's first rank costs its first cost" % u.id)
+		t.check(u.key == (u.id in KEYS), "%s %s a key upgrade" % [u.id, "is" if u.id in KEYS else "is not"])
 		t.check(Progress.upgrade(u.id) == u, "Progress.upgrade finds %s" % u.id)
 	t.check(purchases == 70, "the web holds 70 purchases, not %d" % purchases)
 	t.check(Progress.upgrade(&"nope") == null, "an unknown id is no upgrade")
@@ -116,6 +121,52 @@ func _buy(t: Node) -> void:
 	Progress.rank_changed.disconnect(on_rank)
 
 
+func _keys(t: Node) -> void:
+	Progress.reset()
+	Progress.level_count = 3
+	var zap := Progress.upgrade(&"zap")
+	var blast := Progress.upgrade(&"blast")
+	Progress.coins = 99999
+	t.check(Progress.keys() == 0 and not Progress.can_buy(zap) and not Progress.buy(zap), "with no level cleared there is no key, and coins can't buy Zap")
+	Progress.finish_round(1, 0, true)
+	t.check(Progress.keys() == 1 and Progress.can_buy(zap), "a level's first clear pays one key")
+	Progress.finish_round(1, 0, true)
+	t.check(Progress.keys() == 1, "clearing it again pays no second key")
+	t.check(Progress.buy(zap, &"Zap") and Progress.rank(zap) == 1 and Progress.coins == 99999, "Zap costs a key and no coins")
+	t.check(Progress.keys() == 0 and not Progress.can_buy(blast), "the key is spent, so Blast waits for the next")
+	t.check(Progress.owned == ([&"Zap"] as Array[StringName]), "buy records the node it was given")
+	Progress.unlocked = 9
+	t.check(Progress.keys() == 2, "keys count only the levels there are: 3 cleared, less Zap's")
+	Progress.reset()
+
+
+func _undo(t: Node) -> void:
+	Progress.reset()
+	Progress.level_count = 3
+	Progress.unlocked = 2
+	var u := Progress.upgrade(&"paddle_size")
+	var zap := Progress.upgrade(&"zap")
+	var heard := []
+	var on_rank := func(x: Upgrade) -> void: heard.append(x)
+	Progress.rank_changed.connect(on_rank)
+	t.check(not Progress.undo(u) and heard.is_empty(), "undo refuses with no copy owned")
+	Progress.coins = u.cost(0) + u.cost(1)
+	Progress.buy(u, &"PaddleSize")
+	Progress.buy(u, &"PaddleSize2")
+	Progress.buy(zap, &"Zap")
+	heard.clear()
+	t.check(not Progress.undo(u, &"Nope") and Progress.rank(u) == 2 and heard.is_empty(), "undo refuses a node that is not owned")
+	t.check(Progress.undo(u, &"PaddleSize") and Progress.rank(u) == 1 and Progress.coins == u.cost(1) and heard == [u],
+			"undo gives back what the last copy cost (%d), whichever node it names" % u.cost(1))
+	t.check(Progress.owned == ([&"PaddleSize2", &"Zap"] as Array[StringName]) and _saved().get("owned") == ["PaddleSize2", "Zap"], "and forgets the node, and saves")
+	t.check(Progress.undo(u) and not Progress.ranks.has(u.id) and Progress.coins == u.cost(0) + u.cost(1), "the last copy undone leaves no rank and every coin back")
+	t.check(Progress.keys() == 0 and Progress.undo(zap, &"Zap") and Progress.keys() == 1 and Progress.coins == u.cost(0) + u.cost(1),
+			"undoing Zap gives back its key and no coins")
+	t.check(Progress.owned == ([&"PaddleSize2"] as Array[StringName]), "an undo with no node leaves owned alone")
+	Progress.rank_changed.disconnect(on_rank)
+	Progress.reset()
+
+
 func _finish_round(t: Node) -> void:
 	Progress.reset()
 	Progress.level_count = 3
@@ -145,32 +196,48 @@ func _round_trip(t: Node) -> void:
 	Progress.coins = 142
 	Progress.ranks[&"zap"] = 1
 	Progress.ranks[&"shockwave"] = 1
+	Progress.owned.assign([&"Zap", &"Shockwave"])
 	Progress.unlocked = 2
 	Progress.layouts[1] = [{"kind": "bumper", "x": 512.0, "y": 256.0, "rot": 0.0}, {"kind": "splitter", "col": 30, "row": 3}]
 	Progress.layouts[3] = []
 	Progress.save()
-	var want := [Progress.coins, Progress.ranks.duplicate(), Progress.unlocked, _json(Progress.layouts)]
+	var want := [Progress.coins, Progress.ranks.duplicate(), Progress.unlocked, _json(Progress.layouts), Progress.owned.duplicate()]
 	Progress.use(Progress.path)
 	t.check(Progress.coins == want[0] and Progress.ranks == want[1] and Progress.unlocked == want[2], "coins, ranks and the highest level come back from the file")
+	t.check(Progress.owned == want[4], "the owned nodes come back from the file: %s" % [Progress.owned])
 	t.check(Progress.layouts.keys() == [1, 3] and _json(Progress.layouts) == want[3], "the layouts come back by level number")
 	t.check(Progress.layouts[1][1]["col"] == 30.0, "a layout comes back as JSON gave it")
 	var file := _saved()
 	t.check(file.get("version") == Progress.VERSION and file.get("layouts", {}).has("1"), "the file has its version and string level keys")
 	Progress.reset()
-	t.check(Progress.coins == 0 and Progress.ranks.is_empty() and Progress.layouts.is_empty(), "reset forgets everything in memory")
+	t.check(Progress.coins == 0 and Progress.ranks.is_empty() and Progress.owned.is_empty() and Progress.layouts.is_empty(), "reset forgets everything in memory")
 
 
 func _bad_saves(t: Node) -> void:
 	var path: String = Progress.path
 	var bad := path + ".bad"
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(bad))
-	_write(path, JSON.stringify({"coins": 50, "ranks": {"zap": 9, "gone": 2, "booster": "x"}, "unlocked": 2,
-			"layouts": {"2": [{"kind": "zap"}], "x": [], "4": "no"}, "future": true}))
+	_write(path, JSON.stringify({"version": 2, "coins": 50, "ranks": {"zap": 9, "gone": 2, "booster": "x"},
+			"owned": ["Zap", 3], "unlocked": 2, "layouts": {"2": [{"kind": "zap"}], "x": [], "4": "no"}, "future": true}))
 	Progress.use(path)
-	t.check(Progress.coins == 50 and Progress.unlocked == 2, "a save with no version and an unknown field keeps coins and level")
+	t.check(Progress.coins == 50 and Progress.unlocked == 2, "a save with an unknown field keeps coins and level")
 	t.check(Progress.ranks == ({&"zap": 1} as Dictionary[StringName, int]), "a rank above the top is lowered, and unknown ids and bad ranks are dropped")
+	t.check(Progress.owned == ([&"Zap"] as Array[StringName]), "a node name that is not a string is dropped")
 	t.check(Progress.layouts.keys() == [2], "only well-formed layouts are kept")
 	t.check(not FileAccess.file_exists(bad), "a readable save is not set aside")
+
+	# Version 1 had ranks and no node names: its ranks are refunded at today's prices, keys refund nothing.
+	var ps := Progress.upgrade(&"paddle_size")
+	var refund := ps.cost(0) + ps.cost(1) + ps.cost(2)
+	for version: Variant in [1, null]:
+		var v1 := {"coins": 50, "ranks": {"paddle_size": 3, "zap": 1}, "unlocked": 3, "layouts": {"1": []}}
+		if version:
+			v1.version = version
+		_write(path, JSON.stringify(v1))
+		Progress.use(path)
+		t.check(Progress.ranks.is_empty() and Progress.owned.is_empty() and Progress.coins == 50 + refund,
+				"a version %s save's ranks are dropped and refunded: %d coins, not %d" % [version, 50 + refund, Progress.coins])
+		t.check(Progress.unlocked == 3 and Progress.layouts.keys() == [1] and Progress.keys() == 2, "and it keeps the levels, the layouts and so the keys")
 
 	_write(path, JSON.stringify({"version": 1, "coins": "lots", "unlocked": 3}))
 	Progress.use(path)

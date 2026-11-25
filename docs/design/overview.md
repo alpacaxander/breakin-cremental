@@ -35,11 +35,11 @@ See also: [levels.md](levels.md), [physics.md](physics.md), [placeables.md](plac
 There is one save slot. It holds:
 
 - the coin balance
-- the rank of each upgrade
+- the rank of each upgrade, and which web nodes were bought (an owned node can be undone for a refund)
 - the highest level unlocked. Clearing the last level counts one past it, which is how the save knows the game is won
 - each level's placed layout (see [placeables.md](placeables.md#rules))
 
-Nothing else about a level in progress is saved. Settings are stored separately from the save slot.
+Nothing else about a level in progress is saved. The keys are not saved: they are counted from the levels cleared and the key upgrades owned. Settings are stored separately from the save slot.
 
 ## Level phases
 
@@ -58,7 +58,7 @@ Nothing else about a level in progress is saved. Settings are stored separately 
 | **Summary** | Shows the tally (bricks broken by type, hits that broke nothing, combos), the coins it pays, and whether the level was cleared. Two buttons: Retry goes back to Setup on the same level, and Upgrades returns to the hub. After a clear, Next takes Retry's place and opens the next level's Setup; the last level's clear keeps Retry. |
 
 - **Ball loss** ends the run immediately and goes to Summary. With several balls, only losing the last one ends the run. A held charge counts as a ball: it waits on the paddle, so losing the last ball in play leaves the charge to fire and the run goes on. So does a Power Brick's drop still on its way to the paddle, since it may yet be caught, and a Multiball volley with balls still to come (see [physics.md](physics.md#ball)).
-- **A clear** is a round whose score reaches the level's target (set per level, in [levels.md](levels.md)), however the round ends. It unlocks the next level. The score is the coins' points (see "Coins"): the hits and bricks and the combos. Reaching the target does not end the round. The HUD shows the score against the target.
+- **A clear** is a round whose score reaches the level's target (set per level, in [levels.md](levels.md)), however the round ends. It unlocks the next level, and a level's first clear pays one key (see [upgrades.md](upgrades.md#rules)). The score is the coins' points (see "Coins"): the hits and bricks and the combos. Reaching the target does not end the round. The HUD shows the score against the target.
 - **Breaking every level brick** ends the round. It is not a clear by itself unless the score has reached the target. Bricks the player placed don't count. With Overgrowth broken bricks come back after 8 s, but the round does not wait for them: breaking the last one standing still ends it.
 - **Special bricks are rolled again on every attempt**, including a retry.
 

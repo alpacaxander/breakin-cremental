@@ -118,7 +118,7 @@ A placeable brick with `unbreakable` set is a block: a ball bounces off it as of
 
 Every upgrade changes one named stat. Game code only reads stats.
 
-- **An upgrade** (`data/upgrades/*.tres`, script `src/content/upgrade.gd`) holds its title, category, effect text, first cost, cost growth, maximum rank, the stat it changes, the amount per rank, and whether the amount is a percent. `upgrade.cost(owned)` is the price of the next rank.
+- **An upgrade** (`data/upgrades/*.tres`, script `src/content/upgrade.gd`) holds its title, category, effect text, first cost, cost growth, maximum rank, whether it is a key upgrade (`key`: it costs one key and no coins, and its first cost is 0), the stat it changes, the amount per rank, and whether the amount is a percent. `upgrade.cost(owned)` is the price of the next rank.
 - **The base value** of each stat is in `data/balance.tres` (script `src/sim/balance.gd`, class `Balance`), as a typed property.
 - **`Progress.stat(name)`** returns the base value plus the amount for every rank owned. A percent amount is a share of the base value.
 - **`Progress.snapshot()`** returns a `Balance`: a copy of `balance.tres` with every stat replaced by `stat()`. The level screen takes one when a round starts and passes it to the round, so rules code reads `stats.ball_speed` and gets the upgraded value.
@@ -145,7 +145,7 @@ The demo's upgrades. The id is the file name in `data/upgrades/`:
 | `gold_brick`, `hourglass_brick`, `tough_brick` | `gold_count`, `hourglass_count`, `tough_count` | 1 |
 | `power_brick`, `zap`, `blast` | `power_count`, `zap_count`, `blast_count` | 1 |
 
-The web scene (`src/hub/web.tscn`) holds only layout: where each node sits, which `.tres` it shows, and which nodes it connects to. Whether a node can be reached yet is the hub's question; `Progress.buy` checks only the price and the maximum rank.
+The web scene (`src/hub/web.tscn`) holds only layout: where each node sits, which `.tres` it shows, and which nodes it connects to. Whether a node can be reached yet, and whether the web still hangs together after an undo, is the hub's question; `Progress.buy` checks only the price (coins, or a key) and the maximum rank, and `Progress.undo` only that a copy is owned.
 
 ### Other numbers
 
@@ -234,13 +234,13 @@ A render spike settled this in Godot 4.7.2 before any screen was built.
 
 | Autoload | Holds | Signals |
 |---|---|---|
-| `Progress` | The save slot: coins, upgrade ranks, highest level unlocked, each level's layout. Also `upgrades()`, `rank`, `cost`, `can_buy`, `buy`, `stat(name)`, `snapshot()`, `is_unlocked`, `is_cleared`, `finish_round`, `layout`, `set_layout` and `save()`. `level_count` is the number of levels, which a test may set | `coins_changed(coins)`, `rank_changed(upgrade)`, `level_unlocked(level)` |
+| `Progress` | The save slot: coins, upgrade ranks, the web nodes bought (`owned`), highest level unlocked, each level's layout. Also `upgrades()`, `rank`, `cost`, `keys()` (levels cleared less key upgrades owned), `can_buy`, `buy(u, node)`, `undo(u, node)`, `stat(name)`, `snapshot()`, `is_unlocked`, `is_cleared`, `finish_round`, `layout`, `set_layout` and `save()`. `level_count` is the number of levels, which a test may set | `coins_changed(coins)`, `rank_changed(upgrade)`, `level_unlocked(level)` |
 | `Settings` | CRT, reduce flashing, music volume, sound volume. It also sets the two bus volumes | `changed` |
 | `Sfx` | A constant for every cue, `play(cue, pitch)`, `start_music()`, and `connect_round(round)`, which wires a round's signals to their cues so no scene holds audio glue (see [audio.md](audio.md)). It also plays the click of every button itself, by listening for buttons entering the tree, except those in the group `Sfx.QUIET`; the header of `sfx.gd` says which screen plays each other UI cue. `Sfx.combo_pitch(count)` is the brick break's pitch at a combo count | `played(cue, player)`, for tests |
 
-- The save is `user://save.json` with a `version` field, so a later build can read an older save. Its shape is written at the top of `src/autoload/progress.gd`. Settings are `user://settings.cfg`.
+- The save is `user://save.json` with a `version` field, so a later build can read an older save (version 1 had no node names, so its ranks are refunded as coins). Its shape is written at the top of `src/autoload/progress.gd`. Settings are `user://settings.cfg`.
 - `user://` is `~/.local/share/breakin-cremental/` on Linux (a custom user dir), so the purged build's files under `godot/app_userdata/` are never read.
-- `Progress` saves after every purchase, after every round and when a layout changes.
+- `Progress` saves after every purchase and undo, after every round and when a layout changes.
 - `Progress.use(path)` and `Settings.use(path)` switch to another file. Tests and the screenshot harness call them, so they never touch the player's files.
 - Audio buses (`default_bus_layout.tres`): `Music` and `Sfx` feed `Master`, which has a limiter.
 - Nothing in `src/sim/` or `src/kinds/` touches an autoload.

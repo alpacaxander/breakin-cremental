@@ -34,15 +34,15 @@ const TABLE := {
 	&"Growth": ["Growth", Upgrade.Category.PLACEABLES, 2, "One more Growth area", 100, 4.5],
 	&"GrowthReach": ["Growth Reach", Upgrade.Category.PLACEABLES, 2, "Growth areas reach one square further", 300, 10.0],
 	&"PulseRate": ["Growth Pulses", Upgrade.Category.PLACEABLES, 2, "Growth pulses once more", 1000, 6.0],
-	&"Overgrowth": ["Overgrowth", Upgrade.Category.ARENA, 1, "Broken bricks grow back", 8000, 1.0],
+	&"Overgrowth": ["Overgrowth", Upgrade.Category.ARENA, 1, "Broken bricks grow back", 0, 1.0],
 	&"Guide": ["Guide", Upgrade.Category.ARENA, 4, "+250 guide length", 30, 4.0],
 	&"GuideBounces": ["Guide Bounces", Upgrade.Category.ARENA, 1, "The guide line bounces", 250, 1.0],
 	&"Multiball": ["Multiball", Upgrade.Category.ARENA, 3, "One more ball", 300, 5.0],
 	&"PowerBrick": ["Power Brick", Upgrade.Category.ABILITIES, 4, "One more Power Brick", 25, 4.0],
-	&"Zap": ["Zap", Upgrade.Category.ABILITIES, 1, "Unlocks Zap: a charged ball hits the rest of its brick's row", 60, 1.0],
+	&"Zap": ["Zap", Upgrade.Category.ABILITIES, 1, "Unlocks Zap: a charged ball hits the rest of its brick's row", 0, 1.0],
 	&"ZapRange": ["Zap Range", Upgrade.Category.ABILITIES, 2, "A Zap reaches 2 more bricks each way", 400, 5.0],
 	&"ZapDamage": ["Zap Damage", Upgrade.Category.ABILITIES, 2, "A Zap hits each brick once more", 800, 5.0],
-	&"Blast": ["Blast", Upgrade.Category.ABILITIES, 1, "Unlocks Blast: a charged ball sets off a blast at the brick it hits", 60, 1.0],
+	&"Blast": ["Blast", Upgrade.Category.ABILITIES, 1, "Unlocks Blast: a charged ball sets off a blast at the brick it hits", 0, 1.0],
 	&"BlastSize": ["Blast Size", Upgrade.Category.ABILITIES, 2, "Blasts reach one square further", 150, 20.0],
 	&"BlastDamage": ["Blast Damage", Upgrade.Category.ABILITIES, 2, "Blasts hit each brick once more", 300, 10.0],
 	&"Shockwave": ["Shockwave", Upgrade.Category.ABILITIES, 1, "Blasts throw balls", 600, 1.0],
@@ -201,6 +201,7 @@ func _paths() -> void:
 			path.push_front(PARENT[path[0]])
 		_seed("fresh")
 		Progress.coins = 9999
+		Progress.unlocked = 2  # level 1 cleared: the one key a path's Zap, Blast or Overgrowth costs
 		await _fresh_hub()
 		var buy: Button = _hub().get_node("Detail/%Buy")
 		for step: StringName in path:
